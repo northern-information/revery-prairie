@@ -33,6 +33,10 @@ import {
   EXPLOSION_COLORS,
   EXPLOSION_DURATION_MS,
   EXPLOSION_RADIUS,
+  FIRE_TICK_MS,
+  FIREPLACE_CHARS,
+  FIREPLACE_COLOR_A,
+  FIREPLACE_COLOR_B,
   FOG_EXPLORED_BRIGHTNESS,
   GENESIS_FONT_SIZE,
   getEntranceGlyph,
@@ -70,9 +74,6 @@ import {
   SHOOTING_STAR_HEAD_COLOR,
   SHOOTING_STAR_TRAIL_CHARS,
   SHOOTING_STAR_TRAIL_COLORS,
-  STEWARD_EXPLOSION_COLORS,
-  STEWARD_STAR_HEAD_COLOR,
-  STEWARD_STAR_TRAIL_COLORS,
   TILE_CHARS,
   TILE_COLORS,
   TRAIL_DURATION_MS,
@@ -645,10 +646,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
     if (!pos || !vel || !data) continue
     const map = data.landingTarget ? targetedStarMap : shootingStarMap
-    // Steward (player-spawn) star uses the UI-pink palette as a documented
-    // one-off; ambient and shower stars keep the white/gray palette.
-    const headColor = data.forPlayerSpawn ? STEWARD_STAR_HEAD_COLOR : SHOOTING_STAR_HEAD_COLOR
-    const trailColors = data.forPlayerSpawn ? STEWARD_STAR_TRAIL_COLORS : SHOOTING_STAR_TRAIL_COLORS
+    const headColor = SHOOTING_STAR_HEAD_COLOR
+    const trailColors = SHOOTING_STAR_TRAIL_COLORS
     // Head
     map.set(posKey(pos.x, pos.y), {
       char: SHOOTING_STAR_HEAD_CHAR,
@@ -863,12 +862,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const progress = Math.min(elapsed / EXPLOSION_DURATION_MS, 1)
     const currentRadius = Math.floor(progress * EXPLOSION_RADIUS)
     const charIndex = Math.min(Math.floor(progress * EXPLOSION_CHARS.length), EXPLOSION_CHARS.length - 1)
-    // Steward (player-spawn) impacts read the pink palette; all other
-    // explosions keep the gold palette.
-    const palette = effect.kind === 'stewardImpact' ? STEWARD_EXPLOSION_COLORS : EXPLOSION_COLORS
-    const colorIndex = Math.min(Math.floor(progress * palette.length), palette.length - 1)
+    const colorIndex = Math.min(Math.floor(progress * EXPLOSION_COLORS.length), EXPLOSION_COLORS.length - 1)
     const char = EXPLOSION_CHARS[charIndex]
-    const color = palette[colorIndex]
+    const color = EXPLOSION_COLORS[colorIndex]
 
     // Generate particles in a ring at the current radius
     if (currentRadius === 0) {
@@ -1291,7 +1287,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       const sessionColor = state.multiplayerSession ? PLAYER_COLORS[state.multiplayerSession.color].hex : PLAYER_COLOR
 
-      if (mx === player.x && my === player.y && state.playerSpawn.visible) {
+      if (mx === player.x && my === player.y) {
         if (previewTile) {
           ctx.fillStyle = previewTile.color
           ctx.fillText(previewTile.char, px, pyLift)
@@ -1463,6 +1459,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         } else {
           const tile = map[my][mx]
           char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
+          // Precis #33 — fireplace animation cycles through the three
+          // chars at FIRE_TICK_MS; color alternates between two warm
+          // tones at the same cadence.
+          if (tile.type === TileType.Fireplace) {
+            const fireTick = Math.floor(time / FIRE_TICK_MS)
+            char = FIREPLACE_CHARS[fireTick % FIREPLACE_CHARS.length]
+          }
           // Flora tiles: glyph + healthy color come from the per-species
           // FLORA_SPECIES registry. Dying-stage colors are shared across
           // species (the chromatic decline reads as "dying plant"
@@ -1533,6 +1536,10 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             }
           } else if (tile.type === TileType.Sand) {
             color = SAND_COLORS[tileHash(mx, my) % SAND_COLORS.length]
+          } else if (tile.type === TileType.Fireplace) {
+            // Precis #33 — fireplace color alternates at FIRE_TICK_MS.
+            const fireTick = Math.floor(time / FIRE_TICK_MS)
+            color = fireTick % 2 === 0 ? FIREPLACE_COLOR_A : FIREPLACE_COLOR_B
           } else {
             color = TILE_COLORS[tile.type]
           }
@@ -1601,7 +1608,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // body floats above the tallest possible cube.
       const isAngelPixel = angelMap.has(tileKey)
       const isOakPixel = oakMap.has(tileKey)
-      const isPlayerOwnTile = mx === player.x && my === player.y && state.playerSpawn.visible
+      const isPlayerOwnTile = mx === player.x && my === player.y
       if (isEntity || isPlayerOwnTile) {
         const angelLift = isAngelPixel ? -ANGEL_FLOAT_LIFT_PX : 0
         const tweenOffset = isAngelPixel ? angelTweenOffset.get(tileKey) : undefined
@@ -1708,7 +1715,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           ? TileType.CaveWall
           : tile?.type
       const sharedMultilayerArgs = {
-        isPlayer: mx === player.x && my === player.y && state.playerSpawn.visible,
+        isPlayer: mx === player.x && my === player.y,
         isEntity,
         hasPreview: previewTile !== undefined,
         isHighlighted: isAngelGroupHighlighted || isOakGroupHighlighted || isFacingEntity || isPendingTarget,

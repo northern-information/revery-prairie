@@ -1,5 +1,6 @@
 import { storeAngelCanto } from './angels'
-import { getCharacterDefinition, getCharacterDialog } from './characters'
+import { EMILY_DIALOG_AUTUMN, getCharacterDefinition, getCharacterDialog } from './characters'
+import { contributeDormancyPressure } from './omen'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { RuinRole } from './genesisTypes'
@@ -8,7 +9,7 @@ import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { invalidateMapCache } from './tileBgCache'
-import { MainQuestPhase, MoabState, TileType, Zone } from './types'
+import { MainQuestPhase, MoabState, Season, TileType, Zone } from './types'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
@@ -175,11 +176,44 @@ export const interactWithCharacter = (
   return { opened: true, gift: null, coyoteToggled: false }
 }
 
+/**
+ * Precis #33 — close the active dialog, with a cancel-Emily-invitation
+ * guard. If Emily's invitation was 'offered' but never reached 'confirmed'
+ * (the confirm path sets 'confirmed' BEFORE calling this), revert to
+ * 'unoffered' so the player can re-arm by re-engaging Emily.
+ */
+export const closeActiveDialog = (state: GameState): void => {
+  if (state.activeDialog?.characterId === 'emily' && state.emilyInvitation === 'offered') {
+    state.emilyInvitation = 'unoffered'
+  }
+  state.activeDialog = null
+}
+
 export const advanceDialog = (
   state: GameState,
   time?: number
 ): { continuing: boolean; gift: GiftAnnouncement | null } => {
   if (!state.activeDialog) return { continuing: false, gift: null }
+
+  // Precis #33 — invitation confirm: [f] while awaitingConfirmation is
+  // set commits dormancy pressure to threshold and closes the dialog.
+  // Runs BEFORE the typing-skip path so a second [f] press at the
+  // armed last line is interpreted as confirmation, not as a no-op.
+  if (state.activeDialog.awaitingConfirmation === true) {
+    try {
+      contributeDormancyPressure(state, 1.0)
+      state.emilyInvitation = 'confirmed'
+      recordDiscovery(state, 'event:emily-invitation-confirmed')
+    } catch (err) {
+      console.error('emily invitation confirm path threw', err)
+    } finally {
+      // emilyInvitation is already 'confirmed' here so closeActiveDialog
+      // is a no-op for the cancel guard — but route through it anyway
+      // for consistency.
+      closeActiveDialog(state)
+    }
+    return { continuing: false, gift: null }
+  }
 
   // If still typing, reveal the full line instantly
   if (!state.activeDialog.typingDone) {
@@ -187,6 +221,20 @@ export const advanceDialog = (
     const line = dialog[state.activeDialog.lineIndex]
     state.activeDialog.typingIndex = line.length
     state.activeDialog.typingDone = true
+    // Precis #33 — Emily's autumn invitation can also arm via the
+    // typing-skip path (player pressed [f] mid-typing to reveal the
+    // full last line). Mirror the tickDialogTyping arm logic.
+    if (
+      state.activeDialog.characterId === 'emily' &&
+      state.weather.season === Season.Autumn &&
+      state.revery === null &&
+      state.activeDialog.lineIndex === EMILY_DIALOG_AUTUMN.length - 1
+    ) {
+      state.activeDialog.awaitingConfirmation = true
+      if (state.emilyInvitation === 'unoffered') {
+        state.emilyInvitation = 'offered'
+      }
+    }
     return { continuing: true, gift: null }
   }
 
@@ -201,7 +249,7 @@ export const advanceDialog = (
   }
 
   const characterId = state.activeDialog.characterId
-  state.activeDialog = null
+  closeActiveDialog(state)
 
   // Gron has been saving these — release them when his sealed dialog closes.
   if (characterId === 'gron' && state.pendingSavedBees) {
@@ -256,6 +304,21 @@ export const tickDialogTyping = (state: GameState, now: number): void => {
   state.activeDialog.typingIndex++
   if (state.activeDialog.typingIndex >= line.length) {
     state.activeDialog.typingDone = true
+    // Precis #33 — Emily's autumn last line is the invitation. Arm
+    // awaitingConfirmation; flip emilyInvitation to 'offered' on the
+    // first arming this autumn. Suppressed if a Revery is already
+    // active (the precis-32 threshold-trigger gates on revery === null).
+    if (
+      state.activeDialog.characterId === 'emily' &&
+      state.weather.season === Season.Autumn &&
+      state.revery === null &&
+      state.activeDialog.lineIndex === EMILY_DIALOG_AUTUMN.length - 1
+    ) {
+      state.activeDialog.awaitingConfirmation = true
+      if (state.emilyInvitation === 'unoffered') {
+        state.emilyInvitation = 'offered'
+      }
+    }
   }
   state.lastDialogTypingTick = now
 }

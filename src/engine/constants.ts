@@ -45,6 +45,22 @@ export const TILE_CHARS: Record<TileType, string> = {
   // here is shown if the renderer can't resolve a per-position glyph
   // for any reason.
   [TileType.Egregore]: '?',
+  // Little house (precis #33). HouseEntrance uses Greek lowercase
+  // alpha — complements the cave's omega-shaped entrance glyph.
+  // Fireplace is sampled from FIREPLACE_CHARS at FIRE_TICK_MS cadence
+  // in the renderer; this fallback is rarely shown.
+  [TileType.HouseEntrance]: 'α',
+  [TileType.HouseApron]: '·',
+  [TileType.HouseFloor]: '·',
+  [TileType.HouseWall]: '#',
+  // Bed and chair render as floor glyphs — furniture identity lives on
+  // the tile type alone, not the on-screen character.
+  [TileType.HouseBed]: '·',
+  [TileType.HouseChair]: '·',
+  [TileType.Fireplace]: '^',
+  // Hearth — stone slab in front of the fireplace, walkable.
+  [TileType.HouseHearth]: '·',
+  [TileType.HouseExit]: '█',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -76,6 +92,21 @@ export const TILE_COLORS: Record<TileType, string> = {
   // Sits between the magenta wildflower (#D85FB7) and the cooler
   // ruin-aqueduct (#6688AA) without colliding with either.
   [TileType.Egregore]: '#B080D0',
+  // Little house (precis #33). Warm browns through the structure; the
+  // exit reuses the existing pink-door idiom (CaveExit / RuinExit also
+  // use `#ff69b4` — reserved user-action color per CLAUDE.md).
+  [TileType.HouseEntrance]: '#7A5A38',
+  [TileType.HouseApron]: '#5A4128',
+  [TileType.HouseFloor]: '#6B4A2B',
+  [TileType.HouseWall]: '#4A2F1B',
+  // Bed and chair use the same floor color so the glyph reads as floor;
+  // furniture identity is encoded only in the tile type.
+  [TileType.HouseBed]: '#6B4A2B',
+  [TileType.HouseChair]: '#6B4A2B',
+  [TileType.Fireplace]: '#FF8C42',
+  // Hearth — slightly darker than floor; reads as worn stone slab.
+  [TileType.HouseHearth]: '#7A5A38',
+  [TileType.HouseExit]: '#ff69b4',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering
@@ -116,12 +147,6 @@ export const SHOOTING_STAR_HEAD_CHAR = '*'
 export const SHOOTING_STAR_HEAD_COLOR = '#FFFFFF'
 export const SHOOTING_STAR_TRAIL_COLORS = ['#CCC', '#999', '#666', '#444', '#222']
 
-// Steward (player-spawn) star palette — UI pink carve-out documented in
-// player-spawn spec, steward-star-color. Only the forPlayerSpawn-flagged
-// star uses these. Ambient and shower stars stay on SHOOTING_STAR_*.
-export const STEWARD_STAR_HEAD_COLOR = '#ff69b4'
-export const STEWARD_STAR_TRAIL_COLORS = ['#ff8fc8', '#e85ba0', '#c4488a', '#9b3870', '#702855']
-
 // direction → trail character (keys are "dx,dy" velocity strings)
 export type VelocityKey = '1,1' | '-1,-1' | '1,-1' | '-1,1' | '1,0' | '-1,0' | '0,1' | '0,-1'
 
@@ -145,17 +170,12 @@ export const SHOOTING_STAR_TRAIL_CHARS: Record<VelocityKey, string> = {
 // No intermittent showers between anchors.
 export const METEOR_SHOWER_TICK_MS = 200
 export const METEOR_SHOWER_ANCHORS = [0.0, 0.25, 0.5, 0.75] as const
-// Jitter applied to summer/autumn/winter anchors so showers don't feel
-// metronomic. Spring fires at exactly 0.0 with no jitter because the
-// first spring shower of the run is the player-spawn ceremony.
+// Jitter applied to all shower anchors so they don't feel metronomic.
 // 0.01 of a year ≈ 12s with SEASONAL_PHASE_PERIOD_MS = 20min.
 export const METEOR_SHOWER_JITTER_PHASE = 0.01
 export const METEOR_SHOWER_STAR_COUNT_MIN = 8
 export const METEOR_SHOWER_STAR_COUNT_MAX = 12
 export const METEOR_SHOWER_SPAWN_WINDOW_MS = 4000
-
-// player spawn meteor — descent target window
-export const PLAYER_SPAWN_DESCENT_TARGET_MS = 2000
 
 // meteorites
 export const METEORITE_CHAR = '\u2726' // ✦ black four-pointed star
@@ -166,10 +186,6 @@ export const EXPLOSION_DURATION_MS = 500 // total explosion lifetime
 export const EXPLOSION_RADIUS = 3 // max radius in tiles
 export const EXPLOSION_CHARS = ['*', '+', '.', '\u00b7'] // particles shrink as they fade
 export const EXPLOSION_COLORS = ['#FFD700', '#FFC125', '#DAA520', '#B8860B', '#8B6914'] // gold → dark gold fade
-
-// Steward impact palette — UI pink ramp mirroring EXPLOSION_COLORS' gold ramp.
-// Used only when the explosion TimedEffect carries kind 'stewardImpact'.
-export const STEWARD_EXPLOSION_COLORS = ['#ff69b4', '#e85ba0', '#c4488a', '#9b3870', '#702855']
 
 // satellites
 export const SATELLITE_TICK_MS = 150 // slower than shooting stars (80ms)
@@ -569,4 +585,15 @@ export const POLLEN_BAG_CAPACITY = 4
 // Precis #17 — pollen burst TimedEffect. Spawned 2-4 per tick on the
 // leading annulus of an active ceremony wave. Fades over this duration.
 export const POLLEN_BURST_DURATION_MS = 600
+
+// Little house (precis #33). 30 x 18 deterministic interior. Fireplace
+// glyph cycles through FIREPLACE_CHARS at FIRE_TICK_MS; color alternates
+// between FIREPLACE_COLOR_A (orange) and FIREPLACE_COLOR_B (yellow) on
+// the same cadence.
+export const HOUSE_WIDTH = 15
+export const HOUSE_HEIGHT = 9
+export const FIRE_TICK_MS = 200
+export const FIREPLACE_CHARS = ['^', '~', '*'] as const
+export const FIREPLACE_COLOR_A = '#FF8C42'
+export const FIREPLACE_COLOR_B = '#FFD56B'
 

@@ -32,20 +32,25 @@ describe('summons sequence — Omen → Observing (precis #32)', () => {
     const state = createTestState()
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
+    // Precis #33 — capture the collapse tile expectation BEFORE
+    // tickRevery, since the Omen → Observing scene transition moves the
+    // steward to the house bed.
+    const expectedCollapse = { x: state.player.x, y: state.player.y }
     initiateRevery(state, 1000, OmenKind.CloudPassingSun)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
-    expect(state.revery?.summonsCollapseTile).toEqual({ x: state.player.x, y: state.player.y })
+    expect(state.revery?.summonsCollapseTile).toEqual(expectedCollapse)
   })
 
   it('mirrors the collapse tile onto state.collapsedStewardTile', () => {
     const state = createTestState()
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
+    const expectedCollapse = { x: state.player.x, y: state.player.y }
     initiateRevery(state, 1000, OmenKind.CloudPassingSun)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
-    expect(state.collapsedStewardTile).toEqual({ x: state.player.x, y: state.player.y })
+    expect(state.collapsedStewardTile).toEqual(expectedCollapse)
   })
 
   it('sets summonsAudioCue = true', () => {
@@ -62,13 +67,17 @@ describe('summons sequence — Omen → Observing (precis #32)', () => {
     const state = createTestState()
     setupSummonsState(state)
     const gron = placeGron(state, state.player.x + 5, state.player.y + 5)
+    // Precis #33 — Gron is teleported to a tile adjacent to the steward's
+    // PRE-scene-transition position (his current overworld spot at the
+    // moment of summons). Capture that before tickRevery.
+    const stewardAtSummons = { x: state.player.x, y: state.player.y }
     initiateRevery(state, 1000, OmenKind.CloudPassingSun)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     const gronPos = state.world.getComponent(gron, ComponentType.Position)
     expect(gronPos).toBeDefined()
-    const dx = Math.abs((gronPos?.x ?? 0) - state.player.x)
-    const dy = Math.abs((gronPos?.y ?? 0) - state.player.y)
+    const dx = Math.abs((gronPos?.x ?? 0) - stewardAtSummons.x)
+    const dy = Math.abs((gronPos?.y ?? 0) - stewardAtSummons.y)
     expect(dx + dy).toBe(1) // exactly cardinal-adjacent
   })
 
@@ -154,16 +163,18 @@ describe('Closing-phase egregoric commit + reset (precis #32)', () => {
     const state = createTestState()
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
-    // Ensure the collapse tile is Dirt so the commit eligibility check passes
+    // Ensure the collapse tile is Dirt so the commit eligibility check passes.
+    // Precis #33 — write to overworldMap explicitly; state.map swaps to the
+    // house interior at Omen → Observing.
     const px = state.player.x
     const py = state.player.y
-    state.map[py][px] = { type: TileType.Dirt }
+    state.overworldMap[py][px] = { type: TileType.Dirt }
     initiateRevery(state, 1000, OmenKind.CloudPassingSun)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // runs the summons sequence + Omen → Observing
     const before = state.egregorePositions.length
     advanceToClosing(state, 2000)
-    expect(state.map[py][px].type).toBe(TileType.Egregore)
+    expect(state.overworldMap[py][px].type).toBe(TileType.Egregore)
     expect(state.egregorePositions.length).toBe(before + 1)
     expect(state.egregorePositions[state.egregorePositions.length - 1]).toEqual({ x: px, y: py })
     expect(state.egregoreLifecycle.has(posKey(px, py))).toBe(true)
@@ -175,17 +186,15 @@ describe('Closing-phase egregoric commit + reset (precis #32)', () => {
     placeGron(state, state.player.x + 5, state.player.y + 5)
     const px = state.player.x
     const py = state.player.y
-    state.map[py][px] = { type: TileType.Dirt }
+    state.overworldMap[py][px] = { type: TileType.Dirt }
     initiateRevery(state, 1000, OmenKind.CloudPassingSun)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
-    // Mutate the tile to a non-Dirt type mid-Revery (some other system did it).
-    // The egregoric-commit eligibility check is strictly TileType.Dirt; anything
-    // else falls through to the silent-skip path.
-    state.map[py][px] = { type: TileType.Sand }
+    // Mutate the overworld tile to a non-Dirt type mid-Revery.
+    state.overworldMap[py][px] = { type: TileType.Sand }
     const before = state.egregorePositions.length
     advanceToClosing(state, 2000)
-    expect(state.map[py][px].type).toBe(TileType.Sand) // unchanged
+    expect(state.overworldMap[py][px].type).toBe(TileType.Sand) // unchanged
     expect(state.egregorePositions.length).toBe(before)
   })
 
@@ -195,12 +204,12 @@ describe('Closing-phase egregoric commit + reset (precis #32)', () => {
     placeGron(state, state.player.x + 5, state.player.y + 5)
     const px = state.player.x
     const py = state.player.y
-    state.map[py][px] = { type: TileType.Dirt }
+    state.overworldMap[py][px] = { type: TileType.Dirt }
     initiateRevery(state, 1000, OmenKind.BeeOnShoulder) // non-summons
     tickRevery(state, 0, 1000)
     const before = state.egregorePositions.length
     advanceToClosing(state, 2000)
-    expect(state.map[py][px].type).toBe(TileType.Dirt)
+    expect(state.overworldMap[py][px].type).toBe(TileType.Dirt)
     expect(state.egregorePositions.length).toBe(before)
   })
 

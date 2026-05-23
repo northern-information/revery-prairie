@@ -1101,8 +1101,8 @@ features:
       the spec; the house is its own explanation.
     depends_on: ['32']
     status: in-progress
-    spec: null
-    plan: null
+    spec: harness/specs/precis-33-little-house-and-emily.yaml
+    plan: harness/plans/precis-33-little-house-and-emily.yaml
     pr: null
     notes: >
       v6 thinktank round 2 (2026-05-22). Resolves Round 1's open
@@ -1159,6 +1159,18 @@ features:
       a new zone sibling to the cave where Revery Knots accumulate after
       each Revery. _The unchanged thing that waits is named Emily, and
       she has been in cahoots with the coyote the whole time._
+
+
+      Spec + plan land 2026-05-23 (`harness/specs/precis-33-little-house-
+      and-emily.yaml`, `harness/plans/precis-33-little-house-and-emily.
+      yaml`). Design clarification locked during spec gathering: the
+      Revery scene is the house interior, regardless of where in the
+      world the pressure trip occurs. Confirm-in-house and field-summons
+      both end with the steward in the bed and Emily in the chair —
+      _fade to black. fade to house. revery begins._ The falling-star
+      spawn ceremony is dropped wholesale (the player now spawns inside
+      the house at tenure start). The Revery Knots pool and the root
+      cellar (`#37`) remain out-of-scope for this PR.
 
   - id: '34'
     name: The tenure opens in the little house

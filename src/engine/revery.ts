@@ -9,12 +9,13 @@
 // See harness/specs/precis-4-the-revery.yaml for the locked behaviors and
 // docs/claude/revery.md for the full doctrine summary.
 
+import { updateCamera } from './camera'
 import { REVERY_YEARS_PER_FRAME } from './constants'
 import { ComponentType } from './ecs/types'
 import { advanceEgregoreInRevery, commitEgregoreTiles } from './egregore/spread'
 import { pickAdjacentWalkableTile } from './interaction'
 import { resolvePhenotypeLabel } from './phenotype'
-import { FloraSpecies, OmenKind, ReveryPhase, TileType } from './types'
+import { FloraSpecies, OmenKind, ReveryPhase, TileType, Zone } from './types'
 
 import type {
   GameState,
@@ -115,10 +116,15 @@ const REVERY_DURATION_YEARS = 1.0
 const runSummonsSequence = (state: GameState, r: ReveryState): void => {
   if (r.summons !== true) return
   // Capture the steward's tile before any state mutation.
+  // Precis #33 — only meaningful when the steward is on the overworld at
+  // Omen. If they're already inside the house (confirm-in-house path),
+  // there is no overworld collapse tile to commit at Closing.
   const collapseTile = { x: state.player.x, y: state.player.y }
-  r.summonsCollapseTile = collapseTile
+  if (state.currentZone === Zone.Overworld) {
+    r.summonsCollapseTile = collapseTile
+    state.collapsedStewardTile = collapseTile
+  }
   r.summonsAudioCue = true
-  state.collapsedStewardTile = collapseTile
   // Find Gron's entity and teleport adjacent to the steward.
   let gronEid: number | null = null
   for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
@@ -155,6 +161,77 @@ const runSummonsSequence = (state: GameState, r: ReveryState): void => {
   }
 }
 
+// Precis #33 — the Revery scene is always the house interior. Called at
+// the Omen → Observing transition. Performs an immediate synchronous
+// zone swap if the steward is not already inside; then repositions the
+// steward to the bed and Emily to her chair. The existing fade between
+// Omen and Observing covers the visual gap. The collapse tile field
+// from precis #32 is preserved on r.summonsCollapseTile so Closing can
+// commit on the overworld map regardless of where the player ended up.
+const transitionToHouseScene = (state: GameState): void => {
+  // Skip cleanly if the house buffers aren't initialized (defensive —
+  // tests can construct partial states).
+  if (!state.houseMap || state.houseMap.length === 0) return
+
+  if (state.currentZone !== Zone.HouseInterior) {
+    state.map = state.houseMap
+    state.mapWidth = state.houseMapWidth
+    state.mapHeight = state.houseMapHeight
+    state.currentZone = Zone.HouseInterior
+    state.path = null
+    state.pathWaypoints = []
+    state.pendingAction = null
+    state.pendingInteractionTarget = null
+    state.heldDirection = null
+    state.previewFn = null
+    state.facingEntityPos = null
+    state.trail = []
+  }
+
+  // Reposition steward to the bed; face left so the steward visually
+  // rests with their head toward the wall.
+  state.player = { x: state.houseBedInterior.x, y: state.houseBedInterior.y }
+  state.playerFacing = 'left'
+
+  // Capture Emily's idle position and move her to the chair.
+  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+    const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (ident?.definitionId !== 'emily') continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (!pos) continue
+    state.emilyReveryReturn = { x: pos.x, y: pos.y }
+    state.world.spatial.move(eid, pos.x, pos.y, state.houseChairInterior.x, state.houseChairInterior.y)
+    pos.x = state.houseChairInterior.x
+    pos.y = state.houseChairInterior.y
+    break
+  }
+
+  updateCamera(state)
+}
+
+// Precis #33 — Closing-phase revert. Restore Emily to her idle position
+// and reset emilyInvitation so she can offer again next autumn. Steward
+// stays on the bed and walks off at their pace.
+const revertHouseScene = (state: GameState): void => {
+  if (state.emilyReveryReturn) {
+    for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+      const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+      if (ident?.definitionId !== 'emily') continue
+      const pos = state.world.getComponent(eid, ComponentType.Position)
+      if (!pos) continue
+      const dest = state.emilyReveryReturn
+      state.world.spatial.move(eid, pos.x, pos.y, dest.x, dest.y)
+      pos.x = dest.x
+      pos.y = dest.y
+      break
+    }
+  }
+  state.emilyReveryReturn = null
+  if (state.emilyInvitation === 'confirmed') {
+    state.emilyInvitation = 'unoffered'
+  }
+}
+
 // Per-frame state machine. Called by gameLoop AFTER the dormancy-pressure
 // tick (precis #32) and BEFORE input handlers, so the Omen → Observing
 // transition is reflected before movePlayer / keyboard tick this frame.
@@ -166,6 +243,12 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
     // Precis #32 — summons sequence runs BEFORE the standard phase flip so
     // that getGronDialog sees phase === Omen when the dialog opens.
     runSummonsSequence(state, r)
+    // Precis #33 — Revery scene is always the little house. Skip the
+    // scene swap for non-summons Reveries (only used by legacy test
+    // paths; production code only enters Revery via summons).
+    if (r.summons === true) {
+      transitionToHouseScene(state)
+    }
     r.phase = ReveryPhase.Observing
     // Belt-and-suspenders: clear input intent again now that the lock is live.
     state.path = null
@@ -192,7 +275,20 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
       // first Revery places 3 (preserves precis-4 contract); subsequent
       // Reveries place 6–9. state.reveryCount increments in Closing, so
       // it reflects the *current* Revery here.
+      // Precis #33 — state.map points at the house interior during the
+      // Revery scene. The egregoric advance operates on the OVERWORLD
+      // map (it reads/writes existing egregore positions across the
+      // prairie). Swap to overworldMap for the call, then restore.
+      const savedMap = state.map
+      const savedW = state.mapWidth
+      const savedH = state.mapHeight
+      state.map = state.overworldMap
+      state.mapWidth = state.overworldMapWidth
+      state.mapHeight = state.overworldMapHeight
       const placed = advanceEgregoreInRevery(state, time)
+      state.map = savedMap
+      state.mapWidth = savedW
+      state.mapHeight = savedH
       if (placed.length > 0) {
         r.scheduledChanges.push({ kind: 'egregore-grew', payload: { positions: placed } })
       }
@@ -204,16 +300,32 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
   if (r.phase === ReveryPhase.Closing) {
     state.reveryCount += 1
     state.lastReveryEndTime = time
-    // Precis #32 — Closing-phase egregoric commit: if this was a summons
-    // Revery and the steward's collapse tile is still Dirt, the prairie
-    // metabolizes the spot the steward fell. Skipped silently if the tile
-    // is no longer eligible (water, wall, flora, ruin, etc.).
+    // Precis #32 — Closing-phase egregoric commit. The collapse tile
+    // was captured at Omen on whatever map was active then; we must
+    // commit on the OVERWORLD map (precis #33 — when the steward
+    // confirms inside the house, the captured tile is on the house
+    // floor and is silently skipped here; when the field-summons path
+    // fires, the captured tile is on the overworld and is committed).
+    // Swap state.map to overworldMap for the commit so commitEgregoreTiles
+    // writes to the correct grid, then restore.
     if (r.summons === true && r.summonsCollapseTile) {
       const { x, y } = r.summonsCollapseTile
-      if (state.map[y]?.[x]?.type === TileType.Dirt) {
+      if (state.overworldMap[y]?.[x]?.type === TileType.Dirt) {
+        const savedMap = state.map
+        const savedW = state.mapWidth
+        const savedH = state.mapHeight
+        state.map = state.overworldMap
+        state.mapWidth = state.overworldMapWidth
+        state.mapHeight = state.overworldMapHeight
         commitEgregoreTiles(state, [r.summonsCollapseTile], time)
+        state.map = savedMap
+        state.mapWidth = savedW
+        state.mapHeight = savedH
       }
     }
+    // Precis #33 — restore Emily to her idle position; reset
+    // emilyInvitation so the cycle can repeat next autumn.
+    revertHouseScene(state)
     // Precis #32 — pressure reset. Belt-and-suspenders with the Autumn →
     // Winter safety reset in gameLoop. dormancyPressure must zero out so
     // the next autumn starts from baseline.

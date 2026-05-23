@@ -19,10 +19,8 @@ const createTestState = (): GameState => {
   for (const eid of state.world.query(ComponentType.ShootingStarData)) {
     state.world.destroyEntity(eid)
   }
-  // Mark the spawn ceremony as already complete so cardinal showers under
-  // test do not steal a star for the steward. Individual tests that exercise
-  // the spawn ceremony reset triggeredAt back to 0 explicitly.
-  state.playerSpawn.triggeredAt = 1
+  // Precis #33 — the falling-star spawn ceremony was removed; no marker
+  // needed.
   return state
 }
 

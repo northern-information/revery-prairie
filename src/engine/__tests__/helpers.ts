@@ -4,12 +4,12 @@ import { createCharacterEntity } from '../entities'
 import { createEmptyFloraGrowthPreviews } from '../floraGrowthPreviews'
 import { completeGenesis, createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from '../genesis'
 import { isInBounds } from '../position'
-import { createGameState } from '../state'
-import { Season, Sky, TileType } from '../types'
+import { createGameState, enterHouseAtTenureStart } from '../state'
+import { Season, Sky, TileType, Zone } from '../types'
 
 import type { Entity } from '../ecs/types'
 import type { GenesisSimState } from '../genesisTypes'
-import type { CharacterBehavior, GameState, Zone } from '../types'
+import type { CharacterBehavior, GameState } from '../types'
 
 // Run genesis once at module load — 174ms amortized across all tests in a file.
 const _cachedSim = (() => {
@@ -43,7 +43,11 @@ const cloneGenesis = (): GenesisSimState => ({
  * gameplay-specific content. Reuses a cached genesis result to avoid
  * running the expensive geological simulation on every call.
  */
-export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?: number }): GameState => {
+export const createTestState = (opts?: {
+  viewportWidth?: number
+  viewportHeight?: number
+  keepHouseSpawn?: boolean
+}): GameState => {
   const state = createGameState('Test', opts?.viewportWidth ?? 20, opts?.viewportHeight ?? 20, cloneGenesis())
   // Complete genesis immediately so tests start in normal gameplay mode.
   // skipTitleCard so isInputGated returns false — tests expect input to
@@ -98,15 +102,34 @@ export const createTestState = (opts?: { viewportWidth?: number; viewportHeight?
   // summer solstice at 0.25). With mid-range temp, deriveSeason returns
   // Spring. Don't use 0.25 here — that's now the summer-solstice anchor.
   state.seasonalPhase = 0.125
-  // Mark the spawn ceremony as already completed — tests that don't exercise
-  // it should see a visible, movable player even when running the game loop.
-  state.playerSpawn = {
-    visible: true,
-    spawnPos: { ...state.player },
-    meteorEntityId: null,
-    triggeredAt: 1,
+  // Precis #33 — createGameState now defaults to overworld start;
+  // production paths opt into the house spawn via enterHouseAtTenureStart.
+  // The keepHouseSpawn option lets a test exercise the production house
+  // start.
+  if (opts?.keepHouseSpawn === true) {
+    enterHouseAtTenureStart(state)
   }
   return state
+}
+
+/**
+ * Precis #33 — production createGameState now spawns the player inside
+ * the little house. Tests that use createGameState directly (not via
+ * createTestState) and assume the legacy overworld context should call
+ * this helper to swap state.map back to the overworld and place the
+ * player at the cave-adjacent default position.
+ */
+export const swapToOverworldForTest = (state: GameState): void => {
+  state.map = state.overworldMap
+  state.mapWidth = state.overworldMapWidth
+  state.mapHeight = state.overworldMapHeight
+  state.currentZone = Zone.Overworld
+  state.player = { x: Math.floor(state.overworldMapWidth / 2) - 1, y: Math.floor(state.overworldMapHeight / 2) }
+  state.playerFacing = 'down'
+  state.camera = {
+    x: state.player.x - Math.floor(state.viewportWidth / 2),
+    y: state.player.y - Math.floor(state.viewportHeight / 2),
+  }
 }
 
 /**

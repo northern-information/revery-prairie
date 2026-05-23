@@ -50,7 +50,6 @@ export interface ComponentDataMap {
       | 'lightning'
       | 'wildfire'
       | 'satelliteImpact'
-      | 'stewardImpact'
       | 'pollenBurst'
       | 'clickTarget'
     startTime: number
@@ -64,7 +63,6 @@ export interface ComponentDataMap {
     age: number
     willLand: boolean
     landingTarget: Position | null
-    forPlayerSpawn?: boolean
   }
   [ComponentType.MultiPosition]: { positions: Position[] }
 

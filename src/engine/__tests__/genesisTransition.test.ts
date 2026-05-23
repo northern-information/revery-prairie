@@ -118,10 +118,9 @@ describe('boot title card', () => {
       }
     })
 
-    it('initializes playerSpawn with triggeredAt=0 — the gameloop trigger has not fired yet', () => {
+    it('precis #33 — no playerSpawn field exists on the state shape', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
-      expect(state.playerSpawn.triggeredAt).toBe(0)
-      expect(state.playerSpawn.meteorEntityId).toBeNull()
+      expect((state as unknown as { playerSpawn?: unknown }).playerSpawn).toBeUndefined()
     })
   })
 

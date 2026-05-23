@@ -1,0 +1,1050 @@
+plan:
+  id: precis-33-little-house-and-emily
+  title: 'The little house and Emily — house structure as zone, Emily character with seasonal dialog, [f]-confirm Revery, Revery-in-house scene, drop the falling-star spawn'
+  created: 2026-05-23
+  # Cross-cutting: changes GameState shape (adds houseMap*, houseEntrance*,
+  # houseBedInterior, houseChairInterior, emilyInvitation, emilyReveryReturn;
+  # removes playerSpawn), widens TileType / Zone / ZoneTransitionKind, extends
+  # ReveryState handling. Genesis path, renderer, movement, interaction,
+  # celestial spawn pipeline all touched. Full suite required.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + docs ---
+
+  - id: doctrine-status-update
+    title: >
+      Flip precis #33 from todo to in-progress in docs/precis-status.yaml.
+      Set spec_path and plan_path on the #33 entry. Add a paragraph to the
+      notes summarizing the v6 round 2 + 6 lock and the design clarification
+      from 2026-05-23: the Revery scene is always the house, regardless of
+      where pressure trips threshold. Update docs/claude/zones.md with a
+      "House interior (precis #33)" section describing the 30 × 18
+      deterministic layout, the door at south wall center, the fireplace
+      at north wall center, Emily west of the fireplace, the bed on the
+      east wall, the chair on the west wall, and the warm-brown palette
+      direction. Update docs/claude/revery.md with a paragraph under a
+      "Revery scene — the little house (precis #33)" subhead describing
+      the Omen → Observing scene swap (immediate, covered by the existing
+      fade) and the Emily-to-chair / steward-to-bed reposition. Update
+      docs/claude/state.md to document field ownership: houseMap (created
+      by createHouseInterior, swapped by enterHouse/exitHouse);
+      houseEntranceOverworld (placed by state.ts during createGameState);
+      houseEntranceInterior / houseBedInterior / houseChairInterior
+      (constants populated by createHouseInterior); emilyInvitation
+      (written by interaction.ts dialog tick and Closing); emilyReveryReturn
+      (written by revery.ts at Omen → Observing and cleared at Closing);
+      activeDialog.awaitingConfirmation (written by dialog tick during
+      Emily's autumn last line, cleared by any dialog-close path). Update
+      docs/claude/entities.md with an Emily entry under Characters
+      (stationary, house-interior zone-tagged, [f]-interaction routes
+      through getEmilyDialog).
+    spec_id: precis-33-little-house-and-emily
+    spec_sections: []
+    context_files:
+      - docs/precis-status.yaml
+      - docs/claude/zones.md
+      - docs/claude/revery.md
+      - docs/claude/state.md
+      - docs/claude/entities.md
+    output_files:
+      - docs/precis-status.yaml
+      - docs/claude/zones.md
+      - docs/claude/revery.md
+      - docs/claude/state.md
+      - docs/claude/entities.md
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Types, constants, schema ---
+
+  - id: add-tile-zone-types
+    title: >
+      Extend src/engine/types.ts: (1) append eight new TileType variants —
+      HouseEntrance, HouseApron, HouseFloor, HouseWall, HouseBed,
+      HouseChair, Fireplace, HouseExit. (2) Append Zone.HouseInterior to
+      the Zone enum. (3) Widen ZoneTransitionKind from `'cave' | 'ruin'` to
+      `'cave' | 'ruin' | 'house'`. (4) Extend the activeDialog inline shape
+      with an optional `awaitingConfirmation?: boolean`. (5) DELETE the
+      PlayerSpawn interface (currently at types.ts:905) and the
+      `playerSpawn: PlayerSpawn` field on GameState (types.ts:378). No
+      other field shapes change in this task — the new GameState fields
+      land in the next task to keep diffs reviewable.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - house-tile-types
+      - house-zone-and-interior
+      - house-zone-transitions
+      - emily-invitation-arm
+      - remove-falling-star-spawn
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-house-state-fields
+    title: >
+      Extend GameState in src/engine/types.ts with six new fields:
+      `houseMap: Tile[][]`, `houseMapWidth: number`, `houseMapHeight: number`,
+      `houseEntranceOverworld: Position`, `houseEntranceInterior: Position`,
+      `houseBedInterior: Position`, `houseChairInterior: Position`,
+      `emilyInvitation: 'unoffered' | 'offered' | 'confirmed'`,
+      `emilyReveryReturn: Position | null`. (Note: nine field additions —
+      the title says six but lists nine; trust the list, not the count.)
+      The fields are placed alphabetically near other house/emily-related
+      fields if the existing order is alphabetical, otherwise grouped at
+      the bottom of the interface block. No initialization here —
+      createGameState wiring happens later in the integration task.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - house-zone-and-interior
+      - house-overworld-placement
+      - emily-invitation-state-field
+      - revery-house-scene
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on:
+      - add-tile-zone-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: update-schema-expected-fields
+    title: >
+      Update EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts.
+      REMOVE: 'playerSpawn'. ADD: 'houseMap', 'houseMapWidth', 'houseMapHeight',
+      'houseEntranceOverworld', 'houseEntranceInterior', 'houseBedInterior',
+      'houseChairInterior', 'emilyInvitation', 'emilyReveryReturn'. Also
+      update any inline test that asserts the shape of state.activeDialog
+      to permit the optional awaitingConfirmation field (do NOT require it).
+      Update the Zone enum coverage test (if present) to include
+      'houseInterior' as a valid currentZone value. This task DOES NOT
+      attempt to run the test green — the assertions will fail until the
+      genesis integration lands. The schema-test update lives in tier 1
+      so the type system stays internally consistent.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - schema-test-fields
+      - remove-falling-star-spawn
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-house-state-fields
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - test
+
+  - id: add-house-constants-remove-spawn-constants
+    title: >
+      Extend src/engine/constants.ts. ADD: `FIRE_TICK_MS = 200` (fireplace
+      animation cadence — fast enough to read as fire, slow enough not to
+      flicker); `FIREPLACE_COLOR_A = '#FF8C42'`, `FIREPLACE_COLOR_B = '#FFD56B'`
+      (two warm tones cycled at the same cadence); HOUSE color palette
+      constants (`HOUSE_FLOOR_COLOR = '#6B4A2B'`, `HOUSE_WALL_COLOR = '#4A2F1B'`,
+      `HOUSE_BED_COLOR = '#A88660'`, `HOUSE_CHAIR_COLOR = '#A88660'`,
+      `HOUSE_ENTRANCE_COLOR = '#7A5A38'`, `HOUSE_APRON_COLOR = '#5A4128'`
+      — picked to read as warm browns against the existing prairie
+      palette; humans can tweak post-merge). HouseExit color reuses the
+      existing pink-door idiom — `#ff69b4`, the reserved user-action
+      hot pink already used by CaveExit and RuinExit per CLAUDE.md.
+      Do NOT add a separate HOUSE_EXIT_COLOR constant — reference the
+      existing pink value directly in the TILE_COLORS entry.
+      REMOVE: `PLAYER_SPAWN_DESCENT_TARGET_MS`, `STEWARD_STAR_HEAD_COLOR`,
+      `STEWARD_STAR_TRAIL_COLORS`. Document each new constant with a
+      single-line comment. Do not touch any other constant in the file.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - fireplace-animation
+      - house-tile-types
+      - remove-falling-star-spawn
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on:
+      - add-house-state-fields
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 2: House module ---
+
+  - id: create-house-module
+    title: >
+      Create src/engine/house.ts. Export `createHouseInterior()` which
+      returns `{ map: Tile[][], width: number, height: number,
+      exitInterior: Position, spawnInterior: Position, bedInterior: Position,
+      chairInterior: Position }` with the deterministic 30 × 18 layout:
+      perimeter HouseWall, HouseFloor interior, Fireplace at (15, 0),
+      HouseBed at (28, 8), HouseChair at (2, 8). The south wall has a
+      3-wide pink-door opening: three HouseExit tiles at (14, 17),
+      (15, 17), (16, 17) — following the existing cave/ruin pink-door
+      exit idiom. exitInterior is set to the MIDDLE of the three:
+      {x: 15, y: 17}. spawnInterior = (15, 16) (one tile north of the
+      middle exit); bedInterior = (28, 8); chairInterior = (2, 8).
+      Export `enterHouse(state)` and `exitHouse(state)` mirroring
+      cave.ts:189-253 — enterHouse swaps state.map/state.mapWidth/
+      state.mapHeight to the house buffers, sets state.currentZone =
+      Zone.HouseInterior, sets state.player = state.houseEntranceInterior,
+      clears navigation state (path, pathWaypoints, pendingAction,
+      pendingInteractionTarget, heldDirection, previewFn, facingEntityPos,
+      activeDialog, trail), calls clearAllGrowthPreviews, clearMovementTweens,
+      deselectAll, clearAllUnitCommands, calls recordDiscovery(state,
+      'zone:house'). exitHouse mirrors with state.overworldMap*, sets
+      currentZone = Zone.Overworld, places player via findSafeExitPosition
+      from state.houseEntranceOverworld with a Chebyshev distance >= 2.
+      Export `checkHouseTransition(state)` mirroring cave.ts:255-288 —
+      overworld 3x3 hitbox scan for TileType.HouseEntrance triggers a
+      scheduleZoneTransition('house', 'enter', irisCenter); house interior
+      step onto a TileType.HouseExit triggers
+      scheduleZoneTransition('house', 'exit', irisCenter). Register
+      handlers via `registerZoneSwapHandler('house', 'enter', state => {
+      enterHouse(state) })` and the 'exit' equivalent — module-load side
+      effect, same pattern as cave.ts:294-299.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - house-zone-and-interior
+      - house-zone-transitions
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/movement.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/house.ts
+    depends_on:
+      - add-house-constants-remove-spawn-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-house-check-into-cave-checkTransition
+    title: >
+      Extend src/engine/cave.ts:255 (checkTransition) to also call
+      checkHouseTransition(state) from src/engine/house.ts — return true
+      if it returns true. The current return value chain is: (1) cave
+      overworld 3x3 scan, (2) cave interior CaveExit scan, (3) checkRuinTransition.
+      Add (4) checkHouseTransition between (3) and the final return false.
+      Mirror the existing import pattern (lazy import or top-of-file
+      named import — match whichever style cave.ts uses for ruins).
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - house-zone-transitions
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/house.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/cave.ts
+    depends_on:
+      - create-house-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 3: Genesis integration (state.ts) ---
+
+  - id: place-house-entrance-in-genesis
+    title: >
+      Extend src/engine/state.ts createGameState. After the cave entrance
+      placement loop (state.ts:94-153), add a parallel HouseEntrance
+      placement loop with the same algorithm: ring around Gron with
+      Chebyshev distance in [rainRadius+1, rainRadius+4], up to 500
+      attempts, footprint clearance against ponds, river paths, Space,
+      and the structural-preservation set EXTENDED to also include
+      CaveEntrance and CaveApron so the house cannot land on top of the
+      cave. The angle picked from Math.random() is constrained to the
+      west half: `const angle = Math.PI / 2 + Math.random() * Math.PI`
+      (range π/2 to 3π/2, biasing the candidate west of Gron). Fall back
+      to a deterministic west offset (gronX - minHouseDist, gronY) if
+      500 attempts exhaust without a valid candidate (mirror cave's
+      fallback). On the selected tile: set map[y][x] = { type:
+      TileType.HouseEntrance }; convert the 8 neighbors to HouseApron
+      using the same PRESERVE_FROM_APRON_OVERWRITE pattern (extended to
+      include CaveEntrance, CaveApron, RuinEntrance, RuinApron, RuinWall,
+      RuinDoorLocked, RuinDoorOpen, RuinAqueduct). Store the chosen
+      position in a local variable to be assigned to state.houseEntranceOverworld
+      in the GameState construction block.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - house-overworld-placement
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - create-house-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: build-house-interior-and-spawn-player-inside
+    title: >
+      Extend src/engine/state.ts createGameState. After the cave interior
+      generation (state.ts:88), call `const houseInterior =
+      createHouseInterior()` from house.ts. In the GameState construction
+      block (state.ts:161+), set: houseMap = houseInterior.map,
+      houseMapWidth = houseInterior.width, houseMapHeight = houseInterior.height,
+      houseEntranceInterior = houseInterior.spawnInterior,
+      houseBedInterior = houseInterior.bedInterior, houseChairInterior =
+      houseInterior.chairInterior, houseEntranceOverworld = the local
+      from the previous task, emilyInvitation = 'unoffered',
+      emilyReveryReturn = null. REPLACE the player initialization at
+      state.ts:166: instead of `player: { x: playerX, y: playerY }` (which
+      is currently gronX-1, gronY on the overworld), set `player:
+      houseInterior.spawnInterior` and set `currentZone: Zone.HouseInterior`
+      instead of the overworld default. Set `map: houseInterior.map`,
+      `mapWidth: houseInterior.width`, `mapHeight: houseInterior.height`
+      so the active buffers are the house interior. The overworld buffers
+      must still be stored on state.overworldMap / state.overworldMapWidth
+      / state.overworldMapHeight so that exitHouse can swap back — verify
+      the existing field assignment for those (already present from cave
+      work) is preserved. Set playerFacing = 'up'. Camera initialization
+      uses the new player coords (no change to the camera assignment
+      pattern). DELETE the playerSpawn initialization block at
+      state.ts:223-228 entirely. Compute camera.x and camera.y centered
+      on the new house-interior player position.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - house-zone-and-interior
+      - player-starts-inside-house
+      - remove-falling-star-spawn
+    context_files:
+      - src/engine/state.ts
+      - src/engine/house.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - place-house-entrance-in-genesis
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 4: Emily character + dialog ---
+
+  - id: add-emily-character-and-dialog
+    title: >
+      Extend src/engine/characters.ts. Add 'emily' to the CHARACTERS const:
+      `emily: { name: 'Emily', glyph: 'E', glyphColor: '#FFDDA8', dialog:
+      ['...', 'TODO: emily default line'] }` — the static dialog field is
+      the fallback for non-dispatcher callers (legacy tests, snapshot
+      fixtures), per the existing Moab / Gron pattern. Add four module-
+      level seasonal dialog constants alongside the existing
+      MOAB_DIALOG_* / GRON_DIALOG_* blocks: EMILY_DIALOG_WINTER,
+      EMILY_DIALOG_SPRING, EMILY_DIALOG_SUMMER, EMILY_DIALOG_AUTUMN. Each
+      is an array of three strings: `['...', 'TODO: emily {season} line
+      1', 'TODO: emily {season} line 2']`. EMILY_DIALOG_AUTUMN's last
+      element is `'TODO: emily autumn invitation'` — this is the
+      invitation line that arms awaitingConfirmation. Add a getEmilyDialog
+      dispatcher that returns the array keyed by state.weather.season
+      (matching the getMoabDialog pattern at characters.ts:188-204).
+      Extend getCharacterDialog (line 206) with `if (characterId ===
+      'emily') return getEmilyDialog(state)` as the third branch after
+      gron and moab. Per feedback_manual_lore_only.md, NO Emily dialog
+      content is human-written by this task — all lines are TODO
+      placeholders.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - emily-character-entity
+      - emily-seasonal-dialog
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - build-house-interior-and-spawn-player-inside
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: spawn-emily-entity-in-genesis
+    title: >
+      Extend src/engine/state.ts createGameState. After the GameState
+      construction block, locate the character-entity creation site (Gron,
+      Moab, Coyote are spawned via createCharacterEntity — find the
+      analogous call). Add a createCharacterEntity call for Emily with
+      characterId='emily' at the absolute coords `{ x:
+      state.houseEntranceOverworld.x, y: state.houseEntranceOverworld.y }`
+      tagged with EntityZone for HouseInterior — BUT note that her position
+      is recorded in the entity's Position component as the INTERIOR
+      coords `{x: 14, y: 1}` not the overworld coords (entities in a
+      non-current zone are stored with their zone-local coordinates per
+      the existing cross-zone-entity pattern). Verify the EntityZone tag
+      mechanism — read the cross-zone-entity-bleed spec and any existing
+      EntityZone usage in entities.ts / characters.ts to confirm the
+      pattern. The entity is stationary (no AI tick component) and
+      appears only when state.currentZone === Zone.HouseInterior.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - emily-character-entity
+    context_files:
+      - src/engine/state.ts
+      - src/engine/entities.ts
+      - src/engine/characters.ts
+      - src/engine/ecs/types.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - add-emily-character-and-dialog
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 5: Invitation flow ---
+
+  - id: implement-invitation-arm-in-dialog-tick
+    title: >
+      Find the dialog tick site in src/engine/interaction.ts (the place
+      that advances typingIndex and flips typingDone) — search for
+      `typingDone` and `lineIndex`. After typingDone flips to true,
+      check: if state.activeDialog?.characterId === 'emily' AND
+      state.weather.season === Season.Autumn AND state.revery === null
+      AND state.activeDialog.lineIndex === EMILY_DIALOG_AUTUMN.length - 1
+      (the last index), set state.activeDialog.awaitingConfirmation =
+      true. Also at this point, transition state.emilyInvitation from
+      'unoffered' to 'offered' (do not transition if already 'offered' or
+      'confirmed'). Import EMILY_DIALOG_AUTUMN from characters.ts as a
+      named export — this requires re-exporting it from characters.ts
+      (add `export` to its declaration). Verify awaitingConfirmation is
+      a single source of truth — no other path writes it true.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - emily-invitation-arm
+      - emily-invitation-state-field
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/engine/characters.ts
+    depends_on:
+      - spawn-emily-entity-in-genesis
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: implement-invitation-confirm-on-f-press
+    title: >
+      Find the [f]-press handler in src/engine/interaction.ts that
+      advances the active dialog (search for `lineIndex += 1` or similar).
+      Before the standard advance-line path runs, check: if
+      state.activeDialog?.awaitingConfirmation === true, consume the press
+      and run the confirm path: (1) call contributeDormancyPressure(state,
+      1.0) from omen.ts; (2) set state.emilyInvitation = 'confirmed';
+      (3) set state.activeDialog = null; (4) call recordDiscovery(state,
+      'event:emily-invitation-confirmed'). Return early so the standard
+      advance-line path does not also run. If the confirm path throws
+      (contributeDormancyPressure failure or a future hook), wrap in a
+      try/catch — log via console.error and still set activeDialog = null
+      in a finally. The emilyInvitation field state should NOT advance to
+      'confirmed' if contribute threw.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - emily-invitation-confirm
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/omen.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - implement-invitation-arm-in-dialog-tick
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: implement-invitation-cancel-on-dialog-close
+    title: >
+      Audit every dialog-close path in src/engine/interaction.ts and
+      src/engine/zoneTransition.ts that sets state.activeDialog = null
+      OR initiates a zone transition while a dialog is open. Add a guard
+      at each site: if the dialog being closed was Emily's and
+      state.emilyInvitation === 'offered', reset state.emilyInvitation =
+      'unoffered'. The activeDialog.awaitingConfirmation field is
+      implicitly cleared because activeDialog itself becomes null. The
+      confirm path already sets emilyInvitation = 'confirmed' BEFORE
+      closing, so the cancel guard's `=== 'offered'` check intentionally
+      excludes the confirm case. Sites known to need the guard:
+      Esc-keypress dialog-close handler in interaction.ts (search for
+      `activeDialog = null` and `Escape`); zone-transition swap handlers
+      in cave.ts, ruins.ts, and house.ts (they each clear activeDialog —
+      enterHouse and exitHouse both need the guard too, even though
+      Emily lives in the house, because the player could escape mid-
+      invitation by walking out the door).
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - emily-invitation-state-field
+      - emily-invitation-arm
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/cave.ts
+      - src/engine/house.ts
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/engine/house.ts
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+    depends_on:
+      - implement-invitation-confirm-on-f-press
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 6: Revery-in-house scene ---
+
+  - id: implement-revery-house-scene-at-omen-to-observing
+    title: >
+      Extend src/engine/revery.ts tickRevery Omen → Observing transition.
+      In precis-32's existing summons branch (or wherever Omen → Observing
+      flips), after the precis-32 summons-sequence logic runs, add the
+      house-scene transition: (1) if state.currentZone !== Zone.HouseInterior,
+      perform an immediate synchronous swap — state.map =
+      state.houseMap, state.mapWidth = state.houseMapWidth,
+      state.mapHeight = state.houseMapHeight, state.currentZone =
+      Zone.HouseInterior; clear path / pathWaypoints / pendingAction /
+      pendingInteractionTarget / heldDirection / previewFn /
+      facingEntityPos / trail; call recordDiscovery(state, 'zone:house').
+      (2) Regardless of trigger path: set state.player =
+      state.houseBedInterior; set state.playerFacing = 'left'. (3) Find
+      Emily's ECS entity via the same query pattern used elsewhere in
+      this codebase for character entities (search for an existing
+      character-entity-lookup helper in interaction.ts or world helpers);
+      if found, capture her current Position component into a local,
+      assign state.emilyReveryReturn = { ...localPosition }, and mutate
+      her Position to state.houseChairInterior via world.spatial.move.
+      If Emily entity not found (defensive), set emilyReveryReturn = null
+      and skip the move. (4) Call updateCamera(state). The existing
+      ZONE_TRANSITION_FADE timing from precis-4 covers the visual gap
+      for the swap-and-reposition. The precis-32 collapse-tile field
+      (state.revery.summonsCollapseTile) is captured BEFORE this scene
+      transition (in the Omen-phase setup), so the overworld coords from
+      the moment of summons are preserved for the Closing commit.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - revery-house-scene
+      - emily-invitation-confirm
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/house.ts
+      - src/engine/characters.ts
+      - src/engine/camera.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on:
+      - implement-invitation-cancel-on-dialog-close
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: implement-revery-house-scene-revert-at-closing
+    title: >
+      Extend src/engine/revery.ts tickRevery Closing-phase branch. After
+      precis-32's collapse-tile commit attempt and dormancyPressure reset,
+      BEFORE state.revery = null: (1) if state.emilyReveryReturn is set,
+      find Emily's entity and mutate her Position back to
+      state.emilyReveryReturn via world.spatial.move; (2) set
+      state.emilyReveryReturn = null; (3) if state.emilyInvitation ===
+      'confirmed', reset to 'unoffered' so Emily can offer again next
+      autumn (this is the precis-33 mirror of precis-32's pressure
+      reset). The player position is NOT reset — the player stays at
+      state.houseBedInterior and walks off the bed at their pace. The
+      currentZone stays HouseInterior — the player is in the house when
+      the Revery ends, regardless of where they were when it began.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - revery-house-scene-revert
+      - emily-invitation-state-field
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on:
+      - implement-revery-house-scene-at-omen-to-observing
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 7: Movement walkability + bed exception ---
+
+  - id: update-movement-walkability-and-remove-spawn-gate
+    title: >
+      Extend src/engine/movement.ts walkability table for the 8 new
+      TileType variants: HouseEntrance walkable=true (the door tile on the
+      overworld); HouseApron walkable=true (the path); HouseFloor
+      walkable=true; HouseWall walkable=false; HouseBed walkable=false
+      (with bed exception below); HouseChair walkable=true (so Emily's
+      entity can stand on it; player can also step on it incidentally —
+      no harm); Fireplace walkable=false; HouseExit walkable=true (the
+      door tile on the interior). Add the bed exception: the player CAN
+      step OFF the bed onto a walkable HouseFloor neighbor when
+      state.revery === null AND state.player === state.houseBedInterior —
+      gate this in the movement direction-attempt logic so that the
+      origin-from-bed case skips the bed-walkability check. The player
+      CANNOT step BACK onto the bed under normal walking (bed remains
+      walkable=false for the destination check unless the Revery scene
+      transition is what placed them there). Also DELETE the
+      `if (!state.playerSpawn.visible) return false` early return at
+      movement.ts:84 — playerSpawn no longer exists.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - house-tile-types
+      - remove-falling-star-spawn
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/movement.ts
+    depends_on:
+      - implement-revery-house-scene-revert-at-closing
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 8: Renderer + fireplace animation + spawn cleanup ---
+
+  - id: render-house-tiles-and-fireplace
+    title: >
+      Extend src/engine/renderer.ts tile-glyph and tile-color resolvers
+      for the 8 new TileType variants. Glyphs: HouseEntrance = 'α'
+      (Greek lowercase alpha, U+03B1 — complements the cave entrance's
+      omega-shaped glyph; the user named this idiom explicitly during
+      spec gathering); HouseApron = '·' (matches the existing CaveApron
+      / RuinApron path-dot glyph at constants.ts:31); HouseFloor = '·'
+      (matches the existing CaveFloor / RuinFloor floor-dot glyph at
+      constants.ts:27 — warm brown floor); HouseWall = '#' (matches the
+      cave/ruin wall glyph); HouseBed = 'b' (lowercase, furniture);
+      HouseChair = 'h' (lowercase, furniture); Fireplace = animated
+      cycle (see below); HouseExit = '█' (matches the existing CaveExit
+      / RuinExit BLOCK glyph at constants.ts:32, 37 — the pink-door
+      idiom). Colors: HOUSE_FLOOR_COLOR, HOUSE_WALL_COLOR,
+      HOUSE_BED_COLOR, HOUSE_CHAIR_COLOR for the warm-brown interior
+      tiles; HOUSE_ENTRANCE_COLOR, HOUSE_APRON_COLOR for the warm-brown
+      overworld entrance and apron; HouseExit uses the existing
+      `#ff69b4` literal pink-door color (matches CaveExit / RuinExit at
+      constants.ts:61, 66) — wire the TILE_COLORS entry directly to
+      `#ff69b4`, do NOT add a HOUSE_EXIT_COLOR constant. Fireplace
+      animation: glyph chosen by
+      `['^', '~', '*'][Math.floor(time / FIRE_TICK_MS) % 3]`; color
+      alternates between FIREPLACE_COLOR_A and FIREPLACE_COLOR_B at the
+      same cadence (`Math.floor(time / FIRE_TICK_MS) % 2 === 0 ?
+      FIREPLACE_COLOR_A : FIREPLACE_COLOR_B`). Both deterministic by
+      time. Glyph and color tables live in the existing per-TileType
+      switch / lookup in renderer.ts — match whichever style the
+      existing tile-rendering code uses.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - house-tile-types
+      - fireplace-animation
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - update-movement-walkability-and-remove-spawn-gate
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: remove-renderer-playerspawn-guards
+    title: >
+      Delete the `state.playerSpawn.visible` guards from src/engine/renderer.ts
+      at lines 1299, 1613, 1720 (the three sites where `mx === player.x &&
+      my === player.y && state.playerSpawn.visible` is used). The player is
+      now always visible from frame 1 — simplify each predicate to `mx ===
+      player.x && my === player.y`. Also delete the STEWARD_STAR_HEAD_COLOR
+      / STEWARD_STAR_TRAIL_COLORS conditional branches at renderer.ts:655-656
+      — the regular SHOOTING_STAR_HEAD_COLOR / SHOOTING_STAR_TRAIL_COLORS are
+      used for all stars (the for-player-spawn variant no longer exists).
+      Remove the imports of STEWARD_STAR_* constants from the top of
+      renderer.ts.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - remove-falling-star-spawn
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - render-house-tiles-and-fireplace
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: remove-falling-star-from-celestial-and-camera
+    title: >
+      Delete the spring-equinox player-spawn ceremony from
+      src/engine/celestial.ts. Remove the `if (shower.lastFiredAnchorIndex
+      === 0 && state.playerSpawn.triggeredAt === 0)` block at celestial.ts:322
+      -335 entirely. Remove every other `data.forPlayerSpawn` /
+      `state.playerSpawn.*` reference in celestial.ts (lines 77, 105, 131,
+      141, 146-148, 185-187, 195+). Remove the `kind: 'stewardImpact'`
+      branch from the impact-kind dispatch — the kind enum loses one variant
+      (find the enum definition; if it's typed inline as a string union, drop
+      'stewardImpact'). Remove the spawn-related camera lerp block from
+      src/engine/camera.ts (currently at camera.ts:11 — `const spawn =
+      state.playerSpawn` and the surrounding logic). Remove the playerSpawn-
+      visible comment from src/hooks/useGameEngine.ts:79. After this task,
+      grep should find ZERO references to `playerSpawn` / `PlayerSpawn` /
+      `forPlayerSpawn` / `STEWARD_STAR_` / `PLAYER_SPAWN_DESCENT` /
+      `stewardImpact` anywhere in src/.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - remove-falling-star-spawn
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/hooks/useGameEngine.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/hooks/useGameEngine.ts
+    depends_on:
+      - remove-renderer-playerspawn-guards
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 9: Manual entries ---
+
+  - id: add-manual-entries-for-house-and-emily
+    title: >
+      Extend src/engine/manual.ts MANUAL_ENTRIES (or MANUAL_LORE — match
+      the existing structure). Add two entries: (1) id: 'little-house',
+      category: whichever canonical category exists for zone-like locations
+      (read the existing categories — if 'Zones' exists, use it; if
+      'Structures' exists, use that; if neither, default to 'Zones'),
+      label: 'Little House', lore: 'TODO' (placeholder per
+      feedback_manual_lore_only.md). Discovery key 'zone:house' is set by
+      enterHouse — wire the manual entry to that key the same way
+      'zone:cave' is wired (search for 'zone:cave' in manual.ts to find
+      the wiring pattern). (2) id: 'emily', category: 'Characters', label:
+      'Emily', lore: 'TODO'. Discovery key 'character:emily' is set when
+      the dialog opens with characterId='emily' — find the existing
+      character-discovery pattern (search for 'character:gron' or
+      'character:moab') and mirror it; add a recordDiscovery(state,
+      'character:emily') call at the dialog-open path in interaction.ts
+      if the existing pattern requires it (otherwise the dialog system
+      may already record this automatically — verify).
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - manual-entries
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/manual.ts
+      - src/engine/interaction.ts
+    depends_on:
+      - remove-falling-star-from-celestial-and-camera
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 10: Tests ---
+
+  - id: write-house-interior-tests
+    title: >
+      Create src/engine/__tests__/house-interior.test.ts. Cover: (1)
+      createHouseInterior returns a 30 × 18 map with HouseWall perimeter,
+      HouseFloor interior, Fireplace at (15, 0), HouseBed at (28, 8),
+      HouseChair at (2, 8), three HouseExit tiles at (14, 17), (15, 17),
+      (16, 17) (the 3-wide pink-door opening), exitInterior = (15, 17)
+      (middle exit), spawnInterior = (15,
+      16), bedInterior = (28, 8), chairInterior = (2, 8). (2) enterHouse
+      swaps state.map to state.houseMap, state.currentZone =
+      Zone.HouseInterior, state.player = state.houseEntranceInterior,
+      navigation state cleared, recordDiscovery('zone:house') fires.
+      (3) exitHouse swaps back to overworld, places player adjacent to
+      state.houseEntranceOverworld via findSafeExitPosition. (4)
+      checkHouseTransition detects the player on overworld HouseEntrance
+      tile (3x3 hitbox) and schedules a 'house', 'enter' transition.
+      (5) checkHouseTransition detects the player on interior HouseExit
+      tile and schedules a 'house', 'exit' transition. Use standard
+      helpers (createTestState, clearAroundPlayer) and the
+      vi.spyOn(Math, 'random') pattern per testing doctrine.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - house-zone-and-interior
+      - house-zone-transitions
+    context_files:
+      - src/engine/house.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/cave.test.ts
+    output_files:
+      - src/engine/__tests__/house-interior.test.ts
+    depends_on:
+      - add-manual-entries-for-house-and-emily
+    verification:
+      - npx vitest run src/engine/__tests__/house-interior.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: write-emily-invitation-tests
+    title: >
+      Create src/engine/__tests__/emily-invitation.test.ts. Cover: (1)
+      getEmilyDialog returns the seasonal array per state.weather.season
+      (test all four seasons). (2) state.emilyInvitation initializes to
+      'unoffered' from createGameState. (3) dialog tick arms
+      awaitingConfirmation when on Emily/autumn/last-line/typingDone +
+      no Revery active; does NOT arm during winter/spring/summer; does
+      NOT arm when state.revery !== null; emilyInvitation transitions
+      'unoffered' → 'offered' at this moment. (4) confirm path: [f] press
+      while awaitingConfirmation=true calls contributeDormancyPressure
+      with amount=1.0 (verify state.dormancyPressure increases toward
+      ceiling), sets emilyInvitation='confirmed', sets activeDialog=null,
+      recordDiscovery('event:emily-invitation-confirmed') fires. (5)
+      cancel path: closing the dialog mid-invitation (any close path)
+      reverts emilyInvitation 'offered' → 'unoffered' and clears
+      awaitingConfirmation implicitly. (6) re-entry: after cancel,
+      reopening the dialog and re-reaching the last line re-arms the
+      prompt with emilyInvitation = 'offered' again. (7) defensive:
+      missing Emily entity → no crash; contributeDormancyPressure
+      throwing → emilyInvitation stays 'offered', activeDialog still
+      becomes null in finally.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - emily-seasonal-dialog
+      - emily-invitation-arm
+      - emily-invitation-confirm
+      - emily-invitation-state-field
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+      - src/engine/omen.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/emily-invitation.test.ts
+    depends_on:
+      - add-manual-entries-for-house-and-emily
+    verification:
+      - npx vitest run src/engine/__tests__/emily-invitation.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: write-revery-house-scene-tests
+    title: >
+      Create src/engine/__tests__/revery-house-scene.test.ts. Cover: (1)
+      Confirm-in-house path: set state.currentZone = HouseInterior, place
+      player near Emily, arm awaitingConfirmation, press [f]; advance to
+      next frame so the Revery initiates and runs Omen → Observing;
+      assert state.currentZone stays HouseInterior (no swap), state.player
+      moves to state.houseBedInterior, state.playerFacing = 'left',
+      Emily's Position component moves to state.houseChairInterior,
+      state.emilyReveryReturn captures her prior position {x: 14, y: 1}.
+      (2) Field-summons path: place player on overworld in autumn, set
+      state.dormancyPressure = 1, advance one frame so threshold trigger
+      fires; advance through Omen → Observing; assert state.currentZone
+      swaps from Overworld to HouseInterior, player moved to bed, Emily
+      moved to chair, emilyReveryReturn captures her idle position. (3)
+      Closing-phase revert: from either path, advance Revery to Closing;
+      assert Emily's Position is restored to emilyReveryReturn,
+      emilyReveryReturn = null, emilyInvitation = 'unoffered' (if it was
+      'confirmed'), player STAYS at houseBedInterior, currentZone STAYS
+      HouseInterior. (4) precis-32 collapse-tile commit during confirm
+      path: assert no field egregore is committed (collapse tile was an
+      interior tile, fails dirt-eligibility). (5) precis-32 collapse-tile
+      commit during field-summons path: assert a field egregore IS
+      committed at the captured overworld tile.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - revery-house-scene
+      - revery-house-scene-revert
+      - emily-invitation-confirm
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/house.ts
+      - src/engine/characters.ts
+      - src/engine/omen.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/revery.test.ts
+    output_files:
+      - src/engine/__tests__/revery-house-scene.test.ts
+    depends_on:
+      - add-manual-entries-for-house-and-emily
+    verification:
+      - npx vitest run src/engine/__tests__/revery-house-scene.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: fill-acceptance-test-scaffold
+    title: >
+      Convert the placeholder it() in
+      src/engine/__tests__/precis-33-little-house-and-emily.test.ts into
+      a real acceptance suite. Each assertion maps to a behavior or edge
+      case in harness/specs/precis-33-little-house-and-emily.yaml. Keep
+      this file as a thin acceptance surface — detailed branch coverage
+      lives in house-interior.test.ts, emily-invitation.test.ts, and
+      revery-house-scene.test.ts. The acceptance suite asserts: player
+      starts inside the house (createGameState sets currentZone =
+      HouseInterior, player = (15, 16), playerFacing = 'up'); no
+      playerSpawn field exists on GameState; HouseEntrance is placed
+      west of Gron in the overworld; Emily entity exists at house-
+      interior (14, 1); getEmilyDialog returns the autumn register when
+      season = Autumn; the autumn last line triggers awaitingConfirmation;
+      confirm path leads to Revery on next frame with the Revery scene
+      transitioned to the house; field-summons path swaps to HouseInterior
+      at Omen → Observing; fireplace renders one of '^', '~', '*' at
+      time-cycled cadence; HouseChair is walkable; HouseWall is not;
+      bed-exception movement allows stepping off the bed after Revery
+      closes.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - house-tile-types
+      - player-starts-inside-house
+      - emily-character-entity
+      - emily-invitation-arm
+      - emily-invitation-confirm
+      - revery-house-scene
+      - revery-house-scene-revert
+      - fireplace-animation
+      - remove-falling-star-spawn
+    context_files:
+      - src/engine/__tests__/precis-33-little-house-and-emily.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/house.ts
+      - src/engine/characters.ts
+      - src/engine/revery.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/precis-33-little-house-and-emily.test.ts
+    depends_on:
+      - write-house-interior-tests
+      - write-emily-invitation-tests
+      - write-revery-house-scene-tests
+    verification:
+      - npx vitest run src/engine/__tests__/precis-33-little-house-and-emily.test.ts
+    repair: retry
+    tags:
+      - test
+
+  # --- Tier 11: Audit existing tests ---
+
+  - id: audit-existing-tests-for-spawn-and-zone
+    title: >
+      Find every test under src/engine/__tests__/ and src/components/__tests__/
+      that asserts: (a) state.player position equals the legacy gronX-1,
+      gronY (i.e., the overworld-adjacent-to-Gron spawn); (b) state.currentZone
+      equals Zone.Overworld at createGameState time; (c) state.playerSpawn
+      or PlayerSpawn shape; (d) state.player visibility gating via
+      playerSpawn.visible; (e) the spring-equinox shooting-star spawn
+      ceremony; (f) STEWARD_STAR_* color constants; (g) the 'stewardImpact'
+      impact kind. For each, rewrite or delete. Rewrites: switch the
+      expectation to the new house-interior spawn (state.player =
+      (15, 16), state.currentZone = Zone.HouseInterior) where the test's
+      intent is "verify createGameState produces a playable state".
+      Delete: tests that specifically asserted the falling-star ceremony's
+      behavior — that ceremony is gone and the tests have no analog.
+      Particular candidates to check: src/engine/__tests__/player-spawn.*,
+      src/engine/__tests__/celestial.test.ts (shooting-star tests),
+      src/engine/__tests__/state.test.ts (createGameState tests),
+      src/engine/__tests__/movement.test.ts (anything gated on
+      playerSpawn.visible). Run the full suite (npm run test) after this
+      task to surface anything missed.
+    spec_id: precis-33-little-house-and-emily
+    spec_sections:
+      - remove-falling-star-spawn
+      - player-starts-inside-house
+    context_files:
+      - src/engine/__tests__/helpers.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/__tests__/state.test.ts
+      - src/engine/__tests__/movement.test.ts
+    depends_on:
+      - fill-acceptance-test-scaffold
+    verification:
+      - npm run test
+    repair: retry
+    tags:
+      - test
+
+  # Full-suite verification runs via global_verification at the top of the
+  # plan (npm run typecheck / npm run test / npm run lint). No per-task
+  # verify-only task is needed.

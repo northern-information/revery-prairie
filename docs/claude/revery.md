@@ -87,6 +87,16 @@ Manual entries render the list below the lore (and below the hex grid from #6).
 
 Subsequent Reveries (`reveryCount >= 1`) no-op. The ongoing per-Revery winter-phased spread ships in #8b.
 
+## Revery scene — the little house (precis #33)
+
+The Revery is rendered in the house interior, regardless of where pressure trips threshold. Two paths into the same scene:
+
+- **Confirm-in-house**: player visits Emily during autumn, advances to her invitation line, presses `[f]` again. `contributeDormancyPressure(state, 1.0)` jumps the field to ceiling. On the next frame the threshold-trigger from precis-32 begins the Revery with the steward already in the house. precis-32's Gron-teleport and collapse-tile commit gracefully no-op (their failure cases cover the cross-zone steward). At `Omen → Observing`, `revery-house-scene` repositions the steward to `houseBedInterior` and Emily to `houseChairInterior`; her prior idle position is captured in `state.emilyReveryReturn`.
+
+- **Field-summons**: player has not visited Emily this autumn; precis-32's pressure ramp reaches 1.0 at the winter solstice frame. The steward collapses in the field, Gron teleports adjacent, precis-32 captures the collapse tile on the overworld. At `Omen → Observing`, `revery-house-scene` performs an **immediate synchronous zone swap** to `HouseInterior` (the existing fade between Omen and Observing covers the gap), then repositions steward and Emily as above. At `Closing`, precis-32's egregore commit fires on the original overworld collapse tile — _the prairie metabolizes the spot the steward fell_, even though the Revery itself played in the house.
+
+At `Closing` (both paths): Emily's position is restored from `state.emilyReveryReturn`; the steward stays on the bed and walks off at their pace; `state.emilyInvitation` resets to `'unoffered'` so the cycle can repeat the next autumn.
+
 ## doctrine
 
 - The Revery is the headline ceremony. v4 frames it as the year-scale leak — heat death is the antagonist; tending is the verb.
