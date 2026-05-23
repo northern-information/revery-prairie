@@ -508,6 +508,9 @@ export const ZONE_TRANSITION_DURATION_MS =
 // fog of war
 export const CAVE_VISION_RADIUS = 3
 export const RUIN_VISION_RADIUS = 3
+// Precis #38 — vision radius is unchanged across zones (same eyes,
+// indoors or out). Keep all three in lockstep.
+export const OVERWORLD_VISION_RADIUS = 3
 export const FOG_EXPLORED_BRIGHTNESS = 0.4 // dimmed brightness for partiallyDiscovered tiles
 export const DISCOVERY_RADIUS = 2 // Chebyshev distance for player-proximity full-discovery promotion
 

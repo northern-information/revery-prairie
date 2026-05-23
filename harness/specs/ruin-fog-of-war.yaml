@@ -148,8 +148,6 @@ edge_cases:
     expected: 'fullyDiscovered tiles render entities live; partiallyDiscovered tiles do not'
 
 failure_conditions:
-  - trigger: 'player is in overworld zone'
-    expected: 'fog of war system is completely inactive, all tiles render normally'
   - trigger: 'RuinInterior is generated without fogExplored/fogDiscovered/fogIllumination fields'
     expected: 'all three fields initialized to empty Set/Map during ruin interior generation'
 

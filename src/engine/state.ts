@@ -307,6 +307,8 @@ export const createGameState = (
     currentRuinIndex: null,
     caveFogExplored: new Set<string>(),
     caveFogDiscovered: new Set<string>(),
+    overworldFogExplored: new Set<string>(),
+    overworldFogDiscovered: new Set<string>(),
     devPanelOpen: false,
     devPaintPreview: null,
     devEntityPreview: null,

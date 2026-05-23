@@ -462,6 +462,11 @@ export interface GameState {
   currentRuinIndex: number | null
   caveFogExplored: Set<string>
   caveFogDiscovered: Set<string>
+  // Precis #38 — overworld fog of war. Player-facing vocabulary is
+  // gaze / memory / unseen; engineering identifiers mirror caveFog*.
+  // Both sets are initialized empty per tenure (createGameState).
+  overworldFogExplored: Set<string>
+  overworldFogDiscovered: Set<string>
   autoHidePanels: boolean
   panelOpenMoveCount: number
   devPanelOpen: boolean

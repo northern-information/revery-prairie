@@ -1,4 +1,4 @@
-import { CAVE_VISION_RADIUS, DISCOVERY_RADIUS, RUIN_VISION_RADIUS } from './constants'
+import { CAVE_VISION_RADIUS, DISCOVERY_RADIUS, OVERWORLD_VISION_RADIUS, RUIN_VISION_RADIUS } from './constants'
 import { isInBounds, posKey } from './position'
 import { TileType, Zone } from './types'
 
@@ -16,7 +16,8 @@ import type { GameState, Tile } from './types'
 export type TileVisibility = 'unexplored' | 'partiallyDiscovered' | 'fullyDiscovered' | 'visible'
 
 /** Returns true if the given zone has fog of war. */
-export const hasFogOfWar = (zone: string): boolean => zone === Zone.Cave || zone === Zone.Ruin
+export const hasFogOfWar = (zone: string): boolean =>
+  zone === Zone.Cave || zone === Zone.Ruin || zone === Zone.Overworld
 
 /** Returns true if a tile type blocks line-of-sight. */
 export const blocksLOS = (tileType: TileType): boolean =>
@@ -160,6 +161,12 @@ const getFogState = (
       fogDiscovered: state.caveFogDiscovered,
     }
   }
+  if (state.currentZone === Zone.Overworld) {
+    return {
+      fogExplored: state.overworldFogExplored,
+      fogDiscovered: state.overworldFogDiscovered,
+    }
+  }
   if (state.currentZone === Zone.Ruin && state.currentRuinIndex !== null) {
     const interior = state.ruinInteriors[state.currentRuinIndex]
     if (interior) {
@@ -215,13 +222,24 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
 
   const { player, map, mapWidth, mapHeight } = state
 
-  // Pick vision radius based on zone
-  const radius = state.currentZone === Zone.Ruin ? RUIN_VISION_RADIUS : CAVE_VISION_RADIUS
+  // Pick vision radius based on zone. All three radii are equal today
+  // (precis #38 — "same eyes, indoors or out") but stay named separately
+  // so future tuning per zone is a one-line change.
+  let radius: number
+  if (state.currentZone === Zone.Ruin) {
+    radius = RUIN_VISION_RADIUS
+  } else if (state.currentZone === Zone.Overworld) {
+    radius = OVERWORLD_VISION_RADIUS
+  } else {
+    radius = CAVE_VISION_RADIUS
+  }
 
   const playerFOV = computeFOV(player.x, player.y, radius, map, mapWidth, mapHeight)
   const visible = new Set(playerFOV)
 
-  // Entrance is always visible (so player can always find the exit)
+  // Entrance is always visible (so player can always find the exit).
+  // Overworld has no entrance — orientation comes from the player's
+  // own movement and the minimap.
   let entrance: { x: number; y: number } | null = null
   if (state.currentZone === Zone.Cave) {
     entrance = state.caveEntranceInterior

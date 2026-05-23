@@ -125,6 +125,8 @@ const EXPECTED_FIELDS = [
   'currentRuinIndex',
   'caveFogExplored',
   'caveFogDiscovered',
+  'overworldFogExplored',
+  'overworldFogDiscovered',
   'autoHidePanels',
   'panelOpenMoveCount',
   'devPanelOpen',
