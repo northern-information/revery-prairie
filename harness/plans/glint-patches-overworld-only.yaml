@@ -1,0 +1,51 @@
+plan:
+  id: glint-patches-overworld-only
+  title: 'Fix: glint patches must read state.overworldMap directly, not state.map'
+  created: 2026-05-23
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-failing-regression-test
+    title: 'Author failing regression test that reproduces the genesis-handoff crash: enterHouseAtTenureStart + seedGlintPatches throws on current main'
+    spec_id: glint-patches-overworld-only
+    spec_sections:
+      - post-tenure-start-handoff
+      - skip-genesis-fast-path
+    context_files:
+      - src/engine/glintZones.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/glint-zones-overworld-only.test.ts
+    output_files:
+      - src/engine/__tests__/glint-zones-overworld-only.test.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [test]
+
+  - id: fix-glint-zones-read-overworld-fields
+    title: 'Change spawnGlintPatch and tickGlintZones to read state.overworldMap / state.overworldMapWidth / state.overworldMapHeight directly'
+    spec_id: glint-patches-overworld-only
+    spec_sections:
+      - spawn-uses-overworld-map
+      - seed-uses-overworld-map
+      - tick-uses-overworld-map
+    context_files:
+      - src/engine/glintZones.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/glintZones.ts
+    depends_on:
+      - add-failing-regression-test
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/glint-zones-overworld-only.test.ts'
+      - 'npx vitest run src/engine/__tests__/glintZones.test.ts'
+    repair: retry
+    tags: [engine, bugfix]

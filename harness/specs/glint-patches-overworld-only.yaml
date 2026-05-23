@@ -1,0 +1,118 @@
+id: glint-patches-overworld-only
+name: 'Glint patches always operate on the overworld map'
+priority: high
+layer: engine
+source_files:
+  - src/engine/glintZones.ts
+dependencies: []
+
+behaviors:
+  - id: spawn-uses-overworld-map
+    description: >
+      `spawnGlintPatch` reads `state.overworldMap`, `state.overworldMapWidth`,
+      and `state.overworldMapHeight` directly. It does not read `state.map`,
+      `state.mapWidth`, or `state.mapHeight`. Glint patches are an
+      overworld concept — they live on the prairie regardless of where
+      the steward currently stands. Depending on whatever `state.map`
+      happens to point at is fragile: precis-33 made
+      `enterHouseAtTenureStart` swap `state.map` to the 15x9 house
+      interior before genesis runs, which is the proximate cause of the
+      handoff crash this spec exists to prevent.
+    inputs:
+      - 'state with state.map pointing at the house interior (15x9) or any non-overworld map'
+      - 'state.overworldMap populated with the prairie grid'
+    outputs:
+      - 'spawnGlintPatch returns a GlintPatch with center coordinates inside the overworld map bounds, or null if no valid attempt succeeded'
+      - 'no out-of-bounds read of state.map regardless of where state.map points'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: seed-uses-overworld-map
+    description: >
+      `seedGlintPatches` is called from `finalizeGenesisHandoff` (genesis
+      to gameplay transition) and seeds the initial `GLINT_ZONE_COUNT`
+      patches. It must succeed even when `state.map` is the house
+      interior (the production tenure-start configuration after
+      precis-33). All patches it produces have centers within the
+      overworld map bounds.
+    inputs:
+      - 'state with state.map pointing at the house interior (post-enterHouseAtTenureStart)'
+      - 'state.overworldMap populated'
+      - 'time: number'
+    outputs:
+      - 'state.glintPatches.length is 0..GLINT_ZONE_COUNT (some attempts may legitimately fail to find a valid center; the function does not throw)'
+      - 'every patch.centerX is within [SPACE_BORDER, overworldMapWidth - SPACE_BORDER)'
+      - 'every patch.centerY is within [SPACE_BORDER, overworldMapHeight - SPACE_BORDER)'
+      - 'state.lastGlintSpawnTime is set to the time argument'
+    state_changes:
+      - field: glintPatches
+        effect: 'replaced with the seeded array'
+      - field: lastGlintSpawnTime
+        effect: 'set to the time argument'
+    determinism: probabilistic
+
+  - id: tick-uses-overworld-map
+    description: >
+      `tickGlintZones` performs three operations: expire old patches,
+      drift patches in hold phase, and spawn new patches up to
+      GLINT_ZONE_COUNT. The drift and spawn operations read map
+      dimensions and tile types. They must read
+      `state.overworldMap`, `state.overworldMapWidth`, and
+      `state.overworldMapHeight` directly rather than `state.map`. This
+      removes the latent dependency on the gameLoop zone-swap wrapper
+      that previously masked the bug.
+    inputs:
+      - 'state with state.map pointing at any map (overworld, cave, ruin, or house)'
+      - 'state.overworldMap populated'
+      - 'time: number'
+    outputs:
+      - 'patches drift on the overworld grid regardless of state.map'
+      - 'no out-of-bounds read of state.map'
+    state_changes:
+      - field: glintPatches
+        effect: 'expired patches removed; eligible patches may have centerX / centerY drifted by one tile in a cardinal direction; up to GLINT_ZONE_COUNT total after spawn'
+      - field: glintZones
+        effect: 'rebuilt from current patches via rebuildGlintZones'
+      - field: glintOpacity
+        effect: 'rebuilt from current patches via rebuildGlintZones'
+      - field: lastGlintSpawnTime
+        effect: 'set to time when a new patch is spawned'
+    determinism: probabilistic
+
+edge_cases:
+  - id: post-tenure-start-handoff
+    description: >
+      `enterHouseAtTenureStart(state)` is called, then
+      `seedGlintPatches(state, time)` runs. This is the production
+      tenure-start sequence post-precis-33. The spec requires no throw.
+    expected: 'seedGlintPatches returns without throwing; state.glintPatches contains valid patches centered on the overworld map; state.map remains pointing at the house interior (the seeding does NOT mutate state.map).'
+  - id: skip-genesis-fast-path
+    description: >
+      The `?skipGenesis` URL fast-path calls
+      `completeGenesis(state, { skipTitleCard: true })`, which
+      synchronously invokes `finalizeGenesisHandoff` → `seedGlintPatches`.
+      At this point `state.map` is the house interior because
+      `enterHouseAtTenureStart` ran first in `useGameEngine.ts`. The
+      handoff must succeed without throwing.
+    expected: 'no TypeError; gameplay frame renders the house interior on the first paint after the title card (with skipTitleCard: true, immediately).'
+  - id: patch-cap-respected-on-house-spawn
+    description: >
+      Even though seeding runs with state.map = houseMap, the patch cap
+      `GLINT_ZONE_COUNT` is honored. The number of patches actually
+      seeded depends on the random sampling — some attempts may fail
+      to find a valid Dirt/Flora tile within 50 tries — but the
+      function never exceeds GLINT_ZONE_COUNT and never throws.
+    expected: 'state.glintPatches.length <= GLINT_ZONE_COUNT after seedGlintPatches; no throw.'
+
+failure_conditions:
+  - trigger: '`enterHouseAtTenureStart(state)` runs, then `seedGlintPatches(state, time)` runs, and the current implementation reads `state.map` / `state.mapWidth` / `state.mapHeight`.'
+    expected: '`TypeError: Cannot read properties of undefined` is thrown when the random math produces an out-of-bounds row index for the 9-row house map. The spec is violated. Post-fix, the function reads overworld map fields directly and the throw cannot occur.'
+  - trigger: 'A future caller invokes `spawnGlintPatch(state, time)` while `state.map` points at the cave map (11x11 or similar small dimensions).'
+    expected: 'Pre-fix, the same out-of-bounds throw is possible. Post-fix, the call uses the overworld map regardless and cannot throw on map dimension grounds.'
+  - trigger: '`tickGlintZones` is called outside the gameLoop wrapper (e.g. directly from a test) while state.currentZone is not Overworld.'
+    expected: 'Pre-fix, the function would read state.map (cave/house/ruin) and could produce invalid drifts or throw. Post-fix, the function reads state.overworldMap explicitly and produces correct drifts on the overworld grid.'
+
+verification:
+  test_file: src/engine/__tests__/glint-zones-overworld-only.test.ts
+  test_pattern: 'glint patches use overworld map'
+  command: 'npx vitest run src/engine/__tests__/glint-zones-overworld-only.test.ts'
