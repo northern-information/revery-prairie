@@ -1,0 +1,86 @@
+id: minimap-ruin-footprint-fog
+name: 'Minimap ruin footprints respect fog of war'
+priority: high
+layer: component
+source_files:
+  - src/components/Minimap.tsx
+dependencies:
+  - overworld-fog-of-war
+
+behaviors:
+  - id: footprint-gated-by-fog
+    description: >
+      On the minimap, each tile of a civilization ruin's building
+      footprint draws only when that tile is explored (currently
+      visible OR in `state.overworldFogExplored`). Footprint tiles in
+      `unexplored` state are not drawn — they render as the canvas
+      background, identical to any other unexplored prairie tile. The
+      gate is per-tile of the footprint, not per-ruin: a partially
+      explored ruin shows only the explored tiles of its footprint,
+      not the whole structure.
+    inputs:
+      - 'state.currentZone === Zone.Overworld'
+      - 'state.civilizationRuins: an array of ruins, each with buildingFootprints: Position[]'
+      - 'visibleSet: Set<string> | null — current-frame visible tile keys'
+      - 'state.overworldFogExplored: Set<string> — tiles ever seen'
+    outputs:
+      - 'For each footprint Position pos: drawn iff `isTileExplored(state, pos.x, pos.y, visibleSet)` returns true'
+      - 'No draws at unexplored footprint positions'
+    state_changes: []
+    determinism: deterministic
+
+  - id: helper-exposes-visible-footprints
+    description: >
+      `Minimap.tsx` exposes `getVisibleRuinFootprints(state, visibleSet)`
+      returning the list of `Position` values that should render this
+      frame given the fog state. The internal draw loop calls the
+      helper and renders each returned position with
+      `RUIN_FOOTPRINT_COLOR`. Extracting this helper is the bug fix's
+      mechanism — the original `drawStructures` had an inline loop
+      that bypassed the gate. Having a named helper makes the
+      visibility predicate testable in isolation and prevents future
+      structure-layer additions from re-introducing the bug by copy.
+    inputs:
+      - 'state with state.currentZone, state.civilizationRuins, and fog sets populated'
+      - 'visibleSet: Set<string> | null'
+    outputs:
+      - 'Position[] of the footprint tiles that pass the isTileExplored gate'
+      - 'Empty array when state.currentZone !== Zone.Overworld (caves/ruins/house have no minimap ruin layer)'
+      - 'Empty array when state.civilizationRuins is empty'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: fresh-tenure-no-exploration
+    description: >
+      A new tenure with no exploration: `state.overworldFogExplored`
+      and `state.overworldFogDiscovered` are both empty Sets. Several
+      civilization ruins exist on the prairie outside the spawn FOV.
+      The minimap must show no footprint colour at any of those
+      positions.
+    expected: 'getVisibleRuinFootprints returns an empty array (or only tiles within the spawn FOV if a ruin happens to overlap the player''s starting visible set).'
+  - id: partially-explored-ruin
+    description: >
+      The steward has walked over only one tile of a 5-tile ruin
+      footprint. The walked tile is in `overworldFogExplored` (and
+      possibly `overworldFogDiscovered`). The other four tiles are
+      still `unexplored`.
+    expected: 'getVisibleRuinFootprints returns exactly that one walked tile. The four unexplored tiles are excluded.'
+  - id: zone-not-overworld
+    description: >
+      The steward is inside a cave or ruin or the little house.
+      `state.currentZone !== Zone.Overworld`. The minimap may render
+      the current interior, but the prairie ruin layer is not the
+      relevant structure layer here.
+    expected: 'getVisibleRuinFootprints returns an empty array. The interior''s structure layers (cave entrance, ruin entrance, etc.) are handled by other code paths.'
+
+failure_conditions:
+  - trigger: 'drawStructures iterates state.civilizationRuins and calls drawIsoTile for every footprint position without a per-tile fog gate'
+    expected: 'Pre-fix behavior; the spec is violated. The steward sees every ruin on the minimap immediately on spawn, regardless of whether they have walked near any of them.'
+  - trigger: 'A future structure layer is added to drawStructures that bypasses the fog gate'
+    expected: 'Same class of bug. The named getVisibleRuinFootprints helper and this spec''s regression test should catch the regression pattern; new structure layers should mirror the helper''s gating.'
+
+verification:
+  test_file: src/components/__tests__/Minimap.test.tsx
+  test_pattern: 'getVisibleRuinFootprints'
+  command: 'npx vitest run src/components/__tests__/Minimap.test.tsx'
