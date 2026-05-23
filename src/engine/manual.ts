@@ -93,12 +93,14 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'character:ghosts': {
     lore: 'Three ghosts drift across the land. They move slowly and unpredictably. Each has something to say if you stop to listen.',
   },
+  'character:emily': { lore: 'TODO' },
   // Zones
   'zone:overworld': { lore: 'A dirt island surrounded by stars. The land responds to care.' },
   'zone:cave': {
     lore: 'A winding cave accessible through an entrance on the surface. Corridors lead upward to a chamber.',
   },
   'zone:ruin-dormant-garden': { lore: 'TODO' },
+  'zone:house': { lore: 'TODO' },
   // Recipes
   'recipe:bee+clover': {
     lore: [
@@ -362,6 +364,19 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     glyph: TILE_CHARS[TileType.CaveEntrance],
     glyphColor: TILE_COLORS[TileType.CaveEntrance],
     unlockKey: 'zone:cave',
+    sourceKind: 'zone',
+  },
+  {
+    // Precis #33 — the little house. Discovery key is 'zone:house',
+    // recorded by enterHouse on first entry. Since the player spawns
+    // inside the house at tenure start, this entry unlocks naturally
+    // on the very first frame.
+    id: 'zone:house',
+    name: 'The Little House',
+    category: ManualCategory.Zone,
+    glyph: TILE_CHARS[TileType.HouseEntrance],
+    glyphColor: TILE_COLORS[TileType.HouseEntrance],
+    unlockKey: 'zone:house',
     sourceKind: 'zone',
   },
   {

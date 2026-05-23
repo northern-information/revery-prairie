@@ -63,10 +63,13 @@ describe('precis #32 — revery dormancy pressure', () => {
     setAutumnOverworld(state)
     clearAroundPlayer(state, 3)
     createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 })
+    // Precis #33 — capture the collapse tile expectation BEFORE
+    // tickRevery, since Omen → Observing moves the steward to the bed.
+    const expected = { x: state.player.x, y: state.player.y }
     initiateRevery(state, 1000, OmenKind.CloudPassingSun)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
-    expect(state.revery?.summonsCollapseTile).toEqual({ x: state.player.x, y: state.player.y })
+    expect(state.revery?.summonsCollapseTile).toEqual(expected)
     expect(state.collapsedStewardTile).not.toBeNull()
     expect(state.activeDialog?.characterId).toBe('gron')
   })
@@ -78,13 +81,13 @@ describe('precis #32 — revery dormancy pressure', () => {
     createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 })
     const px = state.player.x
     const py = state.player.y
-    state.map[py][px] = { type: TileType.Dirt }
+    state.overworldMap[py][px] = { type: TileType.Dirt }
     initiateRevery(state, 1000, OmenKind.CloudPassingSun)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     if (state.revery) state.revery.phase = ReveryPhase.Closing
     tickRevery(state, 0, 2000)
-    expect(state.map[py][px].type).toBe(TileType.Egregore)
+    expect(state.overworldMap[py][px].type).toBe(TileType.Egregore)
   })
 
   it('resets dormancyPressure at Revery Closing', () => {

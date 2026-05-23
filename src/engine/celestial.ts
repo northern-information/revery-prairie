@@ -9,14 +9,11 @@ import {
   METEOR_SHOWER_STAR_COUNT_MAX,
   METEOR_SHOWER_STAR_COUNT_MIN,
   PICKUP_EFFECT_DURATION_MS,
-  PLAYER_SPAWN_DESCENT_TARGET_MS,
-  SATELLITE_SHAKE_DURATION_MS,
   SHOOTING_STAR_MAX_ACTIVE,
   SHOOTING_STAR_MAX_AGE,
   SHOOTING_STAR_MAX_LENGTH,
   SHOOTING_STAR_MIN_LENGTH,
   SHOOTING_STAR_SPAWN_CHANCE,
-  SHOOTING_STAR_TICK_MS,
   SPACE_BORDER,
 } from './constants'
 import { ComponentType } from './ecs/types'
@@ -75,7 +72,7 @@ export const spawnShootingStar = (state: GameState): void => {
 export const spawnShootingStarAtTarget = (
   state: GameState,
   target: Position,
-  opts?: { forPlayerSpawn?: boolean; backtrackTiles?: number }
+  opts?: { backtrackTiles?: number }
 ): number => {
   const dx = NORTH_VELOCITY.dx
   const dy = NORTH_VELOCITY.dy
@@ -103,7 +100,6 @@ export const spawnShootingStarAtTarget = (
     age: 0,
     willLand: true,
     landingTarget: target,
-    forPlayerSpawn: opts?.forPlayerSpawn === true ? true : undefined,
   })
   state.world.addComponent(e, ComponentType.EntityTag, 'shootingStar')
   state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
@@ -129,7 +125,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
       if (data.landingTarget) {
         // Targeted landing — only land on the exact target tile
         if (x === data.landingTarget.x && y === data.landingTarget.y) {
-          if (!data.forPlayerSpawn && !isWaterTile(state, x, y)) {
+          if (!isWaterTile(state, x, y)) {
             const me = state.world.createEntity()
             state.world.addComponent(me, ComponentType.Position, { x, y })
             state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
@@ -139,16 +135,11 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, {
-            kind: data.forPlayerSpawn ? 'stewardImpact' : 'explosion',
+            kind: 'explosion',
             startTime: time,
           })
           state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
           state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
-          if (data.forPlayerSpawn && state.playerSpawn.meteorEntityId === eid) {
-            state.playerSpawn.visible = true
-            state.playerSpawn.meteorEntityId = null
-            state.screenShakeUntil = time + SATELLITE_SHAKE_DURATION_MS
-          }
           state.world.destroyEntity(eid)
           continue
         }
@@ -183,22 +174,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
       pos.y >= MAP_HEIGHT + buffer ||
       data.age > SHOOTING_STAR_MAX_AGE
     ) {
-      if (data.forPlayerSpawn && state.playerSpawn.meteorEntityId === eid) {
-        state.playerSpawn.visible = true
-        state.playerSpawn.meteorEntityId = null
-      }
       state.world.destroyEntity(eid)
-    }
-  }
-
-  // Stale meteorEntityId fallback: if the player-spawn star was destroyed
-  // by another path without flipping visible, recover here.
-  const spawn = state.playerSpawn
-  if (!spawn.visible && spawn.meteorEntityId !== null) {
-    const data = state.world.getComponent(spawn.meteorEntityId, ComponentType.ShootingStarData)
-    if (!data) {
-      spawn.visible = true
-      spawn.meteorEntityId = null
     }
   }
 
@@ -322,21 +298,8 @@ export const tickMeteorShower = (state: GameState, time: number): void => {
       shower.lastFiredAnchorIndex = nearest
     }
 
-    // Spring-equinox spawn ceremony — only the first spring of the run.
-    if (shower.lastFiredAnchorIndex === 0 && state.playerSpawn.triggeredAt === 0) {
-      const backtrack = Math.max(1, Math.round(PLAYER_SPAWN_DESCENT_TARGET_MS / SHOOTING_STAR_TICK_MS))
-      const eid = spawnShootingStarAtTarget(state, state.player, {
-        forPlayerSpawn: true,
-        backtrackTiles: backtrack,
-      })
-      state.playerSpawn.spawnPos = { x: state.player.x, y: state.player.y }
-      state.playerSpawn.meteorEntityId = eid
-      state.playerSpawn.triggeredAt = time
-      state.playerSpawn.visible = false
-      shower.remainingStars--
-      shower.lastSpawnTime = time
-    }
-
+    // Precis #33 — the falling-star spawn ceremony is removed. The
+    // player now spawns inside the little house at tenure start.
     recordDiscovery(state, 'event:meteor-shower')
     return
   }

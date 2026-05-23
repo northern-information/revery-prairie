@@ -111,8 +111,6 @@ describe('renderer egregore tile under player', () => {
   it('draws the egregore glyph in the Voynich font when the player stands on the tile', () => {
     const state = setupState()
     placePlayerOnEgregore(state)
-    state.playerSpawn.visible = true
-
     vi.spyOn(Math, 'random').mockReturnValue(0.5)
     try {
       render(ctx, state, metrics, 0)
@@ -127,8 +125,6 @@ describe('renderer egregore tile under player', () => {
   it('does not draw a "?" glyph at any position when the player stands on an egregore tile', () => {
     const state = setupState()
     placePlayerOnEgregore(state)
-    state.playerSpawn.visible = true
-
     vi.spyOn(Math, 'random').mockReturnValue(0.5)
     try {
       render(ctx, state, metrics, 0)
@@ -140,19 +136,4 @@ describe('renderer egregore tile under player', () => {
     expect(questionMarkCalls).toEqual([])
   })
 
-  it('still applies the Voynich font swap when playerSpawn.visible is false', () => {
-    const state = setupState()
-    placePlayerOnEgregore(state)
-    state.playerSpawn.visible = false
-
-    vi.spyOn(Math, 'random').mockReturnValue(0.5)
-    try {
-      render(ctx, state, metrics, 0)
-    } finally {
-      vi.restoreAllMocks()
-    }
-
-    const voynichCalls = spy.fillTextCalls.filter(c => c.font.includes("'Voynich'"))
-    expect(voynichCalls.length).toBeGreaterThan(0)
-  })
 })

@@ -60,6 +60,18 @@ const CHARACTERS = {
     glyphColor: '#5FD3BC',
     dialog: ['The gate is locked.'],
   },
+  // Precis #33 — Emily, the girl who waits, inside the little house.
+  // Stationary character at house-interior (14, 1), one tile west of
+  // the fireplace. The runtime dispatcher in getCharacterDialog
+  // overrides this field with getEmilyDialog(state) based on the
+  // season. Static fallback is the default register's TODO placeholder.
+  // All dialog content is human-authored lore — never authored here.
+  emily: {
+    name: 'Emily',
+    glyph: 'E',
+    glyphColor: '#FFDDA8',
+    dialog: ['...', 'TODO: emily default line'],
+  },
 } as const satisfies Record<string, CharacterEntry>
 
 export const CHARACTER_DEFINITIONS: Record<string, CharacterDefinition> = Object.fromEntries(
@@ -203,12 +215,63 @@ const getMoabDialog = (state: GameState): string[] => {
   }
 }
 
+// Precis #33 — Emily speaks in four seasonal registers. The autumn
+// register's LAST line is the invitation that arms
+// activeDialog.awaitingConfirmation; all other lines and registers do
+// not. Dialog register matches the v4 R5 / v6 R5 doctrine: statements
+// not questions, no contractions, no editorial affect, no opinion of
+// the steward, dispatched by season. All lines are TODO placeholders
+// per feedback_manual_lore_only.md — humans author the real content.
+export const EMILY_DIALOG_WINTER: string[] = [
+  '...',
+  'TODO: emily winter line 1',
+  'TODO: emily winter line 2',
+]
+
+export const EMILY_DIALOG_SPRING: string[] = [
+  '...',
+  'TODO: emily spring line 1',
+  'TODO: emily spring line 2',
+]
+
+export const EMILY_DIALOG_SUMMER: string[] = [
+  '...',
+  'TODO: emily summer line 1',
+  'TODO: emily summer line 2',
+]
+
+// The LAST line is the invitation — arms awaitingConfirmation when
+// reached during autumn.
+export const EMILY_DIALOG_AUTUMN: string[] = [
+  '...',
+  'TODO: emily autumn line 1',
+  'TODO: emily autumn invitation',
+]
+
+const getEmilyDialog = (state: GameState): string[] => {
+  switch (state.weather.season) {
+    case Season.Winter:
+      return EMILY_DIALOG_WINTER
+    case Season.Spring:
+      return EMILY_DIALOG_SPRING
+    case Season.Summer:
+      return EMILY_DIALOG_SUMMER
+    case Season.Autumn:
+      return EMILY_DIALOG_AUTUMN
+    default:
+      return EMILY_DIALOG_AUTUMN
+  }
+}
+
 export const getCharacterDialog = (state: GameState, characterId: string): string[] => {
   if (characterId === 'gron') {
     return getGronDialog(state)
   }
   if (characterId === 'moab') {
     return getMoabDialog(state)
+  }
+  if (characterId === 'emily') {
+    return getEmilyDialog(state)
   }
   const def = getCharacterDefinition(characterId)
   if (def.postGiftDialog && state.giftsReceived.has(characterId)) {

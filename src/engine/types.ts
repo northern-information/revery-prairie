@@ -32,6 +32,21 @@ export const TileType = {
   // species id. Manual entries are procedurally-generated EVA token
   // pages with ~1-in-5 Latin pierces.
   Egregore: 'egregore',
+  // The little house (precis #33). HouseEntrance is the single overworld
+  // door tile (`α` glyph, warm brown); HouseApron the 8-neighbor path.
+  // HouseFloor / HouseWall make up the 30x18 interior. HouseBed sits on
+  // the east wall (Revery destination); HouseChair on the west wall
+  // (Emily's during-Revery position). Fireplace is animated `^~*` at
+  // FIRE_TICK_MS cadence. HouseExit is the 3-wide south door rendered
+  // in pink (`#ff69b4`) per the cave/ruin exit idiom.
+  HouseEntrance: 'houseEntrance',
+  HouseApron: 'houseApron',
+  HouseFloor: 'houseFloor',
+  HouseWall: 'houseWall',
+  HouseBed: 'houseBed',
+  HouseChair: 'houseChair',
+  Fireplace: 'fireplace',
+  HouseExit: 'houseExit',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -139,7 +154,7 @@ export interface BootTitleCard {
 }
 
 export type ZoneTransitionDirection = 'enter' | 'exit'
-export type ZoneTransitionKind = 'cave' | 'ruin'
+export type ZoneTransitionKind = 'cave' | 'ruin' | 'house'
 
 export interface ZoneTransition {
   startTime: number
@@ -287,6 +302,7 @@ export interface GameState {
     typingDone: boolean
     transitioning: boolean
     transitionStartTime: number
+    awaitingConfirmation?: boolean
   } | null
   discoveredRecipes: Set<string>
   previewFn:
@@ -325,6 +341,28 @@ export interface GameState {
   caveHiddenPositions: Set<string>
   caveNpcSpot: Position
   caveBreakableWallPositions: Position[]
+  // Little house interior (precis #33). Deterministic 30x18 buffer
+  // built by createHouseInterior(); enterHouse / exitHouse swap state.map
+  // to/from this pointer just like the cave pair.
+  houseMap: Tile[][]
+  houseMapWidth: number
+  houseMapHeight: number
+  // Overworld door tile (the `α` glyph), placed west of Gron at genesis.
+  houseEntranceOverworld: Position
+  // Interior spawn position (one tile north of the middle exit).
+  houseEntranceInterior: Position
+  // Interior bed position (Revery destination — east wall).
+  houseBedInterior: Position
+  // Interior chair position (Emily's during-Revery seat — west wall).
+  houseChairInterior: Position
+  // Emily's invitation state machine. 'unoffered' at genesis; flips to
+  // 'offered' when her autumn last line arms awaitingConfirmation;
+  // 'confirmed' on [f]-consume; resets to 'unoffered' at dialog close
+  // without confirm or at Revery Closing.
+  emilyInvitation: 'unoffered' | 'offered' | 'confirmed'
+  // Emily's idle position snapshot during a Revery — written at
+  // Omen → Observing, read+cleared at Closing.
+  emilyReveryReturn: Position | null
   giftsReceived: Set<string>
   world: World
   // Precis #17 — per-species growth-preview queues. Each species owns
@@ -367,7 +405,6 @@ export interface GameState {
   burnScars: Set<string>
   craters: Set<string>
   meteorShower: MeteorShowerState
-  playerSpawn: PlayerSpawn
   lastSatelliteSpawnTime: number
   screenShakeUntil: number
   lightning: LightningState
@@ -730,6 +767,7 @@ export const Zone = {
   Overworld: 'overworld',
   Cave: 'cave',
   Ruin: 'ruin',
+  HouseInterior: 'houseInterior',
 } as const
 
 export type Zone = (typeof Zone)[keyof typeof Zone]
@@ -882,13 +920,6 @@ export interface MeteorShowerState {
   // Count of complete seasonal years since game start. Increments when the
   // scheduler rolls over from winter (anchor index 3) back to spring.
   lastFiredAnchorYear: number
-}
-
-export interface PlayerSpawn {
-  visible: boolean
-  spawnPos: Position
-  meteorEntityId: number | null
-  triggeredAt: number
 }
 
 export interface LightningState {

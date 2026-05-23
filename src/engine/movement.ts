@@ -80,9 +80,6 @@ export const getPathfindingBlockers = (state: GameState, target?: Position): Set
 }
 
 export const movePlayer = (state: GameState, dir: Direction): boolean => {
-  // Player cannot leave their landing tile until the spawn meteor lands.
-  if (!state.playerSpawn.visible) return false
-
   // Reject movement while a zone transition is in flight. The deferred
   // map swap fires at midpoint inside tickZoneTransition.
   if (isInputGated(state)) return false
@@ -103,6 +100,9 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     updateFacingEntity(state)
     return false
   }
+  // Precis #33 — destination walkability check. The HouseBed is
+  // intentionally not walkable in the general table; the player can
+  // only land on it via the Revery scene transition.
   if (!isWalkableTile(state.map[ny][nx].type)) {
     updateFacingEntity(state)
     return false

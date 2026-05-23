@@ -20,6 +20,9 @@ describe('createGameState', () => {
   })
 
   it('spawns the player one tile west of the exact map center', () => {
+    // Precis #33 — createGameState defaults to overworld; the production
+    // hook then calls enterHouseAtTenureStart. This test verifies the
+    // legacy posture.
     const state = createGameState('Willow', 80, 40)
     expect(state.player.x).toBe(Math.floor(MAP_WIDTH / 2) - 1)
     expect(state.player.y).toBe(Math.floor(MAP_HEIGHT / 2))

@@ -4,6 +4,7 @@ import { clearAllGrowthPreviews } from './floraGrowthPreviews'
 import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, tileHash } from './position'
+import { checkHouseTransition } from './house'
 import { checkRuinTransition } from './ruins'
 import { STRUCTURE_REGISTRY } from './structures'
 import { TileType, Zone } from './types'
@@ -275,7 +276,10 @@ export const checkTransition = (state: GameState): boolean => {
   }
 
   // Ruin transitions (overworld 3x3 hitbox + interior RuinExit)
-  return checkRuinTransition(state)
+  if (checkRuinTransition(state)) return true
+
+  // Little house transitions (overworld HouseEntrance 3x3 + interior HouseExit)
+  return checkHouseTransition(state)
 }
 
 // Register cave swap handlers with the zone transition module. The

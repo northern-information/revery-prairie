@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 
 import { tickMeteorShower } from '@/engine/celestial'
 import { completeGenesis } from '@/engine/genesis'
-import { createGameState } from '@/engine/state'
+import { createGameState, enterHouseAtTenureStart } from '@/engine/state'
 import { collapseFacingToCardinal } from '@/engine/types'
 import type { GameState } from '@/engine/types'
 import type { NetworkClient } from '@/network/client'
@@ -73,18 +73,14 @@ export const useGameEngine = (
     } else {
       gameState ??= createGameState(stewardName, viewportWidth, viewportHeight)
     }
-    // Hand the spawn ceremony trigger to genesis.ts via a callback so the
-    // engine layer doesn't import celestial.ts (which would form a cycle
-    // through manual.ts). Fires synchronously inside completeGenesis so the
-    // first gameplay render already sees playerSpawn.visible === false.
-    // The cardinal scheduler in tickMeteorShower fires the spring-equinox
-    // shower (and its steward star) on its first call because
-    // state.seasonalPhase starts at 0.0 and pendingAnchorPhase is 0.0.
-    //
-    // The skipGenesis dev path bypasses the shower entirely. With the
-    // shower, the camera follows the descending steward star (panned up
-    // above the prairie); for the dev fast-path we want the first frame
-    // to be centered on the player.
+    // Precis #33 — production hook places the player inside the little
+    // house at tenure start. Tests calling createGameState directly
+    // keep the legacy overworld start so existing assertions hold.
+    enterHouseAtTenureStart(gameState)
+    // Precis #33 — the falling-star spawn ceremony was removed; the
+    // spring-equinox meteor shower still fires via the cardinal
+    // scheduler in tickMeteorShower, but without the steward-star
+    // carve-out.
     gameState.onGenesisComplete = (handoffTime: number) => {
       if (!gameState) return
       if (skipGenesis) return

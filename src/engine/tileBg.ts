@@ -39,6 +39,16 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   // but not as dark as cave walls — the off-key tile is foliage, just
   // not native foliage.
   [TileType.Egregore]: ['#26212E', '#28232F', '#241F2C', '#272131', '#251F2D'],
+  // Little house (precis #33). Warm-brown background palettes inside;
+  // matching warm tones on the overworld door + apron.
+  [TileType.HouseEntrance]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
+  [TileType.HouseApron]: ['#322215', '#342417', '#302115', '#332416'],
+  [TileType.HouseFloor]: ['#3A2A1C', '#3C2C1E', '#382818', '#3D2C1D', '#3B2A1A', '#3E2D1C'],
+  [TileType.HouseWall]: ['#1E1410', '#201610', '#1C1310', '#221711', '#1F1510'],
+  [TileType.HouseBed]: ['#4A3624', '#4C3725', '#483524'],
+  [TileType.HouseChair]: ['#4A3624', '#4C3725', '#483524'],
+  [TileType.Fireplace]: ['#2A1810', '#2C1A11', '#28170F'],
+  [TileType.HouseExit]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
 }
 
 export const getTileBgColor = (tileType: TileType, x: number, y: number): string => {

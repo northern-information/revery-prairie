@@ -1,6 +1,7 @@
 import { generateCave } from './cave'
 import { getCharacterDefinition, registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, WATER_MAX } from './constants'
+import { createHouseInterior } from './house'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
@@ -151,12 +152,83 @@ export const createGameState = (
     }
   }
 
+  // Little house (precis #33). Build the 30x18 deterministic interior
+  // and place the overworld HouseEntrance west of Gron, mirroring the
+  // cave's ring algorithm. The interior is owned by house.ts; the
+  // overworld door is placed here so it appears on the same prairie
+  // grid as Gron and the cave.
+  const houseInterior = createHouseInterior()
+  const minHouseDist = rainRadius + 1
+  const maxHouseDist = rainRadius + 4
+  let houseEntranceOverworld: Position = { x: gronX - minHouseDist, y: gronY }
+  const HOUSE_PRESERVE = new Set<TileType>([
+    TileType.CaveEntrance,
+    TileType.CaveApron,
+    TileType.RuinEntrance,
+    TileType.RuinApron,
+    TileType.RuinWall,
+    TileType.RuinDoorLocked,
+    TileType.RuinDoorOpen,
+    TileType.RuinAqueduct,
+  ])
+  let houseAttempts = 0
+  while (houseAttempts < 500) {
+    houseAttempts++
+    // West-biased angle: π/2 .. 3π/2 so cos(angle) is non-positive,
+    // placing the candidate at x <= gronX.
+    const angle = Math.PI / 2 + Math.random() * Math.PI
+    const dist = minHouseDist + Math.random() * (maxHouseDist - minHouseDist)
+    const cx = gronX + Math.round(Math.cos(angle) * dist)
+    const cy = gronY + Math.round(Math.sin(angle) * dist)
+    if (cx < SPACE_BORDER || cx >= MAP_WIDTH - SPACE_BORDER) continue
+    if (cy < SPACE_BORDER || cy >= MAP_HEIGHT - SPACE_BORDER) continue
+    if (map[cy][cx].type !== TileType.Dirt) continue
+    let footprintBlocked = false
+    for (let dy = -1; dy <= 1 && !footprintBlocked; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const fx = cx + dx
+        const fy = cy + dy
+        const fk = posKey(fx, fy)
+        if (sim.ponds.has(fk) || sim.riverPaths.has(fk) || map[fy]?.[fx]?.type === TileType.Space) {
+          footprintBlocked = true
+          break
+        }
+        if (HOUSE_PRESERVE.has(map[fy]?.[fx]?.type)) {
+          footprintBlocked = true
+          break
+        }
+      }
+    }
+    if (footprintBlocked) continue
+    houseEntranceOverworld = { x: cx, y: cy }
+    break
+  }
+  map[houseEntranceOverworld.y][houseEntranceOverworld.x] = { type: TileType.HouseEntrance }
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue
+      const nx = houseEntranceOverworld.x + dx
+      const ny = houseEntranceOverworld.y + dy
+      if (nx < 0 || nx >= MAP_WIDTH || ny < 0 || ny >= MAP_HEIGHT) continue
+      const neighbor = map[ny][nx]
+      if (!neighbor) continue
+      if (HOUSE_PRESERVE.has(neighbor.type)) continue
+      if (neighbor.type === TileType.HouseEntrance) continue
+      map[ny][nx] = { type: TileType.HouseApron }
+    }
+  }
+
   // Generate rain seed early so genesis presentDay can use it for rain aura rendering
   const rainSeed = Math.floor(Math.random() * 2147483647)
   sim.rainSeed = rainSeed
 
   const backpack = createBackpack()
 
+  // Precis #33 — the player initially spawns on the overworld here.
+  // `enterHouseAtTenureStart` (called by the React hook in production)
+  // swaps to the HouseInterior buffers and repositions the player.
+  // Tests that don't need the house spawn keep the legacy overworld
+  // start.
   const state: GameState = {
     stewardName,
     map,
@@ -207,6 +279,15 @@ export const createGameState = (
     caveNpcSpot: cave.npcSpot,
     caveHiddenPositions: new Set(cave.hiddenChamberPositions.map(p => posKey(p.x, p.y))),
     caveBreakableWallPositions: cave.breakableWallPositions,
+    houseMap: houseInterior.map,
+    houseMapWidth: houseInterior.width,
+    houseMapHeight: houseInterior.height,
+    houseEntranceOverworld,
+    houseEntranceInterior: houseInterior.spawnInterior,
+    houseBedInterior: houseInterior.bedInterior,
+    houseChairInterior: houseInterior.chairInterior,
+    emilyInvitation: 'unoffered',
+    emilyReveryReturn: null,
     giftsReceived: new Set<string>(),
     world: createWorld(),
     meteorShower: {
@@ -214,23 +295,9 @@ export const createGameState = (
       remainingStars: 0,
       lastSpawnTime: 0,
       spawnIntervalMs: 0,
-      // Game starts at seasonalPhase = 0.0 (spring equinox). The first
-      // tickMeteorShower call sees pendingAnchorPhase === 0.0 and the
-      // current phase at 0.0, fires the spring shower immediately, and
-      // pre-targets the player tile as the steward star (because
-      // playerSpawn.triggeredAt is 0).
       pendingAnchorPhase: 0.0,
       lastFiredAnchorIndex: -1,
       lastFiredAnchorYear: 0,
-    },
-    playerSpawn: {
-      // visible defaults to true so headless tests/setups (no gameloop) work.
-      // The gameloop's player-spawn-trigger tick runs before the first render
-      // and flips this to false, kicking off the spawn ceremony.
-      visible: true,
-      spawnPos: { x: playerX, y: playerY },
-      meteorEntityId: null,
-      triggeredAt: 0,
     },
     lightning: {
       nextStrikeTime: 60_000,
@@ -466,7 +533,33 @@ export const createGameState = (
   // Create Moab in the cave (persists permanently, tagged as cave zone)
   createCharacterEntity(state, 'moab', { ...cave.npcSpot }, { zone: Zone.Cave })
 
+  // Precis #33 — create Emily inside the little house at her idle
+  // position (one tile west of the fireplace). Stationary, no AI tick;
+  // appears only when state.currentZone === Zone.HouseInterior.
+  createCharacterEntity(state, 'emily', { x: 14, y: 1 }, { zone: Zone.HouseInterior })
+
   autoSort(backpack)
 
   return state
+}
+
+/**
+ * Precis #33 — production hook calls this after createGameState to
+ * place the player inside the little house at tenure start. The state
+ * leaves createGameState in the legacy overworld posture so tests that
+ * call createGameState directly retain their original assumptions.
+ * The React hook (src/hooks/useGameEngine.ts) calls this immediately
+ * after creating the state.
+ */
+export const enterHouseAtTenureStart = (state: GameState): void => {
+  state.map = state.houseMap
+  state.mapWidth = state.houseMapWidth
+  state.mapHeight = state.houseMapHeight
+  state.currentZone = Zone.HouseInterior
+  state.player = { x: state.houseEntranceInterior.x, y: state.houseEntranceInterior.y }
+  state.playerFacing = 'up'
+  state.camera = {
+    x: state.player.x - Math.floor(state.viewportWidth / 2),
+    y: state.player.y - Math.floor(state.viewportHeight / 2),
+  }
 }
