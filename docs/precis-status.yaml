@@ -1385,10 +1385,10 @@ features:
       underneath continues to run.
     size: M
     depends_on: []
-    status: todo
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/overworld-fog-of-war.yaml
+    plan: harness/plans/precis-38-overworld-gaze.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/420
     notes: >
       v7 thinktank round 2 (2026-05-23). God-mode visibility on the
       overworld was a placeholder from the era when rendering was cheap
