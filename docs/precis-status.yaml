@@ -965,9 +965,9 @@ features:
       existing teleport (`src/engine/interaction.ts:204`,
       `src/engine/coyote.ts:296-317`) and dialog substrate.
     depends_on: ['4']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/precis-32-revery-dormancy-pressure.yaml
+    plan: harness/plans/precis-32-revery-dormancy-pressure.yaml
     pr: null
     notes: >
       v6 thinktank round 1 (2026-05-22). The current omen lives in
