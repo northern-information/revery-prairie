@@ -1,9 +1,12 @@
 // Precis #9b — Torchbearer behavior pass. Moab the drip torchbearer
 // walks the burn line during Spring. The cycle is driven by season
 // transitions detected in tickTorchbearer:
-//   Winter → Spring: lockedBurnLine := burnLineDraft; Moab emerges from
-//     cave to caveEntranceOverworld; moabState transitions through
-//     refusal check to Walking (or Refusing → Returning).
+//   Winter → Spring: lockedBurnLine consumed (currently no source —
+//     the draft authoring layer was removed in the input-system-cleanup
+//     CR and the walk-with-Moab follow-up will restore population);
+//     Moab emerges from cave to caveEntranceOverworld; moabState
+//     transitions through refusal check to Walking (or Refusing →
+//     Returning).
 //   Spring → Summer: Moab returns to cave; all burn-line state clears.
 //
 // Per-tick during 'walking': Moab advances one tile toward
@@ -102,20 +105,19 @@ const setMoabPosition = (state: GameState, pos: Position, durationMs?: number): 
   state.world.moveEntity(eid, pos.x, pos.y, durationMs)
 }
 
-// Winter → Spring transition handler. Consumes burnLineDraft, performs
-// refusal check, and either emerges Moab into Walking or triggers the
-// Refusing flow.
+// Winter → Spring transition handler. Reads from state.lockedBurnLine
+// (populated by the future walk-with-Moab authoring path; currently
+// always null since the burnDrawMode authoring layer was removed in the
+// input-system-cleanup CR), performs the refusal check, and either
+// emerges Moab into Walking or triggers the Refusing flow.
 const onThaw = (state: GameState): void => {
-  const draft = state.burnLineDraft
-  state.burnLineDraft = null
-  if (!draft || draft.length === 0) {
-    // No line drawn this winter; no emergence.
-    state.lockedBurnLine = null
+  const line = state.lockedBurnLine
+  if (!line || line.length === 0) {
+    // No line for this year; no emergence.
     return
   }
-  state.lockedBurnLine = draft
 
-  if (checkBurnLineRefusal(state, draft) !== null) {
+  if (checkBurnLineRefusal(state, line) !== null) {
     state.moabState = MoabState.Refusing
     state.burnLineIndex = null
     recordDiscovery(state, 'event:torchbearer-refused')

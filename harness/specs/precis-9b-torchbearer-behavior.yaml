@@ -37,12 +37,20 @@ dependencies:
 #     tiles also burn.
 #
 # Defaults baked into this spec (flagged for review):
-#   D1. Draw-mode UX: a new key `b` toggles burn-draw mode. While
-#       drawing, left-click sets the line origin; shift+click chains
-#       waypoints. ESC exits the mode without clearing the draft.
-#       Alternative (click-and-drag) was considered and rejected for
-#       conflict with click-to-move. Existing path/waypoint vocabulary
-#       transfers cleanly to burn-line drafting.
+#   D1. Line authoring UX: DEFERRED. The original draft-mode UX
+#       (`b` toggles burnDrawMode; left-click sets line origin;
+#       shift+click chains waypoints) was removed in the
+#       input-system-cleanup change-request (2026-05). The replacement
+#       authoring path is "player walks the line accompanied by Moab"
+#       (per v3 doctrine: "Player walks the line with them.
+#       Stewardship is accompaniment."). That mechanic is its own
+#       follow-up change-request and is not in this spec. While the
+#       authoring layer is absent, lockedBurnLine stays null forever
+#       and the walking / refusal / cleanup behaviors below are
+#       dormant — present but unreachable. The infrastructure stays
+#       speccced and tested so the walk-with-Moab follow-up can
+#       repopulate lockedBurnLine without rebuilding the seasonal
+#       cycle.
 #   D2. Egregore tile burn result: Egregore → Dirt (not BurntFlora).
 #       Rationale: BurntFlora signals charred native flora; egregores
 #       aren't native, so they don't leave a charred-flora signature.
@@ -62,91 +70,48 @@ dependencies:
 #       triggers refusal.
 
 behaviors:
-  - id: burn-line-draft-state
+  - id: burn-line-state
     description: >
-      GameState gains two nullable Position[] fields: burnLineDraft
-      (what the player is editing, persists until cleared or until
-      the Winter → Spring transition consumes it) and lockedBurnLine
-      (what Moab is committed to walking this Spring). A nullable
-      burnLineIndex tracks Moab's progress along lockedBurnLine.
-      Initialized to null on createGameState.
+      GameState retains a nullable Position[] field lockedBurnLine
+      (what Moab is committed to walking this Spring) and a nullable
+      number burnLineIndex (his progress along the line). Both
+      initialize to null on createGameState. The companion field
+      burnLineDraft and the boolean burnDrawMode were removed in the
+      input-system-cleanup CR; with no authoring layer in this codebase
+      revision, lockedBurnLine has no source and stays null. The walk-
+      with-Moab follow-up will populate lockedBurnLine through a new
+      mechanism (out of scope here).
     inputs:
       - 'createGameState returns a fresh state'
     outputs:
-      - 'state.burnLineDraft === null'
       - 'state.lockedBurnLine === null'
       - 'state.burnLineIndex === null'
     state_changes:
-      - field: burnLineDraft
-        effect: 'initialized to null'
       - field: lockedBurnLine
         effect: 'initialized to null'
       - field: burnLineIndex
         effect: 'initialized to null'
     determinism: deterministic
 
-  - id: burn-draw-mode-toggle
-    description: >
-      A new state field state.burnDrawMode: boolean (default false)
-      controls whether mouse input chains burn-line waypoints
-      vs movement waypoints. Pressing the [b] key in the overworld,
-      with no dialog/menu/panel open and no modifier held, toggles
-      burnDrawMode. ESC exits burnDrawMode without clearing
-      burnLineDraft. Movement keys (WASD) work normally regardless
-      of mode — only mouse semantics change.
-    inputs:
-      - 'Player presses [b] in overworld'
-      - 'Player presses ESC while burnDrawMode === true'
-    outputs:
-      - 'burnDrawMode toggles'
-      - 'burnLineDraft is NOT cleared by mode exit'
-    state_changes:
-      - field: burnDrawMode
-        effect: 'toggled by [b]; set to false by ESC'
-    determinism: deterministic
-
-  - id: burn-line-click-chain
-    description: >
-      While state.burnDrawMode === true, left-click on a walkable
-      overworld tile sets burnLineDraft to [clickedTile] (resets the
-      line origin). Shift+left-click appends the clicked tile to
-      burnLineDraft, validated against contiguity (each new tile must
-      be 4-neighbor adjacent to the previous tile in the draft).
-      Invalid clicks (non-walkable, non-overworld, non-contiguous on
-      shift) are ignored. Click during burnDrawMode never triggers
-      movement.
-    inputs:
-      - 'left-click on walkable overworld tile with burnDrawMode true'
-      - 'shift+left-click on 4-neighbor of last draft tile'
-      - 'click on non-walkable / non-overworld / non-adjacent tile'
-    outputs:
-      - 'origin click resets burnLineDraft to [tile]'
-      - 'shift+click appends tile if adjacent; otherwise no-op'
-    state_changes:
-      - field: burnLineDraft
-        effect: 'origin click: set to single-element array; shift+click: appended if valid'
-    determinism: deterministic
-
   - id: winter-spring-transition-lock
     description: >
-      A new state.lastSeenSeason field tracks the previous tick's
-      season. Each weather tick, the transition Winter → Spring is
-      detected (lastSeenSeason === Winter AND weather.season ===
-      Spring). On detection, burnLineDraft is consumed:
-      lockedBurnLine := burnLineDraft, burnLineDraft := null. If
-      burnLineDraft was null/empty, lockedBurnLine remains null and
-      Moab does not emerge that year. The transition fires exactly
-      once per Winter → Spring per year.
+      A state.lastSeenSeason field tracks the previous tick's season.
+      Each weather tick, the transition Winter → Spring is detected
+      (lastSeenSeason === Winter AND weather.season === Spring). On
+      detection, if a populated burn-line draft exists in state it is
+      consumed into lockedBurnLine. After the input-system-cleanup CR
+      there is no source that populates a draft, so lockedBurnLine
+      stays null and Moab does not emerge that year. The transition
+      detector itself still runs and updates lastSeenSeason; only the
+      draft consumption step is currently a no-op. The walk-with-Moab
+      follow-up will provide a new source for lockedBurnLine that
+      slots into this transition (or replaces it).
     inputs:
       - 'tickWeather runs with lastSeenSeason === Winter and weather.season === Spring'
     outputs:
-      - 'lockedBurnLine === previous burnLineDraft (if non-empty)'
-      - 'burnLineDraft === null'
+      - 'lastSeenSeason updated each tick'
+      - 'lockedBurnLine remains null in this codebase revision'
     state_changes:
-      - field: lockedBurnLine
-        effect: 'set from burnLineDraft at thaw'
-      - field: burnLineDraft
-        effect: 'cleared at thaw'
       - field: lastSeenSeason
         effect: 'updated to current weather.season every tick'
     determinism: deterministic
@@ -257,7 +222,7 @@ behaviors:
 
   - id: player-dismiss-at-line
     description: >
-      Player presses [e] facing Moab while moabState === 'walking'.
+      Player presses [f] facing Moab while moabState === 'walking'.
       The existing interactWithCharacter system opens dialog. When
       that dialog completes (player advances past the last line),
       moabState transitions to 'dismissed' then 'returning'. Moab
@@ -266,7 +231,7 @@ behaviors:
       report the unburnt remainder); per D3 it clears at Spring →
       Summer.
     inputs:
-      - "Player facing Moab, [e] pressed, moabState === 'walking'"
+      - "Player facing Moab, [f] pressed, moabState === 'walking'"
       - 'Player completes the dismiss dialog'
     outputs:
       - 'Dialog opens with Moab walking register'
@@ -328,20 +293,21 @@ behaviors:
 
   - id: renderer-draws-burn-line
     description: >
-      A new render pass under src/engine/render/passes/ draws the
-      burn line as a faint overlay on the relevant tiles.
-      burnLineDraft renders in a paler shade; lockedBurnLine
-      renders in a more saturated shade. The overlay does not
-      depend on hot pink (reserved for user actions cursor /
-      preview per CLAUDE.md). Suggested palette: muted amber
-      for draft, deeper amber for locked. burnLineIndex marks
-      Moab's progress — tiles already walked render unhighlighted
-      (they have already mutated and need no overlay).
+      A render pass under src/engine/render/passes/ draws the burn
+      line as a faint overlay on the relevant tiles. lockedBurnLine
+      tiles render in a saturated amber. The overlay does not depend
+      on hot pink (reserved for user actions cursor / preview per
+      CLAUDE.md). burnLineIndex marks Moab's progress — tiles already
+      walked render unhighlighted (they have already mutated and need
+      no overlay). With burnLineDraft removed in the input-system-
+      cleanup CR, the prior paler-shade draft overlay is gone; the
+      pass only has one input (lockedBurnLine) and is a no-op in
+      this codebase revision because lockedBurnLine is always null
+      until the walk-with-Moab follow-up populates it.
     inputs:
-      - 'burnLineDraft / lockedBurnLine populated'
+      - 'lockedBurnLine populated'
       - 'render frame'
     outputs:
-      - 'tiles in burnLineDraft show a draft overlay'
       - 'tiles in lockedBurnLine[burnLineIndex:] show a locked overlay'
     state_changes: []
     determinism: deterministic
@@ -368,21 +334,13 @@ behaviors:
 edge_cases:
   - id: no-line-drawn-spring-arrives
     description: >
-      Winter → Spring transition fires while burnLineDraft is null
-      or empty.
+      Winter → Spring transition fires with no source of a burn-line
+      draft (current codebase revision — the authoring layer was
+      removed in input-system-cleanup).
     expected: >
       lockedBurnLine stays null. Moab does not emerge. moabState
-      stays 'idle'. The year passes without a controlled burn.
-
-  - id: player-draws-during-spring
-    description: >
-      Player enters burnDrawMode and draws a line while
-      weather.season === Spring (after thaw, before next winter).
-    expected: >
-      Drawing is allowed (burnDrawMode works in any season). The
-      line populates burnLineDraft. It will be consumed by the NEXT
-      Winter → Spring transition. lockedBurnLine is unaffected this
-      year.
+      stays 'idle'. The year passes without a controlled burn. This
+      is the steady state until the walk-with-Moab follow-up lands.
 
   - id: line-includes-egregore-mid-winter-placed
     description: >
@@ -452,10 +410,6 @@ failure_conditions:
       and burnLineIndex does not advance. Spring → Summer cleanup
       ends the walk; the unreached portion remains unburnt.
 
-  - trigger: 'Player presses [b] outside the overworld (in cave/ruin)'
-    expected: >
-      Burn draw mode does not toggle. The B key is overworld-only.
-
   - trigger: 'createGameState constructed without weather (test harness shortcut)'
     expected: >
       tickTorchbearer reads state.weather.season directly. A state
@@ -465,10 +419,12 @@ failure_conditions:
   - trigger: 'Save/load with mid-walk Moab'
     expected: >
       Serialization includes moabState, burnLineIndex,
-      lockedBurnLine, burnLineDraft, lastSeenSeason. EXPECTED_FIELDS
-      in src/harness/__tests__/serialization/schema.test.ts must be
-      updated for all new fields (see "new GameState field" rule in
-      CLAUDE.md).
+      lockedBurnLine, lastSeenSeason. burnLineDraft and burnDrawMode
+      were removed from GameState in the input-system-cleanup CR and
+      from EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts at the same
+      time (see "new GameState field" rule in CLAUDE.md — also covers
+      removals).
 
 verification:
   test_file: src/engine/__tests__/torchbearer.test.ts

@@ -35,12 +35,13 @@ export interface KeyBinding {
 
 export const KEYBINDINGS: KeyBinding[] = [
   { key: 'wasd', action: 'Move', context: 'Single keys move diagonally; combine for cardinals' },
-  { key: 'f', action: 'Interact / Scan', context: 'Tap to talk, pick up, open, break wall; hold to scan flora' },
-  { key: 'x', action: 'Drop Item', context: 'Pack open, hovering item' },
-  { key: 'tab', action: 'Toggle Pack' },
-  { key: 'q', action: 'Toggle Manual' },
-  { key: 'c', action: 'Toggle Divination', context: 'Overworld only, requires coins' },
-  { key: 'esc', action: 'Close Screen / Open System' },
   { key: 'shift', action: 'Toggle Sprint', context: 'Double movement speed' },
   { key: 'shift+click', action: 'Queue Waypoints' },
+  { key: 'f', action: 'Interact / Scan', context: 'Tap to talk, open, break wall, clear debris; hold to scan flora / egregore / oak' },
+  { key: 'x', action: 'Drop Item', context: 'Hovering item in backpack' },
+  { key: 'tab', action: 'Toggle Manual' },
+  { key: 'c', action: 'Toggle Divination', context: 'Overworld only, requires 3 glinting coins' },
+  { key: 'esc', action: 'Close Screen / Open System' },
+  { key: '1', action: 'Overlay — Default', context: 'Precis #17 overlay modes' },
+  { key: '2', action: 'Overlay — Family Tree', context: 'Precis #17 overlay modes' },
 ]

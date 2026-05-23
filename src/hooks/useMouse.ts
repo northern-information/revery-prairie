@@ -20,7 +20,7 @@ import {
 import { getPathfindingBlockers } from '@/engine/movement'
 import { findPath } from '@/engine/pathfinding'
 import { isWalkableTile, posKey } from '@/engine/position'
-import { TileType, Zone } from '@/engine/types'
+import { TileType } from '@/engine/types'
 import { isInputGated } from '@/engine/zoneTransition'
 import type { PermacomputerScreen } from './useKeyboard'
 import type { CharMetrics, GameState, Position } from '@/engine/types'
@@ -185,27 +185,6 @@ export const useMouse = ({
         state.viewportHeight
       )
       if (rawTile.x < 0 || rawTile.x >= state.mapWidth || rawTile.y < 0 || rawTile.y >= state.mapHeight) return
-
-      // Precis #9b — burn-line draw mode. Clicks chain burn-line waypoints
-      // instead of moving the player. Origin click (no shift) resets the
-      // line; shift+click appends if 4-neighbor adjacent. Non-walkable or
-      // non-overworld clicks are ignored.
-      if (state.burnDrawMode && state.currentZone === Zone.Overworld) {
-        const targetTile = state.map[rawTile.y][rawTile.x]
-        if (!isWalkableTile(targetTile.type)) return
-        if (e.shiftKey && state.burnLineDraft && state.burnLineDraft.length > 0) {
-          const last = state.burnLineDraft[state.burnLineDraft.length - 1]
-          const dx = Math.abs(rawTile.x - last.x)
-          const dy = Math.abs(rawTile.y - last.y)
-          const adjacent = (dx === 1 && dy === 0) || (dx === 0 && dy === 1)
-          if (!adjacent) return
-          state.burnLineDraft = [...state.burnLineDraft, { x: rawTile.x, y: rawTile.y }]
-        } else {
-          state.burnLineDraft = [{ x: rawTile.x, y: rawTile.y }]
-        }
-        refreshUI()
-        return
-      }
 
       const tile = expandClickTile(state, rawTile)
 

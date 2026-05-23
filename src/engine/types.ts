@@ -435,20 +435,16 @@ export interface GameState {
   // equinox (day-of-year 79). Recomputed in tickWeather; single writer.
   currentDate: { month: number; day: number }
   // Precis #9b — Torchbearer behavior pass.
-  // burnLineDraft: tiles the player is editing. Persists across save/load.
-  //   Consumed at the Winter → Spring transition.
-  // lockedBurnLine: the line Moab walks this Spring. Set at thaw from
-  //   burnLineDraft; cleared at Spring → Summer.
+  // lockedBurnLine: the line Moab walks this Spring. The authoring layer
+  //   (burnDrawMode + burnLineDraft) was removed in the input-system-
+  //   cleanup CR; this field is dormant pending the walk-with-Moab
+  //   follow-up that will repopulate it.
   // burnLineIndex: Moab's progress along lockedBurnLine. null when idle.
-  // burnDrawMode: input mode toggle ([b] key). When true, mouse clicks
-  //   chain burn-line waypoints instead of movement.
   // lastSeenSeason: the previous tick's weather.season. Drives transition
   //   detection (Winter → Spring lock, Spring → Summer cleanup).
   // moabState: see MoabState. Tracks Moab's role in the burn cycle.
-  burnLineDraft: Position[] | null
   lockedBurnLine: Position[] | null
   burnLineIndex: number | null
-  burnDrawMode: boolean
   lastSeenSeason: Season
   moabState: MoabState
   wind: WindState

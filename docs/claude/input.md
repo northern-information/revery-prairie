@@ -12,6 +12,8 @@ shift + right-click queues a waypoint onto the active path (RTS-style). the new 
 
 click feedback: every click-to-move spawns a brief hot-pink "pop and fade" diamond on the destination tile (`clickTarget` timed effect, 400ms duration, rendered by `clickTarget` pass at the `effect` slot).
 
+ground-item pickup is handled by `pickUpGroundItems` in `engine/entities.ts`, which runs every tick and acquires any item within a 3×3 Chebyshev footprint of the player (see `pickup-hitbox` spec). neither mouse button triggers a pickup `pendingAction` — walk near the item, it picks up automatically.
+
 coordinate transform: `screenToTile()` converts CSS pixels to world tile position. no DPR correction needed — `offsetX`/`offsetY` are already CSS-space.
 
 ## cursor
@@ -20,17 +22,28 @@ custom cursor from `public/cursor.cur` (diablo II style). set globally via CSS o
 
 ## keybindings
 
-left-hand keyboard layout (modern roguelike standard). WASD movement + surrounding keys.
+left-hand keyboard layout (modern roguelike standard). WASD movement + surrounding keys. `KEYBINDINGS` in `src/engine/input.ts` is the source of truth that feeds the manual and these docs.
 
-- `wasd` — movement (works with inventory open, blocked in menu, during drag, and when a text input is focused)
-- `e` — context-dependent: talk to character / advance dialog / toss coins in divination / close divination result / break facing cave breakable wall
-- `x` — drop hovered inventory item to the ground (only when an item is hovered in the pack)
-- `c` — toggle divination screen (overworld only, blocked during dialog and menu)
-- `tab` — toggle inventory
-- `q` — toggle prairie manual
-- `esc` — close panel / open menu
+- `wasd` / arrow keys — movement (works with backpack open; closes the system menu; blocked when a text input is focused)
 - `shift` — toggle sprint (double movement speed, works with WASD and click-to-move)
-- `space` — toggle camera mode (follow lock ↔ RTS pan)
-- during drag: `esc` cancels (captured by drag hook)
-- `` ` `` — toggle dev panel (dev mode only)
-- `isDraggingRef` blocks `x` in keyboard hook while drag is active, but allows movement through
+- `shift + right-click` — queue waypoints onto an existing path (RTS-style)
+- `f` — tap to interact: advance dialog, talk to adjacent character (coyote selects unit; first interaction with an angel stores its canto), unlock a facing locked door (or open the locked-gate dialog if no key), break a facing cave breakable wall, clear facing ruin debris. tap also doubles as the divination toss / result-close key inside `HexagramPanel`. hold to scan a flora / egregore / oak target with the permacomputer (precis #6).
+- `x` — drop the currently hovered backpack item to the ground. only fires when an item is hovered in the pack. blocked during drag.
+- `tab` — toggle the prairie manual (blocked during deep-time Burning / Simulating)
+- `c` — toggle the divination screen. overworld only. blocked during dialog, while the system menu is open, and during deep-time Burning / Simulating.
+- `esc` — close active dialog, then close active screen, then open the system menu (hierarchical cascade)
+- `1` / `2` — overlay modes per precis #17 (Default / Family Tree). `3` is reserved.
+- `` ` `` — toggle dev panel (dev mode only). while open, all other game keys are blocked except backtick (close) and Escape (close).
+
+while a text input (`INPUT` / `TEXTAREA`) has focus, only `Escape` and `Tab` reach the game layer. Shift, WASD, and every other key go to the input field.
+
+while a drag of an inventory item is active, only movement keys reach the engine — `x`, interact, and other gameplay keys are suppressed.
+
+genesis-phase input is locked except `Escape` / `Space` / `Enter` (each skips the current epoch).
+
+helper-text convention: bracketed UI strings use Title Case — hotkey hints (`[F]`, `[X]`, `[Tab]`, `[Enter]`) and descriptive labels (`[Toss Coins]`, `[Compendium]`).
+
+### reserved keys (not yet implemented)
+
+- `left click+drag` — TBD
+- `right click+drag` — TBD

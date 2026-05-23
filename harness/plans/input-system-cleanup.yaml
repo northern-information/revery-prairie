@@ -1,0 +1,207 @@
+plan:
+  id: input-system-cleanup
+  title: 'Input system cleanup — drop Q/B/click-pickup, fix focus gate + C deep-time gate, resync docs/registry, normalize hotkey helper text, add [X] Drop hint'
+  created: '2026-05-23'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+    - npm run spec:validate
+
+tasks:
+  - id: drop-q-manual-toggle
+    title: 'Remove the `q` keybinding that toggled the manual'
+    spec_id: input-system-cleanup
+    spec_sections:
+      - manual-toggle-tab-only
+      - keybindings-registry-is-authoritative
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/input.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/input.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/input/input-system-cleanup.test.ts
+    repair: retry
+    tags: [hook, registry]
+
+  - id: drop-b-and-burndrawmode-system
+    title: 'Remove the `b` keybinding and the entire burnDrawMode + burnLineDraft authoring system'
+    spec_id: input-system-cleanup
+    spec_sections:
+      - burn-draw-mode-removed
+      - keybindings-registry-is-authoritative
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/hooks/useMouse.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/torchbearer.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+      - src/hooks/useMouse.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/torchbearer.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+      - npx vitest run src/engine/__tests__/torchbearer.test.ts
+      - npx vitest run src/harness/__tests__/input/input-system-cleanup.test.ts
+    repair: retry
+    tags: [hook, state, schema]
+
+  - id: drop-click-ground-item-pickup
+    title: 'Remove the left-click pickup branch in useMouse — clicks on ground items become plain walk-to-tile'
+    spec_id: input-system-cleanup
+    spec_sections:
+      - click-ground-item-walks-only
+    context_files:
+      - src/hooks/useMouse.ts
+      - src/engine/interaction.ts
+      - src/engine/entities.ts
+    output_files:
+      - src/hooks/useMouse.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/hooks/__tests__/useMouse.test.ts
+      - npx vitest run src/engine/__tests__/entities.test.ts
+    repair: retry
+    tags: [hook]
+
+  - id: gate-c-during-deep-time
+    title: 'Add deep-time Burning/Simulating gate to the `c` divination toggle'
+    spec_id: input-system-cleanup
+    spec_sections:
+      - divination-deep-time-gate
+    context_files:
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/hooks/__tests__/useKeyboard.test.ts
+    repair: retry
+    tags: [hook]
+
+  - id: resync-keybindings-registry
+    title: 'Update KEYBINDINGS in src/engine/input.ts to include `1`/`2` overlay modes and reflect the final binding set'
+    spec_id: input-system-cleanup
+    spec_sections:
+      - keybindings-registry-is-authoritative
+    context_files:
+      - src/engine/input.ts
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/engine/input.ts
+    depends_on:
+      - drop-q-manual-toggle
+      - drop-b-and-burndrawmode-system
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/input/input-system-cleanup.test.ts
+    repair: retry
+    tags: [registry]
+
+  - id: resync-input-md
+    title: 'Rewrite docs/claude/input.md to match the post-cleanup keyboard surface'
+    spec_id: input-system-cleanup
+    spec_sections:
+      - input-md-resync
+    context_files:
+      - src/engine/input.ts
+      - src/hooks/useKeyboard.ts
+      - docs/claude/input.md
+    output_files:
+      - docs/claude/input.md
+    depends_on:
+      - resync-keybindings-registry
+    verification:
+      - npx vitest run src/harness/__tests__/input/input-system-cleanup.test.ts
+    repair: retry
+    tags: [docs]
+
+  - id: normalize-helper-text-uppercase
+    title: 'Capitalize bracketed hotkey hints in ScanProgressBar (`[F]`) and HexagramPanel (`[F]`, `[Enter]`)'
+    spec_id: input-system-cleanup
+    spec_sections:
+      - helper-text-bracketed-title-case
+    context_files:
+      - src/components/ScanProgressBar.tsx
+      - src/components/HexagramPanel.tsx
+      - src/components/__tests__/ScanProgressBar.test.tsx
+    output_files:
+      - src/components/ScanProgressBar.tsx
+      - src/components/HexagramPanel.tsx
+      - src/components/__tests__/ScanProgressBar.test.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/ScanProgressBar.test.tsx
+      - npx vitest run src/harness/__tests__/input/input-system-cleanup.test.ts
+    repair: retry
+    tags: [component, ui-text]
+
+  - id: add-x-drop-hint-to-iteminfo
+    title: 'Render `[X] Drop` helper text at the bottom of the ItemInfo card on backpack item hover'
+    spec_id: input-system-cleanup
+    spec_sections:
+      - backpack-item-hover-shows-drop-hint
+    context_files:
+      - src/components/ItemInfo.tsx
+      - src/components/InventoryPanel.tsx
+      - src/components/__tests__/ItemInfo.test.tsx
+    output_files:
+      - src/components/ItemInfo.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/
+      - npx vitest run src/harness/__tests__/input/input-system-cleanup.test.ts
+    repair: retry
+    tags: [component, ui-text]
+
+  - id: finalize-regression-coverage
+    title: 'Backfill any missing assertions in input-system-cleanup.test.ts; ensure all behaviors and failure conditions are covered'
+    spec_id: input-system-cleanup
+    spec_sections:
+      - keybindings-registry-is-authoritative
+      - manual-toggle-tab-only
+      - burn-draw-mode-removed
+      - click-ground-item-walks-only
+      - divination-deep-time-gate
+      - helper-text-bracketed-title-case
+      - backpack-item-hover-shows-drop-hint
+      - input-md-resync
+    context_files:
+      - src/harness/__tests__/input/input-system-cleanup.test.ts
+      - src/harness/__tests__/input/interact-key-remap.test.ts
+      - src/engine/input.ts
+      - src/hooks/useKeyboard.ts
+      - src/components/ItemInfo.tsx
+      - src/components/ScanProgressBar.tsx
+      - src/components/HexagramPanel.tsx
+      - docs/claude/input.md
+    output_files:
+      - src/harness/__tests__/input/input-system-cleanup.test.ts
+    depends_on:
+      - drop-q-manual-toggle
+      - drop-b-and-burndrawmode-system
+      - drop-click-ground-item-pickup
+      - gate-c-during-deep-time
+      - resync-keybindings-registry
+      - resync-input-md
+      - normalize-helper-text-uppercase
+      - add-x-drop-hint-to-iteminfo
+    verification:
+      - npx vitest run src/harness/__tests__/input/
+    repair: retry
+    tags: [test]
