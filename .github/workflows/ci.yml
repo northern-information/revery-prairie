@@ -50,6 +50,10 @@ jobs:
 
   test-engine:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v5
 
@@ -69,7 +73,7 @@ jobs:
       - run: npm ci
         if: steps.cache-modules.outputs.cache-hit != 'true'
 
-      - run: npx vitest run --project engine
+      - run: npx vitest run --project engine --shard=${{ matrix.shard }}/3
 
   test-harness:
     runs-on: ubuntu-latest
