@@ -458,6 +458,12 @@ export const REVERY_CAMERA_DRIFT_INTERVAL_MS = 800
 // How long the player must stand still before the cloud-passing-sun omen
 // is eligible to fire.
 export const REVERY_OMEN_STATIONARY_MS = 2_000
+// Precis #32 — dormancy pressure linear ramp endpoints in seasonalPhase
+// space. Pressure floor = clamp01((seasonalPhase - START) / (END - START))
+// when state.weather.season === Season.Autumn. Ramp reaches ceiling at
+// the winter solstice, guaranteeing the Revery within a year.
+export const REVERY_PRESSURE_RAMP_START = 0.5 // autumn equinox
+export const REVERY_PRESSURE_RAMP_END = 0.75 // winter solstice
 // First-Revery hardcoded egregoric advance per v3 doctrine 8a section.
 export const FIRST_REVERY_EGREGORE_COUNT = 3
 // Ordered axes the phenotype label rotates through, by reveryCount %
