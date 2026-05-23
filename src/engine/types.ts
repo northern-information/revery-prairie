@@ -106,13 +106,6 @@ export interface FollowBehavior {
 
 export type CharacterBehavior = DriftBehavior | FollowBehavior
 
-export const CoyoteMode = {
-  Follow: 'follow',
-  Collect: 'collect',
-} as const
-
-export type CoyoteMode = (typeof CoyoteMode)[keyof typeof CoyoteMode]
-
 export const MainQuestPhase = {
   AwaitingCoyote: 'awaiting-coyote',
   Gathering: 'gathering',
@@ -469,17 +462,11 @@ export interface GameState {
   nextAngelSpawnTime: number
   angelEncounterCount: number
   angelFlashTime: number
-  coyoteMode: CoyoteMode
   coyoteCargo: string | null
-  coyotePath: Position[] | null
   ruinInteriors: RuinInterior[]
   currentRuinIndex: number | null
   caveFogExplored: Set<string>
   caveFogDiscovered: Set<string>
-  selectedUnits: Set<number>
-  selectionBox: SelectionBox | null
-  unitCommands: Map<number, UnitCommand>
-  moveOrderMarkers: MoveOrderMarker[]
   autoHidePanels: boolean
   panelOpenMoveCount: number
   devPanelOpen: boolean
@@ -929,18 +916,3 @@ export interface CharMetrics {
   font: string
 }
 
-export interface UnitCommand {
-  targetEntityId: number
-  target: Position
-  path: Position[] | null
-}
-
-export interface SelectionBox {
-  startScreen: { x: number; y: number }
-  endScreen: { x: number; y: number }
-}
-
-export interface MoveOrderMarker {
-  position: Position
-  time: number
-}

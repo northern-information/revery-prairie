@@ -4,11 +4,13 @@ referenced from `CLAUDE.md`. read when touching click-to-move, pathfinding, curs
 
 ## mouse controls
 
-click-to-move via A\* pathfinding. click a walkable tile → player walks there tile-by-tile (100ms per step via `tickPath()`). path stored as `state.path: Position[] | null`. keyboard input cancels the current path.
+click-to-move via A\* pathfinding. right-click a walkable tile → player walks there tile-by-tile (100ms per step via `tickPath()`). path stored as `state.path: Position[] | null`. keyboard input cancels the current path.
 
-shift+click chains waypoints onto an existing path (RTS-style). pathfinds from end of current chain to clicked tile and appends. `state.pathWaypoints` stores click targets.
+right-click is the only mouse button that moves the player. left-click never sets `state.path`. left-click on a character or interactable that is *already adjacent* fires the interaction immediately (e.g. advancing dialog) without any pathfinding; left-click on anything farther away is a no-op. to reach a far interactable, right-click to walk over and press the interact key.
 
-click-to-interact: clicking any interactable pathfinds to closest adjacent walkable tile, then executes interaction on arrival via `state.pendingAction`. `state.pendingInteractionTarget` highlights the target during the walk.
+shift + right-click queues a waypoint onto the active path (RTS-style). the new segment is `findPath(lastWaypoint, clickedTile)` appended to `state.path`; `state.pathWaypoints` gains the new tile. shift without an active path behaves as a plain right-click.
+
+click feedback: every click-to-move spawns a brief hot-pink "pop and fade" diamond on the destination tile (`clickTarget` timed effect, 400ms duration, rendered by `clickTarget` pass at the `effect` slot).
 
 coordinate transform: `screenToTile()` converts CSS pixels to world tile position. no DPR correction needed — `offsetX`/`offsetY` are already CSS-space.
 
@@ -28,13 +30,7 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 - `q` — toggle prairie manual
 - `esc` — close panel / open menu
 - `shift` — toggle sprint (double movement speed, works with WASD and click-to-move)
-- `shift+click` — queue waypoints onto existing path (RTS-style)
 - `space` — toggle camera mode (follow lock ↔ RTS pan)
 - during drag: `esc` cancels (captured by drag hook)
 - `` ` `` — toggle dev panel (dev mode only)
 - `isDraggingRef` blocks `x` in keyboard hook while drag is active, but allows movement through
-
-### reserved keys (not yet implemented)
-
-- `left click+drag` — TBD (future RTS-style multi-select)
-- `right click` — TBD

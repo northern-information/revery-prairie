@@ -241,6 +241,13 @@ export const PICKUP_EFFECT_CHARS_RING = ['\u2726', '+', '.', '\u00b7'] // ✦ �
 export const PICKUP_EFFECT_CHARS_FILL = ['.', '+'] // shimmer interior chars
 export const PICKUP_EFFECT_COLORS = ['#FFFFFF', '#E0E0FF', '#C8C8FF', '#B0B0EE', '#9999DD'] // white → soft lavender fade
 
+// click-target feedback (pink "pop and fade" on the destination tile of a
+// click-to-move). Drawn at the 'effect' slot so it composites above terrain
+// but below screen overlays.
+export const CLICK_TARGET_DURATION_MS = 400
+export const CLICK_TARGET_POP_MS = 80
+export const CLICK_TARGET_COLOR = '#ff69b4'
+
 // tick intervals
 export const BEE_TICK_MS = 200
 export const PATH_TICK_MS = 100

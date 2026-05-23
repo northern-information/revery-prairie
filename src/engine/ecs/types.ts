@@ -52,6 +52,7 @@ export interface ComponentDataMap {
       | 'satelliteImpact'
       | 'stewardImpact'
       | 'pollenBurst'
+      | 'clickTarget'
     startTime: number
   }
   [ComponentType.Pickupable]: { definitionId: string }

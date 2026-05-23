@@ -4,7 +4,7 @@ import { getFloraMovement } from './flora/actions/movement'
 import { posKey } from './position'
 import { rainFrontCoord, windToFrontAxis } from './tileWater'
 import { Sky, Zone } from './types'
-import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
+import { getCurrentEntityZone, isEntityInCurrentZone } from './zone'
 
 import type { GameState } from './types'
 
@@ -14,6 +14,15 @@ export const spawnPickupBloom = (state: GameState, x: number, y: number, time: n
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: time })
   state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
+  state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
+}
+
+/** Spawn a click-target feedback marker at the destination tile of a click-to-move. */
+export const spawnClickTarget = (state: GameState, x: number, y: number, time: number): void => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'clickTarget', startTime: time })
+  state.world.addComponent(e, ComponentType.EntityTag, 'clickTarget')
   state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
 }
 
@@ -93,15 +102,6 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
   for (const p of state.pollen) {
     if (Math.round(p.x) === x && Math.round(p.y) === y) {
       seen.add('pollen')
-      break
-    }
-  }
-
-  // Coyote mode indicator
-  for (const eid of spatialAtInCurrentZone(state, x, y)) {
-    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-    if (identity?.definitionId === 'coyote') {
-      seen.add(state.coyoteMode === 'follow' ? 'following' : 'collecting')
       break
     }
   }

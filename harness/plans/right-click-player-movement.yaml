@@ -1,0 +1,442 @@
+plan:
+  id: right-click-player-movement
+  title: 'Right-click moves the player; rip out RTS multi-select system'
+  created: '2026-05-23'
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: write-regression-test
+    title: 'Replace useMouse.test.tsx todos with concrete right-click regression tests that fail on main'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - right-click-pathfinds-player
+      - right-click-non-walkable-noop
+      - right-click-gated-by-modals
+      - no-mouse-drag-marquee
+    context_files:
+      - harness/specs/right-click-player-movement.yaml
+      - src/hooks/useMouse.ts
+      - src/hooks/__tests__/useKeyboard.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/hooks/__tests__/useMouse.test.tsx
+    depends_on: []
+    verification:
+      - 'npx vitest run src/hooks/__tests__/useMouse.test.tsx'
+    repair: retry
+    tags: [test, hook]
+
+  - id: remove-selection-state-types
+    title: 'Drop selectedUnits, selectionBox, coyoteMode, coyotePath, unitCommands, moveOrderMarkers, SelectionBox, CoyoteMode, MoveOrderMarker, UnitCommand from types.ts and state.ts'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+      - no-issue-move-command
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - harness/specs/right-click-player-movement.yaml
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    depends_on: []
+    verification:
+      - 'npm run typecheck 2>&1 | head -100'
+    repair: retry
+    tags: [engine]
+
+  - id: delete-selection-and-unitcommands
+    title: 'Delete src/engine/selection.ts and src/engine/unitCommands.ts'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+      - no-issue-move-command
+    context_files: []
+    output_files:
+      - src/engine/selection.ts
+      - src/engine/unitCommands.ts
+    depends_on:
+      - remove-selection-state-types
+    verification:
+      - 'test ! -f src/engine/selection.ts && test ! -f src/engine/unitCommands.ts && echo ok'
+    repair: retry
+    tags: [engine]
+
+  - id: delete-render-passes
+    title: 'Delete rtsSelectionBox and moveOrderMarkers render passes; drop their exports from passes/index.ts barrel'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+      - no-issue-move-command
+    context_files:
+      - src/engine/render/passes/index.ts
+    output_files:
+      - src/engine/render/passes/rtsSelectionBox.ts
+      - src/engine/render/passes/moveOrderMarkers.ts
+      - src/engine/render/passes/index.ts
+    depends_on:
+      - remove-selection-state-types
+    verification:
+      - 'test ! -f src/engine/render/passes/rtsSelectionBox.ts && test ! -f src/engine/render/passes/moveOrderMarkers.ts && echo ok'
+    repair: retry
+    tags: [engine, render]
+
+  - id: delete-command-panel
+    title: 'Delete CommandPanel.tsx + its test file; remove import + render from GameScreen.tsx'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+    context_files:
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/components/CommandPanel.tsx
+      - src/components/__tests__/CommandPanel.test.tsx
+      - src/components/GameScreen.tsx
+    depends_on:
+      - remove-selection-state-types
+    verification:
+      - 'test ! -f src/components/CommandPanel.tsx && grep -q "CommandPanel" src/components/GameScreen.tsx && exit 1 || echo ok'
+    repair: retry
+    tags: [component]
+
+  - id: simplify-useMouse
+    title: >
+      Rewrite useMouse.ts: right-click pathfinds player to clicked tile
+      (with the same gating + forgiving hit-test as left-click);
+      remove handleMouseDown / handleMouseMove drag tracking; remove the
+      mousedown/mousemove/mouseup listeners that drove the selection
+      marquee; remove the left-click NPC toggle-select branch; remove
+      the empty-ground deselect branch; preserve the burn-line draft
+      branch and interactable-pathfind branch
+    spec_id: right-click-player-movement
+    spec_sections:
+      - right-click-pathfinds-player
+      - right-click-non-walkable-noop
+      - right-click-gated-by-modals
+      - left-click-pathfinds-and-interacts
+      - no-mouse-drag-marquee
+    context_files:
+      - src/hooks/useMouse.ts
+      - src/engine/pathfinding.ts
+      - src/engine/clickResolution.ts
+      - harness/specs/right-click-player-movement.yaml
+    output_files:
+      - src/hooks/useMouse.ts
+    depends_on:
+      - delete-selection-and-unitcommands
+      - delete-render-passes
+      - delete-command-panel
+      - write-regression-test
+    verification:
+      - 'npm run typecheck 2>&1 | head -40'
+      - 'npx vitest run src/hooks/__tests__/useMouse.test.tsx'
+    repair: retry
+    tags: [hook]
+
+  - id: clickResolution-drop-controllable
+    title: 'Remove getControllableUnitAt import + check from clickResolution.ts (file no longer exists)'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+    context_files:
+      - src/engine/clickResolution.ts
+    output_files:
+      - src/engine/clickResolution.ts
+    depends_on:
+      - delete-selection-and-unitcommands
+    verification:
+      - 'grep -q "getControllableUnitAt\\|./selection" src/engine/clickResolution.ts && exit 1 || echo ok'
+    repair: retry
+    tags: [engine]
+
+  - id: rewrite-coyote-hybrid
+    title: >
+      Rewrite src/engine/coyote.ts: collapse Follow vs Collect into a
+      single tickCoyote that, in order, tries (1) viewport-bounded
+      collect when coyoteCargo is null and at least one viewport-visible
+      ground item exists, (2) deliver when coyoteCargo is non-null,
+      (3) follow otherwise; use isTileInVisibleViewport from
+      src/engine/viewportBounds.ts to filter the candidate item set;
+      Zone.Ruin still suppresses collect (always follow); drop
+      toggleCoyoteMode entirely; drop the unitCommands suppression
+      branch
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-hybrid-behavior
+      - coyote-interaction
+      - coyote-spawning
+    context_files:
+      - src/engine/coyote.ts
+      - src/engine/viewportBounds.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - harness/specs/coyote-companion.yaml
+    output_files:
+      - src/engine/coyote.ts
+    depends_on:
+      - remove-selection-state-types
+      - delete-selection-and-unitcommands
+    verification:
+      - 'npm run typecheck 2>&1 | head -40'
+    repair: retry
+    tags: [engine]
+
+  - id: clean-interaction-coyote-branch
+    title: 'In src/engine/interaction.ts, replace the coyote selectUnit branch with a noop that returns the existing zero-effect result shape'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - coyote-interaction-is-noop
+    context_files:
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - delete-selection-and-unitcommands
+    verification:
+      - 'grep -q "selectUnit" src/engine/interaction.ts && exit 1 || echo ok'
+    repair: retry
+    tags: [engine]
+
+  - id: gameLoop-remove-prune-and-tick-commands
+    title: 'Remove pruneSelection and tickUnitCommands calls from src/engine/gameLoop.ts'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+      - no-issue-move-command
+    context_files:
+      - src/engine/gameLoop.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - delete-selection-and-unitcommands
+    verification:
+      - 'grep -q "pruneSelection\\|tickUnitCommands\\|cleanupMoveOrderMarkers" src/engine/gameLoop.ts && exit 1 || echo ok'
+    repair: retry
+    tags: [engine]
+
+  - id: zone-transition-drop-deselect
+    title: 'Remove deselectAll + clearAllUnitCommands calls from cave.ts and ruins.ts'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - zone-transition-no-deselect
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+    output_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+    depends_on:
+      - delete-selection-and-unitcommands
+    verification:
+      - 'grep -q "deselectAll\\|clearAllUnitCommands" src/engine/cave.ts src/engine/ruins.ts && exit 1 || echo ok'
+    repair: retry
+    tags: [engine]
+
+  - id: renderer-drop-selection-highlight
+    title: 'Remove getSelectedUnitPositions call and selection highlight branch from src/engine/renderer.ts'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+    context_files:
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - delete-selection-and-unitcommands
+    verification:
+      - 'grep -q "getSelectedUnitPositions\\|selectedUnits" src/engine/renderer.ts && exit 1 || echo ok'
+    repair: retry
+    tags: [engine, render]
+
+  - id: sidebar-drop-selected-annotation
+    title: 'Remove `[selected]` annotation and selectedUnits reference from src/components/Sidebar.tsx'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+    context_files:
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - delete-selection-and-unitcommands
+    verification:
+      - 'grep -q "selectedUnits\\|\\[selected\\]" src/components/Sidebar.tsx && exit 1 || echo ok'
+    repair: retry
+    tags: [component]
+
+  - id: coyote-screen-drop-mode-label
+    title: 'Remove modeLabel + coyoteMode display from src/components/CoyoteScreen.tsx; keep summon + cargo display'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-permacomputer-tab
+    context_files:
+      - src/components/CoyoteScreen.tsx
+    output_files:
+      - src/components/CoyoteScreen.tsx
+    depends_on:
+      - remove-selection-state-types
+    verification:
+      - 'grep -q "coyoteMode\\|CoyoteMode" src/components/CoyoteScreen.tsx && exit 1 || echo ok'
+    repair: retry
+    tags: [component]
+
+  - id: effects-drop-coyote-mode-label
+    title: 'In src/engine/effects.ts (cursor info / sidebar effects row), remove the coyoteMode-based following/collecting label since the coyote has no mode'
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-cursor-info
+    context_files:
+      - src/engine/effects.ts
+    output_files:
+      - src/engine/effects.ts
+    depends_on:
+      - remove-selection-state-types
+    verification:
+      - 'grep -q "coyoteMode\\|CoyoteMode" src/engine/effects.ts && exit 1 || echo ok'
+    repair: retry
+    tags: [engine]
+
+  - id: schema-test-drop-fields
+    title: 'Remove selectedUnits, selectionBox, coyoteMode, coyotePath, unitCommands, moveOrderMarkers from EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+      - no-issue-move-command
+      - schema-test-no-selection-fields
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - remove-selection-state-types
+    verification:
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: delete-selection-test
+    title: 'Delete src/engine/__tests__/selection.test.ts entirely (covers removed system)'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+    context_files: []
+    output_files:
+      - src/engine/__tests__/selection.test.ts
+    depends_on:
+      - delete-selection-and-unitcommands
+    verification:
+      - 'test ! -f src/engine/__tests__/selection.test.ts && echo ok'
+    repair: retry
+    tags: [test]
+
+  - id: update-coyote-tests
+    title: >
+      Rewrite src/engine/__tests__/coyote.test.ts for the hybrid behavior:
+      drop `toggleCoyoteMode` suite, drop `coyoteMode` setup; add tests for
+      (a) coyote collects a viewport-visible item, (b) coyote ignores
+      off-viewport items and follows instead, (c) coyote falls back to
+      follow when no viewport items exist, (d) Ruin zone always follows.
+      Use isTileInVisibleViewport semantics — set state.camera, viewportWidth,
+      viewportHeight, then place items inside or outside the implied rect
+    spec_id: coyote-companion
+    spec_sections:
+      - coyote-hybrid-behavior
+      - coyote-interaction
+    context_files:
+      - src/engine/__tests__/coyote.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/coyote.ts
+      - src/engine/viewportBounds.ts
+    output_files:
+      - src/engine/__tests__/coyote.test.ts
+    depends_on:
+      - rewrite-coyote-hybrid
+    verification:
+      - 'npx vitest run src/engine/__tests__/coyote.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: update-collateral-tests
+    title: >
+      Update src/engine/__tests__/smoothMove.test.ts (remove selectUnit /
+      issueMoveCommand / tickUnitCommands / CoyoteMode imports + the unit-
+      command suite), src/engine/__tests__/pickupBloom.test.ts (drop
+      `state.coyoteMode = CoyoteMode.Collect` setup — replace with no-op
+      since coyote now always collects when applicable),
+      src/engine/__tests__/main-questline.test.ts (drop the coyoteMode
+      assertion), and src/engine/__tests__/trapped-coyote-stays-put.test.ts
+      (drop the coyoteMode setup)
+    spec_id: right-click-player-movement
+    spec_sections:
+      - no-unit-selection-state
+      - no-issue-move-command
+    context_files:
+      - src/engine/__tests__/smoothMove.test.ts
+      - src/engine/__tests__/pickupBloom.test.ts
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+    output_files:
+      - src/engine/__tests__/smoothMove.test.ts
+      - src/engine/__tests__/pickupBloom.test.ts
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+    depends_on:
+      - remove-selection-state-types
+      - delete-selection-and-unitcommands
+      - rewrite-coyote-hybrid
+    verification:
+      - 'npx vitest run src/engine/__tests__/smoothMove.test.ts src/engine/__tests__/pickupBloom.test.ts src/engine/__tests__/main-questline.test.ts src/engine/__tests__/trapped-coyote-stays-put.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: update-input-doc
+    title: 'Update docs/claude/input.md: right-click pathfinds player; remove RTS-multi-select TBD lines + shift+click waypoint chaining'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - right-click-pathfinds-player
+      - no-mouse-drag-marquee
+    context_files:
+      - docs/claude/input.md
+    output_files:
+      - docs/claude/input.md
+    depends_on:
+      - simplify-useMouse
+    verification:
+      - 'grep -q "right.click" docs/claude/input.md && echo ok'
+    repair: retry
+    tags: [docs]
+
+  - id: full-verify
+    title: 'Run npm run verify (typecheck + lint + test) and fix any remaining drift before sign-off'
+    spec_id: right-click-player-movement
+    spec_sections:
+      - right-click-pathfinds-player
+      - no-unit-selection-state
+      - no-issue-move-command
+      - no-mouse-drag-marquee
+    context_files: []
+    output_files: []
+    depends_on:
+      - write-regression-test
+      - simplify-useMouse
+      - rewrite-coyote-hybrid
+      - clickResolution-drop-controllable
+      - clean-interaction-coyote-branch
+      - gameLoop-remove-prune-and-tick-commands
+      - zone-transition-drop-deselect
+      - renderer-drop-selection-highlight
+      - sidebar-drop-selected-annotation
+      - coyote-screen-drop-mode-label
+      - effects-drop-coyote-mode-label
+      - schema-test-drop-fields
+      - delete-selection-test
+      - update-coyote-tests
+      - update-collateral-tests
+      - update-input-doc
+    verification:
+      - 'npm run verify'
+    repair: retry
+    tags: [verify]

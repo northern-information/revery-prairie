@@ -36,7 +36,6 @@ import {
   SHOOTING_STAR_SPAWN_TICK_MS,
   SHOOTING_STAR_TICK_MS,
   SPRINT_MOVE_TICK_MS,
-  UNIT_COMMAND_TICK_MS,
   WEATHER_TICK_MS,
   ZONE_TRANSITION_FADE_IN_MS,
   ZONE_TRANSITION_FADE_OUT_MS,
@@ -60,10 +59,8 @@ import { tickMonarchs } from './monarch'
 import { movePlayer, tickPath } from './movement'
 import { tickDormantGardenDecay } from './ruins'
 import { spawnSatellite, tickSatellites } from './satellites'
-import { pruneSelection } from './selection'
 import { tickTileWater } from './tileWater'
 import { DeepTimePhase, OmenKind, Season, Zone } from './types'
-import { cleanupMoveOrderMarkers, tickUnitCommands } from './unitCommands'
 import { isTileInVisibleViewport } from './viewportBounds'
 import { MOAB_PACE_MS, tickTorchbearer } from './torchbearer'
 import { tickPrecipitationIntensity, tickWeather } from './weather'
@@ -307,23 +304,6 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         if (result.delivered) {
           callbacks.onRefreshUI?.()
         }
-      },
-    },
-    {
-      id: 'unit-commands',
-      intervalMs: UNIT_COMMAND_TICK_MS,
-      zone: 'always',
-      fn: state => {
-        tickUnitCommands(state)
-        pruneSelection(state)
-      },
-    },
-    {
-      id: 'move-order-markers',
-      intervalMs: 0,
-      zone: 'always',
-      fn: (state, time) => {
-        cleanupMoveOrderMarkers(state, time)
       },
     },
     {

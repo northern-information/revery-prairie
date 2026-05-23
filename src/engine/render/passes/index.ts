@@ -32,13 +32,12 @@ export { lineageOverlayPass } from './lineageOverlay'
 export { deepTimeBurningOverlayPass } from './deepTimeBurningOverlay'
 export { pollenOverlayPass } from './pollenOverlay'
 export { burnLinePass } from './burnLine'
+export { clickTargetPass } from './clickTarget'
 // screen-overlay
 export { lightningScreenFlashPass } from './lightningScreenFlash'
 export { angelSpawnDespawnFlashPass } from './angelSpawnDespawnFlash'
-export { rtsSelectionBoxPass } from './rtsSelectionBox'
-export { moveOrderMarkersPass } from './moveOrderMarkers'
 // Registered last so the zone-transition fade sits above every other
-// screen-overlay (selection box, move markers, etc.). The boot title
-// card lives as a DOM overlay (BootTitleCardOverlay) so it can z-index
-// above other DOM panels like the genesis bottom-right year readout.
+// screen-overlay. The boot title card lives as a DOM overlay
+// (BootTitleCardOverlay) so it can z-index above other DOM panels like
+// the genesis bottom-right year readout.
 export { zoneTransitionOverlayPass } from './zoneTransitionOverlay'

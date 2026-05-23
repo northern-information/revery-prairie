@@ -20,6 +20,7 @@ source_files:
   - src/components/Sidebar.tsx
   - src/hooks/useKeyboard.ts
   - src/hooks/useGameEngine.ts
+  - src/engine/viewportBounds.ts
 dependencies:
   - player-movement
   - ghosts
@@ -34,8 +35,9 @@ behaviors:
       EntityTag ('character'), and EntityZone (overworld). a
       CharacterDefinition is registered with id 'coyote', name 'Coyote',
       glyph 'C', glyphColor '#D4A054' (warm amber-tan). the coyote has
-      no dialog array — pressing [f] opens a mode-toggle menu instead
-      of the standard dialog system.
+      no dialog array and no mode-toggle interaction — pressing the
+      interact key adjacent to the coyote is a no-op (see
+      coyote-interaction).
     inputs:
       - 'createGameState call'
     outputs:
@@ -45,100 +47,77 @@ behaviors:
         effect: "1 coyote ECS entity created with CharacterIdentity({ definitionId: 'coyote' }), Position, Blocking, Behavior({ type: 'follow' }), EntityTag('character'), EntityZone({ zone: 'overworld' })"
       - field: CHARACTER_DEFINITIONS
         effect: "CharacterDefinition entry registered for 'coyote' with glyph 'C', glyphColor '#D4A054', name 'Coyote'"
-      - field: coyoteMode
-        effect: "new GameState field initialized to 'follow'"
     determinism: deterministic
 
-  - id: coyote-follow-behavior
+  - id: coyote-hybrid-behavior
     description: >
-      when coyoteMode is 'follow', the coyote trails the player by
-      maintaining a target distance of 2-3 tiles measured by A* path
-      length. each tick, the coyote computes the A* path to the player.
-      if the path length is greater than COYOTE_FOLLOW_MAX_DIST (3),
-      it takes one step along the path. if the path length is less than
-      or equal to COYOTE_FOLLOW_MIN_DIST (2), it idles. this uses path
-      distance (not chebyshev) so the coyote correctly follows through
-      narrow corridors and around corners in all zones (overworld, cave,
-      and any future zones). movement uses the same A* pathfinding as
-      click-to-move, respecting blocked positions and unwalkable tiles.
-      the coyote moves at a rate slightly slower than the player (one
-      step per ~150ms vs player's 100ms). the coyote removes itself
-      from the blocked set before pathfinding (same pattern as ghost
-      drift).
-    inputs:
-      - "coyoteMode === 'follow'"
-      - 'player position changes'
-    outputs:
-      - 'coyote position moves toward player'
-    state_changes:
-      - field: 'world (coyote entity Position component)'
-        effect: 'moved one tile along A* path toward player, or unchanged if within 2 tiles'
-    determinism: probabilistic
+      The coyote operates in a single, always-on hybrid mode. There is
+      no coyoteMode field. On each tick, the coyote chooses between two
+      sub-behaviors based on the contents of the current viewport:
 
-  - id: coyote-collect-behavior
-    description: >
-      when coyoteMode is 'collect', the coyote autonomously gathers
-      all ground items regardless of definitionId. on each tick, if the
-      coyote is not carrying an item (coyoteCargo is null), it scans
-      all ground items on the current map (both ItemDrop+'groundItem'
-      entities and Pickupable+'meteorite' entities), computes the
-      nearest one by manhattan distance, pathfinds to it, and takes one
-      step. upon arriving at the item's tile, the coyote picks it up:
-      removes the ground item ECS entity and sets coyoteCargo to the
-      item definition id. once carrying, the coyote pathfinds toward
-      the player. upon arriving adjacent to the player, it attempts to
-      place the item in the player's backpack via placeItem. if
-      backpack has room, the item is placed and coyoteCargo is cleared.
-      if backpack is full, the coyote pathfinds to Gron's position and
-      drops the item as a ground item entity near Gron (using the same
-      DROP_DELTAS pattern as existing drop logic). after each delivery,
-      the coyote resumes scanning for the next item. when no ground
-      items remain on the map and the coyote is not carrying cargo, the
-      coyote falls back to follow behavior (same logic as tickFollow —
-      trails the player at 2-3 tile path distance) until new items
-      appear. when a ground item spawns while the coyote is mid-follow-
-      step, the coyote finishes its current step before switching to
-      collect on the next tick. when state.currentZone is Zone.Ruin,
-      collect mode is suppressed and the coyote follows the player
-      regardless of coyoteMode (ruin layouts are too cramped for
-      autonomous collection). each pickup and each delivery fires
-      addEvent with kind 'pickup', the item icon, and descriptive text.
-      COYOTE_COLLECTIBLE_DEFINITIONS is removed — no allowlist filtering.
+      1. **Collect (viewport-bounded).** If the coyote is not carrying
+         cargo (coyoteCargo is null) and at least one ground item is
+         currently visible in the viewport, the coyote pathfinds to the
+         nearest viewport-visible ground item by manhattan distance.
+         Visibility is determined by isTileInVisibleViewport from
+         src/engine/viewportBounds.ts using the item's world tile
+         relative to state.camera and the current viewport dimensions.
+         "Ground items" includes both ItemDrop+EntityTag('groundItem')
+         entities and Pickupable+EntityTag('meteorite') entities; no
+         allowlist filtering. Upon arriving on the item tile the coyote
+         picks it up (destroys the entity, sets coyoteCargo to the
+         definitionId).
+
+      2. **Deliver.** While coyoteCargo is non-null, the coyote
+         pathfinds to the player. Upon arriving adjacent (Chebyshev
+         <= 1) it tries placeItem into the player's backpack; on
+         success, coyoteCargo is cleared. If the backpack has no room,
+         the coyote pathfinds to Gron and drops the cargo as a ground
+         item near Gron using the existing DROP_DELTAS fallback.
+
+      3. **Follow.** Otherwise (no viewport-visible item to collect
+         and no cargo to deliver), the coyote trails the player by A*
+         path distance — moves toward the player when path length >=
+         COYOTE_FOLLOW_MAX_DIST (3), idles when path length <=
+         COYOTE_FOLLOW_MIN_DIST (2). Path distance is used (not
+         Chebyshev) so the coyote does not stall around L-corners or
+         narrow corridors.
+
+      Each pickup and delivery fires addEvent with kind 'pickup'. When
+      state.currentZone is Zone.Ruin, collect is suppressed and the
+      coyote always follows (ruin layouts are too cramped for
+      autonomous collection). The coyote removes itself from the
+      blocked set before pathfinding (same pattern as ghost drift).
     inputs:
-      - "coyoteMode === 'collect'"
-      - 'any ground items exist on current map'
+      - 'each game tick while the coyote is alive in the active zone'
     outputs:
-      - 'items collected and placed in player backpack or dropped near Gron'
-      - 'addEvent called for each pickup and delivery'
+      - 'coyote pathfinds toward viewport-visible ground items, the player for delivery, or trails the player when idle'
+      - 'addEvent fires on pickup and delivery'
     state_changes:
       - field: coyoteCargo
-        effect: 'set to item definitionId when picking up, cleared to null on delivery'
+        effect: 'set to definitionId on pickup; cleared to null on delivery'
       - field: 'world (ground item entities)'
-        effect: 'ground item entity destroyed when coyote picks it up'
+        effect: 'destroyed when coyote picks up'
       - field: 'backpack containers'
-        effect: 'item placed in backpack when coyote delivers to player'
+        effect: 'item placed when coyote delivers adjacent to player'
       - field: 'world (coyote entity Position component)'
-        effect: 'moved one tile along A* path toward target item or player'
+        effect: 'moved one tile along A* path toward target tile'
     determinism: deterministic
 
   - id: coyote-interaction
     description: >
-      pressing [f] while adjacent to the coyote toggles coyoteMode
-      between 'follow' and 'collect'. unlike other characters, the
-      coyote does not open the dialog system. instead, getAdjacentCharacter
-      still detects the coyote, but interactWithCharacter checks for
-      the 'coyote' definitionId and delegates to a coyote-specific
-      handler that toggles the mode and fires an addEvent with the
-      new mode. the coyote is detected by isInteractableAt at its
-      position.
+      Pressing the interact key while adjacent to the coyote is a no-op.
+      getAdjacentCharacter still detects the coyote and interactWithCharacter
+      returns `{ opened: false, gift: null, coyoteToggled: false }` for it,
+      but no state is mutated and no event is fired. The coyote's behavior
+      is fully autonomous — there is no mode to toggle. Players who want
+      to relocate the coyote use the COYOTE tab in the permacomputer
+      shell (see coyote-permacomputer-tab).
     inputs:
-      - 'player adjacent to coyote, [f] pressed'
+      - 'player adjacent to coyote, interact key pressed'
     outputs:
-      - 'coyoteMode toggled'
-      - 'addEvent called with new mode description'
-    state_changes:
-      - field: coyoteMode
-        effect: "toggled between 'follow' and 'collect'"
+      - 'no state change'
+    state_changes: []
     determinism: deterministic
 
   - id: coyote-non-blocking-for-player
@@ -182,21 +161,6 @@ behaviors:
         effect: 'position set adjacent to player in new zone, EntityZone updated'
     determinism: deterministic
 
-  - id: coyote-rts-command-suppression
-    description: >
-      when state.unitCommands has an entry for the coyote entity
-      (set by RTS-style player commands — see rts-unit-selection),
-      tickCoyote returns early without running follow or collect
-      behavior. autonomous behavior resumes once the command is
-      cleared. this lets player-issued move orders override the
-      coyote's default tick behavior without race conditions.
-    inputs:
-      - 'state.unitCommands.has(coyoteEid) === true'
-    outputs:
-      - 'no autonomous coyote movement this tick'
-    state_changes: []
-    determinism: deterministic
-
   - id: coyote-rendering
     description: >
       the coyote renders as 'C' in warm amber-tan (#D4A054) at its
@@ -213,14 +177,13 @@ behaviors:
   - id: coyote-cursor-info
     description: >
       hovering the mouse over the coyote tile shows 'Coyote' in the
-      sidebar contents row and the current mode (follow/collect) in
-      the effects row. the coyote is detected via the standard
-      character entity lookup in the sidebar contents IIFE.
+      sidebar contents row. the coyote is detected via the standard
+      character entity lookup in the sidebar contents IIFE. there is
+      no mode line in the effects row — the coyote has no mode.
     inputs:
       - 'mouse cursor over coyote tile'
     outputs:
       - "sidebar contents: 'Coyote'"
-      - 'sidebar shows current coyote mode'
     state_changes: []
     determinism: deterministic
 
@@ -248,11 +211,12 @@ behaviors:
       PermacomputerScreen type still includes 'coyote' as a valid
       activeScreen value; visibility is enforced at the tab-bar render
       layer (see permacomputer-tab-visibility spec). once visible, the
-      CoyoteScreen component displays the current coyote mode and a
-      'summon' action. activating summon teleports the coyote to an
-      adjacent walkable tile next to the player (using the same
-      adjacency-finding logic as cave transition). the tab shows the
+      CoyoteScreen component displays a 'summon' action and the
       coyote's current cargo status (empty or carrying an item name).
+      Activating summon teleports the coyote to an adjacent walkable
+      tile next to the player (using the same adjacency-finding logic
+      as cave transition). There is no mode display — the coyote has
+      no mode.
     inputs:
       - 'permacomputer open, COYOTE tab selected (only available post-rescue)'
       - 'summon action activated'
@@ -280,24 +244,27 @@ behaviors:
     determinism: deterministic
 
 edge_cases:
-  - id: coyote-no-collectibles
-    description: 'coyote is in collect mode but no ground items exist on the map and not carrying cargo'
-    expected: 'coyote falls back to follow behavior (trails player at 2-3 tile distance), resumes collecting when new items spawn'
+  - id: coyote-no-viewport-collectibles
+    description: 'ground items exist on the map but none are visible in the current viewport, and the coyote is not carrying cargo'
+    expected: 'coyote falls back to follow behavior; resumes collecting when an item enters the viewport (either via item spawn or camera pan)'
+  - id: coyote-item-leaves-viewport-midpath
+    description: 'coyote is en route to a ground item that scrolls outside the viewport before pickup (player walks away)'
+    expected: 'on the next tick, the coyote re-evaluates: if the item is no longer viewport-visible and no other viewport-visible item exists, coyote abandons the path and follows the player'
   - id: coyote-backpack-full-gron-area-full
     description: 'backpack is full and all drop positions near Gron are occupied by ground items or blocked'
     expected: 'coyote idles near Gron holding cargo until a drop position opens'
   - id: coyote-path-blocked
     description: 'coyote pathfinding returns no valid path to target item (surrounded by blockers or unwalkable tiles)'
-    expected: 'coyote skips that item and targets the next nearest collectible, or idles if none reachable'
+    expected: 'coyote skips that item and targets the next nearest viewport-visible collectible, or follows if none reachable'
   - id: coyote-player-moves-during-delivery
     description: 'coyote is pathfinding to player for delivery but player moves away'
     expected: 'coyote recalculates path to new player position on next tick'
   - id: coyote-collect-in-cave
-    description: 'coyote in collect mode enters cave with player — cave has no ground items'
-    expected: 'coyote follows player in cave until items appear or player exits'
+    description: 'coyote enters cave with player — cave has no ground items'
+    expected: 'coyote follows player in cave until items appear in the viewport'
   - id: coyote-collect-in-ruin
-    description: 'coyote in collect mode enters a ruin with player'
-    expected: 'collect mode is suppressed; coyote always follows in Ruin zones regardless of coyoteMode'
+    description: 'coyote enters a ruin with player'
+    expected: 'collect is suppressed; coyote always follows in Ruin zones'
   - id: coyote-summon-all-adjacent-blocked
     description: 'summon action but all tiles adjacent to player are blocked or unwalkable'
     expected: 'summon fails silently, coyote stays at current position'
@@ -328,12 +295,12 @@ failure_conditions:
     expected: 'coyote position unchanged, Space never entered'
   - trigger: 'player walks onto coyote tile'
     expected: 'movePlayer returns true, player overlaps coyote temporarily, coyote nudges away on next tick'
-  - trigger: 'any ground item exists on the map while coyote is in collect mode'
+  - trigger: 'a ground item is visible in the viewport, coyote is not carrying cargo, overworld zone'
     expected: 'coyote pathfinds to and picks up the item regardless of definitionId'
+  - trigger: 'a ground item exists on the map but is outside the viewport, coyote is not carrying cargo'
+    expected: 'coyote does NOT path toward that item; it follows the player or targets a viewport-visible item instead'
   - trigger: 'coyote and ghost collide during movement'
     expected: 'blocked position set prevents overlap — both entities respect getBlockedPositions'
-  - trigger: 'coyote mode toggled during mid-path movement'
-    expected: 'coyote abandons current path and begins new behavior on next tick'
 
 verification:
   test_file: src/engine/__tests__/coyote.test.ts

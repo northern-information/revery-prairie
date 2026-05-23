@@ -314,9 +314,7 @@ export const Sidebar = ({ state, itemInfoRef, metricsRef }: SidebarProps) => {
                       if (charEid !== undefined) {
                         const identity = state.world.getComponent(charEid, ComponentType.CharacterIdentity)
                         if (identity) {
-                          const name = getCharacterDefinition(identity.definitionId).name.toLowerCase()
-                          const isSelected = state.selectedUnits.has(charEid)
-                          return isSelected ? `${name} [selected]` : name
+                          return getCharacterDefinition(identity.definitionId).name.toLowerCase()
                         }
                       }
                       const hasMonarchEcs = state.world.spatial

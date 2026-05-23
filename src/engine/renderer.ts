@@ -96,7 +96,6 @@ import {
 } from './projection'
 import { runPassesInSlot } from './render/passes'
 import { getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
-import { getSelectedUnitPositions } from './selection'
 import {
   ANGEL_FLOAT_LIFT_PX,
   applySeasonalWash,
@@ -478,9 +477,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const wildfireMap = _wildfireMap
   const pickupEffectMap = _pickupEffectMap
   const crumbleMap = _crumbleMap
-
-  // Build selected unit position set for highlight rendering
-  const selectedPositions = getSelectedUnitPositions(state)
 
   // Deferred entity draw list: populated during the central tile loop
   // when the resolved tile is an entity (player, remote players,
@@ -1597,11 +1593,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const highlightSuppressed = (previewTile !== undefined && !previewTile.isValid) || state.devPanelOpen
       const highlight =
         !highlightSuppressed &&
-        (selectedPositions.has(tileKey) ||
-          isAngelGroupHighlighted ||
-          isOakGroupHighlighted ||
-          isFacingEntity ||
-          isPendingTarget)
+        (isAngelGroupHighlighted || isOakGroupHighlighted || isFacingEntity || isPendingTarget)
 
       // Defer entity glyphs (and the local player on its own tile) to a
       // post-tile-loop flush so neighboring high-elevation tiles drawn

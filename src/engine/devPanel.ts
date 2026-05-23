@@ -38,6 +38,7 @@ export const ENTITY_TAG_SUGGESTIONS = [
   'bee',
   'beehive',
   'character',
+  'clickTarget',
   'crumble',
   'explosion',
   'groundItem',

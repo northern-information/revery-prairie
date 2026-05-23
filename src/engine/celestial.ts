@@ -1,4 +1,5 @@
 import {
+  CLICK_TARGET_DURATION_MS,
   EXPLOSION_DURATION_MS,
   MAP_HEIGHT,
   MAP_WIDTH,
@@ -209,6 +210,8 @@ export const tickShootingStars = (state: GameState, time: number): void => {
     if (tag === 'explosion' && time - effect.startTime > EXPLOSION_DURATION_MS) {
       state.world.destroyEntity(eid)
     } else if (tag === 'pickupBloom' && time - effect.startTime > PICKUP_EFFECT_DURATION_MS) {
+      state.world.destroyEntity(eid)
+    } else if (tag === 'clickTarget' && time - effect.startTime > CLICK_TARGET_DURATION_MS) {
       state.world.destroyEntity(eid)
     }
   }

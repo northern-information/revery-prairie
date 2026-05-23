@@ -6,7 +6,6 @@ source_files:
   - src/components/Minimap.tsx
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
-  - src/components/CommandPanel.tsx
   - src/engine/projection.ts
 
 behaviors:

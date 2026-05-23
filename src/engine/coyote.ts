@@ -5,7 +5,8 @@ import { findFitPosition, placeItem } from './inventory'
 import { getBlockedPositions } from './movement'
 import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
-import { CoyoteMode, MainQuestPhase, Zone } from './types'
+import { MainQuestPhase, Zone } from './types'
+import { isTileInVisibleViewport } from './viewportBounds'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
@@ -46,8 +47,15 @@ const findAdjacentWalkable = (state: GameState, target: Position, blocked: Set<s
 /** Chebyshev (chessboard) distance between two positions. */
 const chebyshev = (a: Position, b: Position): number => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
 
-/** Find the closest ground item to the coyote. */
-const findNearestCollectible = (
+/** True when a world-tile position currently sits inside the rendered viewport. */
+const isPositionVisible = (state: GameState, pos: Position): boolean => {
+  const vx = pos.x - state.camera.x
+  const vy = pos.y - state.camera.y
+  return isTileInVisibleViewport(vx, vy, state.viewportWidth, state.viewportHeight)
+}
+
+/** Find the closest ground item to the coyote that is currently visible on screen. */
+const findNearestVisibleCollectible = (
   state: GameState,
   coyotePos: Position
 ): { eid: Entity; pos: Position; definitionId: string } | null => {
@@ -58,6 +66,7 @@ const findNearestCollectible = (
     if (!isEntityInCurrentZone(state, eid)) return
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) return
+    if (!isPositionVisible(state, pos)) return
     const dist = Math.abs(pos.x - coyotePos.x) + Math.abs(pos.y - coyotePos.y)
     if (dist < bestDist) {
       bestDist = dist
@@ -154,12 +163,6 @@ const stepToward = (state: GameState, eid: Entity, target: Position, blocked: Se
   return true
 }
 
-/** Toggle coyote mode between follow and collect. */
-export const toggleCoyoteMode = (state: GameState): void => {
-  state.coyoteMode = state.coyoteMode === CoyoteMode.Follow ? CoyoteMode.Collect : CoyoteMode.Follow
-  state.coyotePath = null
-}
-
 /** Summon the coyote to a tile adjacent to the player. */
 export const summonCoyote = (state: GameState): boolean => {
   const eid = findCoyoteEntity(state)
@@ -174,38 +177,53 @@ export const summonCoyote = (state: GameState): boolean => {
   state.world.moveEntity(eid, adjacent.x, adjacent.y)
   // Update zone in case coyote was in a different zone
   state.world.addComponent(eid, ComponentType.EntityZone, getCurrentEntityZone(state))
-  state.coyotePath = null
   return true
 }
 
 export interface CoyoteTickResult {
   pickedUp: { definitionId: string; x: number; y: number } | null
   delivered: { definitionId: string; x: number; y: number; toGron: boolean } | null
-  modeChanged: boolean
 }
 
 /** Main coyote tick — called from game loop. */
 export const tickCoyote = (state: GameState, time?: number): CoyoteTickResult => {
-  const result: CoyoteTickResult = { pickedUp: null, delivered: null, modeChanged: false }
+  const result: CoyoteTickResult = { pickedUp: null, delivered: null }
   const eid = findCoyoteEntity(state)
   if (eid === null) return result
 
   const pos = state.world.getComponent(eid, ComponentType.Position)
   if (!pos) return result
 
-  // If coyote has an active move command, skip autonomous behavior
-  if (state.unitCommands.has(eid)) return result
-
   const blocked = getBlockedPositions(state)
   blocked.add(posKey(state.player.x, state.player.y))
 
-  // Suppress collect mode in ruins — coyote follows instead
-  if (state.coyoteMode === CoyoteMode.Follow || state.currentZone === Zone.Ruin) {
+  // Ruin zones are too cramped for autonomous collection — always follow.
+  if (state.currentZone === Zone.Ruin) {
     tickFollow(state, eid, pos, blocked)
-  } else {
-    tickCollect(state, eid, pos, blocked, result, time)
+    return result
   }
 
+  // Carrying cargo — try to deliver.
+  if (state.coyoteCargo !== null) {
+    tickDeliver(state, eid, pos, blocked, result, time)
+    return result
+  }
+
+  // Not carrying — look for a viewport-visible item to collect.
+  const target = findNearestVisibleCollectible(state, { x: pos.x, y: pos.y })
+  if (target) {
+    if (target.pos.x === pos.x && target.pos.y === pos.y) {
+      state.world.destroyEntity(target.eid)
+      state.coyoteCargo = target.definitionId
+      result.pickedUp = { definitionId: target.definitionId, x: pos.x, y: pos.y }
+      return result
+    }
+    stepToward(state, eid, target.pos, blocked)
+    return result
+  }
+
+  // Nothing to collect — trail the player.
+  tickFollow(state, eid, pos, blocked)
   return result
 }
 
@@ -243,7 +261,7 @@ const tickFollow = (state: GameState, eid: Entity, pos: { x: number; y: number }
   }
 }
 
-const tickCollect = (
+const tickDeliver = (
   state: GameState,
   eid: Entity,
   pos: { x: number; y: number },
@@ -251,80 +269,54 @@ const tickCollect = (
   result: CoyoteTickResult,
   time?: number
 ): void => {
+  if (state.coyoteCargo === null) return
   const coyotePos = { x: pos.x, y: pos.y }
-
-  if (state.coyoteCargo === null) {
-    // Not carrying — seek nearest collectible
-    const target = findNearestCollectible(state, coyotePos)
-    if (!target) {
-      // No collectibles — fall back to follow behavior
-      tickFollow(state, eid, pos, blocked)
-      return
-    }
-
-    // If on the item tile, pick it up
-    if (target.pos.x === pos.x && target.pos.y === pos.y) {
-      state.world.destroyEntity(target.eid)
-      state.coyoteCargo = target.definitionId
-      result.pickedUp = { definitionId: target.definitionId, x: pos.x, y: pos.y }
-      return
-    }
-
-    // Step toward the item
-    stepToward(state, eid, target.pos, blocked)
-  } else {
-    // Carrying — try to deliver to player
-    const playerDist = chebyshev(coyotePos, state.player)
-    if (playerDist <= 1) {
-      // Adjacent to player — try backpack
-      const fit = findFitPosition(state.backpack, state.coyoteCargo)
-      if (fit) {
-        placeItem(state.backpack, state.coyoteCargo, fit.gridX, fit.gridY)
-        result.delivered = {
-          definitionId: state.coyoteCargo,
-          x: state.player.x,
-          y: state.player.y,
-          toGron: false,
-        }
-        if (time !== undefined) {
-          spawnPickupBloom(state, state.player.x, state.player.y, time)
-        }
-        state.coyoteCargo = null
-        return
+  const playerDist = chebyshev(coyotePos, state.player)
+  if (playerDist <= 1) {
+    const fit = findFitPosition(state.backpack, state.coyoteCargo)
+    if (fit) {
+      placeItem(state.backpack, state.coyoteCargo, fit.gridX, fit.gridY)
+      result.delivered = {
+        definitionId: state.coyoteCargo,
+        x: state.player.x,
+        y: state.player.y,
+        toGron: false,
       }
+      if (time !== undefined) {
+        spawnPickupBloom(state, state.player.x, state.player.y, time)
+      }
+      state.coyoteCargo = null
+      return
+    }
 
-      // Backpack full — go to Gron
-      const gronPos = findGronPosition(state)
-      if (gronPos) {
-        const gronDist = chebyshev(coyotePos, gronPos)
-        if (gronDist <= 1) {
-          // Adjacent to Gron — drop item
-          if (dropGroundItemNear(state, gronPos, state.coyoteCargo)) {
-            result.delivered = {
-              definitionId: state.coyoteCargo,
-              x: gronPos.x,
-              y: gronPos.y,
-              toGron: true,
-            }
-            state.coyoteCargo = null
-            return
+    // Backpack full — go to Gron
+    const gronPos = findGronPosition(state)
+    if (gronPos) {
+      const gronDist = chebyshev(coyotePos, gronPos)
+      if (gronDist <= 1) {
+        if (dropGroundItemNear(state, gronPos, state.coyoteCargo)) {
+          result.delivered = {
+            definitionId: state.coyoteCargo,
+            x: gronPos.x,
+            y: gronPos.y,
+            toGron: true,
           }
-          // Gron area full — idle holding cargo
+          state.coyoteCargo = null
           return
         }
-
-        // Walk toward Gron
-        stepToward(state, eid, gronPos, blocked)
+        // Gron area full — idle holding cargo
         return
       }
+      stepToward(state, eid, gronPos, blocked)
+      return
     }
-
-    // Not adjacent to player — walk toward player
-    const playerKey = posKey(state.player.x, state.player.y)
-    blocked.delete(playerKey)
-    stepToward(state, eid, state.player, blocked)
-    blocked.add(playerKey)
   }
+
+  // Not adjacent to player — walk toward player
+  const playerKey = posKey(state.player.x, state.player.y)
+  blocked.delete(playerKey)
+  stepToward(state, eid, state.player, blocked)
+  blocked.add(playerKey)
 }
 
 /** Teleport coyote to adjacent tile in a new zone after cave transition.
@@ -337,10 +329,7 @@ export const transitionCoyoteToZone = (state: GameState, zone: Zone): void => {
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
     if (identity?.definitionId !== 'coyote') continue
 
-    if (trapped) {
-      state.coyotePath = null
-      return
-    }
+    if (trapped) return
 
     // Update zone — caller has already set state.currentZone/currentRuinIndex
     state.world.addComponent(eid, ComponentType.EntityZone, getCurrentEntityZone(state))
@@ -353,7 +342,6 @@ export const transitionCoyoteToZone = (state: GameState, zone: Zone): void => {
       state.world.moveEntity(eid, adjacent.x, adjacent.y)
     }
 
-    state.coyotePath = null
     return
   }
 }
