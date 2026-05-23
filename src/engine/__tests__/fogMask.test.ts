@@ -88,10 +88,10 @@ describe('fog mask pass', () => {
       expect(fogMaskPass.isActive(state)).toBe(true)
     })
 
-    it('is inactive on overworld', () => {
+    it('is active on overworld (precis #38)', () => {
       const state = createTestState()
       state.currentZone = Zone.Overworld
-      expect(fogMaskPass.isActive(state)).toBe(false)
+      expect(fogMaskPass.isActive(state)).toBe(true)
     })
   })
 
@@ -143,10 +143,12 @@ describe('fog mask pass', () => {
       expect(fills.length).toBeLessThan(totalTilesInViewport * 4)
     })
 
-    it('does not mask any tile on overworld (no-op via isActive predicate)', () => {
+    it('masks unexplored tiles on overworld as well (precis #38)', () => {
       const state = createTestState()
       state.currentZone = Zone.Overworld
-      expect(fogMaskPass.isActive(state)).toBe(false)
+      // Fresh tenure — no prairie tiles explored yet. The fog-mask pass
+      // is active and paints BG_COLOR diamonds over the viewport.
+      expect(fogMaskPass.isActive(state)).toBe(true)
     })
 
     it('skips space tiles', () => {

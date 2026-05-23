@@ -135,13 +135,13 @@ describe('fog of war', () => {
   })
 
   describe('getTileVisibility', () => {
-    it('returns visible for overworld tiles', () => {
+    it('returns unexplored for overworld tiles outside the visible/explored sets (precis #38)', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
         state.currentZone = Zone.Overworld
         const result = getTileVisibility(state, 5, 5, new Set())
-        expect(result).toBe('visible')
+        expect(result).toBe('unexplored')
       } finally {
         vi.restoreAllMocks()
       }
@@ -184,18 +184,6 @@ describe('fog of war', () => {
   })
 
   describe('computeZoneVisibility', () => {
-    it('returns empty set when not in cave', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        state.currentZone = Zone.Overworld
-        const result = computeZoneVisibility(state)
-        expect(result.size).toBe(0)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
     it('computes visibility around player in cave', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
@@ -439,8 +427,8 @@ describe('fog of war', () => {
       expect(hasFogOfWar(Zone.Ruin)).toBe(true)
     })
 
-    it('returns false for Overworld', () => {
-      expect(hasFogOfWar(Zone.Overworld)).toBe(false)
+    it('returns true for Overworld (precis #38)', () => {
+      expect(hasFogOfWar(Zone.Overworld)).toBe(true)
     })
   })
 
@@ -517,18 +505,6 @@ describe('fog of war', () => {
         expect(visible.has(posKey(10, 10))).toBe(true)
         expect(visible.has(posKey(11, 10))).toBe(true)
         expect(visible.has(posKey(10, 11))).toBe(true)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
-    it('returns empty set for overworld (no fog)', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        state.currentZone = Zone.Overworld
-        const result = computeZoneVisibility(state)
-        expect(result.size).toBe(0)
       } finally {
         vi.restoreAllMocks()
       }
