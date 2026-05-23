@@ -7,9 +7,8 @@ import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
-import { selectUnit } from './selection'
 import { invalidateMapCache } from './tileBgCache'
-import { CoyoteMode, MainQuestPhase, MoabState, TileType, Zone } from './types'
+import { MainQuestPhase, MoabState, TileType, Zone } from './types'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
@@ -153,16 +152,9 @@ export const interactWithCharacter = (
   if (!character) return { opened: false, gift: null, coyoteToggled: false }
   recordDiscovery(state, `character:${character.definitionId}`)
 
-  // Coyote has no dialog — interacting selects it so the command panel
-  // surfaces Follow/Collect controls.
+  // Coyote has no dialog and no mode toggle — interacting is a no-op.
+  // Behavior is autonomous; the player summons via the permacomputer.
   if (character.definitionId === 'coyote') {
-    for (const eid of spatialAtInCurrentZone(state, character.pos.x, character.pos.y)) {
-      const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-      if (identity?.definitionId === 'coyote') {
-        selectUnit(state, eid)
-        break
-      }
-    }
     return { opened: false, gift: null, coyoteToggled: false }
   }
 
@@ -457,9 +449,7 @@ const rescueCoyote = (state: GameState): void => {
     state.world.addComponent(coyoteEid, ComponentType.EntityZone, getCurrentEntityZone(state))
   }
 
-  state.coyoteMode = CoyoteMode.Follow
   state.coyoteCargo = null
-  state.coyotePath = null
 
   spawnPickupBloom(state, state.player.x, state.player.y, performance.now())
   recordDiscovery(state, 'character:coyote')

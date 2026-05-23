@@ -11,10 +11,8 @@ import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, isReservedForStructure, isWalkableTile, posKey, tileHash } from './position'
-import { deselectAll } from './selection'
 import { STRUCTURE_REGISTRY } from './structures'
 import { FloraSpecies, RuinArchetype, TileType, Zone } from './types'
-import { clearAllUnitCommands } from './unitCommands'
 import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
 import type { FloraGenome } from './genetics'
@@ -791,8 +789,6 @@ const clearNavigationState = (state: GameState): void => {
   state.trail = []
   clearAllGrowthPreviews(state)
   clearMovementTweens(state)
-  deselectAll(state)
-  clearAllUnitCommands(state)
 }
 
 export const enterRuin = (state: GameState, ruinIndex: number): void => {

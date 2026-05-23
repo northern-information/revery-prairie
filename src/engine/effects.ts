@@ -4,7 +4,7 @@ import { getFloraMovement } from './flora/actions/movement'
 import { posKey } from './position'
 import { rainFrontCoord, windToFrontAxis } from './tileWater'
 import { Sky, Zone } from './types'
-import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
+import { getCurrentEntityZone, isEntityInCurrentZone } from './zone'
 
 import type { GameState } from './types'
 
@@ -93,15 +93,6 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
   for (const p of state.pollen) {
     if (Math.round(p.x) === x && Math.round(p.y) === y) {
       seen.add('pollen')
-      break
-    }
-  }
-
-  // Coyote mode indicator
-  for (const eid of spatialAtInCurrentZone(state, x, y)) {
-    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-    if (identity?.definitionId === 'coyote') {
-      seen.add(state.coyoteMode === 'follow' ? 'following' : 'collecting')
       break
     }
   }

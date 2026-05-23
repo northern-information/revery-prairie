@@ -3,14 +3,13 @@ import {
   getCoyotePosition,
   summonCoyote,
   tickCoyote,
-  toggleCoyoteMode,
   transitionCoyoteToZone,
 } from '../coyote'
 import { ComponentType } from '../ecs/types'
 import { interactWithCharacter } from '../interaction'
 import { getBlockedPositions, getPathfindingBlockers, movePlayer } from '../movement'
 import { posKey } from '../position'
-import { CoyoteMode, MainQuestPhase, TileType, Zone } from '../types'
+import { MainQuestPhase, TileType, Zone } from '../types'
 import {
   clearAroundPlayer,
   createCharacterTestEntity,
@@ -61,29 +60,6 @@ describe('coyote companion', () => {
     it('returns null when no coyote', () => {
       const state = createTestState()
       expect(getCoyotePosition(state)).toBeNull()
-    })
-  })
-
-  describe('toggleCoyoteMode', () => {
-    it('toggles from follow to collect', () => {
-      const state = createCoyoteState()
-      expect(state.coyoteMode).toBe(CoyoteMode.Follow)
-      toggleCoyoteMode(state)
-      expect(state.coyoteMode).toBe(CoyoteMode.Collect)
-    })
-
-    it('toggles from collect to follow', () => {
-      const state = createCoyoteState()
-      state.coyoteMode = CoyoteMode.Collect
-      toggleCoyoteMode(state)
-      expect(state.coyoteMode).toBe(CoyoteMode.Follow)
-    })
-
-    it('clears coyotePath on toggle', () => {
-      const state = createCoyoteState()
-      state.coyotePath = [{ x: 5, y: 5 }]
-      toggleCoyoteMode(state)
-      expect(state.coyotePath).toBeNull()
     })
   })
 
@@ -223,7 +199,6 @@ describe('coyote companion', () => {
   describe('collect behavior', () => {
     it('picks up a meteorite ground item', () => {
       const state = createCoyoteState()
-      state.coyoteMode = CoyoteMode.Collect
       clearAroundPlayer(state, 10)
 
       // Place coyote right next to a meteorite
@@ -241,7 +216,6 @@ describe('coyote companion', () => {
 
     it('picks up a honey ground item', () => {
       const state = createCoyoteState()
-      state.coyoteMode = CoyoteMode.Collect
       clearAroundPlayer(state, 10)
 
       const eid = requireValue(findCoyoteEntity(state))
@@ -258,7 +232,6 @@ describe('coyote companion', () => {
 
     it('picks up a coin ground item', () => {
       const state = createCoyoteState()
-      state.coyoteMode = CoyoteMode.Collect
       clearAroundPlayer(state, 10)
 
       const eid = requireValue(findCoyoteEntity(state))
@@ -274,7 +247,6 @@ describe('coyote companion', () => {
 
     it('picks up the nearest item regardless of type', () => {
       const state = createCoyoteState()
-      state.coyoteMode = CoyoteMode.Collect
       clearAroundPlayer(state, 10)
 
       const eid = requireValue(findCoyoteEntity(state))
@@ -293,7 +265,6 @@ describe('coyote companion', () => {
 
     it('delivers to player backpack when adjacent and backpack has room', () => {
       const state = createCoyoteState()
-      state.coyoteMode = CoyoteMode.Collect
       state.coyoteCargo = 'meteorite'
       clearAroundPlayer(state, 10)
 
@@ -309,7 +280,6 @@ describe('coyote companion', () => {
 
     it('follows player when no collectibles exist', () => {
       const state = createCoyoteState()
-      state.coyoteMode = CoyoteMode.Collect
       clearAroundPlayer(state, 10)
 
       // Move coyote far from player so follow behavior triggers movement
@@ -328,7 +298,6 @@ describe('coyote companion', () => {
 
     it('stays near player in collect mode when no collectibles and already close', () => {
       const state = createCoyoteState()
-      state.coyoteMode = CoyoteMode.Collect
       clearAroundPlayer(state, 10)
 
       // Coyote is already adjacent (1 tile away) — within follow min dist
@@ -341,7 +310,6 @@ describe('coyote companion', () => {
 
     it('switches from follow-fallback to collecting when item appears', () => {
       const state = createCoyoteState()
-      state.coyoteMode = CoyoteMode.Collect
       clearAroundPlayer(state, 10)
 
       // Move coyote far from player — will follow
@@ -363,9 +331,36 @@ describe('coyote companion', () => {
       expect(afterCollect.x).toBeGreaterThan(beforeCollect.x)
     })
 
+    it('ignores ground items outside the viewport', () => {
+      const state = createCoyoteState()
+      clearAroundPlayer(state, 10)
+
+      // Move coyote far from player so follow behavior would step toward player.
+      const eid = requireValue(findCoyoteEntity(state))
+      state.world.moveEntity(eid, state.player.x + 6, state.player.y)
+
+      // Place an item far outside the viewport bounds. The default 20x20
+      // viewport with camera centered on the player gives visible-relative
+      // bounds of roughly [-20, 40]. Item at world (player.x + 80, ...)
+      // sits at vx = 80 - (player.x - 10) - player.x = -10 + 90 = 90,
+      // well past vxEnd = 40 — definitely outside the viewport.
+      const farX = state.player.x + 80
+      const farY = state.player.y
+      if (farX < state.mapWidth) {
+        createGroundItemEntity(state, 'coin', farX, farY)
+      }
+
+      const before = requireValue(getCoyotePosition(state))
+      const result = tickCoyote(state)
+      const after = requireValue(getCoyotePosition(state))
+
+      // Should not have picked up anything and should have moved toward the player.
+      expect(result.pickedUp).toBeNull()
+      expect(after.x).toBeLessThan(before.x)
+    })
+
     it('walks toward meteorite when not on its tile', () => {
       const state = createCoyoteState()
-      state.coyoteMode = CoyoteMode.Collect
       clearAroundPlayer(state, 10)
 
       // Place meteorite far from coyote
@@ -457,13 +452,6 @@ describe('coyote companion', () => {
       expect(summonCoyote(state)).toBe(false)
     })
 
-    it('clears coyotePath on summon', () => {
-      const state = createCoyoteState()
-      clearAroundPlayer(state, 10)
-      state.coyotePath = [{ x: 5, y: 5 }]
-      summonCoyote(state)
-      expect(state.coyotePath).toBeNull()
-    })
   })
 
   describe('cave transition', () => {
@@ -555,41 +543,18 @@ describe('coyote companion', () => {
     })
   })
 
-  describe('interact selects coyote', () => {
-    it('interactWithCharacter adjacent to coyote adds the coyote to selectedUnits', () => {
+  describe('interact with coyote', () => {
+    it('is a no-op (returns the zero-effect shape, no state changes)', () => {
       const state = createCoyoteState()
-      const coyoteEid = requireValue(findCoyoteEntity(state))
-      expect(state.selectedUnits.size).toBe(0)
+      const cargoBefore = state.coyoteCargo
 
       const result = interactWithCharacter(state)
 
       expect(result.opened).toBe(false)
-      expect(state.selectedUnits.has(coyoteEid)).toBe(true)
-      expect(state.selectedUnits.size).toBe(1)
-    })
-
-    it('replaces any prior selection with the coyote', () => {
-      const state = createCoyoteState()
-      const coyoteEid = requireValue(findCoyoteEntity(state))
-      // Pre-existing selection of some other entity
-      const gronEid = createCharacterTestEntity(state, 'gron', state.player.x, state.player.y + 2)
-      state.selectedUnits.add(gronEid)
-
-      interactWithCharacter(state)
-
-      expect(state.selectedUnits.has(coyoteEid)).toBe(true)
-      expect(state.selectedUnits.has(gronEid)).toBe(false)
-      expect(state.selectedUnits.size).toBe(1)
-    })
-
-    it('does not modify selectedUnits when interacting with gron (dialog character)', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 10)
-      createCharacterTestEntity(state, 'gron', state.player.x + 1, state.player.y)
-
-      interactWithCharacter(state)
-
-      expect(state.selectedUnits.size).toBe(0)
+      expect(result.coyoteToggled).toBe(false)
+      expect(state.coyoteCargo).toBe(cargoBefore)
+      // No activeDialog opened
+      expect(state.activeDialog).toBeNull()
     })
 
     it('does nothing when no character is adjacent', () => {
@@ -599,7 +564,6 @@ describe('coyote companion', () => {
       const result = interactWithCharacter(state)
 
       expect(result.opened).toBe(false)
-      expect(state.selectedUnits.size).toBe(0)
     })
   })
 })

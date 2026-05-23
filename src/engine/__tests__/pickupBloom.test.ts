@@ -6,7 +6,7 @@ import { pickUpGroundItems } from '../entities'
 import { giveCharacterGift, givePostGift } from '../interaction'
 import { placeItem } from '../inventory'
 import { RECIPES } from '../recipes'
-import { CoyoteMode, Zone } from '../types'
+import { Zone } from '../types'
 import {
   clearAroundPlayer,
   createBeeEntity,
@@ -186,7 +186,6 @@ describe('coyote delivery bloom', () => {
     createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
       behavior: { type: 'follow' },
     })
-    state.coyoteMode = CoyoteMode.Collect
     state.coyoteCargo = 'meteorite'
 
     const result = tickCoyote(state, 5000)
@@ -209,7 +208,6 @@ describe('coyote delivery bloom', () => {
       behavior: { type: 'follow' },
     })
     createCharacterTestEntity(state, 'gron', state.player.x - 1, state.player.y)
-    state.coyoteMode = CoyoteMode.Collect
     state.coyoteCargo = 'meteorite'
     // Fill the backpack completely
     for (let y = 0; y < state.backpack.height; y++) {
@@ -233,7 +231,6 @@ describe('coyote delivery bloom', () => {
     createCharacterTestEntity(state, 'coyote', state.player.x + 1, state.player.y, {
       behavior: { type: 'follow' },
     })
-    state.coyoteMode = CoyoteMode.Collect
     state.coyoteCargo = 'meteorite'
 
     tickCoyote(state)

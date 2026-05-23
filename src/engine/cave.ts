@@ -5,10 +5,8 @@ import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, tileHash } from './position'
 import { checkRuinTransition } from './ruins'
-import { deselectAll } from './selection'
 import { STRUCTURE_REGISTRY } from './structures'
 import { TileType, Zone } from './types'
-import { clearAllUnitCommands } from './unitCommands'
 import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
 import type { RuinTileLayer } from './ruins'
@@ -213,10 +211,6 @@ export const enterCave = (state: GameState): void => {
   clearAllGrowthPreviews(state)
   clearMovementTweens(state)
 
-  // Clear selection and unit commands
-  deselectAll(state)
-  clearAllUnitCommands(state)
-
   // Teleport coyote to cave
   transitionCoyoteToZone(state, Zone.Cave)
 }
@@ -243,10 +237,6 @@ export const exitCave = (state: GameState): void => {
   state.trail = []
   clearAllGrowthPreviews(state)
   clearMovementTweens(state)
-
-  // Clear selection and unit commands
-  deselectAll(state)
-  clearAllUnitCommands(state)
 
   // Teleport coyote to overworld
   transitionCoyoteToZone(state, Zone.Overworld)

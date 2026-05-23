@@ -23,7 +23,6 @@ import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { buildWaterProximity } from './tileWater'
 import { createEmptyFloraGrowthPreviews } from './floraGrowthPreviews'
 import {
-  CoyoteMode,
   EgregoreActivityStage,
   MainQuestPhase,
   MoabState,
@@ -306,17 +305,11 @@ export const createGameState = (
     nextAngelSpawnTime: 60_000, // first angel after ~60s
     angelEncounterCount: 0,
     angelFlashTime: 0,
-    coyoteMode: CoyoteMode.Follow,
     coyoteCargo: null,
-    coyotePath: null,
     ruinInteriors: generateAllRuinInteriors(genesisData.ruins),
     currentRuinIndex: null,
     caveFogExplored: new Set<string>(),
     caveFogDiscovered: new Set<string>(),
-    selectedUnits: new Set<number>(),
-    selectionBox: null,
-    unitCommands: new Map(),
-    moveOrderMarkers: [],
     devPanelOpen: false,
     devPaintPreview: null,
     devEntityPreview: null,

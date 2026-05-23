@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 
 import { updateCamera } from '@/engine/camera'
 import { expandClickTile } from '@/engine/clickResolution'
-import { SELECTION_DRAG_THRESHOLD } from '@/engine/constants'
 import { screenToTile } from '@/engine/coordinates'
 import { isDeepTimeLocked } from '@/engine/deepTime'
 import { ComponentType } from '@/engine/ecs/types'
@@ -20,16 +19,7 @@ import {
 import { getPathfindingBlockers } from '@/engine/movement'
 import { findPath } from '@/engine/pathfinding'
 import { isWalkableTile, posKey } from '@/engine/position'
-import {
-  commitBoxSelection,
-  deselectAll,
-  getControllableUnitAt,
-  getControllableUnitsInRect,
-  hasSelection,
-  selectUnit,
-} from '@/engine/selection'
 import { TileType, Zone } from '@/engine/types'
-import { issueMoveCommand } from '@/engine/unitCommands'
 import { isInputGated } from '@/engine/zoneTransition'
 import type { PermacomputerScreen } from './useKeyboard'
 import type { CharMetrics, GameState, Position } from '@/engine/types'
@@ -152,7 +142,7 @@ export const useMouse = ({
   state,
   metricsRef,
   activeScreen,
-  setActiveScreen,
+  setActiveScreen: _setActiveScreen,
   refreshUI,
 }: UseMouseOptions) => {
   const activeScreenRef = useRef(activeScreen)
@@ -162,86 +152,11 @@ export const useMouse = ({
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // `justFinishedDrag` outlives handleMouseUp so the paired `click` event
-    // (fired after mouseup by the browser) can be skipped. Without this the
-    // click handler would see isDragging=false and fall through to selection
-    // toggle / deselect, causing a drag-release to also clear selection.
-    let mouseDownPos: { x: number; y: number } | null = null
-    let isDragging = false
-    let justFinishedDrag = false
-
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return
+    const handleClick = (e: MouseEvent) => {
+      // Skip the remaining genesis epochs on any canvas click.
       if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
         completeGenesis(state)
         refreshUI()
-        return
-      }
-      mouseDownPos = { x: e.offsetX, y: e.offsetY }
-      isDragging = false
-    }
-
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!mouseDownPos) return
-      const dx = e.offsetX - mouseDownPos.x
-      const dy = e.offsetY - mouseDownPos.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-
-      if (dist >= SELECTION_DRAG_THRESHOLD) {
-        isDragging = true
-        state.selectionBox = {
-          startScreen: mouseDownPos,
-          endScreen: { x: e.offsetX, y: e.offsetY },
-        }
-        refreshUI()
-      }
-    }
-
-    const handleMouseUp = (e: MouseEvent) => {
-      if (e.button !== 0) return
-
-      if (isDragging && mouseDownPos) {
-        const metrics = metricsRef.current
-        if (metrics) {
-          const startTile = screenToTile(
-            Math.min(mouseDownPos.x, e.offsetX),
-            Math.min(mouseDownPos.y, e.offsetY),
-            state.camera,
-            metrics.charWidth,
-            metrics.charHeight,
-            state.viewportWidth,
-            state.viewportHeight
-          )
-          const endTile = screenToTile(
-            Math.max(mouseDownPos.x, e.offsetX),
-            Math.max(mouseDownPos.y, e.offsetY),
-            state.camera,
-            metrics.charWidth,
-            metrics.charHeight,
-            state.viewportWidth,
-            state.viewportHeight
-          )
-          const units = getControllableUnitsInRect(state, startTile, endTile)
-          commitBoxSelection(state, units)
-          refreshUI()
-        }
-        state.selectionBox = null
-        mouseDownPos = null
-        isDragging = false
-        justFinishedDrag = true
-        return
-      }
-
-      mouseDownPos = null
-      isDragging = false
-      state.selectionBox = null
-    }
-
-    const handleClick = (e: MouseEvent) => {
-      // Consume the flag set by a just-completed drag-select. Runs before
-      // any other branch so drag release never falls through.
-      if (justFinishedDrag) {
-        justFinishedDrag = false
         return
       }
 
@@ -291,36 +206,16 @@ export const useMouse = ({
         return
       }
 
-      // Forgiving hit-test: if the geometric tile has no clickable, snap to
-      // a cardinal-neighbor tile that does.
       const tile = expandClickTile(state, rawTile)
 
-      // Click on the player tile — no-op (player is not mouse-selectable)
-      if (tile.x === state.player.x && tile.y === state.player.y) {
-        return
-      }
+      // Click on the player tile — no-op
+      if (tile.x === state.player.x && tile.y === state.player.y) return
 
-      // Click on a controllable NPC unit — toggle-select
-      const clickedUnit = getControllableUnitAt(state, tile)
-      if (clickedUnit !== null) {
-        state.path = null
-        state.pathWaypoints = []
-        state.pendingAction = null
-        state.pendingInteractionTarget = null
-        if (state.selectedUnits.size === 1 && state.selectedUnits.has(clickedUnit)) {
-          deselectAll(state)
-        } else {
-          selectUnit(state, clickedUnit)
-        }
-        refreshUI()
-        return
-      }
-
-      // Left-click on interactable — pathfind + interact (preserved behavior)
       const blocked = getPathfindingBlockers(state, tile)
       const resolved = resolveClickTarget(state, tile, blocked, refreshUI)
-      if (resolved && resolved.action !== null) {
-        deselectAll(state)
+      if (!resolved) return
+
+      if (resolved.action !== null) {
         state.pendingInteractionTarget = resolved.interactableTile
         if (resolved.walkTarget.x === state.player.x && resolved.walkTarget.y === state.player.y) {
           resolved.action()
@@ -338,11 +233,17 @@ export const useMouse = ({
         return
       }
 
-      // Bare left-click on empty ground — clear any selection
-      if (hasSelection(state)) {
-        deselectAll(state)
-        refreshUI()
-      }
+      // Bare left-click on a walkable tile — pathfind the player there.
+      if (!isWalkableTile(state.map[resolved.walkTarget.y][resolved.walkTarget.x].type)) return
+      state.pendingAction = null
+      state.pendingInteractionTarget = null
+      state.previewFn = null
+      updateCamera(state)
+      state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, resolved.walkTarget, blocked, {
+        allowDiagonal: true,
+      })
+      state.pathWaypoints = state.path ? [resolved.walkTarget] : []
+      refreshUI()
     }
 
     const handleContextMenu = (e: MouseEvent) => {
@@ -357,7 +258,7 @@ export const useMouse = ({
       const metrics = metricsRef.current
       if (!metrics) return
 
-      const tile = screenToTile(
+      const rawTile = screenToTile(
         e.offsetX,
         e.offsetY,
         state.camera,
@@ -366,27 +267,27 @@ export const useMouse = ({
         state.viewportWidth,
         state.viewportHeight
       )
-      if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return
+      if (rawTile.x < 0 || rawTile.x >= state.mapWidth || rawTile.y < 0 || rawTile.y >= state.mapHeight) return
+      if (!isWalkableTile(state.map[rawTile.y][rawTile.x].type)) return
+      if (rawTile.x === state.player.x && rawTile.y === state.player.y) return
 
-      // Right-click only commands selected NPC units. Without a selection,
-      // it is a no-op — the player is not mouse-movable.
-      if (!hasSelection(state)) return
-      if (!isWalkableTile(state.map[tile.y][tile.x].type)) return
-      issueMoveCommand(state, tile)
+      const blocked = getPathfindingBlockers(state, rawTile)
+      state.pendingAction = null
+      state.pendingInteractionTarget = null
+      state.previewFn = null
+      updateCamera(state)
+      state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, rawTile, blocked, {
+        allowDiagonal: true,
+      })
+      state.pathWaypoints = state.path ? [{ x: rawTile.x, y: rawTile.y }] : []
       refreshUI()
     }
 
-    canvas.addEventListener('mousedown', handleMouseDown)
-    canvas.addEventListener('mousemove', handleMouseMove)
-    canvas.addEventListener('mouseup', handleMouseUp)
     canvas.addEventListener('click', handleClick)
     canvas.addEventListener('contextmenu', handleContextMenu)
     return () => {
-      canvas.removeEventListener('mousedown', handleMouseDown)
-      canvas.removeEventListener('mousemove', handleMouseMove)
-      canvas.removeEventListener('mouseup', handleMouseUp)
       canvas.removeEventListener('click', handleClick)
       canvas.removeEventListener('contextmenu', handleContextMenu)
     }
-  }, [canvasRef, state, metricsRef, setActiveScreen, refreshUI])
+  }, [canvasRef, state, metricsRef, refreshUI])
 }

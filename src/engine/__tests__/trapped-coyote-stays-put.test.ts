@@ -4,7 +4,7 @@ import { ComponentType } from '../ecs/types'
 import { RuinRole } from '../genesisTypes'
 import { clearRuinDebris } from '../interaction'
 import { movePlayer } from '../movement'
-import { CoyoteMode, MainQuestPhase, RuinArchetype, TileType, Zone } from '../types'
+import { MainQuestPhase, RuinArchetype, TileType, Zone } from '../types'
 import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -99,7 +99,6 @@ describe('trapped coyote stays put on ruin entry', () => {
     clearAroundPlayer(state, 12)
     // Post-rescue: phase has advanced past AwaitingCoyote.
     state.mainQuestPhase = MainQuestPhase.Gathering
-    state.coyoteMode = CoyoteMode.Follow
     state.currentZone = Zone.Cave
     state.currentRuinIndex = null
 

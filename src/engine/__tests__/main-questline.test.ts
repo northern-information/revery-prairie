@@ -8,7 +8,7 @@ import { placeItem } from '../inventory'
 import { recordDiscovery } from '../manual'
 import { movePlayer } from '../movement'
 import { posKey } from '../position'
-import { CoyoteMode, MainQuestPhase, TileType, Zone } from '../types'
+import { MainQuestPhase, TileType, Zone } from '../types'
 import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -167,7 +167,7 @@ describe('main questline > coyote rescue on approach', () => {
     )
   }
 
-  it('switches coyote to Follow, advances quest phase, records discovery', () => {
+  it('advances quest phase and records discovery on rescue', () => {
     const state = createTestState()
     installCoyoteRuin(state)
     setupApproach(state)
@@ -175,7 +175,6 @@ describe('main questline > coyote rescue on approach', () => {
     expect(movePlayer(state, 'right')).toBe(true)
 
     expect(state.mainQuestPhase).toBe(MainQuestPhase.Gathering)
-    expect(state.coyoteMode).toBe(CoyoteMode.Follow)
     expect(state.manualDiscoveries.has('character:coyote')).toBe(true)
     expect(state.manualDiscoveries.has('event:rescue-coyote')).toBe(true)
   })

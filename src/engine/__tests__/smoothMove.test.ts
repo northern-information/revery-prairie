@@ -9,7 +9,6 @@ import {
   MOVEMENT_TWEEN_DEFAULT_MS,
   MOVEMENT_TWEEN_SPRINT_MS,
   SPACE_BORDER,
-  UNIT_COMMAND_TICK_MS,
 } from '../constants'
 import { tickCoyote } from '../coyote'
 import { ComponentType } from '../ecs/types'
@@ -18,9 +17,7 @@ import { spawnMonarch, tickMonarchs } from '../monarch'
 import { movePlayer } from '../movement'
 import { clearMovementTweens, getTweenLerp } from '../movementTween'
 import { worldDeltaToIsoPx, worldToScreen } from '../projection'
-import { selectUnit } from '../selection'
-import { CoyoteMode, TileType, Zone } from '../types'
-import { issueMoveCommand, tickUnitCommands } from '../unitCommands'
+import { TileType, Zone } from '../types'
 import {
   clearArea,
   clearAroundPlayer,
@@ -411,22 +408,6 @@ describe('smooth move', () => {
     // Default tween (100ms) on a 150ms+ tick leaves an idle gap at the
     // destination tile and reads as choppy.
 
-    it('unit-command: tickUnitCommands writes a tween with durationMs = UNIT_COMMAND_TICK_MS', () => {
-      const state = createTestState()
-      clearAroundPlayer(state, 10)
-      const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 2, state.player.y, {
-        behavior: { type: 'follow' },
-      })
-      selectUnit(state, eid)
-      issueMoveCommand(state, { x: state.player.x + 5, y: state.player.y })
-
-      tickUnitCommands(state)
-
-      const tween = state.world.getComponent(eid, ComponentType.MovementTween)
-      expect(tween).toBeTruthy()
-      expect(tween?.durationMs).toBe(UNIT_COMMAND_TICK_MS)
-    })
-
     it('coyote follow: tickCoyote writes a tween with durationMs = COYOTE_TICK_MS', () => {
       const state = createTestState()
       clearAroundPlayer(state, 10)
@@ -447,8 +428,7 @@ describe('smooth move', () => {
       const eid = createCharacterTestEntity(state, 'coyote', state.player.x + 2, state.player.y, {
         behavior: { type: 'follow' },
       })
-      state.coyoteMode = CoyoteMode.Collect
-      // Place a ground item several tiles away to force a step toward it.
+      // Place a ground item several tiles away (inside viewport) to force a step toward it.
       const itemX = state.player.x + 6
       const itemY = state.player.y
       clearArea(state, itemX, itemY, 1)

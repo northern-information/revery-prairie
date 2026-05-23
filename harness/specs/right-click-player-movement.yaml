@@ -1,0 +1,208 @@
+id: right-click-player-movement
+name: 'Right-click moves the player; RTS multi-select removed'
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/coyote.ts
+  - src/engine/interaction.ts
+  - src/engine/renderer.ts
+  - src/engine/gameLoop.ts
+  - src/engine/cave.ts
+  - src/engine/ruins.ts
+  - src/engine/render/passes/index.ts
+  - src/hooks/useMouse.ts
+  - src/components/GameScreen.tsx
+  - src/components/Sidebar.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - player-movement
+  - pathfinding
+  - coyote-companion
+
+behaviors:
+  - id: right-click-pathfinds-player
+    description: >
+      Right-clicking on any tile in the overworld, cave, or ruin pathfinds
+      the player to that tile. The handler resolves the clicked tile via
+      the same forgiving hit-test used by left-click (expandClickTile), then
+      sets state.path via findPath with allowDiagonal: true, using the same
+      blocked set returned by getPathfindingBlockers. No interaction is
+      triggered, no dialog is opened, and no pendingAction is queued —
+      right-click is movement only. state.pendingInteractionTarget and
+      state.pendingAction are cleared on every right-click that initiates
+      movement. Right-click works regardless of any prior state — it does
+      not depend on selection (which no longer exists), inventory state, or
+      cursor focus.
+    inputs:
+      - 'Right-click on a walkable tile in the active zone'
+    outputs:
+      - 'state.path set to an A* path from the player to the clicked tile'
+      - 'state.pathWaypoints set to [target]'
+      - 'state.pendingAction cleared'
+      - 'state.pendingInteractionTarget cleared'
+    state_changes:
+      - field: path
+        effect: 'set to A* result toward the clicked walkable tile'
+      - field: pathWaypoints
+        effect: 'set to [target]'
+      - field: pendingAction
+        effect: 'cleared to null'
+      - field: pendingInteractionTarget
+        effect: 'cleared to null'
+    determinism: deterministic
+
+  - id: right-click-non-walkable-noop
+    description: >
+      Right-click on a non-walkable tile (Space, cave wall, ruin debris,
+      water, etc.) is a no-op. No path is set, no error is raised, and no
+      side effects occur. The forgiving hit-test does not snap right-click
+      to a neighbor; if the resolved tile is non-walkable, the click is
+      ignored. This keeps right-click intent clear: it only moves to a
+      tile the player can stand on.
+    inputs:
+      - 'Right-click on a non-walkable tile'
+    outputs:
+      - 'No state change'
+    state_changes: []
+    determinism: deterministic
+
+  - id: right-click-gated-by-modals
+    description: >
+      Right-click is suppressed under the same modal/dialog conditions as
+      left-click. If state.devPanelOpen, the active permacomputer screen
+      is 'system', isDeepTimeLocked(state), isInputGated(state), or
+      state.activeDialog is non-null, right-click does nothing. The
+      browser context menu is always preventDefault'd on the canvas so
+      the OS menu never appears regardless of game state.
+    inputs:
+      - 'Right-click while a gating condition is active'
+    outputs:
+      - 'No state change; browser context menu suppressed'
+    state_changes: []
+    determinism: deterministic
+
+  - id: left-click-pathfinds-and-interacts
+    description: >
+      Left-click on the canvas pathfinds the player to the clicked tile.
+      If the resolved tile is an interactable (character, clover, cave
+      breakable wall, ruin door, ruin debris, angel body, etc.),
+      pendingAction is queued so the interaction fires on arrival, and
+      pendingInteractionTarget is set for highlight rendering. If the
+      resolved tile is bare ground, left-click still moves the player —
+      there is no longer a deselect-only branch. The burn-line draft
+      branch (precis #9b, burnDrawMode) is unchanged.
+    inputs:
+      - 'Left-click on a walkable tile in the active zone'
+    outputs:
+      - 'state.path set to A* path toward the resolved tile'
+      - 'state.pendingAction set when the resolved tile is an interactable, else cleared'
+    state_changes:
+      - field: path
+        effect: 'set to A* result toward the resolved tile'
+      - field: pathWaypoints
+        effect: 'set to [target]'
+      - field: pendingAction
+        effect: 'set when an interactable was clicked, else cleared'
+      - field: pendingInteractionTarget
+        effect: 'set to the interactable tile when present, else cleared'
+    determinism: deterministic
+
+  - id: no-unit-selection-state
+    description: >
+      GameState has no selectedUnits field and no selectionBox field.
+      Mouse input never reads or writes either concept. The renderer
+      never applies a selection highlight. No pass named 'rts-selection-box'
+      or 'move-order-markers' is registered. CommandPanel is not
+      rendered anywhere in the React tree. The cursor info row in
+      Sidebar never annotates an entity as '[selected]'.
+    inputs:
+      - 'Any game session, any zone, any input'
+    outputs:
+      - 'No selection-related state exists, no selection UI renders'
+    state_changes: []
+    determinism: deterministic
+
+  - id: no-mouse-drag-marquee
+    description: >
+      Left-mouse down + drag on the canvas does not draw a selection
+      rectangle. The handlers no longer track mouse-down position for
+      drag detection, do not set state.selectionBox, and do not commit
+      a box selection on release. Drag motion is ignored entirely;
+      the click event fires on mouseup as usual.
+    inputs:
+      - 'Left-mouse down + drag + release on canvas'
+    outputs:
+      - 'No selection rectangle rendered'
+      - 'No selection state changed'
+    state_changes: []
+    determinism: deterministic
+
+  - id: no-issue-move-command
+    description: >
+      There is no NPC move-command API. unitCommands.ts is removed.
+      state.unitCommands and state.moveOrderMarkers do not exist.
+      tickUnitCommands is not called from the game loop. NPCs that
+      previously responded to player-issued move commands (only the
+      coyote) follow their own autonomous behavior at all times.
+    inputs:
+      - 'Any tick of the game loop'
+    outputs:
+      - 'No command-driven NPC movement'
+    state_changes: []
+    determinism: deterministic
+
+  - id: coyote-interaction-is-noop
+    description: >
+      Pressing the interact key while adjacent to the coyote no longer
+      selects, toggles, or summons the coyote. interactWithCharacter's
+      coyote branch returns `{ opened: false, gift: null, coyoteToggled:
+      false }` without modifying state. The coyote behaves autonomously;
+      players summon via the permacomputer COYOTE tab as before.
+    inputs:
+      - 'Player presses interact while adjacent to the coyote'
+    outputs:
+      - 'No state change'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: right-click-on-player-tile
+    description: "Right-click directly on the player's own tile"
+    expected: 'No-op — findPath returns an empty/null path for a same-tile move; state.path is not set to a meaningful path. No error.'
+  - id: right-click-on-character
+    description: 'Right-click on a tile occupied by a character (coyote, gron, angel, etc.)'
+    expected: 'If the tile is walkable, pathfind there normally. No interaction is triggered. (Left-click is the channel for interaction.)'
+  - id: right-click-during-dialog
+    description: 'Right-click while state.activeDialog is non-null'
+    expected: 'No movement. Dialog is not advanced (only left-click advances dialog).'
+  - id: right-click-during-genesis
+    description: 'Right-click during the genesis intro epochs (state.genesis active)'
+    expected: 'Gated by isInputGated(state). No movement, no genesis completion.'
+  - id: right-click-on-burn-draft-mode
+    description: 'Right-click while state.burnDrawMode is true (precis #9b)'
+    expected: 'Right-click still moves the player. The burn-line draft is left-click-only; right-click is not used to chain waypoints.'
+  - id: schema-test-no-selection-fields
+    description: 'EXPECTED_FIELDS in the schema test does not include selectedUnits, selectionBox, coyoteMode, coyotePath, unitCommands, or moveOrderMarkers'
+    expected: 'Serialization schema test passes; presence of any of those fields on GameState would fail the test.'
+  - id: zone-transition-no-deselect
+    description: 'Player enters cave or ruin'
+    expected: 'No deselectAll call; no selection state to clear. Zone transition continues normally.'
+
+failure_conditions:
+  - trigger: 'Right-click on a walkable tile with no other input'
+    expected: 'state.path is set to a valid A* path; player begins walking on the next tick'
+  - trigger: 'Right-click on a non-walkable tile'
+    expected: 'state.path is unchanged; no error'
+  - trigger: 'Left-mouse down + drag + release on bare ground'
+    expected: 'No state.selectionBox set at any point; no selection committed; left-click click event still fires on mouseup'
+  - trigger: 'Any reference to state.selectedUnits, state.selectionBox, state.unitCommands, state.moveOrderMarkers, state.coyoteMode, or state.coyotePath at runtime'
+    expected: 'TypeScript compile fails — these fields no longer exist on GameState'
+  - trigger: 'Player presses interact adjacent to coyote'
+    expected: 'No state change; no selection; no mode toggle'
+
+verification:
+  test_file: src/hooks/__tests__/useMouse.test.tsx
+  test_pattern: 'right-click'
+  command: 'npx vitest run src/hooks/__tests__/useMouse.test.tsx src/engine/__tests__/coyote.test.ts'

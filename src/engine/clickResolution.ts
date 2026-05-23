@@ -1,20 +1,17 @@
 import { ComponentType } from './ecs/types'
 import { isInteractableAt } from './interaction'
 import { posKey } from './position'
-import { getControllableUnitAt } from './selection'
 
 import type { GameState, Position } from './types'
 
 /**
  * Returns true if `tile` has anything a left-click should land on (player,
- * controllable unit, character entity, angel body, or interactable). Used by
- * the forgiving hit-test to "snap" off-by-one clicks back to the visible
- * glyph.
+ * character entity, angel body, or interactable). Used by the forgiving
+ * hit-test to "snap" off-by-one clicks back to the visible glyph.
  */
 export const tileHasClickable = (state: GameState, tile: Position): boolean => {
   if (tile.x < 0 || tile.x >= state.mapWidth || tile.y < 0 || tile.y >= state.mapHeight) return false
   if (tile.x === state.player.x && tile.y === state.player.y) return true
-  if (getControllableUnitAt(state, tile) !== null) return true
   const tileKey = posKey(tile.x, tile.y)
   for (const eid of state.world.spatial.at(tile.x, tile.y)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) === 'character') return true

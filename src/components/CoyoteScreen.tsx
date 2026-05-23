@@ -11,7 +11,6 @@ interface CoyoteScreenProps {
 }
 
 export const CoyoteScreen = ({ state, refreshUI }: CoyoteScreenProps) => {
-  const modeLabel = state.coyoteMode === 'follow' ? 'Following' : 'Collecting'
   const cargoLabel = state.coyoteCargo ? getDefinition(state.coyoteCargo).name : 'Empty'
   const coyotePos = getCoyotePosition(state)
 
@@ -33,10 +32,6 @@ export const CoyoteScreen = ({ state, refreshUI }: CoyoteScreenProps) => {
         <SectionHeader>Status</SectionHeader>
         <table className="w-full">
           <tbody>
-            <tr>
-              <td className="text-muted py-0.5">Mode</td>
-              <td className="py-0.5 text-right">{modeLabel}</td>
-            </tr>
             <tr>
               <td className="text-muted py-0.5">Carrying</td>
               <td className="py-0.5 text-right">{cargoLabel}</td>
