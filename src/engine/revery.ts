@@ -209,6 +209,14 @@ const transitionToHouseScene = (state: GameState): void => {
   updateCamera(state)
 }
 
+// Precis #39 — Post-Revery memory softening. On Revery exit the overworld
+// fullyDiscovered set drains so the walk back out of the little house has
+// shape again. overworldFogExplored is untouched — lived history persists,
+// memory dims. Cave memory is out of scope.
+const applyPostReveryMemorySoftening = (state: GameState): void => {
+  state.overworldFogDiscovered.clear()
+}
+
 // Precis #33 — Closing-phase revert. Restore Emily to her idle position
 // and reset emilyInvitation so she can offer again next autumn. Steward
 // stays on the bed and walks off at their pace.
@@ -331,6 +339,7 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
     // the next autumn starts from baseline.
     state.dormancyPressure = 0
     state.collapsedStewardTile = null
+    applyPostReveryMemorySoftening(state)
     state.revery = null
     return
   }
