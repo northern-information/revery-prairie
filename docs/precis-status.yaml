@@ -973,10 +973,10 @@ features:
       existing teleport (`src/engine/interaction.ts:204`,
       `src/engine/coyote.ts:296-317`) and dialog substrate.
     depends_on: ['4']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-32-revery-dormancy-pressure.yaml
     plan: harness/plans/precis-32-revery-dormancy-pressure.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/407
     notes: >
       v6 thinktank round 1 (2026-05-22). The current omen lives in
       `src/engine/omen.ts:28-62` with 5 gates and 3 OR'd predicates;
