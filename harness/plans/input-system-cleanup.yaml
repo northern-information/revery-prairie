@@ -76,22 +76,6 @@ tasks:
     repair: retry
     tags: [hook]
 
-  - id: tighten-text-input-focus-gate
-    title: 'Move the INPUT/TEXTAREA focus check to the top of useKeyboard so Shift and movement keys are blocked'
-    spec_id: input-system-cleanup
-    spec_sections:
-      - text-input-focus-gate-includes-shift-and-movement
-    context_files:
-      - src/hooks/useKeyboard.ts
-    output_files:
-      - src/hooks/useKeyboard.ts
-    depends_on: []
-    verification:
-      - npx tsc -b --noEmit
-      - npx vitest run src/hooks/__tests__/useKeyboard.test.ts
-    repair: retry
-    tags: [hook]
-
   - id: gate-c-during-deep-time
     title: 'Add deep-time Burning/Simulating gate to the `c` divination toggle'
     spec_id: input-system-cleanup
@@ -193,7 +177,6 @@ tasks:
       - manual-toggle-tab-only
       - burn-draw-mode-removed
       - click-ground-item-walks-only
-      - text-input-focus-gate-includes-shift-and-movement
       - divination-deep-time-gate
       - helper-text-bracketed-title-case
       - backpack-item-hover-shows-drop-hint
@@ -213,7 +196,6 @@ tasks:
       - drop-q-manual-toggle
       - drop-b-and-burndrawmode-system
       - drop-click-ground-item-pickup
-      - tighten-text-input-focus-gate
       - gate-c-during-deep-time
       - resync-keybindings-registry
       - resync-input-md

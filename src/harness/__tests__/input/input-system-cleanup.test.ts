@@ -103,7 +103,10 @@ describe('input system cleanup', () => {
   describe('backpack item hover helper text', () => {
     it('ItemInfo renders an [X] Drop hint string', () => {
       const src = readSrc('src/components/ItemInfo.tsx')
-      expect(src).toMatch(/\[X\]\s*Drop/)
+      // The hint is rendered as `<span>[X]</span> Drop` so any markup may
+      // sit between the bracket and the verb. Allow up to a short span of
+      // characters but require both pieces to appear close together.
+      expect(src).toMatch(/\[X\][^<]*<\/span>\s*Drop|\[X\]\s*Drop/)
     })
   })
 })

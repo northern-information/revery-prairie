@@ -34,10 +34,8 @@ describe('torchbearer (precis #9b)', () => {
   describe('initial state', () => {
     it('createGameState initializes all torchbearer fields', () => {
       const state = createTestState()
-      expect(state.burnLineDraft).toBeNull()
       expect(state.lockedBurnLine).toBeNull()
       expect(state.burnLineIndex).toBeNull()
-      expect(state.burnDrawMode).toBe(false)
       expect(state.moabState).toBe(MoabState.Idle)
     })
   })
@@ -103,25 +101,26 @@ describe('torchbearer (precis #9b)', () => {
       seedMoab(state)
     })
 
-    it('does nothing when burnLineDraft is null', () => {
+    it('does nothing when lockedBurnLine is null', () => {
       state.weather.season = Season.Spring
       tickTorchbearer(state)
       expect(state.lockedBurnLine).toBeNull()
       expect(state.moabState).toBe(MoabState.Idle)
     })
 
-    it('locks burnLineDraft into lockedBurnLine and emerges Moab', () => {
+    it('emerges Moab when lockedBurnLine is populated at thaw', () => {
+      // The authoring layer was removed in input-system-cleanup; the
+      // walk-with-Moab follow-up will populate lockedBurnLine via a new
+      // mechanism. Tests stand in for that by writing the field directly.
       const ce = state.caveEntranceOverworld
       const line: Position[] = [
         { x: ce.x + 2, y: ce.y },
         { x: ce.x + 3, y: ce.y },
       ]
-      // Make sure those tiles are walkable dirt
       for (const t of line) setMapTile(state, t.x, t.y, { type: TileType.Dirt })
-      state.burnLineDraft = line
+      state.lockedBurnLine = line
       state.weather.season = Season.Spring
       tickTorchbearer(state)
-      expect(state.burnLineDraft).toBeNull()
       expect(state.lockedBurnLine).toEqual(line)
       expect(state.moabState).toBe(MoabState.Walking)
       expect(state.burnLineIndex).toBe(0)
@@ -132,7 +131,7 @@ describe('torchbearer (precis #9b)', () => {
 
     it('transitions to Refusing when the line touches the cave entrance', () => {
       const ce = state.caveEntranceOverworld
-      state.burnLineDraft = [{ x: ce.x, y: ce.y }]
+      state.lockedBurnLine = [{ x: ce.x, y: ce.y }]
       state.weather.season = Season.Spring
       tickTorchbearer(state)
       expect(state.moabState).toBe(MoabState.Refusing)
@@ -143,7 +142,7 @@ describe('torchbearer (precis #9b)', () => {
 
     it('Refusing → Returning on the following tick', () => {
       const ce = state.caveEntranceOverworld
-      state.burnLineDraft = [{ x: ce.x, y: ce.y }]
+      state.lockedBurnLine = [{ x: ce.x, y: ce.y }]
       state.weather.season = Season.Spring
       tickTorchbearer(state) // → Refusing
       expect(state.moabState).toBe(MoabState.Refusing)
@@ -180,7 +179,7 @@ describe('torchbearer (precis #9b)', () => {
 
     it('Flora tiles become BurntFlora when Moab walks over them', () => {
       for (const t of line) setMapTile(state, t.x, t.y, { type: TileType.Flora })
-      state.burnLineDraft = line
+      state.lockedBurnLine = line
       state.weather.season = Season.Spring
       tickTorchbearer(state) // lock + emerge
 
@@ -196,7 +195,7 @@ describe('torchbearer (precis #9b)', () => {
         setMapTile(state, t.x, t.y, { type: TileType.Egregore })
         state.egregorePositions.push({ x: t.x, y: t.y })
       }
-      state.burnLineDraft = line
+      state.lockedBurnLine = line
       state.weather.season = Season.Spring
       tickTorchbearer(state)
 
@@ -210,7 +209,7 @@ describe('torchbearer (precis #9b)', () => {
 
     it('Dirt tiles are unchanged when walked', () => {
       for (const t of line) setMapTile(state, t.x, t.y, { type: TileType.Dirt })
-      state.burnLineDraft = line
+      state.lockedBurnLine = line
       state.weather.season = Season.Spring
       tickTorchbearer(state)
 
@@ -223,7 +222,7 @@ describe('torchbearer (precis #9b)', () => {
 
     it('records event:torchbearer-walk when the line is fully walked', () => {
       for (const t of line) setMapTile(state, t.x, t.y, { type: TileType.Flora })
-      state.burnLineDraft = line
+      state.lockedBurnLine = line
       state.weather.season = Season.Spring
       tickTorchbearer(state)
 
@@ -373,16 +372,15 @@ describe('torchbearer (precis #9b)', () => {
   })
 
   describe('effects row surfaces burn line', () => {
-    // Imported lazily to avoid cycles in this test module.
-    it('"burn line (draft)" appears on a draft tile and "burn line (locked)" on a locked tile', async () => {
+    // The draft layer was removed in input-system-cleanup; only the locked
+    // line surfaces in the cursor info effects row.
+    it('"burn line (locked)" appears on a locked tile and absent elsewhere', async () => {
       const { getTileEffects } = await import('../effects')
       const state = createTestState()
       state.currentZone = Zone.Overworld
-      state.burnLineDraft = [{ x: 5, y: 5 }]
       state.lockedBurnLine = [{ x: 6, y: 6 }]
-      expect(getTileEffects(state, 5, 5)).toContain('burn line (draft)')
       expect(getTileEffects(state, 6, 6)).toContain('burn line (locked)')
-      expect(getTileEffects(state, 7, 7)).not.toContain('burn line (draft)')
+      expect(getTileEffects(state, 7, 7)).not.toContain('burn line (locked)')
     })
   })
 

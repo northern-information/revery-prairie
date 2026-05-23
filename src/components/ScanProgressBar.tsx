@@ -89,7 +89,7 @@ export const ScanProgressBar = ({ state, activeScreen }: ScanProgressBarProps) =
       className="border-border pointer-events-none fixed bottom-52 left-1/2 z-20 -translate-x-1/2 rounded border bg-black/80 px-3 py-2 font-mono text-xs"
     >
       <span className="text-dim">
-        <span className="text-text">[f]</span> to sequence.
+        <span className="text-text">[F]</span> to sequence.
       </span>
     </div>
   )

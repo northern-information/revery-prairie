@@ -250,14 +250,14 @@ export const HexagramPanel = ({ state, onClose, refreshUI, initialView }: Hexagr
           <div className="text-dim mb-3 text-xs">toss {tossCount}/6</div>
 
           <div className="flex items-center gap-2">
-            {canToss && <TextButton onClick={doToss}>[toss coins] or press [e]</TextButton>}
+            {canToss && <TextButton onClick={doToss}>[Toss Coins] or press [F]</TextButton>}
             <TextButton
               onClick={() => {
                 setView('compendium')
               }}
               variant="secondary"
             >
-              [compendium]
+              [Compendium]
             </TextButton>
           </div>
         </div>
@@ -299,7 +299,7 @@ export const HexagramPanel = ({ state, onClose, refreshUI, initialView }: Hexagr
           )}
 
           <div className="mt-2 flex items-center gap-2">
-            <span className="text-dim text-xs">press [e] or [enter] to close</span>
+            <span className="text-dim text-xs">press [F] or [Enter] to close</span>
             <TextButton
               onClick={() => {
                 setView('compendium')

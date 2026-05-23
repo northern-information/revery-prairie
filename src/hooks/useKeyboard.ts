@@ -92,12 +92,11 @@ export const useKeyboard = ({
       }
 
       // Reject gameplay input while a zone transition or boot title card
-      // is in flight. Only Tab (inventory), Q (manual), Escape
-      // (menu/dialog), and Shift (sprint toggle, handled above) remain
-      // available. WASD is also dropped by movePlayer itself; this
-      // catches interact, harvest, and drop.
+      // is in flight. Only Tab (manual), Escape (menu/dialog), and Shift
+      // (sprint toggle, handled above) remain available. WASD is also
+      // dropped by movePlayer itself; this catches interact and drop.
       if (isInputGated(state)) {
-        const allowed = e.key === 'Tab' || e.key === 'q' || e.key === 'Q' || e.key === 'Escape'
+        const allowed = e.key === 'Tab' || e.key === 'Escape'
         if (!allowed) return
       }
 
@@ -114,8 +113,7 @@ export const useKeyboard = ({
       // race the modal's dismiss logic.
       if (activeScreen === 'scan-result') return
 
-      // Escape: close dialog, then screen, then exit burnDrawMode,
-      // then open system
+      // Escape: close dialog, then screen, then open system
       if (e.key === 'Escape') {
         if (state.activeDialog) {
           state.activeDialog = null
@@ -130,24 +128,7 @@ export const useKeyboard = ({
           setActiveScreen(null)
           return
         }
-        if (state.burnDrawMode) {
-          state.burnDrawMode = false
-          refreshUI()
-          return
-        }
         setActiveScreen('system')
-        return
-      }
-
-      // [b] — toggle burn-line draw mode (precis #9b). Overworld only.
-      // Blocked while a dialog or screen is open. Does not clear the
-      // existing burnLineDraft on toggle off — exit/re-enter is free.
-      if ((e.key === 'b' || e.key === 'B') && !e.repeat) {
-        if (state.activeDialog) return
-        if (activeScreen !== null) return
-        if (state.currentZone !== Zone.Overworld) return
-        state.burnDrawMode = !state.burnDrawMode
-        refreshUI()
         return
       }
 
@@ -281,18 +262,11 @@ export const useKeyboard = ({
         return
       }
 
-      // Toggle manual
-      if (e.key === 'q' || e.key === 'Q') {
-        if (activeScreen === 'system') return
-        if (deepTimeBlocking) return
-        setActiveScreen(activeScreen === 'manual' ? null : 'manual')
-        return
-      }
-
       // Toggle divination
       if (e.key === 'c' || e.key === 'C') {
         if (state.activeDialog) return
         if (activeScreen === 'system') return
+        if (deepTimeBlocking) return
         if (state.currentZone !== Zone.Overworld) return
         if (activeScreen === 'divination') {
           setActiveScreen(null)

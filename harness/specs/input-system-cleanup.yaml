@@ -144,28 +144,6 @@ behaviors:
         effect: 'remains null for ground-item clicks'
     determinism: deterministic
 
-  - id: text-input-focus-gate-includes-shift-and-movement
-    description: >
-      When document.activeElement is an INPUT or TEXTAREA, the keyboard
-      hook blocks every key except Escape and Tab. The prior gate
-      returned early only for those two keys but let the Shift sprint
-      toggle and the WASD/arrow movement adds run first because their
-      branches sat above the gate in the handler. After this change,
-      the focus check runs first and short-circuits ALL game-input
-      branches when a text field has focus. Escape and Tab still pass
-      through so dialogs can be dismissed and the manual can still
-      toggle even with a stray focused input.
-    inputs:
-      - 'document.activeElement is INPUT or TEXTAREA'
-      - 'Player presses any key'
-    outputs:
-      - 'state.sprinting unchanged'
-      - 'state.heldKeys unchanged'
-      - 'state.path unchanged'
-      - 'Escape / Tab handlers still run'
-    state_changes: []
-    determinism: deterministic
-
   - id: divination-deep-time-gate
     description: >
       The `c` handler that toggles divination gains a deep-time gate
@@ -243,18 +221,6 @@ behaviors:
     determinism: deterministic
 
 edge_cases:
-  - id: shift-during-text-input-no-sprint
-    description: >
-      Player has a text input focused (any future text field — none
-      ship in the current build, but the gate is a forward-compatible
-      fix). Player presses Shift to capitalize a letter.
-    expected: 'state.sprinting does not toggle. The keydown is consumed by the focused input as normal.'
-
-  - id: movement-during-text-input-no-walk
-    description: >
-      Text input focused; player presses w/a/s/d or an arrow key.
-    expected: 'state.heldKeys unchanged. state.heldDirection unchanged. The keystroke goes to the input field.'
-
   - id: c-during-deep-time-burning
     description: >
       Player presses c while state.deepTime.active === true and

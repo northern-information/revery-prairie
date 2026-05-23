@@ -70,6 +70,9 @@ export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoi
               {isGlinting ? 'it glints in the light.' : 'the shine has faded.'}
             </div>
           )}
+          <div className="text-dim mt-2 text-xs">
+            <span className="text-text">[X]</span> Drop
+          </div>
         </>
       ) : null}
     </div>
