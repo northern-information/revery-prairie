@@ -14,7 +14,7 @@ Revery Prairie is a non-violent, anti-capitalist, anti-colonial game about tendi
 
 ## How This Is Built
 
-Revery Prairie is hand-crafted by Tyler Etters and others along with Claude (Anthropic) as a coding partner. Design, voice, and decisions are ours. Boilerplate, refactors, and a lot of the test scaffolding are often Claude's. The workflow is documented openly in `CLAUDE.md` and `docs/claude/`. We're transparent about it because it's true and because the workflow is part of the project.
+Revery Prairie is hand-crafted by Tyler Etters and others along with Claude (Anthropic) as a coding partner. Design, voice, and decisions are human. Code, refactors, and the test scaffolding are Claude's. The workflow is documented openly in `CLAUDE.md`, `docs/claude/`, and the `git` history. We're transparent about it because it's true and because the workflow is part of the project. Implementations are solved now. It is the ideas are interesting.
 
 ## Setup
 
