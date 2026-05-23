@@ -1100,10 +1100,10 @@ features:
       sleeps in the offered bed. No origin and no name for the girl in
       the spec; the house is its own explanation.
     depends_on: ['32']
-    status: in-progress
+    status: shipped
     spec: harness/specs/precis-33-little-house-and-emily.yaml
     plan: harness/plans/precis-33-little-house-and-emily.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/419
     notes: >
       v6 thinktank round 2 (2026-05-22). Resolves Round 1's open
       question on opt-in object identity. An item would have been
