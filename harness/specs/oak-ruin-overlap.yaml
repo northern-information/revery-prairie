@@ -1,0 +1,95 @@
+id: oak-ruin-overlap
+name: 'Oaks (and future multi-tile entities) must not spawn on ruin entrances'
+priority: high
+layer: engine
+source_files:
+  - src/engine/position.ts
+  - src/engine/oaks.ts
+  - src/engine/ruins.ts
+
+behaviors:
+  - id: structure-tile-reservation-helper
+    description: >
+      A single helper `isReservedForStructure(tile: TileType): boolean` in
+      `src/engine/position.ts` returns true for tile types that represent a
+      placed indestructible or semi-permanent structure: `CaveEntrance`,
+      `RuinEntrance`, and `RuinApron`. Entity placers (oaks today, future
+      multi-tile entities like shrines, hives, character huts) consult this
+      helper when validating a candidate position so that no new entity is
+      dropped on top of an existing structure footprint. The helper is the
+      single source of truth — placers no longer enumerate reserved tile
+      types inline.
+    inputs:
+      - 'Any call site checking whether a tile is reserved by an existing structure'
+    outputs:
+      - 'Returns true for CaveEntrance, RuinEntrance, RuinApron'
+      - 'Returns false for all other tile types, including walkable Dirt/Grass and non-walkable Space/RuinWall'
+    state_changes: []
+    determinism: deterministic
+
+  - id: oak-respects-reserved-tiles
+    description: >
+      `isValidOakPosition` rejects any anchor whose 5x5 logical footprint
+      (the 25 tiles covered by `getOakBodyPositions`) includes a tile for
+      which `isReservedForStructure` returns true. This is checked in
+      addition to the existing rejections (out-of-bounds, non-walkable,
+      Sand, water, oak occupancy). As a result, `seedOaks` never spawns an
+      oak whose canopy or trunk overlaps a ruin entrance, ruin apron, or
+      cave entrance.
+    inputs:
+      - 'seedOaks rolls a candidate anchor during genesis handoff'
+      - 'Any anchor in the 5x5 footprint lands on a RuinEntrance or RuinApron tile'
+    outputs:
+      - 'isValidOakPosition returns false for that anchor'
+      - 'No OakData entity is created whose MultiPosition intersects a reserved structure tile'
+    state_changes:
+      - field: 'world entities (OakData + MultiPosition)'
+        effect: 'Never contain a position whose map tile is reserved for a structure'
+    determinism: deterministic
+
+  - id: ruin-placement-uses-reservation-helper
+    description: >
+      `placeRuinEntrances` uses `isReservedForStructure` instead of an
+      inline `tile.type === TileType.CaveEntrance` check to decide whether
+      to preserve a tile during ruin stamping. Behavior is unchanged
+      (CaveEntrance is still preserved), but the inline check is replaced
+      with the shared helper so the reservation policy lives in one place.
+    inputs:
+      - 'placeRuinEntrances stamps RuinEntrance + RuinApron tiles during state init'
+    outputs:
+      - 'Tiles where isReservedForStructure returns true are preserved'
+      - 'All other tiles at the entrance + 8 neighbors become RuinEntrance / RuinApron'
+    state_changes:
+      - field: 'state.overworldMap'
+        effect: 'Same as before: entrance + apron stamped, reserved tiles preserved'
+    determinism: deterministic
+
+edge_cases:
+  - id: oak-footprint-clips-apron-only
+    description: 'Candidate oak anchor where the trunk lands on dirt but a canopy corner overlaps a RuinApron tile'
+    expected: 'isValidOakPosition returns false; the 5x5 check rejects on the apron tile even though the anchor itself is on dirt'
+  - id: oak-footprint-on-cave-entrance
+    description: 'Candidate oak anchor whose footprint includes a CaveEntrance tile'
+    expected: 'isValidOakPosition returns false (cave entrances are reserved structures)'
+  - id: oak-no-structures-nearby
+    description: 'seedOaks runs on a map with no ruins or caves placed yet'
+    expected: 'No change in behavior — oaks place wherever they would have before; the reservation check returns false for all surrounding tiles'
+  - id: ruin-at-map-edge
+    description: 'placeRuinEntrances called for a ruin near the map edge'
+    expected: 'In-bounds neighbors stamped as before, out-of-bounds skipped — refactor does not change edge handling'
+  - id: helper-returns-false-for-walkable-terrain
+    description: 'isReservedForStructure called on Dirt, Grass, Sand, RuinFloor, etc.'
+    expected: 'Returns false — only CaveEntrance, RuinEntrance, RuinApron are reserved'
+
+failure_conditions:
+  - trigger: 'seedOaks runs after placeRuinEntrances and rolls a candidate anchor whose 5x5 footprint includes a RuinEntrance or RuinApron tile'
+    expected: 'isValidOakPosition returns false for that anchor; no oak entity is spawned over the ruin platform'
+  - trigger: 'After genesis handoff, any oak entity has a MultiPosition coordinate whose map tile is RuinEntrance, RuinApron, or CaveEntrance'
+    expected: 'Never occurs — placement validation rejects these anchors before spawning'
+  - trigger: 'placeRuinEntrances encounters a CaveEntrance among the 8 apron neighbors'
+    expected: 'CaveEntrance preserved (via isReservedForStructure), all other neighbors become RuinApron — behavior unchanged from the inline check'
+
+verification:
+  test_file: src/engine/__tests__/oaks.test.ts
+  test_pattern: 'isValidOakPosition rejects ruin'
+  command: npx vitest run src/engine/__tests__/oaks.test.ts

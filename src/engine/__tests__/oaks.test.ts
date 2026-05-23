@@ -108,6 +108,36 @@ describe('isValidOakPosition', () => {
     // Far away is fine.
     expect(isValidOakPosition(state, 40, 40)).toBe(true)
   })
+
+  it('rejects when the footprint overlaps a RuinEntrance tile', () => {
+    const state = createOakTestState()
+    state.map[30][30] = { type: TileType.RuinEntrance }
+    // Anchor directly on the entrance.
+    expect(isValidOakPosition(state, 30, 30)).toBe(false)
+    // Anchor offset so only the canopy edge clips the entrance (OAK_HALF = 2).
+    expect(isValidOakPosition(state, 32, 30)).toBe(false)
+    expect(isValidOakPosition(state, 30, 32)).toBe(false)
+  })
+
+  it('rejects when the footprint overlaps a RuinApron tile', () => {
+    const state = createOakTestState()
+    state.map[30][30] = { type: TileType.RuinApron }
+    expect(isValidOakPosition(state, 30, 30)).toBe(false)
+    expect(isValidOakPosition(state, 32, 30)).toBe(false)
+  })
+
+  it('rejects when the footprint overlaps a CaveEntrance tile', () => {
+    const state = createOakTestState()
+    state.map[30][30] = { type: TileType.CaveEntrance }
+    expect(isValidOakPosition(state, 32, 30)).toBe(false)
+  })
+
+  it('accepts when reserved structure tiles sit outside the footprint', () => {
+    const state = createOakTestState()
+    state.map[30][30] = { type: TileType.RuinEntrance }
+    // 5x5 footprint centred at (40, 40) covers y ∈ [38, 42] — no overlap with (30, 30).
+    expect(isValidOakPosition(state, 40, 40)).toBe(true)
+  })
 })
 
 describe('oak blocking', () => {

@@ -2,7 +2,7 @@ import { SPACE_BORDER } from './constants'
 import { sha256Sync } from './crypto'
 import { ComponentType } from './ecs/types'
 import { generateTraitBag } from './genetics'
-import { isInBounds, isWalkableTile, posKey } from './position'
+import { isInBounds, isReservedForStructure, isWalkableTile, posKey } from './position'
 import { Season, TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
@@ -73,7 +73,7 @@ export const isValidOakPosition = (state: GameState, anchorX: number, anchorY: n
       const tile = state.map[y][x].type
       if (!isWalkableTile(tile)) return false
       if (tile === TileType.Sand) return false
-      if (tile === TileType.CaveEntrance) return false
+      if (isReservedForStructure(tile)) return false
       if (isWaterTile(state, x, y)) return false
       if (isOakOccupied(state, x, y)) return false
     }

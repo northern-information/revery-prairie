@@ -10,7 +10,7 @@ import { RuinRole } from './genesisTypes'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { clearMovementTweens } from './movementTween'
-import { findSafeExitPosition, isWalkableTile, posKey, tileHash } from './position'
+import { findSafeExitPosition, isReservedForStructure, isWalkableTile, posKey, tileHash } from './position'
 import { deselectAll } from './selection'
 import { STRUCTURE_REGISTRY } from './structures'
 import { FloraSpecies, RuinArchetype, TileType, Zone } from './types'
@@ -1003,12 +1003,13 @@ export const placeRuinEntrances = (map: Tile[][], ruinInteriors: RuinInterior[])
     if (!row) continue
     const tile = row[x]
     if (!tile) continue
-    // Don't overwrite cave entrances
-    if (tile.type === TileType.CaveEntrance) continue
+    // Don't overwrite tiles reserved by another structure (cave entrances,
+    // or apron/entrance tiles already stamped by an earlier ruin in this loop).
+    if (isReservedForStructure(tile.type)) continue
     row[x] = { type: TileType.RuinEntrance }
 
     // Convert all 8 neighbors to RuinApron so the entrance reads as a
-    // raised stone platform. CaveEntrance is preserved (indestructible).
+    // raised stone platform. Reserved structure tiles are preserved.
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         if (dx === 0 && dy === 0) continue
@@ -1017,7 +1018,7 @@ export const placeRuinEntrances = (map: Tile[][], ruinInteriors: RuinInterior[])
         if (nx < 0 || nx >= mapWidth || ny < 0 || ny >= mapHeight) continue
         const neighbor = map[ny][nx]
         if (!neighbor) continue
-        if (neighbor.type === TileType.CaveEntrance) continue
+        if (isReservedForStructure(neighbor.type)) continue
         map[ny][nx] = { type: TileType.RuinApron }
       }
     }
