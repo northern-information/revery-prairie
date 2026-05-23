@@ -10,7 +10,7 @@ If bees are few.
 — Emily Dickinson
 ```
 
-Revery Prairie is a non-violent, anti-capitalist, anti-colonial game about tending a prairie. This is not an extractive farming game. Full of melancholy, grounded in science, and lightly-seasoned with cosmic horror: it is a "noticing" game.
+Revery Prairie is a non-violent, anti-capitalist, anti-colonial game about tending a prairie. This is not a farming, crafting, or easy game. Full of melancholy, grounded in science, and lightly-seasoned with cosmic horror: it is a "noticing" game.
 
 ## How This Is Built
 
