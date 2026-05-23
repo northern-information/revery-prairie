@@ -873,6 +873,15 @@ export interface ReveryState {
   summaryReady: boolean
   // Which omen triggered this Revery. Used by the summary header.
   omenKind: OmenKind
+  // Precis #32 — summons-path fields. Present only when the Revery was
+  // triggered by the pressure-ceiling path (state.dormancyPressure >= 1).
+  // summons: true when this is a summons Revery (vs an invitation, future).
+  // summonsAudioCue: flag read by future audio/render layers for the full-
+  // intensity treatment. summonsCollapseTile: the steward's tile at the
+  // moment of summons; consumed by the Closing-phase egregoric commit.
+  summons?: boolean
+  summonsAudioCue?: boolean
+  summonsCollapseTile?: Position
 }
 
 export interface MeteorShowerState {
