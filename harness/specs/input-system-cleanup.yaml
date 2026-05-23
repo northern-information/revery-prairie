@@ -1,0 +1,326 @@
+id: input-system-cleanup
+name: 'Input system cleanup — keyboard + click bindings post-audit'
+priority: medium
+layer: integration
+source_files:
+  - src/hooks/useKeyboard.ts
+  - src/hooks/useMouse.ts
+  - src/engine/input.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+  - docs/claude/input.md
+  - src/components/ScanProgressBar.tsx
+  - src/components/HexagramPanel.tsx
+  - src/components/ItemInfo.tsx
+  - src/components/DialogBox.tsx
+dependencies:
+  - held-key-movement
+  - pickup-hitbox
+  - precis-9b-torchbearer-behavior
+
+# Context (2026-05):
+#   Driven by a keyboard interactions audit. Captures the bindings as they
+#   exist AFTER this change-request lands. Companion to held-key-movement
+#   (which covers WASD/arrow resolution) and pickup-hitbox (auto-pickup via
+#   3x3 Chebyshev). This spec is the source of truth for which keys do what
+#   and how gating composes.
+#
+# Removed in this change-request:
+#   - The `q` toggle for the manual. Tab is the sole manual toggle.
+#   - The `b` toggle for burn-draw mode. The entire burnDrawMode +
+#     burnLineDraft mouse-authoring path is removed. lockedBurnLine,
+#     burnLineIndex, and Moab's walking infrastructure remain, dormant
+#     until the walk-with-Moab rework lands (see precis-9b notes).
+#   - The left-click pickup branch on ground items in useMouse. Pickup
+#     happens via the existing 3x3 Chebyshev auto-pickup on movement
+#     (pickup-hitbox spec). Clicking a ground-item tile pathfinds to that
+#     tile as plain walk-to-tile; arrival does not fire a pickup callback.
+#
+# Drift corrected in this change-request:
+#   - docs/claude/input.md still listed `e` as interact (migrated to `f`
+#     in a prior PR, harness/__tests__/input/interact-key-remap.test.ts
+#     enforces this) and `space — toggle camera mode` (no such code).
+#     Both stale entries removed.
+#   - KEYBINDINGS registry in src/engine/input.ts resynced.
+#   - `HexagramPanel.tsx` still showed `press [e]` / `[enter]` helper
+#     text — `e` was the pre-remap interact key. Updated to `[F]` /
+#     `[Enter]` matching the actual binding and the uppercase
+#     convention.
+#   - `ScanProgressBar.tsx` rendered `[f] to sequence.` — capitalized
+#     to `[F]` for convention compliance.
+#
+# Added in this change-request:
+#   - Helper-text convention: bracketed hotkey hints in user-facing
+#     strings use uppercase / Title Case (`[F]`, `[X]`, `[Tab]`,
+#     `[Enter]`).
+#   - `[X] Drop` helper-text line on backpack item hover (rendered by
+#     `ItemInfo`).
+
+behaviors:
+  - id: keybindings-registry-is-authoritative
+    description: >
+      `KEYBINDINGS` in src/engine/input.ts is the source of truth that
+      feeds the in-game manual and the user-facing docs. After this
+      change-request, the registry lists exactly: wasd (Move), shift
+      (Toggle Sprint), shift+click (Queue Waypoints), f (Interact /
+      Scan), x (Drop Item), tab (Toggle Manual), c (Toggle Divination),
+      esc (Close Screen / Open System), 1 (Overlay — Default), 2
+      (Overlay — Family Tree). Removed entries: `q`, `b`. No `space`
+      entry (the legacy camera-toggle never existed in code). The
+      registry uses lowercase `key` values; uppercase variants are an
+      implementation detail of the handler.
+    inputs:
+      - 'KEYBINDINGS array read by manual or doc tooling'
+    outputs:
+      - 'Registry shape matches the binding list above'
+    state_changes: []
+    determinism: deterministic
+
+  - id: manual-toggle-tab-only
+    description: >
+      The prairie manual toggles on Tab only. The prior `q` binding is
+      removed. Tab continues to early-return during the system menu,
+      during deep-time Burning/Simulating, and is consumed by the
+      browser-default focus-traversal preventDefault. No other key
+      opens or closes the manual from the keyboard layer.
+    inputs:
+      - 'Player presses Tab outside the system menu, not during deep-time Burning/Simulating'
+    outputs:
+      - 'activeScreen toggles between null and "manual"'
+    state_changes:
+      - field: activeScreen
+        effect: 'toggled between null and "manual"'
+    determinism: deterministic
+
+  - id: burn-draw-mode-removed
+    description: >
+      The `b` keybinding and the burnDrawMode toggle are removed. The
+      state fields `burnDrawMode` and `burnLineDraft` are removed from
+      GameState and from EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts. The
+      burnDrawMode branch in useMouse (left-click sets burn-line origin,
+      shift+click appends to draft) is removed. The Escape cascade no
+      longer special-cases burnDrawMode. lockedBurnLine, burnLineIndex,
+      lastSeenSeason, moabState, and all of torchbearer.ts remain in
+      GameState — the walking infrastructure is dormant pending the
+      walk-with-Moab rework (a follow-up change). With no path to
+      populate the draft, lockedBurnLine stays null after thaw and Moab
+      never emerges; the seasonal cleanup branch in torchbearer.ts is a
+      no-op.
+    inputs:
+      - 'Player presses b (any modifier, any screen, any zone)'
+      - 'Player left-clicks or shift+left-clicks in the overworld'
+    outputs:
+      - 'b key has no effect — falls through to the no-match path'
+      - 'Mouse clicks behave per their normal walk / waypoint / interact rules; no burn-line authoring'
+    state_changes: []
+    determinism: deterministic
+
+  - id: click-ground-item-walks-only
+    description: >
+      Clicking a tile that contains a ground item routes through the
+      same pathfind-to-tile branch as any other walk click. The prior
+      "walk to adjacent walkable + fire pickup pendingAction on arrival"
+      branch is removed from useMouse. On arrival, the player has no
+      pending pickup action; the auto-pickup mechanism in
+      pickUpGroundItems (pickup-hitbox spec, 3x3 Chebyshev on movement)
+      acquires the item when the player is within range. Clicking on
+      characters, breakable walls, ruin debris, locked doors, and other
+      non-ground-item interactables is unchanged — those still set
+      pendingAction.
+    inputs:
+      - 'Player left-clicks a tile that contains a groundItem-tagged entity'
+    outputs:
+      - 'state.path set to A* path to the clicked tile'
+      - 'state.pendingAction === null on arrival'
+      - 'item acquired by auto-pickup when player is within 3x3 Chebyshev'
+    state_changes:
+      - field: path
+        effect: 'set to A* path to clicked tile (not adjacent)'
+      - field: pendingAction
+        effect: 'remains null for ground-item clicks'
+      - field: pendingInteractionTarget
+        effect: 'remains null for ground-item clicks'
+    determinism: deterministic
+
+  - id: text-input-focus-gate-includes-shift-and-movement
+    description: >
+      When document.activeElement is an INPUT or TEXTAREA, the keyboard
+      hook blocks every key except Escape and Tab. The prior gate
+      returned early only for those two keys but let the Shift sprint
+      toggle and the WASD/arrow movement adds run first because their
+      branches sat above the gate in the handler. After this change,
+      the focus check runs first and short-circuits ALL game-input
+      branches when a text field has focus. Escape and Tab still pass
+      through so dialogs can be dismissed and the manual can still
+      toggle even with a stray focused input.
+    inputs:
+      - 'document.activeElement is INPUT or TEXTAREA'
+      - 'Player presses any key'
+    outputs:
+      - 'state.sprinting unchanged'
+      - 'state.heldKeys unchanged'
+      - 'state.path unchanged'
+      - 'Escape / Tab handlers still run'
+    state_changes: []
+    determinism: deterministic
+
+  - id: divination-deep-time-gate
+    description: >
+      The `c` handler that toggles divination gains a deep-time gate
+      consistent with `tab` and the prior `q`. During deep-time
+      Burning or Simulating phases (state.deepTime.active === true AND
+      state.deepTime.phase !== Wandering), pressing `c` is a no-op.
+      The existing gates remain: blocked during dialog, blocked when
+      the system menu is open, blocked outside Zone.Overworld.
+    inputs:
+      - 'Player presses c during deep-time Burning or Simulating'
+    outputs:
+      - 'activeScreen unchanged'
+    state_changes: []
+    determinism: deterministic
+
+  - id: helper-text-bracketed-title-case
+    description: >
+      Every bracketed UI string uses Title Case, covering both hotkey
+      hints (`[F]`, `[X]`, `[Tab]`, `[Enter]`, `[Esc]`) and descriptive
+      labels (`[Toss Coins]`). Single-letter hotkeys are uppercase;
+      multi-letter keys are Title Case (`[Tab]`, not `[tab]` or
+      `[TAB]`). Descriptive bracket labels capitalize each major word
+      per the CLAUDE.md Title Case rule for labels. Existing
+      inconsistent uses become uniform: `ScanProgressBar.tsx` "[f] to
+      sequence." becomes "[F] to sequence."; `HexagramPanel.tsx`
+      "[toss coins] or press [e]" becomes "[Toss Coins] or press [F]";
+      "press [e] or [enter] to close" becomes "press [F] or [Enter]
+      to close". The `DialogBox.tsx` "[F] Close" / "[F] Next" labels
+      already match the convention and do not change. The convention
+      applies to visible UI strings only — inline comments referencing
+      keys may continue to use lowercase since they are not user-
+      facing.
+    inputs:
+      - 'A UI component renders a string containing bracketed text'
+    outputs:
+      - 'Bracketed text uses Title Case (uppercase single-letter hotkeys, capitalized words for descriptive labels)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: backpack-item-hover-shows-drop-hint
+    description: >
+      When the player hovers a backpack item, `ItemInfo` renders a
+      helper-text line `[X] Drop` at the bottom of the card. The hint
+      tracks the existing `x` keybinding (drop hovered item). The hint
+      only appears when there IS a hovered item (the rest of the card
+      is also conditional on `item !== null`). Style matches other
+      helper text in the panel (dim, small). The hint does NOT render
+      during drag — drop is unavailable mid-drag (see
+      `useKeyboard.ts:205-219` which short-circuits non-movement keys
+      while dragging).
+    inputs:
+      - 'Player hovers an item in the backpack — ItemInfo.show is called'
+      - 'No drag is active'
+    outputs:
+      - 'ItemInfo renders the helper-text line "[X] Drop" at the bottom of the card'
+    state_changes: []
+    determinism: deterministic
+
+  - id: input-md-resync
+    description: >
+      docs/claude/input.md is rewritten to match the post-cleanup
+      keyboard surface. The stale `e` interact entry is removed (the
+      key migrated to `f` in a prior PR; the harness test
+      interact-key-remap.test.ts enforces the code-side ban). The
+      stale `space — toggle camera mode` entry is removed (no
+      corresponding code ever existed). New entries document `f`
+      tap-vs-hold, the `1` / `2` overlay modes, and the focus-gate
+      behavior. The doc explicitly notes that auto-pickup is the only
+      pickup path and that burn-draw authoring is deferred.
+    inputs:
+      - 'Reader of docs/claude/input.md'
+    outputs:
+      - 'Doc lists exactly the bindings in KEYBINDINGS plus the gating rules'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: shift-during-text-input-no-sprint
+    description: >
+      Player has a text input focused (any future text field — none
+      ship in the current build, but the gate is a forward-compatible
+      fix). Player presses Shift to capitalize a letter.
+    expected: 'state.sprinting does not toggle. The keydown is consumed by the focused input as normal.'
+
+  - id: movement-during-text-input-no-walk
+    description: >
+      Text input focused; player presses w/a/s/d or an arrow key.
+    expected: 'state.heldKeys unchanged. state.heldDirection unchanged. The keystroke goes to the input field.'
+
+  - id: c-during-deep-time-burning
+    description: >
+      Player presses c while state.deepTime.active === true and
+      state.deepTime.phase === Burning.
+    expected: 'No-op. activeScreen unchanged. Matches behavior of tab and the removed q.'
+
+  - id: click-ground-item-while-other-action-pending
+    description: >
+      Player has a pendingAction set (e.g. they clicked a character
+      and are walking toward dialog) and clicks a ground item before
+      arrival.
+    expected: >
+      The click replaces path with the new walk-to-tile target. The
+      prior pendingAction is cleared (existing behavior). On arrival
+      no pickup action fires; auto-pickup may or may not acquire the
+      item depending on the player's final tile (3x3 Chebyshev).
+
+  - id: tab-during-deep-time
+    description: >
+      Player presses Tab during deep-time Burning or Simulating.
+    expected: 'Existing gate holds: Tab is a no-op. Unchanged by this CR.'
+
+  - id: locked-burn-line-after-thaw-no-author
+    description: >
+      Winter → Spring transition fires after this CR lands. There is
+      no longer any way to populate burnLineDraft.
+    expected: >
+      lockedBurnLine remains null. The torchbearer.ts emergence check
+      sees a null line and Moab does not emerge. The seasonal cycle
+      continues otherwise unchanged. Spring → Summer cleanup is a
+      no-op.
+
+failure_conditions:
+  - trigger: 'KEYBINDINGS in src/engine/input.ts still contains a `q` or `b` entry after this CR'
+    expected: 'Loud — the registry is the source of truth that feeds the manual and docs. CI catches via the registry shape test added in this CR.'
+
+  - trigger: 'useKeyboard.ts still matches `e.key === "q"` or `e.key === "b"` outside dev-mode dead paths'
+    expected: 'Static check: harness test asserts these patterns are absent in src/hooks/useKeyboard.ts.'
+
+  - trigger: 'state.burnDrawMode or state.burnLineDraft is read or written anywhere in src/'
+    expected: 'TypeScript compile failure — the fields are removed from GameState. CI typecheck catches.'
+
+  - trigger: 'EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts still contains burnDrawMode or burnLineDraft'
+    expected: 'schema.test.ts fails. The allowlist must shrink alongside the type.'
+
+  - trigger: 'docs/claude/input.md still lists `e` as the interact key or `space — toggle camera mode`'
+    expected: 'Doc-resync regression test asserts the strings are absent.'
+
+  - trigger: 'Player clicks a ground item and on arrival a pickup pendingAction fires'
+    expected: 'Regression: the ground-item branch should not set pendingAction. Auto-pickup is the only pickup path.'
+
+  - trigger: 'A UI string contains a lowercase bracketed hotkey hint such as [f] or [tab]'
+    expected: >
+      Convention violation. The helper-text-bracketed-title-case
+      behavior requires Title Case bracketed notation in user-facing
+      strings. A grep-based harness test asserts no
+      `\[(f|x|q|c|b|tab|enter|esc|shift)\]` substrings appear in src/
+      .tsx files (excluding tests and comments).
+
+  - trigger: 'A descriptive bracketed UI label (non-hotkey) uses lowercase such as `[toss coins]`'
+    expected: >
+      Convention violation. Title Case applies to descriptive bracket
+      labels too. The hexagram cast button must read `[Toss Coins]`,
+      not `[toss coins]`.
+
+verification:
+  test_file: src/harness/__tests__/input/input-system-cleanup.test.ts
+  test_pattern: 'input system cleanup'
+  command: 'npx vitest run src/harness/__tests__/input/'
