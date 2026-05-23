@@ -62,6 +62,88 @@ const COSMIC_EPOCHS: ReadonlySet<GenesisEpochId> = new Set([
   GenesisEpochId.LandAccretion,
 ])
 
+interface StarLayerConfig {
+  chars: readonly string[]
+  colors: readonly string[]
+  density: number
+  // Paint over tiles inside the sim grid as well as outside.
+  paintInsideSimGrid: boolean
+  // CosmicFormation's expanding-from-center wavefront. Other epochs skip this gate.
+  wavefrontProgress: number | null
+}
+
+const COSMIC_LAYER_BASE: StarLayerConfig = {
+  chars: COSMIC_STAR_CHARS,
+  colors: COSMIC_STAR_COLORS,
+  density: COSMIC_STAR_DENSITY,
+  paintInsideSimGrid: true,
+  wavefrontProgress: null,
+}
+
+const STANDARD_LAYER: StarLayerConfig = {
+  chars: STAR_CHARS,
+  colors: STAR_COLORS,
+  density: STAR_DENSITY,
+  paintInsideSimGrid: false,
+  wavefrontProgress: null,
+}
+
+const paintStarLayer = (
+  ctx: CanvasRenderingContext2D,
+  cfg: StarLayerConfig,
+  charWidth: number,
+  charHeight: number,
+  viewportWidth: number,
+  viewportHeight: number,
+  cameraX: number,
+  cameraY: number,
+  simWidth: number,
+  simHeight: number,
+  time: number
+): void => {
+  const canvasCenterPx = (viewportWidth * charWidth) / 2
+  const canvasCenterPy = (viewportHeight * charHeight) / 2
+  const maxReach = Math.hypot(canvasCenterPx, canvasCenterPy)
+  const wavefrontPx = cfg.wavefrontProgress === null ? Infinity : cfg.wavefrontProgress * maxReach * 1.2
+  ctx.textBaseline = 'top'
+  const canvasW = viewportWidth * charWidth
+  const canvasH = viewportHeight * charHeight
+  const originX = (viewportHeight * charWidth) / 2 - charWidth / 2
+  const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
+  const halfH = charHeight / 2
+  const sMin = Math.floor(-originY / halfH) - 1
+  const sMax = Math.ceil((canvasH - originY) / halfH) + 1
+  const dMin = Math.floor((-charWidth - originX - charWidth / 2) / charWidth) - 1
+  const dMax = Math.ceil((canvasW - originX - charWidth / 2) / charWidth) + 1
+  for (let s = sMin; s <= sMax; s++) {
+    for (let d = dMin; d <= dMax; d++) {
+      if (((s + d) & 1) !== 0) continue
+      const vx = (s + d) / 2
+      const vy = (s - d) / 2
+      const mx = cameraX + vx
+      const my = cameraY + vy
+      if (!cfg.paintInsideSimGrid && mx >= 0 && mx < simWidth && my >= 0 && my < simHeight) continue
+      const h = tileHash(mx, my)
+      if (h % cfg.density !== 0) continue
+      const px = d * charWidth + originX + charWidth / 2
+      const py = s * halfH + originY
+      if (cfg.wavefrontProgress !== null) {
+        const dx = px - canvasCenterPx
+        const dy = py - canvasCenterPy
+        if (dx * dx + dy * dy > wavefrontPx * wavefrontPx) continue
+      }
+      const phase = (h >> 8) % cfg.colors.length
+      const colorIndex = (phase + Math.floor(time * TWINKLE_SPEED)) % cfg.colors.length
+      ctx.fillStyle = cfg.colors[colorIndex]
+      ctx.fillText(cfg.chars[(h >> 4) % cfg.chars.length], px, py)
+    }
+  }
+}
+
+// Iso rotation maps a tile (vx, vy) to screen px = (vx - vy) * cw +
+// ox + cw/2 and py = (vx + vy) * ch/2 + oy. We walk diagonals
+// s = vx + vy across the canvas and select integer (vx, vy) pairs
+// where (s + d) is even — odd pairs sit between iso cells.
 const paintFullCanvasStarfield = (
   ctx: CanvasRenderingContext2D,
   epochId: GenesisEpochId,
@@ -76,76 +158,43 @@ const paintFullCanvasStarfield = (
   simHeight: number,
   time: number
 ): void => {
-  // During cosmic epochs (CosmicFormation + LandAccretion), paint
-  // bright stars across the FULL canvas including over the sim grid,
-  // so the early-universe palette reads as sky-wide rather than
-  // confined to the prairie's diamond. The sim's own renderTile still
-  // paints rock-mass/dust on top inside its bounds. During later
-  // epochs, paint dim stars only outside the sim grid so we don't
-  // double-up with the sim's space-border stars.
-  const isCosmic = COSMIC_EPOCHS.has(epochId)
-  const chars = isCosmic ? COSMIC_STAR_CHARS : STAR_CHARS
-  const colors = isCosmic ? COSMIC_STAR_COLORS : STAR_COLORS
-  const density = isCosmic ? COSMIC_STAR_DENSITY : STAR_DENSITY
-  const isPreCosmos = epochId === GenesisEpochId.CosmicFormation
-  // CosmicFormation expands the cosmos from canvas center outward at
-  // progress * radius. Before the wavefront reaches a screen pixel,
-  // the universe doesn't exist there — paint nothing.
-  const canvasCenterPx = (viewportWidth * charWidth) / 2
-  const canvasCenterPy = (viewportHeight * charHeight) / 2
-  // Maximum reach: canvas diagonal so the wavefront covers the full
-  // canvas by end-of-epoch.
-  const maxReach = Math.hypot(canvasCenterPx, canvasCenterPy)
-  const wavefrontPx = isPreCosmos ? progress * maxReach * 1.2 : Infinity
-  ctx.textBaseline = 'top'
-  const canvasW = viewportWidth * charWidth
-  const canvasH = viewportHeight * charHeight
-  // Iso rotation maps a tile (vx, vy) to screen px = (vx - vy) * cw +
-  // ox + cw/2 and py = (vx + vy) * ch/2 + oy. To fill the canvas, we
-  // walk diagonals s = vx + vy from minimum to maximum. py ranges over
-  // [0, canvasH], so s = vx + vy ranges over roughly
-  // [-2*originY/charHeight, 2*(canvasH-originY)/charHeight]. Inside
-  // each diagonal, px = (vx - vy)*cw + ox + cw/2 must land in
-  // [-cw, canvasW], i.e. d = vx - vy ∈
-  // [(-cw - ox - cw/2)/cw, (canvasW - ox - cw/2)/cw].
-  const originX = (viewportHeight * charWidth) / 2 - charWidth / 2
-  const originY = ((viewportHeight - viewportWidth) / 4) * charHeight
-  const halfH = charHeight / 2
-  const sMin = Math.floor(-originY / halfH) - 1
-  const sMax = Math.ceil((canvasH - originY) / halfH) + 1
-  const dMin = Math.floor((-charWidth - originX - charWidth / 2) / charWidth) - 1
-  const dMax = Math.ceil((canvasW - originX - charWidth / 2) / charWidth) + 1
-  for (let s = sMin; s <= sMax; s++) {
-    for (let d = dMin; d <= dMax; d++) {
-      // vx + vy = s, vx - vy = d → vx = (s+d)/2, vy = (s-d)/2. Only
-      // integer (vx, vy) tiles produce stars; if (s + d) is odd the
-      // tile sits between iso cells and we skip it (matches sim).
-      if (((s + d) & 1) !== 0) continue
-      const vx = (s + d) / 2
-      const vy = (s - d) / 2
-      const mx = cameraX + vx
-      const my = cameraY + vy
-      // Outside the cosmic epochs, skip tiles inside the sim grid —
-      // the sim renders those itself. During cosmic epochs, paint
-      // everywhere so the sky reads as full-canvas.
-      if (!isCosmic && mx >= 0 && mx < simWidth && my >= 0 && my < simHeight) continue
-      const h = tileHash(mx, my)
-      if (h % density !== 0) continue
-      const px = d * charWidth + originX + charWidth / 2
-      const py = s * halfH + originY
-      // Pre-cosmos wavefront: skip pixels the cosmos hasn't reached
-      // yet. Centered on the canvas, expanding with progress.
-      if (isPreCosmos) {
-        const dx = px - canvasCenterPx
-        const dy = py - canvasCenterPy
-        if (dx * dx + dy * dy > wavefrontPx * wavefrontPx) continue
-      }
-      const phase = (h >> 8) % colors.length
-      const colorIndex = (phase + Math.floor(time * TWINKLE_SPEED)) % colors.length
-      ctx.fillStyle = colors[colorIndex]
-      ctx.fillText(chars[(h >> 4) % chars.length], px, py)
+  // During CosmicFormation + LandAccretion, paint bright cosmic stars
+  // across the FULL canvas including over the sim grid so the
+  // early-universe palette reads as sky-wide rather than confined to
+  // the prairie's diamond. The sim's own renderTile still paints
+  // rock-mass/dust on top inside its bounds.
+  //
+  // LavaEra is a transitional epoch: the cosmic layer fades out
+  // smoothly across its progress while the standard (dim, outside-
+  // sim-grid only) layer comes in at full alpha underneath. Without
+  // this, the LandAccretion → LavaEra boundary reads as a visible
+  // "pop" — bright stars vanish from over the prairie and the
+  // outside-grid palette switches from bright to dim in a single
+  // frame.
+  if (COSMIC_EPOCHS.has(epochId)) {
+    const cfg: StarLayerConfig = {
+      ...COSMIC_LAYER_BASE,
+      wavefrontProgress: epochId === GenesisEpochId.CosmicFormation ? progress : null,
     }
+    paintStarLayer(ctx, cfg, charWidth, charHeight, viewportWidth, viewportHeight, cameraX, cameraY, simWidth, simHeight, time)
+    return
   }
+
+  if (epochId === GenesisEpochId.LavaEra) {
+    // Standard dim layer underneath, full alpha.
+    paintStarLayer(ctx, STANDARD_LAYER, charWidth, charHeight, viewportWidth, viewportHeight, cameraX, cameraY, simWidth, simHeight, time)
+    // Cosmic layer fading out across the epoch.
+    const cosmicAlpha = Math.max(0, 1 - progress)
+    if (cosmicAlpha > 0) {
+      const savedAlpha = ctx.globalAlpha
+      ctx.globalAlpha = savedAlpha * cosmicAlpha
+      paintStarLayer(ctx, COSMIC_LAYER_BASE, charWidth, charHeight, viewportWidth, viewportHeight, cameraX, cameraY, simWidth, simHeight, time)
+      ctx.globalAlpha = savedAlpha
+    }
+    return
+  }
+
+  paintStarLayer(ctx, STANDARD_LAYER, charWidth, charHeight, viewportWidth, viewportHeight, cameraX, cameraY, simWidth, simHeight, time)
 }
 
 // Cosmetic terrain elevation. Reads sim.elevation (mutated live by
