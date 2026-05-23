@@ -18,7 +18,16 @@ features:
     spec: harness/specs/precis-0-reclaim-revery.yaml
     plan: harness/plans/precis-0-reclaim-revery.yaml
     pr: https://github.com/northern-information/revery-prairie/pull/314
-    notes: 'v3 doctrine updated — action bar deleted in #0, not retained.'
+    notes: >
+      v3 doctrine updated — action bar deleted in #0, not retained.
+
+
+      v7 thinktank round 2 (2026-05-23). Revery exit becomes a hook point
+      for the post-Revery memory softening effect (`#39`). No behavior
+      change to the phase machine itself; just a new observer on exit.
+      The steward wakes in the little house after Revery; the
+      `fullyDiscovered` fog layer softens so the walk back out has shape
+      again.
 
   - id: '1'
     name: Multi-species Flora
@@ -38,7 +47,19 @@ features:
     spec: harness/specs/precis-8a-egregoric-thematic.yaml
     plan: harness/plans/precis-8a-egregoric-thematic.yaml
     pr: https://github.com/northern-information/revery-prairie/pull/320
-    notes: 'Voynich font self-hosted via public/fonts/voynich.ttf (manual install — fallback to ? / □ is doctrinally correct). 16-word Latin pierce allowlist locked from v3 doctrine. Egregore glyphs render in iridescent violet (#B080D0). cosmologicalDrift / passive-transmission tracking deferred to #4.'
+    notes: >
+      Voynich font self-hosted via public/fonts/voynich.ttf (manual
+      install — fallback to ? / □ is doctrinally correct). 16-word
+      Latin pierce allowlist locked from v3 doctrine. Egregore glyphs
+      render in iridescent violet (#B080D0). cosmologicalDrift /
+      passive-transmission tracking deferred to #4.
+
+
+      v7 thinktank round 3 (2026-05-23). Thermogenesis added as a soft
+      amendment via #43 rather than reopening this precis. The
+      egregore's cold-active lifecycle is reframed as cold-_refusing_:
+      they radiate heat in winter against the season. _Fevers don't
+      burn down — they warm._
 
   - id: '2'
     name: Phenological seasons
@@ -125,7 +146,33 @@ features:
     spec: harness/specs/precis-8b-egregoric-mechanical.yaml
     plan: harness/plans/precis-8b-egregoric-mechanical.yaml
     pr: https://github.com/northern-information/revery-prairie/pull/344
-    notes: 'Scope locked 2026-05-20: parallel species set under TileType.Egregore (no FloraSpecies entry); two species (allelopath, spreader) selected deterministically per position; invisible pollinator (zero PollenParticles); inverse-phased lifecycle (Active in Winter, Dormant otherwise); spread cadence asymmetric — stewardship-winter slow drift (1–2 tiles/year, throttled via lastEgregoreSpreadYear) vs Revery-winter large push (refactor advanceEgregoreFirstRevery → advanceEgregoreInRevery, first Revery places 3 to preserve precis-4 contract, subsequent place 6–9); canCross(a,b)===false for native×egregore pairs; manual footnote (Voynich EVA tokens translating to "no compatible regions") appears once player has any flora:* discovery. Parallel EgregoreGenome interface (allelopathy, spreadVelocity, identity SHA256) separate from TraitBag. Follow-up work tracked separately — see #26 (egregoric metabolism) for the native-flora consumption rule named in v4 round 8.'
+    notes: >
+      Scope locked 2026-05-20: parallel species set under
+      TileType.Egregore (no FloraSpecies entry); two species
+      (allelopath, spreader) selected deterministically per position;
+      invisible pollinator (zero PollenParticles); inverse-phased
+      lifecycle (Active in Winter, Dormant otherwise); spread cadence
+      asymmetric — stewardship-winter slow drift (1–2 tiles/year,
+      throttled via lastEgregoreSpreadYear) vs Revery-winter large push
+      (refactor advanceEgregoreFirstRevery → advanceEgregoreInRevery,
+      first Revery places 3 to preserve precis-4 contract, subsequent
+      place 6–9); canCross(a,b)===false for native×egregore pairs;
+      manual footnote (Voynich EVA tokens translating to "no compatible
+      regions") appears once player has any flora:* discovery. Parallel
+      EgregoreGenome interface (allelopathy, spreadVelocity, identity
+      SHA256) separate from TraitBag. Follow-up work tracked separately
+      — see #26 (egregoric metabolism) for the native-flora consumption
+      rule named in v4 round 8.
+
+
+      v7 thinktank round 3 (2026-05-23). Thermogenesis added as a soft
+      amendment via #43 rather than reopening this precis. New
+      thermogenicRadius (or rolled into existing EgregoreGenome
+      gradient — confirm at spec) lifts effective temperature on
+      adjacent tiles in winter; flora dormancy check reads the lifted
+      temperature. Thermogenic activity also drives winter geology
+      (#44) — the egregores are the prairie's liver, the organ that
+      reshapes.
 
   - id: '9a'
     name: Torchbearer voice pass
@@ -1313,3 +1360,230 @@ features:
       cellar's first ship can be a featureless dimming. _The cellar
       reads the chronicle. The manual catalogs species; the cellar
       catalogs winters._
+
+  - id: '38'
+    name: Overworld gaze, memory, and unseen
+    summary: >
+      Extend two-layer fog of war to the prairie. `hasFogOfWar` returns
+      true for `Zone.Prairie`; the existing three states (`unexplored`
+      / `fullyDiscovered` / `visible`) and `fog-mask` render pass carry
+      over. Vision radius is unchanged across zones — same eyes,
+      indoors or out. Persist FOW state on `GameState` per tenure.
+      Cull entity render passes outside the visible radius; simulation
+      underneath continues to run.
+    size: M
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 2 (2026-05-23). God-mode visibility on the
+      overworld was a placeholder from the era when rendering was cheap
+      and the cosmology was unwritten. The substrate already exists for
+      cave and ruin; this is a gating change plus per-tenure
+      persistence. Player-facing vocabulary is _gaze_, _memory_,
+      _unseen_ — engineering identifiers (`hasFogOfWar`, `fog-mask`)
+      keep their names. No manual entry — well-established mechanic,
+      does not need in-fiction explanation. Hard cosmological lock from
+      this round: simulation does not depend on observation — fog culls
+      _rendering passes_, not simulation. Perf benefit is real but
+      secondary; bill the work as clarity, not framerate. Files in
+      play: `src/engine/visibility.ts`, `src/engine/render/passes/fogMask.ts`,
+      `GameState` (new per-tenure FOW field).
+
+  - id: '39'
+    name: Post-Revery memory softening
+    summary: >
+      On Revery exit (steward wakes in the little house), the
+      `fullyDiscovered` memory layer softens so the walk back out of
+      the house has shape again. Memory persists but dims; lived
+      history is not erased. No change to gaze radius — same eyes
+      seeing.
+    size: S
+    depends_on: ['38', '0']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 2 (2026-05-23). Calla's framing: the door
+      opens onto a prairie that has moved on without the steward. Full
+      re-darken would erase lived history; the room rejected that.
+      Tuning target is dream, not punishment. Hook point is Revery
+      exit, not entry, because the steward is inside the little house
+      for the duration of Revery. Size TBD at spec; defaults to S.
+      Open at spec: exact softening curve — partial fade, time-based
+      decay, or one-shot dim.
+
+  - id: '40'
+    name: Per-tenure FOW reset
+    summary: >
+      A new steward inheriting the cellar starts with a fresh-fog
+      prairie. The fog state from the previous tenure does not carry
+      forward into the new one. The Knot retains lineage, the cellar
+      retains the chronicle; the eyes do not.
+    size: S
+    depends_on: ['38', '24']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 2 (2026-05-23). Each tenure is its own
+      discovery of the same map. The lock from Round 2: _the Knot
+      remembers; the eyes do not_. Pairs with the tenure handoff in
+      `#24` and the cellar bed-knot transfer in `#34`'s amendment from
+      v6 round 6.
+
+  - id: '41'
+    name: Cliffs and verticality
+    summary: >
+      Impassable cliff tile type rendered as a column of existing tile
+      glyphs stacked in the iso z-axis. No new glyphs — iso projection
+      handles 3D for free. X-ray (semi-transparent alpha) applied to
+      cliff tiles that occlude the player avatar or player-relevant
+      tiles, so the steward stays visible at all times. Camera rotation
+      is not in scope; only revisit if x-ray fails the feel test. Fog
+      of war (`#38`) handles LOS truncation naturally. Cave and ruin
+      entrances may be placed on cliff faces as arches.
+    size: M
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 3 (2026-05-23). Flat-prairie prior is a
+      cliché, not a biome — Loess Hills, Illinois hill prairies, Ozark
+      glades are all real precedents and should be named in spec.
+      Verticality gives the prairie _shape_ — bones — landmarks the
+      steward can carry in their head. Placement of major escarpments
+      should consider firebreak geometry once #42 lands, not only
+      landmark legibility. Open at spec: cliff height (single-stack vs
+      2–3 tile bluffs), hand-placed majors vs procedural minors. Lean:
+      hand-placed major escarpments + procedural minor cliffs.
+
+  - id: '42'
+    name: Live wildfire (lightning-ignited)
+    summary: >
+      Lightning strikes during warm-season thunderstorms ignite flora;
+      fire spreads via BFS over adjacent flora the same shape as the
+      genesis Burn in genesis.ts (lifted to a live system). Cliffs,
+      water, and bare earth act as firebreaks. Scorched-tile state
+      with multi-year recovery curve; tallgrass benefits post-burn
+      (real prairie ecology). Smoke and fire render passes.
+    size: M
+    depends_on: ['41']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 3 (2026-05-23). Wildfire returns as a live
+      mechanic after the room initially considered ruling it out;
+      Tyler clarified that lightning was the missing piece. _Heat
+      death is the long antagonist; lightning is the brief one._ Pairs
+      with #44 (winter geology) as the cosmology's two axes of motion
+      the steward cannot direct — slow egregoric reshaping in winter,
+      sudden lightning fire in summer. Scope: ignition + spread +
+      scorched-tile state + multi-year recovery. Fire weather
+      (humidity, wind direction) defer to spec. Open at spec:
+      lightning frequency and storm-state coupling (every storm vs
+      probabilistic); whether burnt flora produces gatherable
+      artifacts (ash, charred seeds — flag for future round if it
+      becomes a system).
+
+  - id: '43'
+    name: Thermogenic egregores
+    summary: >
+      Egregoric flora radiates heat in winter. New
+      EgregoreGenome.thermogenicRadius (or rolled into existing
+      allelopathy gradient — confirm at spec); effective-temperature
+      lift on tiles within radius during winter; flora dormancy check
+      reads the lifted temperature instead of raw weather.temperature.
+      Visible signal — adjacent flora not-yet-dormant in winter —
+      reuses existing color logic.
+    size: S
+    depends_on: ['8a', '8b']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 3 (2026-05-23). Soft amendment to #8a / #8b
+      rather than reopening either for re-spec. _Fevers don't burn
+      down — they warm._ The egregore stops being a cold-survivor and
+      becomes a cold-refuser, a pocket of anti-entropy. The steward is
+      drawn toward the cosmologically-wrong thing for the
+      cosmologically-right reason (warmth in winter). Open at spec:
+      tuning the heat radius so the steward feels drawn but not saved
+      — close enough to feel warm should still be cosmologically
+      suspect. Drives winter geology (#44).
+
+  - id: '44'
+    name: Winter geology and ruin re-roll
+    summary: >
+      Once-per-year geological transition driven by egregoric
+      thermogenic activity from the prior winter. Surface new ruins in
+      unseen territory near strong rhizome activity; sink ruins that
+      have not been visited recently. Year 1 ruins hold key items
+      (camera, cellar key, foundational tools); year 2+ ruins are
+      roguelike accoutrements only (hats, chairs, journal pages,
+      brittle artifacts). Sunk ruins logged in the cellar Knot (`#37`)
+      — the cellar remembers what the prairie lets go. Cliffs may also
+      rise or fall on the same boundary (smaller scope decision).
+    size: L
+    depends_on: ['41', '43', '37']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 3 (2026-05-23). Will need its own thinktank
+      round when next — this round names the shape and locks the
+      cosmology, not the spec. The egregores are the prairie's liver,
+      the organ that reshapes. The player cannot optimize against the
+      geology — no "skip the egregores so the ruins stay put"; tending
+      happens regardless. Steward's lived memory remains intact:
+      sinking is loss of small possibility, not progress. Time-
+      budgeting summers is the loop — careful stewards visit
+      everything within reach; dreamier ones pick one ruin and read it
+      slowly. Open at spec: boundary timing (winter→spring clean vs
+      mid-Revery dramatic — geology happening _while_ the steward is
+      in the dream); ruin interior source (pre-generated pool
+      underground vs runtime generation — latter is harder but
+      doctrinally cleaner); un-visitation threshold for sinking
+      (single tenure, multiple tenures, weighted). The expensive piece
+      is lifting `generateAllRuinInteriors` from genesis-time to
+      runtime; ruin sinking is cheap (tile-flip + interior
+      dereference).
+
+  - id: '45'
+    name: Seismographs
+    summary: >
+      Sibling sensor to the camera (`#23`). Same placement loop — pick
+      a tile, anchor a device, the device records events over time,
+      the steward returns and reads the record. Records the prior
+      winter's geological-thermal events: egregoric heat pulses,
+      rhizome reach, traces of ruin upwellings and sinkings. Surfaces
+      the egregoric rhizome layer to the player without ever rendering
+      it directly — the steward sees the trace of the pulse, not the
+      rhizome itself.
+    size: M
+    depends_on: ['23', '44']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 3 (2026-05-23). Built as a slim variant of
+      #23's substrate, not a parallel system. _The naturalist has a
+      notebook, a camera, and now a needle on paper._ Cosmology gain:
+      sight is the steward's gaze (#38); cameras let the steward see
+      what happened where they weren't (#23); seismographs let the
+      steward _feel_ what happened where they weren't, and in winter,
+      what happened while they slept. Player-utility loop: last
+      winter's seismograph reading lets the careful steward budget
+      their summer — visit ruins under high-activity fields before
+      they sink. Defer until #23 ships.
