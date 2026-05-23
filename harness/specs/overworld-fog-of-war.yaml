@@ -1,0 +1,260 @@
+id: overworld-fog-of-war
+name: 'Overworld fog of war (gaze, memory, unseen)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/visibility.ts
+  - src/engine/renderer.ts
+  - src/engine/state.ts
+  - src/engine/types.ts
+  - src/engine/constants.ts
+dependencies:
+  - cave-fog-of-war
+  - ruin-fog-of-war
+
+behaviors:
+  - id: has-fog-of-war-true-for-overworld
+    description: >
+      hasFogOfWar returns true for Zone.Overworld in addition to Cave
+      and Ruin. the visibility system, fog-mask pass, and minimap all
+      gate on hasFogOfWar — no further changes needed at those call
+      sites for the prairie to participate in fog of war. player-facing
+      vocabulary is gaze (visible), memory (fullyDiscovered or
+      partiallyDiscovered), and unseen (unexplored); engineering
+      identifiers keep their existing names (hasFogOfWar, fog-mask,
+      computeZoneVisibility, getTileVisibility).
+    inputs:
+      - 'state.currentZone is Overworld'
+    outputs:
+      - 'hasFogOfWar(Zone.Overworld) returns true'
+      - 'computeZoneVisibility runs each frame on the prairie'
+      - 'getTileVisibility returns one of unexplored, partiallyDiscovered, fullyDiscovered, visible for overworld tiles'
+    state_changes: []
+    determinism: deterministic
+
+  - id: four-state-visibility-on-prairie
+    description: >
+      prairie tiles exist in one of four visibility states, identical
+      semantics to cave and ruin. unexplored (never seen — rendered
+      as solid BG_COLOR, no entities). partiallyDiscovered (was once
+      in player FOV but never within DISCOVERY_RADIUS — terrain at
+      reduced brightness, entities hidden — "dim memory"). fullyDiscovered
+      (was once within DISCOVERY_RADIUS of the player AND in LOS —
+      terrain and live entities at full brightness even when out of
+      LOS — permanent). visible (currently in line-of-sight at full
+      brightness with all entities and effects). simulation underneath
+      runs regardless of visibility: bees still pollinate, coyote still
+      wanders, flora lifecycle still ticks. fog culls render only.
+    inputs:
+      - 'state.currentZone is Overworld'
+      - 'state.overworldFogExplored: Set<string> tracking ever-seen tile keys (drives partiallyDiscovered)'
+      - 'state.overworldFogDiscovered: Set<string> tracking tile keys that have ever been within DISCOVERY_RADIUS and in LOS (drives fullyDiscovered)'
+      - 'per-frame visible set computed from player position'
+    outputs:
+      - 'unexplored tiles render as BG_COLOR diamonds via the fog-mask pass; no entities resolve at those tile keys'
+      - 'partiallyDiscovered tiles render terrain only at FOG_EXPLORED_BRIGHTNESS; entities hidden'
+      - 'fullyDiscovered tiles render terrain and live entities at full brightness even when out of LOS'
+      - 'visible tiles render normally with all entities and effects'
+    state_changes:
+      - field: overworldFogExplored
+        effect: 'union of previous set and current visible set — tiles never revert'
+      - field: overworldFogDiscovered
+        effect: 'union of previous set and tiles within DISCOVERY_RADIUS that are also in the current visible set — tiles never revert'
+    determinism: deterministic
+
+  - id: prairie-vision-radius
+    description: >
+      player vision radius on the prairie is OVERWORLD_VISION_RADIUS
+      (3 tiles), the same value as CAVE_VISION_RADIUS and
+      RUIN_VISION_RADIUS. same eyes, indoors or out. tiles within
+      this radius with unobstructed line-of-sight from the player
+      position are visible. the prairie currently has no LOS-blocking
+      tile types — blocksLOS returns false for all prairie tiles, so
+      the visible set is a Chebyshev disc of radius 3 around the
+      player (clipped to map bounds and shadowcasting's circular
+      mask). shadowcasting is reused unchanged from cave and ruin.
+    inputs:
+      - 'player position on the prairie'
+      - 'overworld map tile data'
+      - 'OVERWORLD_VISION_RADIUS constant (3)'
+    outputs:
+      - 'Set<string> of currently visible tile keys'
+    state_changes: []
+    determinism: deterministic
+
+  - id: discovery-radius-promotion-on-prairie
+    description: >
+      a prairie tile is promoted to fullyDiscovered when the player
+      is within DISCOVERY_RADIUS (2 tiles, Chebyshev) of it AND the
+      tile is in line-of-sight from the player at that moment. this
+      mirrors the cave behavior and uses the same computeZoneVisibility
+      helper. fullyDiscovered tiles remain in fullyDiscovered forever.
+    inputs:
+      - 'player position on the prairie'
+      - 'current frame visible set'
+      - 'DISCOVERY_RADIUS constant (2)'
+    outputs:
+      - 'tiles within DISCOVERY_RADIUS of player AND in visible set are added to overworldFogDiscovered'
+    state_changes:
+      - field: overworldFogDiscovered
+        effect: 'tiles satisfying the proximity-and-LOS check added to set'
+    determinism: deterministic
+
+  - id: no-entrance-always-visible
+    description: >
+      the prairie has no entrance tile equivalent to the cave entrance
+      or ruin entrance. computeZoneVisibility does not force-add any
+      tile to the visible set when state.currentZone is Overworld.
+      orientation comes from the player's own movement and the
+      minimap, not from a fixed always-lit anchor.
+    inputs:
+      - 'state.currentZone is Overworld'
+    outputs:
+      - 'no forced-visible tiles beyond the player FOV'
+    state_changes: []
+    determinism: deterministic
+
+  - id: per-tenure-fog-fields
+    description: >
+      overworldFogExplored and overworldFogDiscovered live on
+      GameState. createGameState initializes both to empty Set<string>.
+      a new tenure (a fresh createGameState call with a new steward
+      name) starts with both sets empty — the prairie is fully unseen
+      on the first frame. tiles outside the spawn FOV remain unexplored
+      until the steward walks toward them. (cellar-bound carry-forward
+      and explicit per-tenure reset semantics are covered by precis #40
+      and are out of scope here.)
+    inputs:
+      - 'createGameState called with a new steward name'
+    outputs:
+      - 'state.overworldFogExplored is an empty Set'
+      - 'state.overworldFogDiscovered is an empty Set'
+      - 'the first frame of a new tenure paints only the player FOV; everything beyond is unseen'
+    state_changes:
+      - field: overworldFogExplored
+        effect: 'initialized empty on createGameState'
+      - field: overworldFogDiscovered
+        effect: 'initialized empty on createGameState'
+    determinism: deterministic
+
+  - id: fog-updates-on-movement
+    description: >
+      after each player movement on the prairie, the visible set is
+      recomputed, newly visible tiles are added to overworldFogExplored,
+      and tiles within DISCOVERY_RADIUS that are also in LOS are
+      added to overworldFogDiscovered. this happens as part of the
+      render frame following the movement — no separate tick needed.
+    inputs:
+      - 'player moves to a new prairie tile'
+    outputs:
+      - 'visible set shifts to new player position'
+      - 'previously visible tiles that are now out of sight revert to either fullyDiscovered (if previously promoted) or partiallyDiscovered'
+    state_changes:
+      - field: overworldFogExplored
+        effect: 'newly visible tiles added to set'
+      - field: overworldFogDiscovered
+        effect: 'tiles newly within DISCOVERY_RADIUS and LOS added to set'
+    determinism: deterministic
+
+  - id: entity-visibility-culling-on-prairie
+    description: >
+      every overworld entity (characters, bees, ghosts, angels, coyote,
+      ground items, oaks, egregore tiles, pickup blooms, beehive
+      tiles, character markers) renders only when its tile is in the
+      current visible set OR in overworldFogDiscovered. entities on
+      partiallyDiscovered tiles are hidden. entities on unexplored
+      tiles are hidden. this is enforced by the existing central
+      tile-loop in renderer.ts, which gates on getTileVisibility and
+      already culls entities for cave and ruin — the prairie inherits
+      the same gating once hasFogOfWar returns true. simulation
+      continues to tick for all culled entities; only render is
+      affected. world-overlay passes tied to entity positions (angel
+      gold aura, glinting beam, glinting zone sparkle) must respect
+      the same visibility predicate so an aura does not leak into a
+      tile whose entity is not drawn.
+    inputs:
+      - 'overworld entity position'
+      - 'current visible tile set'
+      - 'overworldFogDiscovered set'
+    outputs:
+      - 'entity rendered if its tile is visible OR fullyDiscovered'
+      - 'entity char/color hidden if tile is partiallyDiscovered or unexplored'
+      - 'entity-tied world overlays (angel aura, glinting beam/sparkle) hidden on partiallyDiscovered and unexplored tiles'
+    state_changes: []
+    determinism: deterministic
+
+  - id: fog-mask-covers-prairie
+    description: >
+      the existing fog-mask render pass (see fog-bg-mask spec) is
+      already gated by hasFogOfWar and so activates on the prairie
+      with no further changes. unexplored prairie tiles paint as
+      BG_COLOR diamonds; partiallyDiscovered prairie tiles paint a
+      black diamond at alpha (1 - FOG_EXPLORED_BRIGHTNESS) over the
+      cached terrain bg, matching the dim treatment the central tile
+      loop applies to the foreground glyph. the pass already handles
+      overworld-specific lift sources (river/pond water sinks,
+      structure platform lift) — see fogMask.ts platformLiftAt /
+      waterSinkAt — so masks line up with the tileBgCache diamonds.
+    inputs:
+      - 'state.currentZone is Overworld'
+      - 'visibility state for each viewport tile'
+    outputs:
+      - 'fog mask paints over unexplored and partiallyDiscovered tiles using the overworld lift math'
+    state_changes: []
+    determinism: deterministic
+
+  - id: minimap-respects-prairie-fog
+    description: >
+      the existing Minimap component gates tile rendering and
+      character-entity markers on hasFogOfWar — so flipping the
+      predicate for Overworld is sufficient. unexplored prairie tiles
+      are skipped on the minimap (rendered as the canvas background);
+      partiallyDiscovered prairie tiles render dimmed; visible and
+      fullyDiscovered render at full color. the player position marker
+      and viewport rectangle are not gated by fog and always render.
+    inputs:
+      - 'state.currentZone is Overworld'
+      - 'minimap render tick'
+    outputs:
+      - 'unexplored prairie tiles do not paint on the minimap'
+      - 'partiallyDiscovered prairie tiles paint at ~35% alpha'
+      - 'player marker and viewport rectangle remain visible'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: spawn-frame-state
+    description: 'on the first render frame after createGameState, only the FOV around the spawn position is lit (visible). the rest of the 147x147 prairie is unexplored.'
+    expected: 'overworldFogExplored contains only the tiles in the spawn FOV (radius 3 around spawn); overworldFogDiscovered contains a subset within DISCOVERY_RADIUS. all other tiles render as BG_COLOR via the fog mask.'
+  - id: simulation-runs-while-hidden
+    description: 'a bee, ghost, coyote, or any other entity outside the visible/fullyDiscovered radius continues to tick. moving back into the visible radius shows the entity at its updated position, not at its position when it was last seen.'
+    expected: 'state.bees / state.ghosts / character positions update each tick regardless of visibility; only the render pass culls them.'
+  - id: zone-transition-preserves-prairie-fog
+    description: 'entering a cave or ruin and returning to the prairie preserves overworldFogExplored and overworldFogDiscovered. the tiles you saw before going underground are still in memory when you come back up.'
+    expected: 'overworldFogExplored and overworldFogDiscovered are not cleared by zone transitions; the prairie returns to its previous fog state on re-entry.'
+  - id: discovery-without-walls
+    description: 'because the prairie has no LOS-blocking tile types, every tile within the player FOV disc is also a candidate for fullyDiscovered when within DISCOVERY_RADIUS. there is no "in radius but behind a wall" exclusion to test on the prairie (unlike caves and ruins).'
+    expected: 'on the prairie, the set of fullyDiscovered tiles after one frame is exactly the DISCOVERY_RADIUS Chebyshev disc around the player, clipped to map bounds.'
+  - id: deep-time-overworld
+    description: 'while the player is on the prairie during the deep-time wandering phase, fog of war remains active and uses the same overworldFog sets. the deep-time burning/simulating phases lock movement and use existing render overrides — fog logic still runs but the player does not generate new explored tiles during those phases.'
+    expected: 'fog continues to update during deep-time Wandering; during locked phases the visible set stays where the player last stood.'
+  - id: dev-paint-on-unseen-tiles
+    description: 'dev panel paint actions that mutate map tiles outside the visible radius still mutate the map. on re-entering the radius the new tile type renders correctly because the fog system keys on positions not tile types.'
+    expected: 'changing a tile type at an unexplored or partiallyDiscovered prairie position works; rendering reflects the new type when the tile next enters the visible or fullyDiscovered set.'
+
+failure_conditions:
+  - trigger: 'createGameState produces a state missing overworldFogExplored or overworldFogDiscovered'
+    expected: 'EXPECTED_FIELDS test in src/harness/__tests__/serialization/schema.test.ts fails, surfacing the missing field'
+  - trigger: 'hasFogOfWar returns false for Zone.Overworld'
+    expected: 'spec is violated; prairie renders without fog of war and entities render everywhere on the map regardless of player position'
+  - trigger: 'getFogState returns null for state.currentZone === Zone.Overworld'
+    expected: 'computeZoneVisibility short-circuits to an empty set and no exploration is recorded; spec is violated'
+  - trigger: 'computeZoneVisibility force-adds an entrance tile while currentZone is Overworld'
+    expected: 'an unintended always-lit anchor appears on the prairie; spec is violated. force-add is only for Cave and Ruin entrances.'
+  - trigger: 'OVERWORLD_VISION_RADIUS differs from CAVE_VISION_RADIUS or RUIN_VISION_RADIUS'
+    expected: 'the precis cosmological lock ("same eyes, indoors or out") is violated. all three must hold the same value.'
+
+verification:
+  test_file: src/engine/__tests__/visibility.test.ts
+  test_pattern: 'overworld fog'
+  command: 'npx vitest run src/engine/__tests__/visibility.test.ts'

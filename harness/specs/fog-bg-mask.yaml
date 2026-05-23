@@ -13,20 +13,22 @@ dependencies:
   - renderer
   - cave-fog-of-war
   - ruin-fog-of-war
+  - overworld-fog-of-war
 
 behaviors:
   - id: mask-applies-after-bg-cache
     description: >
       a dedicated render pass paints fog-of-war masks over the cached
-      tile-bg + cube-edge layer in fog zones (cave, ruin). it runs in
-      the world-overlay slot after the tileBgComposite pass and after
-      every other world-overlay pass (earth scan, halos, lightning
-      range, angel aura, prairie halo, prairie outline) — so masks
-      cover both the cached bg and any world overlays. it runs before
-      the central tile-glyph loop so the central loop's fog-aware
+      tile-bg + cube-edge layer in fog zones (cave, ruin, overworld).
+      it runs in the world-overlay slot after the tileBgComposite pass
+      and after every other world-overlay pass (earth scan, halos,
+      lightning range, angel aura, prairie halo, prairie outline) — so
+      masks cover both the cached bg and any world overlays. it runs
+      before the central tile-glyph loop so the central loop's fog-aware
       glyph dimming (renderer.ts) still composes correctly on top.
-      isActive returns false for non-fog zones (overworld, genesis),
-      so the pass is skipped in O(1) on the prairie.
+      isActive returns true for any zone where hasFogOfWar(zone) is
+      true — currently Cave, Ruin, and Overworld. genesis is a phase,
+      not a zone, and is not considered here.
     inputs:
       - 'state.currentZone'
       - 'hasFogOfWar(state.currentZone)'
@@ -131,8 +133,8 @@ edge_cases:
     description: 'world-overlay passes (earth scan, ruin entrance halo, lightning targeting range, angel aura, prairie halo, prairie outline) may have drawn into the bg-cache region before the fog mask runs. since the mask runs after them in world-overlay, their colors are also covered for unexplored tiles and dimmed for partiallyDiscovered tiles.'
     expected: 'unexplored tiles in fog zones never reveal world-overlay colors; partiallyDiscovered tiles show dimmed world-overlay colors consistent with the dim-memory bg'
   - id: empty-fog-state
-    description: 'a fog zone with empty caveFogExplored / caveFogDiscovered (just entered, no tiles seen)'
-    expected: 'every viewport tile except the player FOV and entrance ring renders fully masked (BG_COLOR diamonds)'
+    description: 'a fog zone with empty fog sets (just entered, or fresh tenure on the prairie — applies to caveFog*, ruin interior fog*, or overworldFog*)'
+    expected: 'every viewport tile except the player FOV (and entrance ring in cave/ruin) renders fully masked (BG_COLOR diamonds); on the prairie there is no entrance ring, only the FOV around the spawn'
   - id: elevation-tiers-in-fog
     description: 'fog zones currently have flat elevation, but the mask must use the same tier-lift projection as the cache so a future elevated cave or ruin still aligns.'
     expected: 'mask diamonds use getTierLift(tierAt(x, y)) when computing py, matching tileBgCache.tileWorldPos'
@@ -144,8 +146,8 @@ failure_conditions:
     expected: 'mask leaks beyond the tile cell into adjacent tiles, producing visible mask seams or hiding parts of neighbor tiles that should be visible. spec is violated.'
   - trigger: 'fog mask pass uses a black opaque fill for unexplored instead of BG_COLOR'
     expected: 'unexplored tiles render at #000 (pure black) instead of #1a1a1a (canvas BG). visually inconsistent with the cleared canvas. spec is violated.'
-  - trigger: 'fog mask runs in a non-fog zone (overworld, genesis)'
-    expected: 'no-op via isActive predicate; if the predicate is wrong, the prairie would render with hidden bg everywhere — spec is violated.'
+  - trigger: 'fog mask runs in a zone where hasFogOfWar returns false'
+    expected: 'no-op via isActive predicate; isActive must follow hasFogOfWar — if it diverges, fog-free zones would either render with hidden bg everywhere or fog-active zones would leak unmasked content.'
 
 verification:
   test_file: src/engine/__tests__/fogMask.test.ts

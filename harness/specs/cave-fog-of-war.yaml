@@ -27,7 +27,9 @@ behaviors:
       render at full brightness even when no longer in LOS — this
       state is permanent). visible (currently in player line-of-sight
       — full brightness, all entities and effects shown). overworld
-      is unaffected.
+      has fog of war too — see overworld-fog-of-war spec — and shares
+      the same four-state model and the same DISCOVERY_RADIUS, but
+      uses its own overworldFog* sets.
     inputs:
       - 'state.currentZone is Cave'
       - 'state.caveFogExplored: Set<string> tracking ever-seen tile keys (drives partiallyDiscovered)'
@@ -212,8 +214,6 @@ edge_cases:
     expected: 'fog tracks position keys not tile types; tile-type changes propagate through fullyDiscovered rendering'
 
 failure_conditions:
-  - trigger: 'player is in overworld zone'
-    expected: 'fog of war system is completely inactive, all tiles render normally'
   - trigger: 'computeVisibility called with out-of-bounds position'
     expected: 'returns empty set, no crash'
   - trigger: 'caveFogExplored or caveFogDiscovered contains keys for tiles that were later changed (breakable wall broken)'

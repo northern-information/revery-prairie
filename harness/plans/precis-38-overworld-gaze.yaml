@@ -1,0 +1,142 @@
+plan:
+  id: precis-38-overworld-gaze
+  title: 'Precis 38: Overworld gaze, memory, and unseen — extend FOW to the prairie'
+  created: 2026-05-23
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-overworld-fog-fields
+    title: 'Add overworldFogExplored / overworldFogDiscovered to GameState, init in createGameState'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - per-tenure-fog-fields
+      - four-state-visibility-on-prairie
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/visibility.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, state]
+
+  - id: extend-visibility-to-overworld
+    title: 'hasFogOfWar(Zone.Overworld) → true, getFogState reads overworldFog*, computeZoneVisibility runs for prairie with OVERWORLD_VISION_RADIUS=3 and no forced entrance'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - has-fog-of-war-true-for-overworld
+      - prairie-vision-radius
+      - discovery-radius-promotion-on-prairie
+      - no-entrance-always-visible
+      - fog-updates-on-movement
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/visibility.ts
+      - src/engine/constants.ts
+    depends_on:
+      - add-overworld-fog-fields
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: update-schema-test
+    title: 'Add overworldFogExplored / overworldFogDiscovered to EXPECTED_FIELDS in serialization/schema test'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - per-tenure-fog-fields
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-overworld-fog-fields
+    verification:
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [test]
+
+  - id: audit-entity-overlay-passes
+    title: 'Audit angelGoldAura, glintingBeam, glintingZoneSparkle, and any other entity-tied world-overlay passes; add visibility-set gating so per-entity halos do not leak onto unseen/partially-discovered tiles'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - entity-visibility-culling-on-prairie
+    context_files:
+      - src/engine/render/passes/angelGoldAura.ts
+      - src/engine/render/passes/glintingBeam.ts
+      - src/engine/render/passes/glintingZoneSparkle.ts
+      - src/engine/render/passes/ruinEntranceHalo.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/render/passes/angelGoldAura.ts
+      - src/engine/render/passes/glintingBeam.ts
+      - src/engine/render/passes/glintingZoneSparkle.ts
+      - src/engine/render/passes/ruinEntranceHalo.ts
+    depends_on:
+      - extend-visibility-to-overworld
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, render]
+
+  - id: regression-tests
+    title: 'Add visibility tests for prairie FOW: hasFogOfWar(Overworld) true, four-state model, DISCOVERY_RADIUS promotion, no forced entrance, fields persist across zone transitions, fresh tenure starts empty'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - has-fog-of-war-true-for-overworld
+      - four-state-visibility-on-prairie
+      - prairie-vision-radius
+      - discovery-radius-promotion-on-prairie
+      - no-entrance-always-visible
+      - per-tenure-fog-fields
+      - fog-updates-on-movement
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/visibility.test.ts
+    depends_on:
+      - extend-visibility-to-overworld
+      - update-schema-test
+    verification:
+      - 'npx vitest run src/engine/__tests__/visibility.test.ts'
+      - 'npm run test'
+    repair: retry
+    tags: [test]
+
+  - id: entity-cull-regression-tests
+    title: 'Add render-layer tests that confirm overworld entities (characters, bees, ghosts, ground items, oaks, egregore tiles) are not drawn when their tile is unexplored or partiallyDiscovered, and ARE drawn on fullyDiscovered tiles'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - entity-visibility-culling-on-prairie
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/visibility.ts
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/fogMask.test.ts
+    output_files:
+      - src/engine/__tests__/visibility.test.ts
+    depends_on:
+      - extend-visibility-to-overworld
+      - audit-entity-overlay-passes
+    verification:
+      - 'npx vitest run src/engine/__tests__/visibility.test.ts'
+    repair: retry
+    tags: [test, render]
