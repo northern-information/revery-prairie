@@ -411,9 +411,19 @@ export interface GameState {
   // (species, axis) pair via resolvePhenotypeLabel. Re-resolving the same
   // pair OVERWRITES — no duplicates per (species, axis).
   revealedPhenotypes: Map<FloraSpecies, RevealedPhenotype[]>
-  // Wall-clock time of the player's last successful movePlayer. Used by the
-  // cloud-passing omen to detect "player stationary for N ms" without
-  // changing movement logic. Updated by movement.ts.
+  // Precis #32 — dormancy pressure (forcing function). Domain [0, 1].
+  // Climbs across autumn via the linear ramp in tickDormancyPressure;
+  // crossing 1.0 schedules the Revery via initiateRevery. Resets to 0 at
+  // Revery Closing and on Autumn → Winter without a Revery.
+  dormancyPressure: number
+  // Precis #32 — steward's tile at the moment a summons Revery began.
+  // Set at the Omen → Observing transition when state.revery.summons is
+  // true; cleared at Closing. Downstream render passes may read this to
+  // apply a dormant-flora wash to the collapsed tile.
+  collapsedStewardTile: Position | null
+  // Wall-clock time of the player's last successful movePlayer. Updated
+  // by movement.ts. Was used by the retired cloud-passing omen (precis-4
+  // / precis-32); retained for any future use.
   playerStationarySince: number
   // Previous frame's state.weather.sky value. Used by the cloud-passing omen
   // to detect Rain/Cloudy → Sun transitions. Updated by gameLoop after
