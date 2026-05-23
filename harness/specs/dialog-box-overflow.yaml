@@ -11,14 +11,13 @@ behaviors:
   - id: horizontal-containment
     description: >
       The dialog box must never overflow the left or right edge of the viewport.
-      It should be horizontally centered within the game canvas area (viewport
-      minus the 192px sidebar), not the full viewport.
+      It is horizontally centered within the full viewport.
     inputs:
       - dialog opens for any character (ghost, angel, coyote)
       - viewport is any width from 640px upward
     outputs:
       - dialog left edge >= 0px (with a small margin)
-      - dialog right edge <= viewport width - sidebar width
+      - dialog right edge <= viewport width
     state_changes: []
     determinism: deterministic
 
@@ -62,7 +61,7 @@ behaviors:
 edge_cases:
   - id: narrow-viewport
     description: Viewport is 640px wide — dialog should shrink rather than overflow
-    expected: dialog fits within viewport minus sidebar, content truncates or wraps if needed
+    expected: dialog fits within viewport, content truncates or wraps if needed
   - id: large-font-scale
     description: Font scale is 1.5x on a moderate viewport
     expected: dialog remains contained, rem-based sizing does not push edges offscreen
@@ -70,10 +69,10 @@ edge_cases:
 failure_conditions:
   - trigger: dialog box left edge extends past viewport left boundary
     expected: left edge clamped to a minimum margin (e.g. 8px)
-  - trigger: dialog box right edge overlaps the sidebar
-    expected: right edge stops before the sidebar boundary
+  - trigger: dialog box right edge extends past viewport right boundary
+    expected: right edge clamped to a minimum margin
 
 verification:
   test_file: src/components/__tests__/DialogBox.test.tsx
-  test_pattern: viewport|overflow|containment|sidebar
+  test_pattern: viewport|overflow|containment
   command: npx vitest run src/components/__tests__/DialogBox.test.tsx

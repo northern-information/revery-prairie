@@ -75,7 +75,6 @@ const EXPECTED_FIELDS = [
   'playerTween',
   'audioEnabled',
   'fontScale',
-  'rightInsetTiles',
   'world',
   'lastDialogTypingTick',
   'glintingCoins',

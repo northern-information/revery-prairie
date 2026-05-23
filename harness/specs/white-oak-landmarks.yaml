@@ -15,7 +15,6 @@ source_files:
   - src/engine/worldEntities.ts
   - src/engine/interaction.ts
   - src/engine/devPanel.ts
-  - src/components/Sidebar.tsx
   - src/components/ManualPanel.tsx
   - src/hooks/useKeyboard.ts
   - src/harness/__tests__/serialization/schema.test.ts
@@ -150,20 +149,6 @@ behaviors:
       - 'cursor or facingEntityPos or pendingInteractionTarget on any oak tile'
     outputs:
       - 'all OAK_BODY_SIZE^2 body tiles render with pink action-colour background and BG_COLOR glyphs'
-    state_changes: []
-    determinism: deterministic
-
-  - id: oak-sidebar-label
-    description: >
-      The Sidebar contents row reads "white oak" whenever the cursor
-      hovers any tile in an oak's MultiPosition. Lookup iterates all
-      OakData entities and checks each MultiPosition because the spatial
-      index only tracks the anchor tile. Returns before the falls-through
-      ground-item lookup.
-    inputs:
-      - 'cursorTile hovers any oak body tile'
-    outputs:
-      - "sidebar Contents cell shows 'white oak'"
     state_changes: []
     determinism: deterministic
 
@@ -318,10 +303,6 @@ edge_cases:
   - id: oak-zone-transition
     description: 'Player enters cave while oaks exist on overworld'
     expected: 'Oaks render only in the overworld zone (EntityZone filter); not visible in cave; persist across the round trip'
-
-  - id: oak-cursor-hover-non-anchor-tile
-    description: 'Cursor hovers a non-anchor body tile (e.g. canopy corner)'
-    expected: "Sidebar reads 'white oak'; full footprint highlights pink as a group"
 
   - id: oak-blocked-pathfinding
     description: 'Click-to-move requests a path through an oak canopy'

@@ -10,7 +10,6 @@ source_files:
   - src/engine/renderer.ts
   - src/engine/position.ts
   - src/engine/render/passes/index.ts
-  - src/components/Sidebar.tsx
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies:
   - persistent-dual-zone
@@ -178,21 +177,6 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: sidebar-exit-label
-    description: >
-      Sidebar.tsx maps CaveExit and RuinExit tile types to the
-      human-readable label "exit" in both the contents row (or tile
-      label row, following existing convention) and any tile-type
-      label routing. Hovering an exit tile shows "exit" — it does
-      not show "cave exit" or "ruin exit" so the player sees a
-      consistent label across both zones.
-    inputs:
-      - 'cursor hovering over a CaveExit or RuinExit tile'
-    outputs:
-      - 'sidebar shows "exit" as the tile label'
-    state_changes: []
-    determinism: deterministic
-
 edge_cases:
   - id: cave-exit-row-clipped-by-map-bounds
     description: >
@@ -231,22 +215,12 @@ edge_cases:
       so part of the 3x3 hitbox falls on Space tiles (non-walkable).
     expected: 'player cannot reach Space tiles, so the hitbox is naturally bounded by terrain walkability — no special-case needed in checkTransition'
 
-  - id: sidebar-effect-row-on-exit
-    description: >
-      Effect row in sidebar (rain, glinting, prairie halo, etc) is
-      separate from tile label. Hovering an exit tile shows "exit"
-      as the tile label and any active effects normally.
-    expected: 'effect row is unchanged; tile label is "exit"'
-
 failure_conditions:
   - trigger: 'player exits cave or ruin and is immediately re-transitioned (infinite loop)'
     expected: 'must not happen — exit placement must be outside the 3x3 hitbox (Chebyshev distance ≥ 2 from the overworld entrance)'
 
   - trigger: 'overworld 3x3 hitbox overwrites underlying terrain tiles'
     expected: 'must not happen — terrain (dirt, clover, soil health) is preserved. Only the transition detection logic widens.'
-
-  - trigger: 'sidebar shows raw camelCase "caveExit" or "ruinExit"'
-    expected: 'must not happen — both types map to the human-readable label "exit"'
 
   - trigger: 'CaveExit or RuinExit tile created outside the cave/ruin interior generators'
     expected: 'must not happen by design — exits are placed only by generateCave and createBaseMap'

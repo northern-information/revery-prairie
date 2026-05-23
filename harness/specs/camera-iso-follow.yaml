@@ -33,7 +33,7 @@ behaviors:
       - 'camera.x and camera.y placed so player projects to canvas center in iso'
     state_changes:
       - field: camera.x
-        effect: 'set to player.x - floor((viewportWidth - rightInsetTiles) / 2); not clamped to map bounds — overscroll past map edges renders space tiles'
+        effect: 'set to player.x - floor(viewportWidth / 2); not clamped to map bounds — overscroll past map edges renders space tiles'
       - field: camera.y
         effect: 'set to player.y - floor(viewportHeight / 2); not clamped to map bounds — overscroll past map edges renders space tiles'
     determinism: deterministic

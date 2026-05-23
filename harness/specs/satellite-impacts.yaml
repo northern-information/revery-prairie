@@ -191,7 +191,7 @@ behaviors:
       The renderer keys this appearance off state.craters.has(tileKey)
       while the tile itself remains TileType.Dirt. Cratered clover
       tiles render as clover (the plant covers the scar); the crater
-      effect is still reported via the sidebar.
+      entry persists in state.craters.
     inputs:
       - 'Tile at position is TileType.Dirt and posKey is in state.craters'
     outputs:
@@ -210,22 +210,6 @@ behaviors:
       - 'Clover growth check on a cratered dirt tile'
     outputs:
       - 'Growth check proceeds as for any dirt tile'
-    state_changes: []
-    determinism: deterministic
-
-  - id: satellite-cursor-info
-    description: >
-      Cratered tiles display their underlying tile type ("dirt" or
-      "clover") as the sidebar tile-type label. The persistent
-      "crater" effect appears in the sidebar effects row via
-      getTileEffects when state.craters.has(posKey). Active satellite
-      entities display in the sidebar contents row when hovered, and
-      the short-lived "satellite impact" explosion also appears in the
-      effects row during its lifetime.
-    inputs:
-      - 'Mouse hover over a cratered tile or satellite entity'
-    outputs:
-      - 'Sidebar tile-type label shows dirt/clover; effects row includes crater'
     state_changes: []
     determinism: deterministic
 

@@ -16,11 +16,9 @@ source_files:
   - src/engine/render/passes/index.ts
   - src/components/BootTitleCardOverlay.tsx
   - src/components/GameScreen.tsx
-  - src/components/Sidebar.tsx
   - src/hooks/useGameEngine.ts
   - src/harness/__tests__/serialization/schema.test.ts
   - src/engine/__tests__/genesis.test.ts
-  - src/components/__tests__/Sidebar.test.tsx
 dependencies: []
 
 behaviors:
@@ -91,19 +89,17 @@ behaviors:
       : <bottom-bar>` ternary collapses to `{!state.genesis &&
       <bottom-bar>}`, so during genesis neither the gameplay
       bottom-bar nor any HUD card mounts. src/components/Sidebar.tsx
-      no longer renders a genesis panel either — when state.genesis
-      is non-null and epochIndex < GENESIS_EPOCHS.length the
-      Sidebar returns null instead of rendering the Year / Epoch /
-      progress-bar / "Press any key to skip" block. The genesis
-      screen is the canvas plus the BootTitleCardOverlay (which
-      fades in at the handoff); no year readout, no progress bar,
-      no epoch counter, no skip hint anywhere on screen. The
-      diegetic discipline from precis-thinktank-v4 round 9 still
-      holds — no consumer-electronics gestures (boot animations,
-      splash screens, loading bars, percentage indicators) — and
-      the bordered-card year+bar that this precis originally
-      introduced is now also retired: the screen is silent under
-      the simulation.
+      has also been deleted entirely (see the minimap spec's
+      sidebar-deleted behavior). The genesis screen is the canvas
+      plus the BootTitleCardOverlay (which fades in at the handoff);
+      no year readout, no progress bar, no epoch counter, no skip
+      hint anywhere on screen. The diegetic discipline from
+      precis-thinktank-v4 round 9 still holds — no
+      consumer-electronics gestures (boot animations, splash
+      screens, loading bars, percentage indicators) — and the
+      bordered-card year+bar that this precis originally introduced
+      is now also retired: the screen is silent under the
+      simulation.
     inputs:
       - 'GameScreen renders with state.genesis non-null'
     outputs:
@@ -111,7 +107,6 @@ behaviors:
       - 'grep for "GenesisBottomBar" in src/ returns zero hits'
       - 'no DOM element has data-panel="genesis-bottom-bar"'
       - 'no DOM element has data-panel="bottom-bar" while state.genesis is non-null'
-      - 'no DOM element has data-panel="sidebar" while state.genesis is non-null and epochIndex < GENESIS_EPOCHS.length'
     state_changes: []
     determinism: deterministic
 
@@ -121,21 +116,19 @@ behaviors:
       removed from src/engine/genesis.ts. No code computes or
       displays a "years ago" string during genesis — the
       reverse-projection year readout that this precis originally
-      introduced is fully retired. Two exports from genesis.ts are
-      retained because they have non-genesis-HUD callers:
-      GENESIS_END_YEAR is read by the deep-time year display in
-      src/components/Sidebar.tsx as the gameplay-now anchor for
-      forward-projecting year arithmetic; getEpochProgress is read
-      by src/engine/genesisRenderer.ts for the elevation tween.
-      The formatYear export (year.toLocaleString) is also retained
-      — same Sidebar deep-time caller as before.
+      introduced is fully retired. getEpochProgress is retained
+      because src/engine/genesisRenderer.ts reads it for the
+      elevation tween. GENESIS_END_YEAR and formatYear are retained
+      as exports for future callers (the Sidebar deep-time year
+      display that previously consumed them has also been deleted
+      as part of the sidebar removal).
     inputs:
       - 'codebase after this change lands'
     outputs:
       - 'grep for "formatYearsAgo" in src/ returns zero hits'
       - 'grep for "getGenesisYear" in src/ returns zero hits'
       - 'grep for "EPOCH_YEAR_RANGES" in src/ returns zero hits'
-      - 'grep for "GENESIS_END_YEAR" in src/ still resolves to its declaration in src/engine/genesis.ts plus the Sidebar deep-time callsites'
+      - 'grep for "GENESIS_END_YEAR" in src/ resolves to its declaration in src/engine/genesis.ts'
       - 'grep for "getEpochProgress" in src/ still resolves to its declaration in src/engine/genesis.ts plus the genesisRenderer.ts caller'
     state_changes: []
     determinism: deterministic
@@ -182,30 +175,23 @@ behaviors:
 
   - id: tests-pruned-or-rewritten
     description: >
-      Test surfaces are touched. (1) In
-      src/engine/__tests__/genesis.test.ts, the 'genesis narration
-      callback', 'completeGenesis narration flush', and
-      'getGenesisCommentary' describes are removed (they were
-      removed in the original precis-27 work and remain removed).
-      The 'formatYearsAgo' describe block — added by the original
-      precis-27 work — is now also removed, along with the
-      'getEpochProgress clock consistency' subcase that imported
-      formatYearsAgo / GENESIS_END_YEAR / getGenesisYear solely for
-      year assertions. Imports of formatYearsAgo, getGenesisYear,
-      and EPOCH_YEAR_RANGES are removed from the file. Imports of
-      GENESIS_END_YEAR and getEpochProgress are retained only if a
-      surviving test still references them. The remaining tests in
-      the file (createGenesisState, runAllMutations, etc.) are not
-      touched. (2) In src/components/__tests__/Sidebar.test.tsx, a
-      regression test is added asserting Sidebar renders nothing
-      (returns null) when state.genesis is non-null with
-      epochIndex < GENESIS_EPOCHS.length — there is no
-      genesis-mode sidebar panel anymore.
+      Test surfaces are touched. In src/engine/__tests__/genesis.test.ts,
+      the 'genesis narration callback', 'completeGenesis narration flush',
+      and 'getGenesisCommentary' describes are removed (they were removed
+      in the original precis-27 work and remain removed). The
+      'formatYearsAgo' describe block — added by the original precis-27
+      work — is now also removed, along with the 'getEpochProgress clock
+      consistency' subcase that imported formatYearsAgo /
+      GENESIS_END_YEAR / getGenesisYear solely for year assertions.
+      Imports of formatYearsAgo, getGenesisYear, and EPOCH_YEAR_RANGES
+      are removed from the file. Imports of GENESIS_END_YEAR and
+      getEpochProgress are retained only if a surviving test still
+      references them. The remaining tests in the file
+      (createGenesisState, runAllMutations, etc.) are not touched.
     inputs:
       - 'codebase after this change lands'
     outputs:
       - 'npx vitest run src/engine/__tests__/genesis.test.ts passes'
-      - 'npx vitest run src/components/__tests__/Sidebar.test.tsx passes'
       - 'grep for "formatYearsAgo" in src/engine/__tests__/genesis.test.ts returns zero hits'
       - 'grep for "getGenesisYear" in src/engine/__tests__/genesis.test.ts returns zero hits'
       - "grep for 'Simulating birth of cosmos' in src/ returns zero hits"
@@ -344,8 +330,6 @@ failure_conditions:
     expected: 'CI fails — the genesis year-readout HUD or its helpers were reintroduced'
   - trigger: 'A DOM element with data-panel="bottom-bar" or data-panel="genesis-bottom-bar" mounts while state.genesis is non-null'
     expected: 'CI fails — genesis must render no bottom HUD overlay'
-  - trigger: 'A DOM element with data-panel="sidebar" mounts while state.genesis is non-null and state.genesis.epochIndex < GENESIS_EPOCHS.length'
-    expected: 'CI fails — the Sidebar must return null during genesis'
   - trigger: "grep for 'commentary\\|narrate\\|prologue\\|cutscene' in docs/claude/genesis.md returns any hits"
     expected: 'CI fails — the doc still describes genesis as a narrated event'
   - trigger: "grep -iE 'bordered card|fill bar|year readout|loading bar|progress bar' docs/claude/genesis.md returns any hits"
@@ -356,6 +340,6 @@ failure_conditions:
     expected: 'CI fails — the diegetic test bans HUD overlays during genesis per precis-thinktank-v4 round 9 and per this change'
 
 verification:
-  test_file: src/components/__tests__/Sidebar.test.tsx
-  test_pattern: 'renders null during genesis'
-  command: 'npx vitest run src/components/__tests__/Sidebar.test.tsx -t "renders null during genesis"'
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: 'genesis'
+  command: 'npx vitest run src/engine/__tests__/genesis.test.ts'

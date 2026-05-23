@@ -228,8 +228,7 @@ describe('player spawn ceremony', () => {
 
       updateCamera(state)
 
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      const expectedX = 5 - Math.floor(visibleWidth / 2)
+      const expectedX = 5 - Math.floor(state.viewportWidth / 2)
       const expectedY = 7 - Math.floor(state.viewportHeight / 2)
       expect(state.camera.x).toBe(expectedX)
       expect(state.camera.y).toBe(expectedY)
@@ -244,8 +243,7 @@ describe('player spawn ceremony', () => {
 
       updateCamera(state)
 
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      const expectedX = state.player.x - Math.floor(visibleWidth / 2)
+      const expectedX = state.player.x - Math.floor(state.viewportWidth / 2)
       const expectedY = state.player.y - Math.floor(state.viewportHeight / 2)
       expect(state.camera.x).toBe(expectedX)
       expect(state.camera.y).toBe(expectedY)
@@ -271,8 +269,7 @@ describe('player spawn ceremony', () => {
 
       updateCamera(state)
 
-      const visibleWidth = state.viewportWidth - state.rightInsetTiles
-      const expectedX = state.player.x - Math.floor(visibleWidth / 2)
+      const expectedX = state.player.x - Math.floor(state.viewportWidth / 2)
       expect(state.camera.x).toBe(expectedX)
     })
   })

@@ -35,7 +35,6 @@ source_files:
   - src/engine/deepTime.ts
   - src/hooks/useKeyboard.ts
   - src/hooks/useMouse.ts
-  - src/components/Sidebar.tsx
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies:
   - precis-0-reclaim-revery

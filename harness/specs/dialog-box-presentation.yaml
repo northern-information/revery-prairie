@@ -11,20 +11,18 @@ dependencies:
 behaviors:
   - id: vertically-centered-positioning
     description: >
-      dialog box is fixed at vertical center of the viewport. it is
-      visually centered within the play area (the viewport excluding
-      the right-hand sidebar) — implemented via `right-48 left-0
-      mx-auto` plus a width of 65vw clamped by
-      `max-w-[min(800px,calc(100vw-12rem-1rem))]`. no min-width is
-      applied; on viewports narrower than the max-width the dialog
-      shrinks to fit the play area without overflowing. fixed height
-      (240px) prevents size jumping between dialog lines. uses z-30
-      to render above the action bar (z-10) but below the drag
-      cursor (z-50).
+      dialog box is fixed at vertical center of the viewport and
+      horizontally centered in the full viewport — implemented via
+      `left-0 right-0 mx-auto` plus a width of 65vw clamped by
+      `max-w-[min(800px,calc(100vw-1rem))]`. no min-width is applied;
+      on viewports narrower than the max-width the dialog shrinks to
+      fit without overflowing. fixed height (240px) prevents size
+      jumping between dialog lines. uses z-30 to render above the
+      action bar (z-10) but below the drag cursor (z-50).
     inputs:
       - 'activeDialog is non-null'
     outputs:
-      - 'dialog box rendered vertically centered, horizontally centered within the play area (left of the sidebar)'
+      - 'dialog box rendered vertically centered, horizontally centered in the full viewport'
       - 'dialog box renders above the action bar'
     state_changes: []
     determinism: deterministic
@@ -91,7 +89,7 @@ behaviors:
 edge_cases:
   - id: narrow-viewport
     description: 'viewport narrower than the dialog max-width'
-    expected: 'dialog box shrinks to fit the play area (max-width clamp), no min-width is applied; remains horizontally centered in the play area'
+    expected: 'dialog box shrinks to fit the viewport (max-width clamp), no min-width is applied; remains horizontally centered'
   - id: very-long-line
     description: 'dialog line exceeds the visible area of the short box'
     expected: 'text overflows hidden — lines should be authored to fit, but overflow is clipped not scrolled'

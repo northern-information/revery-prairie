@@ -141,7 +141,7 @@ failure_conditions:
     expected: 'visual drift between layers (e.g. base tiles vs lightning paths); spec is violated; renderer must route every draw call through viewportToScreen / worldToScreen'
 
   - trigger: 'screenToTile and viewportToScreen are not exact inverses for tiles inside their diamond'
-    expected: 'click-to-move sends the player to the wrong tile; sidebar hover info points to the wrong tile; round-trip property test fails'
+    expected: 'click-to-move sends the player to the wrong tile; state.cursorTile points to the wrong tile; round-trip property test fails'
 
   - trigger: 'Cell-background fillRect is left in place while drawCellBackground is used elsewhere'
     expected: 'facing-entity highlight, pending-target highlight, or selection highlight paints a rectangle on a diamond grid, producing visual artifacts; spec is violated'

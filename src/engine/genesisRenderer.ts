@@ -570,10 +570,8 @@ export const renderGenesis = (
   // (matches the includeLowland gate in computeSurfaceBg).
   const includeLowlandWater = LOWLAND_WATER_EPOCHS.has(epoch.id)
 
-  // Genesis camera centers the prairie on the full canvas — no
-  // rightInsetTiles term, because no right sidebar exists during genesis.
-  // The one-tile shift at the genesis-to-game handoff (when gameplay
-  // re-introduces the sidebar inset) is hidden by the boot title card.
+  // Genesis camera centers the prairie on the full canvas, matching
+  // the gameplay camera (no side panel reservation in either phase).
   const { cameraX, cameraY } = computeGenesisCamera(sim.width, sim.height, viewportWidth, viewportHeight)
 
   // Starfield over canvas tiles that fall outside the sim grid — the

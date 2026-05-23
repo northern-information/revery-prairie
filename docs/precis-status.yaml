@@ -253,8 +253,10 @@ features:
          system. [1] off, [2] family-tree, [3] reserved for a future
          root/mycelium view (placeholder no-op now to lock the
          keybind layout).
-       - Sidebar surfaces dropped — Sidebar.tsx is orphaned dead code;
-         cursor-info-panel system is not in the running app.
+       - Sidebar fully deleted — Sidebar.tsx, its tests, getTileEffects
+         consumers, docs/claude/sidebar.md, and the CLAUDE.md sidebar
+         rule are all gone (2026-05-23). The cursor-info-panel system
+         no longer exists.
        - Per-species code isolated: flora/clover/spread.ts,
          flora/wildflower/spread.ts, flora/tallgrass/spread.ts each
          own their config and behavior; no cross-species imports.
@@ -823,7 +825,7 @@ features:
       instrument / voice — inscriptions and instruments pass, voices
       do not). Produces a written survey under docs/ that links to
       individual amendments on affected items. Items to audit:
-      existing — command panel, sidebar, manual, minimap, item info,
+      existing — command panel, manual, minimap, item info,
       dev panel, scan progress bar, boot title card (verify pass);
       upcoming — #15 (wear visibility), #16 (tenure handoff surface),
       #19 (soil depletion surface), #20 (NPC mortality surface), #23

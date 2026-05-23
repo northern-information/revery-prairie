@@ -1,0 +1,182 @@
+plan:
+  id: remove-sidebar
+  title: 'Remove the Sidebar component, its tests, layout reservation, and docs/rule references'
+  created: 2026-05-23
+  # Sidebar.tsx was already unmounted from GameScreen (orphaned dead code per
+  # precis #17 notes), but its file lived on, and the canvas still reserved
+  # 192px of right-edge space via state.rightInsetTiles + DialogBox right-48.
+  # This change finishes the removal: deletes the file + tests + dependent
+  # cursorTileInfo test, drops the layout reservation so the canvas occupies
+  # the full viewport, and strips sidebar references from CLAUDE.md, docs,
+  # precis-status, and 27 spec files. getTileEffects stays — its tests
+  # (torchbearer, satelliteImpacts, effects) verify engine mechanics
+  # independent of the sidebar.
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: delete-sidebar-files
+    title: 'Delete src/components/Sidebar.tsx, src/components/__tests__/Sidebar.test.tsx, src/components/__tests__/Sidebar.cursorInfoOverflow.test.tsx, src/engine/__tests__/cursorTileInfo.test.ts, and docs/claude/sidebar.md.'
+    spec_id: minimap
+    spec_sections:
+      - sidebar-deleted
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/__tests__/Sidebar.cursorInfoOverflow.test.tsx
+      - src/engine/__tests__/cursorTileInfo.test.ts
+      - docs/claude/sidebar.md
+    output_files:
+      - src/components/Sidebar.tsx
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/__tests__/Sidebar.cursorInfoOverflow.test.tsx
+      - src/engine/__tests__/cursorTileInfo.test.ts
+      - docs/claude/sidebar.md
+    depends_on: []
+    verification: []
+    repair: retry
+    tags:
+      - delete
+
+  - id: remove-right-inset-tiles
+    title: >
+      Remove state.rightInsetTiles entirely. Drop the field from
+      GameState in src/engine/types.ts, the initializer in
+      src/engine/state.ts, the EXPECTED_FIELDS entry in
+      src/harness/__tests__/serialization/schema.test.ts, the
+      SIDEBAR_WIDTH_PX constant + write line in
+      src/components/GameCanvas.tsx, and the subtraction reads in
+      src/engine/camera.ts and src/engine/renderer.ts. Update the
+      genesis renderer comment in src/engine/genesisRenderer.ts.
+      Update camera.test.ts, playerSpawn.test.ts, and
+      genesisTransition.test.ts to drop visibleWidth derivations
+      that subtracted the inset.
+    spec_id: camera-viewport
+    spec_sections:
+      - camera-centering
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/camera.ts
+      - src/engine/renderer.ts
+      - src/engine/genesisRenderer.ts
+      - src/components/GameCanvas.tsx
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/camera.test.ts
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/__tests__/genesisTransition.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/camera.ts
+      - src/engine/renderer.ts
+      - src/engine/genesisRenderer.ts
+      - src/components/GameCanvas.tsx
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/camera.test.ts
+      - src/engine/__tests__/playerSpawn.test.ts
+      - src/engine/__tests__/genesisTransition.test.ts
+    depends_on:
+      - delete-sidebar-files
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - layout
+
+  - id: drop-dialog-sidebar-inset
+    title: >
+      In src/components/DialogBox.tsx, update the outer div's class string
+      so the dialog centers on the full viewport. Replace
+      `right-48 left-0 mx-auto` with `right-0 left-0 mx-auto` and replace
+      the max-width `max-w-[min(800px,calc(100vw-12rem-1rem))]` with
+      `max-w-[min(800px,calc(100vw-1rem))]`. No other DialogBox markup
+      changes.
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - vertically-centered-positioning
+    context_files:
+      - src/components/DialogBox.tsx
+    output_files:
+      - src/components/DialogBox.tsx
+    depends_on:
+      - delete-sidebar-files
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags:
+      - layout
+
+  - id: update-claude-md
+    title: >
+      In CLAUDE.md, remove the bullet '- new entity, effect, or tile type
+      — wire up the sidebar cursor info panel...' from the rules section,
+      remove the `sidebar.md` row from the reference table, and update the
+      architecture-section examples that listed 'sidebar' as an overlay.
+    spec_id: minimap
+    spec_sections:
+      - sidebar-deleted
+    context_files:
+      - CLAUDE.md
+    output_files:
+      - CLAUDE.md
+    depends_on: []
+    verification: []
+    repair: retry
+    tags:
+      - docs
+
+  - id: update-precis-status
+    title: >
+      In docs/precis-status.yaml, update the precis #1 "Sidebar surfaces
+      dropped" note to reflect the full deletion (file + tests +
+      docs/claude/sidebar.md + CLAUDE.md rule, 2026-05-23). Remove
+      'sidebar' from the existing-surfaces list in the inscription/voice
+      audit summary at line 826.
+    spec_id: minimap
+    spec_sections:
+      - sidebar-deleted
+    context_files:
+      - docs/precis-status.yaml
+    output_files:
+      - docs/precis-status.yaml
+    depends_on: []
+    verification: []
+    repair: retry
+    tags:
+      - docs
+
+  - id: verify-typecheck-after-deletions
+    title: 'Run npm run typecheck and confirm no references to the deleted Sidebar component, SIDEBAR_WIDTH_PX, or cursorTileInfo.test.ts remain.'
+    spec_id: minimap
+    spec_sections:
+      - sidebar-deleted
+    context_files: []
+    output_files: []
+    depends_on:
+      - delete-sidebar-files
+      - remove-right-inset-tiles
+      - drop-dialog-sidebar-inset
+    verification:
+      - npm run typecheck
+      - grep -r 'Sidebar.tsx\|SIDEBAR_WIDTH_PX\|cursorTileInfo.test\|rightInsetTiles' src/ docs/claude/ | (! grep -v 'Binary file')
+    repair: retry
+    tags:
+      - verify
+
+  - id: verify-tests-pass
+    title: 'Run npm run test and confirm the suite is green. getTileEffects tests (effects.test.ts, satelliteImpacts.test.ts, torchbearer.test.ts) must still pass since the function is retained.'
+    spec_id: minimap
+    spec_sections:
+      - sidebar-deleted
+    context_files: []
+    output_files: []
+    depends_on:
+      - verify-typecheck-after-deletions
+    verification:
+      - npm run test
+    repair: retry
+    tags:
+      - verify

@@ -280,7 +280,6 @@ export interface GameState {
   camera: Position
   viewportWidth: number
   viewportHeight: number
-  rightInsetTiles: number
   activeDialog: {
     characterId: string
     lineIndex: number

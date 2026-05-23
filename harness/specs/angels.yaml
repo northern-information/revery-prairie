@@ -17,7 +17,6 @@ source_files:
   - src/engine/interaction.ts
   - src/engine/state.ts
   - src/engine/movement.ts
-  - src/components/Sidebar.tsx
   - src/components/PermacomputerShell.tsx
   - src/components/CantosScreen.tsx
   - src/components/DialogBox.tsx
@@ -93,9 +92,9 @@ behaviors:
       MovementTween component and the body renders at integer destination
       tile positions for subsequent frames until the next drift. The gold
       aura, rain overlay, bee/clover aura ticks, dialog trigger, movement
-      blocking, click-to-interact, and sidebar info all key off the
-      integer Position/MultiPosition and do NOT tween — the body slides
-      into its tile-snapped aura.
+      blocking, and click-to-interact all key off the integer
+      Position/MultiPosition and do NOT tween — the body slides into its
+      tile-snapped aura.
     inputs:
       - 'Angel entity has MovementTween component'
       - 'Current render time'
@@ -335,14 +334,12 @@ behaviors:
     description: >
       Right-clicking any angel body tile pathfinds the player to the
       nearest adjacent walkable tile and triggers dialog on arrival.
-      Angel tiles remain cursorable so the sidebar can show angel info
-      when the mouse hovers over them, but no visual highlight is
-      applied on hover.
+      Angel tiles remain cursorable but no visual highlight is applied
+      on hover.
     inputs:
       - 'Player right-clicks an angel body tile'
     outputs:
       - 'Click-to-interact pathfinds and opens dialog on arrival'
-      - 'Sidebar shows angel info while mouse hovers over angel tiles'
     state_changes: []
     determinism: deterministic
 

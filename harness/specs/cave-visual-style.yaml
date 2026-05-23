@@ -12,7 +12,6 @@ source_files:
   - src/engine/position.ts
   - src/engine/satellites.ts
   - src/engine/types.ts
-  - src/components/Sidebar.tsx
 dependencies:
   - renderer
   - cave-breakable-wall
@@ -145,14 +144,13 @@ behaviors:
       TileType.CaveApron is registered in src/engine/types.ts with
       TILE_CHARS[CaveApron] = ':' and a cool stone color in
       TILE_COLORS. CaveApron is walkable (isWalkableTile returns true).
-      Sidebar.tsx returns the human-readable label "cave apron" for
-      cursor tile info. CaveApron is added to the satellite
-      PROTECTED_TILES set so meteorite strikes cannot destroy the
-      platform around a cave entrance.
+      CaveApron is added to the satellite PROTECTED_TILES set so
+      meteorite strikes cannot destroy the platform around a cave
+      entrance.
     inputs:
       - 'CaveApron tile read from map'
     outputs:
-      - 'tile renders, is walkable, has a human label, is meteorite-protected'
+      - 'tile renders, is walkable, is meteorite-protected'
     state_changes: []
     determinism: deterministic
 
@@ -207,9 +205,6 @@ failure_conditions:
 
   - trigger: 'bg-cache rebakes without the lift applied to apron/entrance fill'
     expected: 'visual mismatch — cube-edge stroke floats above the glyph; bake must use the same lift'
-
-  - trigger: 'CaveApron added to TileType but missing from sidebar label switch'
-    expected: 'cursor info shows raw camelCase "caveApron" — violates CLAUDE.md tile label rule; must add label'
 
 verification:
   test_file: src/engine/__tests__/cave-visual-style.test.ts

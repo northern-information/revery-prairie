@@ -13,8 +13,8 @@ behaviors:
     description: >
       During the burning phase of deep time, the game loop's deep-time
       tick entry must call onRefreshUI at a throttled rate (~100ms) so
-      that the React sidebar re-renders to show the burning phase label
-      and any progress indication. Without this, the sidebar appears
+      that the React UI re-renders to show the burning phase label
+      and any progress indication. Without this, the UI appears
       frozen because the canvas renderer runs independently via rAF
       while React only updates when refreshUI bumps the version counter.
     inputs:
@@ -22,7 +22,7 @@ behaviors:
       - game loop tick fires at 0ms interval (every frame)
     outputs:
       - onRefreshUI callback invoked approximately every 100ms
-      - sidebar displays burning phase label without requiring mouse movement
+      - UI displays burning phase label without requiring mouse movement
     state_changes:
       - field: uiVersion
         effect: incremented every ~100ms during burning phase
@@ -32,7 +32,7 @@ behaviors:
     description: >
       During the simulating phase of deep time, the game loop's
       deep-time tick entry must call onRefreshUI at a throttled rate
-      (~100ms) so that the React sidebar re-renders to show the
+      (~100ms) so that the React UI re-renders to show the
       advancing year counter and progress bar. This matches the pattern
       used by the genesis tick entry which has the same year counter
       and progress bar UI.
@@ -41,8 +41,8 @@ behaviors:
       - game loop tick fires at 0ms interval (every frame)
     outputs:
       - onRefreshUI callback invoked approximately every 100ms
-      - sidebar year counter advances smoothly without requiring mouse movement
-      - sidebar progress bar fills smoothly
+      - GenesisBottomBar year counter advances smoothly without requiring mouse movement
+      - GenesisBottomBar progress bar fills smoothly
     state_changes:
       - field: uiVersion
         effect: incremented every ~100ms during simulating phase
@@ -66,11 +66,11 @@ edge_cases:
     expected: Year counter and progress bar update smoothly at ~10fps regardless of mouse activity
   - id: refresh-rate-matches-genesis
     description: The deep-time tick uses the same ~100ms throttle interval as the genesis tick entry
-    expected: Sidebar updates at approximately the same rate during deep time as during genesis
+    expected: UI updates at approximately the same rate during deep time as during genesis
 
 failure_conditions:
   - trigger: Deep time active in burning or simulating phase with no mouse or keyboard input
-    expected: Sidebar still updates year counter and phase label at ~100ms intervals
+    expected: UI still updates year counter and phase label at ~100ms intervals
   - trigger: onRefreshUI called every frame (0ms interval) instead of throttled
     expected: Must be throttled to ~100ms to avoid excessive React re-renders
 

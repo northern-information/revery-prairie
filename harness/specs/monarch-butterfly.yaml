@@ -10,7 +10,6 @@ source_files:
   - src/engine/constants.ts
   - src/engine/ecs/types.ts
   - src/engine/manual.ts
-  - src/components/Sidebar.tsx
 dependencies:
   - bee-starvation
   - clover-lifecycle
@@ -120,18 +119,6 @@ behaviors:
       - field: cloverLifecycle
         effect: 'new entry for pollinated tile (stage: Healthy)'
     determinism: probabilistic
-
-  - id: monarch-cursor-info
-    description: >
-      The sidebar cursor info panel shows 'monarch butterfly' in the
-      contents row when the mouse hovers over a tile occupied by a
-      monarch entity. Follows the same pattern as bee cursor info.
-    inputs:
-      - 'Mouse hovers over tile with monarch entity'
-    outputs:
-      - 'Sidebar contents row shows monarch butterfly label'
-    state_changes: []
-    determinism: deterministic
 
   - id: monarch-manual-entry
     description: >

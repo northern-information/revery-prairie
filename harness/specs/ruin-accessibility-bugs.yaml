@@ -1,5 +1,5 @@
 id: ruin-accessibility-bugs
-name: 'Ruin accessibility, unstable floor collapse, seed placement, and sidebar ruin info'
+name: 'Ruin accessibility, unstable floor collapse, and seed placement'
 priority: high
 layer: integration
 source_files:
@@ -9,7 +9,6 @@ source_files:
   - src/engine/renderer.ts
   - src/engine/constants.ts
   - src/engine/position.ts
-  - src/components/Sidebar.tsx
 dependencies:
   - ruin-rendering-bugs
 
@@ -64,21 +63,6 @@ behaviors:
     state_changes:
       - field: 'dormantGardenData.seedDecayTimers'
         effect: 'Entries on non-walkable tiles removed'
-    determinism: deterministic
-
-  - id: sidebar-ruin-name-and-glyph
-    description: >
-      When inside a ruin, the sidebar stats section shows the ruin
-      name on the location row (sentence case, e.g. "Ashhold ruins"),
-      the Greek entrance glyph on its own line, and an archetype
-      "Type" row beneath (e.g. "Dormant garden").
-    inputs:
-      - 'Player is inside a ruin (state.currentRuinIndex !== null)'
-    outputs:
-      - 'Location row shows "{name} ruins" in sentence case'
-      - 'Separate row shows the Greek entrance glyph'
-      - 'Type row shows the archetype label'
-    state_changes: []
     determinism: deterministic
 
 edge_cases:

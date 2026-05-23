@@ -7,7 +7,6 @@ source_files:
   - src/engine/weather/index.ts
   - src/engine/types.ts
   - src/engine/manual.ts
-  - src/components/Sidebar.tsx
   - src/engine/__tests__/wind.test.ts
 
 behaviors:

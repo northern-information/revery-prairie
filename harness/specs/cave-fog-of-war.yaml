@@ -11,7 +11,6 @@ source_files:
   - src/engine/constants.ts
   - src/engine/effects.ts
   - src/engine/manual.ts
-  - src/components/Sidebar.tsx
 dependencies:
   - player-movement
 
@@ -165,24 +164,6 @@ behaviors:
     outputs:
       - 'entity rendered if its tile is visible OR fullyDiscovered'
       - 'entity char/color hidden if tile is partiallyDiscovered or unexplored'
-    state_changes: []
-    determinism: deterministic
-
-  - id: cursor-info-fog-awareness
-    description: >
-      the sidebar cursor info panel respects fog state. hovering
-      over unexplored tiles shows no information. hovering over
-      partiallyDiscovered tiles shows terrain type only (contents
-      "unknown"). hovering over fullyDiscovered or visible tiles
-      shows full information (terrain, live entities, effects).
-    inputs:
-      - 'mouse hover position in cave'
-      - 'tile visibility state'
-    outputs:
-      - 'unexplored: sidebar shows "unexplored"'
-      - 'partiallyDiscovered: sidebar shows terrain type, contents "unknown"'
-      - 'fullyDiscovered: sidebar shows full tile info (live entities, effects)'
-      - 'visible: sidebar shows full tile info'
     state_changes: []
     determinism: deterministic
 

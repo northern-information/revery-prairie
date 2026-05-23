@@ -14,7 +14,6 @@ source_files:
   - src/engine/genesis.ts
   - src/engine/__tests__/wind.test.ts
   - src/engine/__tests__/tileWater.test.ts
-  - src/engine/__tests__/cursorTileInfo.test.ts
 dependencies: []
 
 behaviors:
@@ -363,12 +362,7 @@ behaviors:
       new cardinals; assertions for ordinals (NE/SE/SW/NW) update
       to the new axis/sign returns. Any test that asserts
       isInRainFront's hit set for a cardinal direction updates its
-      expected tile coordinates to match the rotated sweep. (3)
-      src/engine/__tests__/cursorTileInfo.test.ts — if it asserts
-      any cardinal-named state field or string, those assertions
-      update to the new framing. If the file does not reference
-      cardinals at all, leave it untouched (audit it during
-      implementation).
+      expected tile coordinates to match the rotated sweep.
     inputs:
       - 'npm run test:engine after precis-30 lands'
     outputs:
@@ -384,8 +378,8 @@ behaviors:
       docs that name a cardinal direction (N, S, E, W, north, south,
       east, west, NE, SE, SW, NW, northeast, etc.) under semantics
       that would change meaning under the rotated frame. Scope —
-      src/components/**, src/engine/manual.ts, src/engine/sidebar*
-      (if present), all docs/claude/*.md files (skip
+      src/components/**, src/engine/manual.ts, all docs/claude/*.md
+      files (skip
       docs/precis-thinktank-v*.md as historical). For each hit,
       classify — (a) literal compass string in user-facing copy
       (update to the new semantics or rewrite to avoid the
