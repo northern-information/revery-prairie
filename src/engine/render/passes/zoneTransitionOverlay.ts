@@ -19,6 +19,7 @@ const RUIN_ARCHETYPE_LABEL: Record<string, string> = {
 const getDestinationLabel = (state: GameState, transition: ZoneTransition): string => {
   if (transition.direction === 'exit') return 'Revery Prairie'
   if (transition.kind === 'cave') return 'Cave'
+  if (transition.kind === 'house') return 'The Little House'
   // Ruin enter — "<archetype> <name>" if both are known, else fall
   // back to whichever is available, else generic "Ruin".
   const idx = transition.ruinIndex

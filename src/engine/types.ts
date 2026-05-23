@@ -46,6 +46,7 @@ export const TileType = {
   HouseBed: 'houseBed',
   HouseChair: 'houseChair',
   Fireplace: 'fireplace',
+  HouseHearth: 'houseHearth',
   HouseExit: 'houseExit',
 } as const
 

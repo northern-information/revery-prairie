@@ -53,9 +53,13 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.HouseApron]: '·',
   [TileType.HouseFloor]: '·',
   [TileType.HouseWall]: '#',
-  [TileType.HouseBed]: 'b',
-  [TileType.HouseChair]: 'h',
+  // Bed and chair render as floor glyphs — furniture identity lives on
+  // the tile type alone, not the on-screen character.
+  [TileType.HouseBed]: '·',
+  [TileType.HouseChair]: '·',
   [TileType.Fireplace]: '^',
+  // Hearth — stone slab in front of the fireplace, walkable.
+  [TileType.HouseHearth]: '·',
   [TileType.HouseExit]: '█',
 }
 
@@ -95,9 +99,13 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.HouseApron]: '#5A4128',
   [TileType.HouseFloor]: '#6B4A2B',
   [TileType.HouseWall]: '#4A2F1B',
-  [TileType.HouseBed]: '#A88660',
-  [TileType.HouseChair]: '#A88660',
+  // Bed and chair use the same floor color so the glyph reads as floor;
+  // furniture identity is encoded only in the tile type.
+  [TileType.HouseBed]: '#6B4A2B',
+  [TileType.HouseChair]: '#6B4A2B',
   [TileType.Fireplace]: '#FF8C42',
+  // Hearth — slightly darker than floor; reads as worn stone slab.
+  [TileType.HouseHearth]: '#7A5A38',
   [TileType.HouseExit]: '#ff69b4',
 }
 
@@ -579,8 +587,8 @@ export const POLLEN_BURST_DURATION_MS = 600
 // glyph cycles through FIREPLACE_CHARS at FIRE_TICK_MS; color alternates
 // between FIREPLACE_COLOR_A (orange) and FIREPLACE_COLOR_B (yellow) on
 // the same cadence.
-export const HOUSE_WIDTH = 30
-export const HOUSE_HEIGHT = 18
+export const HOUSE_WIDTH = 15
+export const HOUSE_HEIGHT = 9
 export const FIRE_TICK_MS = 200
 export const FIREPLACE_CHARS = ['^', '~', '*'] as const
 export const FIREPLACE_COLOR_A = '#FF8C42'

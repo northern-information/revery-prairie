@@ -534,9 +534,9 @@ export const createGameState = (
   createCharacterEntity(state, 'moab', { ...cave.npcSpot }, { zone: Zone.Cave })
 
   // Precis #33 — create Emily inside the little house at her idle
-  // position (one tile west of the fireplace). Stationary, no AI tick;
+  // position (by the hearth, west of the fire). Stationary, no AI tick;
   // appears only when state.currentZone === Zone.HouseInterior.
-  createCharacterEntity(state, 'emily', { x: 14, y: 1 }, { zone: Zone.HouseInterior })
+  createCharacterEntity(state, 'emily', { x: 5, y: 2 }, { zone: Zone.HouseInterior })
 
   autoSort(backpack)
 

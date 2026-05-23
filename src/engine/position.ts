@@ -64,7 +64,8 @@ export const isWalkableTile = (tileType: TileType): boolean =>
   // Precis #33 — house walls and the fireplace are not walkable. The
   // bed is also not walkable for destination checks, but movement.ts
   // adds an origin-from-bed exception so the player can step off it
-  // after a Revery closes.
+  // after a Revery closes. HouseHearth is walkable — the player can
+  // approach the fireplace by standing on the hearth.
   tileType !== TileType.HouseWall &&
   tileType !== TileType.HouseBed &&
   tileType !== TileType.Fireplace

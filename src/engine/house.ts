@@ -9,12 +9,18 @@ import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransitio
 import type { GameState, Position, Tile } from './types'
 
 // Layout constants — middle of the 3-wide pink door.
-const HOUSE_EXIT_CENTER_X = 15
-const HOUSE_EXIT_Y = 17
-const HOUSE_FIREPLACE: Position = { x: 15, y: 0 }
-const HOUSE_BED: Position = { x: 28, y: 8 }
-const HOUSE_CHAIR: Position = { x: 2, y: 8 }
-const HOUSE_SPAWN: Position = { x: 15, y: 16 }
+// Layout constants for the 15x9 little house interior.
+// Walls form an unbroken perimeter. The fireplace stands in front of the
+// north wall (row 1) with a hearth row directly south of it (row 2).
+// The south wall is broken by a 3-wide pink-door exit centered on x=7.
+const HOUSE_FIREPLACE_CENTER_X = 7
+const HOUSE_FIREPLACE_Y = 1
+const HOUSE_HEARTH_Y = 2
+const HOUSE_EXIT_CENTER_X = 7
+const HOUSE_EXIT_Y = 8
+const HOUSE_BED: Position = { x: 13, y: 4 }
+const HOUSE_CHAIR: Position = { x: 1, y: 4 }
+const HOUSE_SPAWN: Position = { x: 7, y: 7 }
 
 export interface HouseInteriorResult {
   map: Tile[][]
@@ -27,10 +33,12 @@ export interface HouseInteriorResult {
 }
 
 /**
- * Build the deterministic 30 x 18 house interior. No RNG — every tile
- * placement is fixed. Perimeter is HouseWall; interior is HouseFloor;
- * fireplace, bed, chair are single furniture tiles; the south wall has
- * a 3-wide HouseExit opening rendered in pink per the cave/ruin idiom.
+ * Build the deterministic 15 x 9 house interior. No RNG — every tile
+ * placement is fixed. Perimeter is HouseWall (unbroken on the north
+ * side). The fireplace stands in front of the north wall as a 3-tile
+ * piece of furniture (row 1) with a 3-tile hearth in front of it
+ * (row 2). The south wall has a 3-wide HouseExit opening rendered in
+ * pink per the cave/ruin idiom.
  */
 export const createHouseInterior = (): HouseInteriorResult => {
   const width = HOUSE_WIDTH
@@ -45,12 +53,18 @@ export const createHouseInterior = (): HouseInteriorResult => {
     map.push(row)
   }
 
-  // 3-wide pink door at south wall center (14, 17), (15, 17), (16, 17).
+  // 3-wide pink door at the south wall, centered.
   for (let dx = -1; dx <= 1; dx++) {
     map[HOUSE_EXIT_Y][HOUSE_EXIT_CENTER_X + dx] = { type: TileType.HouseExit }
   }
 
-  map[HOUSE_FIREPLACE.y][HOUSE_FIREPLACE.x] = { type: TileType.Fireplace }
+  // 3-wide fireplace standing in front of the (intact) north wall, with
+  // a matching 3-wide hearth directly south of it.
+  for (let dx = -1; dx <= 1; dx++) {
+    map[HOUSE_FIREPLACE_Y][HOUSE_FIREPLACE_CENTER_X + dx] = { type: TileType.Fireplace }
+    map[HOUSE_HEARTH_Y][HOUSE_FIREPLACE_CENTER_X + dx] = { type: TileType.HouseHearth }
+  }
+
   map[HOUSE_BED.y][HOUSE_BED.x] = { type: TileType.HouseBed }
   map[HOUSE_CHAIR.y][HOUSE_CHAIR.x] = { type: TileType.HouseChair }
 

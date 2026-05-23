@@ -21,7 +21,7 @@ describe('precis #33 — Revery scene transition at Omen → Observing', () => {
     state.map = state.houseMap
     state.mapWidth = state.houseMapWidth
     state.mapHeight = state.houseMapHeight
-    createCharacterTestEntity(state, 'emily', 14, 1, undefined)
+    createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
     initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
     if (state.revery) state.revery.summons = true
@@ -35,7 +35,7 @@ describe('precis #33 — Revery scene transition at Omen → Observing', () => {
     expect(emilyPos).not.toBeNull()
     expect(emilyPos?.x).toBe(state.houseChairInterior.x)
     expect(emilyPos?.y).toBe(state.houseChairInterior.y)
-    expect(state.emilyReveryReturn).toEqual({ x: 14, y: 1 })
+    expect(state.emilyReveryReturn).toEqual({ x: 5, y: 2 })
   })
 
   it('swaps Overworld → HouseInterior for field-summons path', () => {
@@ -45,7 +45,7 @@ describe('precis #33 — Revery scene transition at Omen → Observing', () => {
     state.map = state.overworldMap
     state.mapWidth = state.overworldMapWidth
     state.mapHeight = state.overworldMapHeight
-    createCharacterTestEntity(state, 'emily', 14, 1, undefined)
+    createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
     initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
     if (state.revery) state.revery.summons = true
@@ -64,7 +64,7 @@ describe('precis #33 — Closing-phase revert', () => {
     state.map = state.houseMap
     state.mapWidth = state.houseMapWidth
     state.mapHeight = state.houseMapHeight
-    createCharacterTestEntity(state, 'emily', 14, 1, undefined)
+    createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
     initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
     if (state.revery) state.revery.summons = true
@@ -77,15 +77,15 @@ describe('precis #33 — Closing-phase revert', () => {
     expect(state.emilyInvitation).toBe('unoffered')
     expect(state.emilyReveryReturn).toBe(null)
     const emilyPos = findEmilyPos(state)
-    expect(emilyPos?.x).toBe(14)
-    expect(emilyPos?.y).toBe(1)
+    expect(emilyPos?.x).toBe(5)
+    expect(emilyPos?.y).toBe(2)
   })
 
   it('skips the overworld egregore commit when collapse tile is interior (confirm path)', () => {
     const state = createTestState()
     state.currentZone = Zone.HouseInterior
     state.map = state.houseMap
-    createCharacterTestEntity(state, 'emily', 14, 1, undefined)
+    createCharacterTestEntity(state, 'emily', 5, 2, undefined)
     const initialEgregoreCount = state.egregorePositions.length
 
     initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
@@ -109,7 +109,7 @@ describe('precis #33 — Closing-phase revert', () => {
     const px = state.player.x
     const py = state.player.y
     state.overworldMap[py][px] = { type: TileType.Dirt }
-    createCharacterTestEntity(state, 'emily', 14, 1, undefined)
+    createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
     initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
     if (state.revery) state.revery.summons = true
