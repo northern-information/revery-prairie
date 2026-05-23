@@ -401,7 +401,8 @@ export interface GameState {
   // Lifetime count of completed Reveries. Increments on Closing → null.
   reveryCount: number
   // Wall-clock time of the last Revery's Closing. Used by REVERY_COOLDOWN_MS
-  // gating in detectOmen so back-to-back Reveries can't fire within one year.
+  // gating in tickDormancyPressure so back-to-back Reveries can't fire within
+  // one year.
   lastReveryEndTime: number
   // Monotonic accumulator of cosmological drift (v3 doctrine). 0 baseline in
   // this PR; future features wire passive transmission (v3 layer (a)) and
@@ -411,13 +412,23 @@ export interface GameState {
   // (species, axis) pair via resolvePhenotypeLabel. Re-resolving the same
   // pair OVERWRITES — no duplicates per (species, axis).
   revealedPhenotypes: Map<FloraSpecies, RevealedPhenotype[]>
-  // Wall-clock time of the player's last successful movePlayer. Used by the
-  // cloud-passing omen to detect "player stationary for N ms" without
-  // changing movement logic. Updated by movement.ts.
+  // Precis #32 — dormancy pressure (forcing function). Domain [0, 1].
+  // Climbs across autumn via the linear ramp in tickDormancyPressure;
+  // crossing 1.0 schedules the Revery via initiateRevery. Resets to 0 at
+  // Revery Closing and on Autumn → Winter without a Revery.
+  dormancyPressure: number
+  // Precis #32 — steward's tile at the moment a summons Revery began.
+  // Set at the Omen → Observing transition when state.revery.summons is
+  // true; cleared at Closing. Downstream render passes may read this to
+  // apply a dormant-flora wash to the collapsed tile.
+  collapsedStewardTile: Position | null
+  // Wall-clock time of the player's last successful movePlayer. Updated
+  // by movement.ts. Was used by the retired cloud-passing omen (precis-4
+  // / precis-32); retained for any future use.
   playerStationarySince: number
-  // Previous frame's state.weather.sky value. Used by the cloud-passing omen
-  // to detect Rain/Cloudy → Sun transitions. Updated by gameLoop after
-  // tickWeather.
+  // Previous frame's state.weather.sky value. Updated by gameLoop after
+  // tickWeather. The cloud-passing omen that originally read this field
+  // was retired in precis-32; the field is retained for any future use.
   lastSky: Sky
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
@@ -863,6 +874,15 @@ export interface ReveryState {
   summaryReady: boolean
   // Which omen triggered this Revery. Used by the summary header.
   omenKind: OmenKind
+  // Precis #32 — summons-path fields. Present only when the Revery was
+  // triggered by the pressure-ceiling path (state.dormancyPressure >= 1).
+  // summons: true when this is a summons Revery (vs an invitation, future).
+  // summonsAudioCue: flag read by future audio/render layers for the full-
+  // intensity treatment. summonsCollapseTile: the steward's tile at the
+  // moment of summons; consumed by the Closing-phase egregoric commit.
+  summons?: boolean
+  summonsAudioCue?: boolean
+  summonsCollapseTile?: Position
 }
 
 export interface MeteorShowerState {

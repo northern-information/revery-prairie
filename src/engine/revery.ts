@@ -10,9 +10,11 @@
 // docs/claude/revery.md for the full doctrine summary.
 
 import { REVERY_YEARS_PER_FRAME } from './constants'
-import { advanceEgregoreInRevery } from './egregore/spread'
+import { ComponentType } from './ecs/types'
+import { advanceEgregoreInRevery, commitEgregoreTiles } from './egregore/spread'
+import { pickAdjacentWalkableTile } from './interaction'
 import { resolvePhenotypeLabel } from './phenotype'
-import { FloraSpecies, OmenKind, ReveryPhase } from './types'
+import { FloraSpecies, OmenKind, ReveryPhase, TileType } from './types'
 
 import type {
   GameState,
@@ -102,14 +104,68 @@ export const initiateRevery = (state: GameState, time: number, omenKind: OmenKin
 // gameLoop schedule, so the world genuinely passes through the winter.
 const REVERY_DURATION_YEARS = 1.0
 
-// Per-frame state machine. Called by gameLoop AFTER detectOmen and BEFORE
-// input handlers, so the Omen → Observing transition is reflected before
-// movePlayer / keyboard tick this frame.
+// Precis #32 — summons-sequence helper. When a Revery enters via the
+// pressure-ceiling path (state.revery.summons === true), the Omen → Observing
+// transition runs this sequence before the standard transition logic. The
+// steward's tile is captured for the Closing-phase egregoric commit; Gron
+// is teleported in via the existing pickAdjacentWalkableTile + spatial.move
+// pattern from interaction.ts:triggerStewardSeal; his dialog opens. Missing
+// Gron entity or null adjacent tile fail silently (no crash); the Revery
+// proceeds in all cases.
+const runSummonsSequence = (state: GameState, r: ReveryState): void => {
+  if (r.summons !== true) return
+  // Capture the steward's tile before any state mutation.
+  const collapseTile = { x: state.player.x, y: state.player.y }
+  r.summonsCollapseTile = collapseTile
+  r.summonsAudioCue = true
+  state.collapsedStewardTile = collapseTile
+  // Find Gron's entity and teleport adjacent to the steward.
+  let gronEid: number | null = null
+  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
+    const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+    if (ident?.definitionId === 'gron') {
+      gronEid = eid
+      break
+    }
+  }
+  let dialogReady = false
+  if (gronEid !== null) {
+    const target = pickAdjacentWalkableTile(state, state.player.x, state.player.y)
+    if (target) {
+      const pos = state.world.getComponent(gronEid, ComponentType.Position)
+      if (pos) {
+        state.world.spatial.move(gronEid, pos.x, pos.y, target.x, target.y)
+        pos.x = target.x
+        pos.y = target.y
+      }
+    }
+    // Open Gron's solstice-summons dialog. getGronDialog returns
+    // GRON_DIALOG_SOLSTICE_SUMMONS while r.summons === true and phase is Omen.
+    dialogReady = true
+  }
+  if (dialogReady) {
+    state.activeDialog = {
+      characterId: 'gron',
+      lineIndex: 0,
+      typingIndex: 0,
+      typingDone: false,
+      transitioning: false,
+      transitionStartTime: 0,
+    }
+  }
+}
+
+// Per-frame state machine. Called by gameLoop AFTER the dormancy-pressure
+// tick (precis #32) and BEFORE input handlers, so the Omen → Observing
+// transition is reflected before movePlayer / keyboard tick this frame.
 export const tickRevery = (state: GameState, _dt: number, time: number): void => {
   const r = state.revery
   if (!r?.active) return
 
   if (r.phase === ReveryPhase.Omen) {
+    // Precis #32 — summons sequence runs BEFORE the standard phase flip so
+    // that getGronDialog sees phase === Omen when the dialog opens.
+    runSummonsSequence(state, r)
     r.phase = ReveryPhase.Observing
     // Belt-and-suspenders: clear input intent again now that the lock is live.
     state.path = null
@@ -148,6 +204,21 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
   if (r.phase === ReveryPhase.Closing) {
     state.reveryCount += 1
     state.lastReveryEndTime = time
+    // Precis #32 — Closing-phase egregoric commit: if this was a summons
+    // Revery and the steward's collapse tile is still Dirt, the prairie
+    // metabolizes the spot the steward fell. Skipped silently if the tile
+    // is no longer eligible (water, wall, flora, ruin, etc.).
+    if (r.summons === true && r.summonsCollapseTile) {
+      const { x, y } = r.summonsCollapseTile
+      if (state.map[y]?.[x]?.type === TileType.Dirt) {
+        commitEgregoreTiles(state, [r.summonsCollapseTile], time)
+      }
+    }
+    // Precis #32 — pressure reset. Belt-and-suspenders with the Autumn →
+    // Winter safety reset in gameLoop. dormancyPressure must zero out so
+    // the next autumn starts from baseline.
+    state.dormancyPressure = 0
+    state.collapsedStewardTile = null
     state.revery = null
     return
   }

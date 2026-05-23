@@ -121,7 +121,9 @@ export const advanceEgregoreInRevery = (state: GameState, time = 0): Position[] 
 
 // Shared commit step. Converts the tile, appends to egregorePositions,
 // and creates the lifecycle entry with deterministic species + genome.
-const commitEgregoreTiles = (state: GameState, positions: Position[], time: number): void => {
+// Exported for precis-32's Closing-phase egregoric commit (the steward's
+// collapse tile becomes egregoric when a summons Revery closes).
+export const commitEgregoreTiles = (state: GameState, positions: Position[], time: number): void => {
   for (const pos of positions) {
     state.map[pos.y][pos.x] = { type: TileType.Egregore }
     state.egregorePositions.push(pos)

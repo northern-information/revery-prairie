@@ -477,7 +477,9 @@ const rescueCoyote = (state: GameState): void => {
   }
 }
 
-const pickAdjacentWalkableTile = (state: GameState, px: number, py: number): Position | null => {
+// Exported for precis-32 — the summons sequence in revery.ts teleports
+// Gron to an adjacent walkable tile via this helper.
+export const pickAdjacentWalkableTile = (state: GameState, px: number, py: number): Position | null => {
   for (const d of CARDINAL) {
     const nx = px + d.x
     const ny = py + d.y

@@ -280,6 +280,8 @@ export const createGameState = (
     lastReveryEndTime: 0,
     cosmologicalDrift: 0,
     revealedPhenotypes: new Map(),
+    dormancyPressure: 0,
+    collapsedStewardTile: null,
     playerStationarySince: 0,
     lastSky: Sky.Sun,
     postGiftActionsCompleted: new Set<string>(),

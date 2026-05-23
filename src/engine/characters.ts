@@ -1,5 +1,5 @@
 import { containerHasItem } from './inventory'
-import { MainQuestPhase, MoabState, Season } from './types'
+import { MainQuestPhase, MoabState, ReveryPhase, Season } from './types'
 
 import type { CharacterDefinition, GameState } from './types'
 
@@ -118,7 +118,20 @@ const GRON_DIALOG_COMBINING: string[] = ['Well what are you waiting for, steward
 
 const GRON_DIALOG_SEALED: string[] = ['Ahhh, yes. You are indeed the steward.', "Here, I've been saving these."]
 
+// Precis #32 — Gron's line at the solstice summons. Lore TODO per
+// project doctrine (feedback_no_write_lore + v4 R5 / v6 R5 Gron register
+// locks: statements not questions, no contractions, no editorial affect,
+// no opinion of the steward, music precedes arrival). Humans author the
+// real line later.
+const GRON_DIALOG_SOLSTICE_SUMMONS: string[] = ['TODO: solstice summons dialog']
+
 const getGronDialog = (state: GameState): string[] => {
+  // Precis #32 — summons takes precedence over the main quest branches.
+  // Returned when the active Revery is a pressure-ceiling-path summons
+  // and the phase is still Omen (i.e. Gron has just teleported in).
+  if (state.revery?.summons === true && state.revery.phase === ReveryPhase.Omen) {
+    return GRON_DIALOG_SOLSTICE_SUMMONS
+  }
   switch (state.mainQuestPhase) {
     case MainQuestPhase.AwaitingCoyote:
       return GRON_DIALOG_AWAITING_COYOTE

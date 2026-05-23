@@ -53,7 +53,7 @@ import { tickGlintZones } from './glintZones'
 import { tickDialogTransition, tickDialogTyping } from './interaction'
 import { spawnLightningStrike, tickLightning } from './lightning'
 import { recordDiscovery } from './manual'
-import { detectOmen } from './omen'
+import { tickDormancyPressure } from './omen'
 import { tickProximityMusic } from './proximityMusic'
 import { initiateRevery, tickRevery } from './revery'
 import { tickMonarchs } from './monarch'
@@ -62,7 +62,7 @@ import { tickDormantGardenDecay } from './ruins'
 import { spawnSatellite, tickSatellites } from './satellites'
 import { pruneSelection } from './selection'
 import { tickTileWater } from './tileWater'
-import { DeepTimePhase, Zone } from './types'
+import { DeepTimePhase, OmenKind, Season, Zone } from './types'
 import { cleanupMoveOrderMarkers, tickUnitCommands } from './unitCommands'
 import { isTileInVisibleViewport } from './viewportBounds'
 import { MOAB_PACE_MS, tickTorchbearer } from './torchbearer'
@@ -720,6 +720,10 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
   let rafId = 0
   let running = false
   let paused = false
+  // Precis #32 — previous frame's season, used to detect Autumn → Winter
+  // transitions for the dormancy-pressure safety reset. Initialized from
+  // state.weather.season at first tick to avoid a spurious reset on boot.
+  let prevSeason: Season | null = null
 
   const register = (system: TickSystem): void => {
     const existing = entries.findIndex(e => e.system.id === system.id)
@@ -802,15 +806,34 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
       }
     }
 
-    // Precis #4 — omen detection + Revery state machine. Runs after the
-    // standard tick block so detectOmen sees the latest world state, and
-    // BEFORE the next frame's input handlers fire so the Omen → Observing
-    // transition is reflected by the time movePlayer / keyboard checks.
-    // detectOmen also reads state.lastSky vs state.weather.sky; we update
-    // state.lastSky at the very end so the NEXT frame's check sees the
-    // current frame's sky as "previous."
-    const omen = detectOmen(state, time)
-    if (omen) initiateRevery(state, time, omen)
+    // Precis #32 — dormancy pressure + Revery state machine. Runs after
+    // the standard tick block so the pressure tick sees the latest season
+    // and seasonalPhase, and BEFORE the next frame's input handlers fire
+    // so the Omen → Observing transition is reflected by the time
+    // movePlayer / keyboard checks.
+    tickDormancyPressure(state, time)
+    // Threshold trigger: pressure crossing ceiling initiates the Revery.
+    // The placeholder OmenKind is the legacy enum value preserved for
+    // ReveryState.omenKind shape compat; precis-36 (Revery Knot) will
+    // surface a real Knot-pickup kind when it ships. summons=true marks
+    // this as a pressure-ceiling-path Revery for the summons sequence in
+    // tickRevery.
+    if (state.dormancyPressure >= 1 && state.revery === null) {
+      initiateRevery(state, time, OmenKind.CloudPassingSun)
+      if (state.revery) (state.revery as { summons?: boolean }).summons = true
+    }
+    // Safety reset: if season transitioned Autumn → Winter without a
+    // Revery firing, zero dormancyPressure so it does not linger into the
+    // following autumn. Should not normally occur (the ramp guarantees
+    // ceiling at solstice), but documents the invariant.
+    if (
+      prevSeason === Season.Autumn &&
+      state.weather.season === Season.Winter &&
+      state.revery === null
+    ) {
+      state.dormancyPressure = 0
+    }
+    prevSeason = state.weather.season
     tickRevery(state, 0, time)
     state.lastSky = state.weather.sky
 

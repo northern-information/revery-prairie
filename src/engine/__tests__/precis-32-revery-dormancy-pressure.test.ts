@@ -1,35 +1,112 @@
 // Spec acceptance tests for precis #32 (Revery dormancy pressure — forcing
 // function). See harness/specs/precis-32-revery-dormancy-pressure.yaml.
 //
-// This file is the spec's surface-level acceptance suite. Detailed unit tests
-// live in revery.test.ts and any new dormancy-pressure module test.
-// Acceptance assertions are filled in by the harness implementation tasks per
-// harness/plans/precis-32-revery-dormancy-pressure.yaml.
+// This file is the spec's surface-level acceptance suite — a thin smoke
+// test over the spec's behaviors. Detailed coverage lives in
+// dormancy-pressure.test.ts and revery-summons.test.ts.
 //
-// Round 6 (v6 thinktank, 2026-05-22) retired the three existing omen variants.
-// The omen surface is now precis-36's scope (The Revery Knot). This spec
-// covers the pressure substrate, threshold, summons sequence, Gron arrival,
-// collapse tile, and the Closing-phase egregoric commit.
-import { describe, it } from 'vitest'
+// v6 thinktank round 6 (2026-05-22) retired the three existing omen
+// variants. The omen surface itself is now precis-36's scope (The Revery
+// Knot). This spec covers the pressure substrate, threshold, summons
+// sequence, Gron arrival, collapse tile, and the Closing-phase egregoric
+// commit.
+import { describe, expect, it } from 'vitest'
+
+import { REVERY_PRESSURE_RAMP_END, REVERY_COOLDOWN_MS } from '../constants'
+import { createCharacterEntity } from '../entities'
+import * as omenModule from '../omen'
+import { contributeDormancyPressure, tickDormancyPressure } from '../omen'
+import { initiateRevery, tickRevery } from '../revery'
+import { OmenKind, ReveryPhase, Season, TileType, Zone } from '../types'
+
+import { clearAroundPlayer, createTestState } from './helpers'
+
+import type { GameState } from '../types'
+
+const setAutumnOverworld = (state: GameState): void => {
+  state.weather.season = Season.Autumn
+  state.currentZone = Zone.Overworld
+  state.lastReveryEndTime = -REVERY_COOLDOWN_MS
+}
 
 describe('precis #32 — revery dormancy pressure', () => {
-  it.todo('initializes dormancyPressure to 0 on createGameState')
-  it.todo('floors dormancyPressure linearly from autumn equinox to winter solstice')
-  it.todo('reaches dormancyPressure 1.0 at the winter solstice frame with no contributions')
-  it.todo('exposes contributeDormancyPressure that clamps additions to [0, 1]')
-  it.todo('initiates Revery when dormancyPressure crosses 1.0')
-  it.todo('sets state.revery.summons = true when the Revery enters via the pressure-ceiling path')
-  it.todo('teleports Gron to an adjacent walkable tile and opens his solstice-summons dialog')
-  it.todo('returns GRON_DIALOG_SOLSTICE_SUMMONS during the summons Omen phase')
-  it.todo('sets collapsedStewardTile at Omen → Observing and clears at Closing')
-  it.todo('commits the steward collapse tile to TileType.Egregore at Closing')
-  it.todo('resets dormancyPressure at Revery Closing')
-  it.todo('resets dormancyPressure when season transitions Autumn → Winter without a Revery')
-  it.todo('skips egregoric commit silently when collapse tile is ineligible at Closing')
-  it.todo('handles missing Gron entity at summons without crashing')
-  it.todo('handles pickAdjacentWalkableTile returning null at summons without crashing')
-  it.todo('removes detectOmen from src/engine/omen.ts and replaces the gameLoop call site')
-  it.todo('does not fire the retired bee-on-shoulder predicate at any frame')
-  it.todo('does not fire the retired distant-meteorite predicate at any frame')
-  it.todo('does not fire the retired cloud-passing-sun predicate at any frame')
+  it('initializes dormancyPressure to 0 on createGameState', () => {
+    const state = createTestState()
+    expect(state.dormancyPressure).toBe(0)
+  })
+
+  it('floors dormancyPressure linearly from autumn equinox to winter solstice', () => {
+    const state = createTestState()
+    setAutumnOverworld(state)
+    state.seasonalPhase = 0.625 // midpoint of the ramp
+    tickDormancyPressure(state, 60_000)
+    expect(state.dormancyPressure).toBeCloseTo(0.5, 5)
+  })
+
+  it('reaches dormancyPressure 1.0 at the winter solstice frame with no contributions', () => {
+    const state = createTestState()
+    setAutumnOverworld(state)
+    state.seasonalPhase = REVERY_PRESSURE_RAMP_END
+    tickDormancyPressure(state, 60_000)
+    expect(state.dormancyPressure).toBe(1)
+  })
+
+  it('exposes contributeDormancyPressure that clamps additions to [0, 1]', () => {
+    const state = createTestState()
+    state.dormancyPressure = 0.8
+    contributeDormancyPressure(state, 0.5)
+    expect(state.dormancyPressure).toBe(1)
+  })
+
+  it('runs the summons sequence when state.revery.summons is true', () => {
+    const state = createTestState()
+    setAutumnOverworld(state)
+    clearAroundPlayer(state, 3)
+    createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 })
+    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    if (state.revery) state.revery.summons = true
+    tickRevery(state, 0, 1000)
+    expect(state.revery?.summonsCollapseTile).toEqual({ x: state.player.x, y: state.player.y })
+    expect(state.collapsedStewardTile).not.toBeNull()
+    expect(state.activeDialog?.characterId).toBe('gron')
+  })
+
+  it('commits the steward collapse tile to TileType.Egregore at Closing (summons path)', () => {
+    const state = createTestState()
+    setAutumnOverworld(state)
+    clearAroundPlayer(state, 3)
+    createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 })
+    const px = state.player.x
+    const py = state.player.y
+    state.map[py][px] = { type: TileType.Dirt }
+    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    if (state.revery) state.revery.summons = true
+    tickRevery(state, 0, 1000)
+    if (state.revery) state.revery.phase = ReveryPhase.Closing
+    tickRevery(state, 0, 2000)
+    expect(state.map[py][px].type).toBe(TileType.Egregore)
+  })
+
+  it('resets dormancyPressure at Revery Closing', () => {
+    const state = createTestState()
+    setAutumnOverworld(state)
+    clearAroundPlayer(state, 3)
+    createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 })
+    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    if (state.revery) state.revery.summons = true
+    tickRevery(state, 0, 1000)
+    if (state.revery) state.revery.phase = ReveryPhase.Closing
+    tickRevery(state, 0, 2000)
+    expect(state.dormancyPressure).toBe(0)
+    expect(state.collapsedStewardTile).toBeNull()
+  })
+
+  it('omen module no longer exports detectOmen (retired predicates)', () => {
+    expect((omenModule as Record<string, unknown>).detectOmen).toBeUndefined()
+  })
+
+  it('omen module exports tickDormancyPressure and contributeDormancyPressure', () => {
+    expect(typeof omenModule.tickDormancyPressure).toBe('function')
+    expect(typeof omenModule.contributeDormancyPressure).toBe('function')
+  })
 })

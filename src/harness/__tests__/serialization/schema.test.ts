@@ -97,6 +97,8 @@ const EXPECTED_FIELDS = [
   'lastReveryEndTime',
   'cosmologicalDrift',
   'revealedPhenotypes',
+  'dormancyPressure',
+  'collapsedStewardTile',
   'playerStationarySince',
   'lastSky',
   'postGiftActionsCompleted',
