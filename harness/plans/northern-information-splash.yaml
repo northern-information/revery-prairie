@@ -1,0 +1,80 @@
+plan:
+  id: northern-information-splash
+  title: Add Northern Information splash before NamePrompt/NetworkConnect
+  created: '2026-05-22'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/components/__tests__/NorthernInformationSplash.test.tsx
+
+tasks:
+  - id: implement-splash-component
+    title: Implement NorthernInformationSplash — RAF loop, triangle wave, image, film-grain class, onComplete callback
+    spec_id: northern-information-splash
+    spec_sections:
+      - triangle-wave-opacity-curve
+      - image-rendered-centered-on-black
+      - film-grain-strong-class-on-root
+      - pointer-events-block-underlying-input-during-splash
+    context_files:
+      - src/components/BootTitleCardOverlay.tsx
+      - src/styles/index.css
+      - src/engine/constants.ts
+    output_files:
+      - src/components/NorthernInformationSplash.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npm run lint
+    repair: retry
+    tags:
+      - component
+
+  - id: gate-app-on-splash-completion
+    title: Wire NorthernInformationSplash into App.tsx — sticky splashComplete state, mounted over both flows, DEV skipGenesis bypass
+    spec_id: northern-information-splash
+    spec_sections:
+      - splash-mounts-as-very-first-surface
+      - splash-plays-once-per-page-load
+      - dev-skip-genesis-bypasses-splash
+    context_files:
+      - src/App.tsx
+      - src/components/NorthernInformationSplash.tsx
+      - src/components/NamePrompt.tsx
+      - src/components/NetworkConnect.tsx
+    output_files:
+      - src/App.tsx
+    depends_on:
+      - implement-splash-component
+    verification:
+      - npx tsc -b --noEmit
+      - npm run lint
+    repair: retry
+    tags:
+      - component
+
+  - id: add-splash-tests
+    title: Unit tests — mount order, triangle-wave timing, onComplete firing, pointer-events blocking, asset-fail fallback, restart sticky
+    spec_id: northern-information-splash
+    spec_sections:
+      - splash-mounts-as-very-first-surface
+      - triangle-wave-opacity-curve
+      - film-grain-strong-class-on-root
+      - pointer-events-block-underlying-input-during-splash
+      - splash-plays-once-per-page-load
+    context_files:
+      - src/components/NorthernInformationSplash.tsx
+      - src/App.tsx
+      - src/components/__tests__/NamePrompt.test.tsx
+      - src/components/__tests__/CreditsModal.test.tsx
+      - src/components/BootTitleCardOverlay.tsx
+    output_files:
+      - src/components/__tests__/NorthernInformationSplash.test.tsx
+    depends_on:
+      - implement-splash-component
+      - gate-app-on-splash-completion
+    verification:
+      - npx vitest run src/components/__tests__/NorthernInformationSplash.test.tsx
+    repair: retry
+    tags:
+      - test

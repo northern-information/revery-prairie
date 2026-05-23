@@ -1,0 +1,209 @@
+id: northern-information-splash
+name: 'Northern Information splash'
+priority: low
+layer: component
+source_files:
+  - src/components/NorthernInformationSplash.tsx
+  - src/App.tsx
+  - public/applied-sciences-and-phantasms-working-division-flourescent.png
+dependencies:
+  - film-grain-overlay
+
+behaviors:
+  - id: splash-mounts-as-very-first-surface
+    description: >
+      On every fresh page load, `NorthernInformationSplash` mounts as
+      a fixed full-viewport overlay on top of whichever first-frame
+      screen the route selects (`NamePrompt` for offline,
+      `NetworkConnect` for online). The splash is the topmost
+      element until it self-completes. The underlying screen is
+      still rendered in the same React tree — it is simply visually
+      obscured by the opaque splash — so the splash's fade-out
+      reveals it without a separate mount step.
+    inputs:
+      - 'App renders for the first time in a session'
+    outputs:
+      - 'NorthernInformationSplash is mounted with pointer-events-auto, fixed inset-0 z-50, bg-black'
+      - 'NamePrompt or NetworkConnect is also mounted in the same render but is visually behind the splash'
+    state_changes:
+      - field: 'App.splashComplete (React state)'
+        effect: 'starts false on first mount; flips to true exactly once when the splash signals completion'
+    determinism: deterministic
+
+  - id: triangle-wave-opacity-curve
+    description: >
+      The splash opacity follows a triangle wave identical in shape
+      to `BootTitleCardOverlay` (`overlayAlpha`):
+      0 → 1 across `SPLASH_FADE_IN_MS` (800ms), held at 1 for
+      `SPLASH_HOLD_MS` (1800ms), then 1 → 0 across
+      `SPLASH_FADE_OUT_MS` (800ms). Total visible duration is 3400ms.
+      Opacity is driven by `performance.now()` deltas against a
+      `startTime` captured at mount, with a `requestAnimationFrame`
+      loop that re-renders on every frame. When the elapsed time
+      exceeds total duration, the splash calls `onComplete` and
+      returns `null` on the next render.
+    inputs:
+      - 'splash mounted at time T0'
+      - 'elapsed = performance.now() - T0'
+    outputs:
+      - 'opacity = elapsed / 800 when elapsed < 800'
+      - 'opacity = 1 when 800 ≤ elapsed < 2600'
+      - 'opacity = 1 - (elapsed - 2600) / 800 when 2600 ≤ elapsed < 3400'
+      - 'onComplete is invoked exactly once when elapsed ≥ 3400'
+    state_changes: []
+    determinism: deterministic
+
+  - id: image-rendered-centered-on-black
+    description: >
+      The splash root carries `bg-black` and centers the PNG asset
+      (`/applied-sciences-and-phantasms-working-division-flourescent.png`)
+      via flex `items-center justify-center`. The `<img>` element uses
+      `max-h-[80vh] max-w-[80vw]` with `object-contain` so the image
+      letterboxes inside the viewport without clipping at any aspect
+      ratio. No image transform, no animation other than the parent
+      opacity tween.
+    inputs:
+      - 'splash mounted in any viewport size'
+    outputs:
+      - '<img> with src="/applied-sciences-and-phantasms-working-division-flourescent.png", max-h-[80vh] max-w-[80vw] object-contain'
+    state_changes: []
+    determinism: deterministic
+
+  - id: film-grain-strong-class-on-root
+    description: >
+      The splash root element carries the `film-grain-overlay-strong`
+      CSS utility class (defined at `src/styles/index.css:237`). The
+      utility's `::after` pseudo-element inherits opacity from its
+      host's `style.opacity`, so the grain texture tweens with the
+      splash's triangle-wave opacity — the same mechanism
+      `BootTitleCardOverlay` relies on. No additional grain wiring
+      is needed.
+    inputs:
+      - 'splash is rendered'
+    outputs:
+      - 'splash root className includes "film-grain-overlay-strong"'
+    state_changes: []
+    determinism: deterministic
+
+  - id: pointer-events-block-underlying-input-during-splash
+    description: >
+      The splash root uses `pointer-events: auto` (the default — no
+      `pointer-events-none` class) so clicks and key events that
+      would otherwise reach the `NamePrompt` input or
+      `NetworkConnect` controls die at the splash backdrop. The
+      splash itself has no click/key handlers. This prevents the
+      player from typing their steward name while the colophon is
+      still on screen.
+    inputs:
+      - 'user clicks or types while splash opacity > 0'
+    outputs:
+      - 'NamePrompt input does not receive focus or keystrokes; NetworkConnect buttons do not fire'
+    state_changes: []
+    determinism: deterministic
+
+  - id: splash-plays-once-per-page-load
+    description: >
+      `App` tracks `splashComplete` in React state, initialized to
+      `false` on first mount. The splash unmounts when
+      `splashComplete` is true. Subsequent in-session screen
+      changes — including `handleRestart` returning the offline
+      flow to `NamePrompt` — do NOT reset `splashComplete` to
+      false, so the splash does not replay. Only a hard page
+      reload (which `handleRestart` triggers for online flows)
+      remounts `App` and replays the splash.
+    inputs:
+      - 'player completes a tenure and triggers handleRestart in the offline flow'
+    outputs:
+      - 'NamePrompt is shown immediately with no splash'
+      - 'splashComplete remains true'
+    state_changes:
+      - field: 'App.splashComplete'
+        effect: 'unchanged by handleRestart (stays true)'
+    determinism: deterministic
+
+  - id: dev-skip-genesis-bypasses-splash
+    description: >
+      When `import.meta.env.DEV` is true AND the URL contains the
+      `skipGenesis` query parameter, `App.splashComplete` is
+      initialized to `true` so the splash never mounts. This
+      mirrors the existing dev shortcut (`shouldSkipGenesis()`)
+      and keeps the dev iteration loop fast. Production builds
+      always show the splash regardless of query string.
+    inputs:
+      - 'DEV mode with ?skipGenesis in the URL'
+    outputs:
+      - 'splashComplete initialized to true'
+      - 'splash component does not mount'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: asset-fails-to-load
+    description: 'The PNG asset is missing, returns 404, or fails to decode'
+    expected: >
+      The splash continues to render the black backdrop and the
+      film grain overlay; the broken-image glyph from the browser
+      is suppressed via the image element's onError handler setting
+      visibility hidden on the <img>. The triangle wave still
+      resolves on its timer and `onComplete` still fires at
+      3400ms. The player is never blocked.
+
+  - id: window-resize-during-splash
+    description: 'The viewport is resized while the splash is visible'
+    expected: >
+      The image's `object-contain` + `max-h-[80vh] max-w-[80vw]`
+      sizing reflows naturally to the new viewport. No state
+      change, no re-tween. The triangle wave timer is not
+      affected.
+
+  - id: restart-during-offline-tenure-end
+    description: 'The player completes a tenure (or otherwise hits onRestart) in the offline flow'
+    expected: >
+      `handleRestart` clears `stewardName` and resets game state.
+      `App` re-renders into the offline NamePrompt path. The
+      splash does NOT replay because `splashComplete` is sticky
+      across renders within the same App mount.
+
+  - id: navigation-from-offline-to-online
+    description: 'Player loads the offline route and later navigates to /p/<id>'
+    expected: >
+      Browser navigation to a prairie URL triggers a full reload
+      (the route is read once in `detectRoute` from
+      `window.location.pathname`). The new App mount initializes
+      `splashComplete` to false and the splash plays again. This
+      is intentional — each fresh page load is one threshold.
+
+  - id: rapid-multiple-mounts
+    description: 'React StrictMode or a hot-reload remounts App twice in quick succession'
+    expected: >
+      Each App mount initializes a fresh `splashComplete` (false
+      in production, false-or-true via the dev shortcut). The
+      requestAnimationFrame loop and the onComplete callback are
+      cleaned up on unmount via the useEffect cleanup. No leaked
+      RAF handles, no double `onComplete` firing.
+
+failure_conditions:
+  - trigger: 'public/applied-sciences-and-phantasms-working-division-flourescent.png is missing in the build output'
+    expected: >
+      The image element renders broken; the onError handler hides
+      the <img> via `visibility: hidden`; the black backdrop +
+      grain still display; the splash still completes at 3400ms.
+      No crash, no infinite stall.
+
+  - trigger: 'performance.now() is unavailable (very old runtime)'
+    expected: >
+      The component falls back to Date.now() for the startTime
+      and elapsed comparisons. This is documented in a comment on
+      the time-source. The triangle wave behaves identically.
+
+  - trigger: 'A second copy of the splash is somehow mounted (developer error)'
+    expected: >
+      Each instance runs its own RAF loop and its own
+      onComplete; they do not coordinate. The expectation is
+      that `App.tsx` is the single owner of the mount — no
+      module-level guard.
+
+verification:
+  test_file: src/components/__tests__/NorthernInformationSplash.test.tsx
+  test_pattern: 'Northern Information splash'
+  command: 'npx vitest run src/components/__tests__/NorthernInformationSplash.test.tsx'

@@ -5,11 +5,19 @@ import { GameScreen } from '@/components/GameScreen'
 import { NamePrompt } from '@/components/NamePrompt'
 import { NetworkConnect } from '@/components/NetworkConnect'
 import type { NetworkConnectResult } from '@/components/NetworkConnect'
+import { NorthernInformationSplash } from '@/components/NorthernInformationSplash'
 
 const generateDevName = (): string => crypto.randomUUID().slice(0, 8)
 
 const shouldSkipGenesis = (): boolean =>
   import.meta.env.DEV && new URLSearchParams(window.location.search).has('skipGenesis')
+
+// DEV ergonomics: ?newPlayer forces the full first-time flow (splash +
+// NamePrompt) even in DEV, where the steward name would otherwise
+// auto-generate. Lets us preview what a fresh visitor sees without
+// rebuilding for production.
+const shouldSimulateNewPlayer = (): boolean =>
+  new URLSearchParams(window.location.search).has('newPlayer')
 
 const PRAIRIE_PATH = /^\/p\/([^/]+)\/?$/
 
@@ -40,9 +48,24 @@ const App = () => {
   const workerUrl = resolveWorkerUrl()
 
   const [stewardName, setStewardName] = useState(
-    import.meta.env.DEV && route.type === 'offline' ? generateDevName() : null
+    !shouldSimulateNewPlayer() && import.meta.env.DEV && route.type === 'offline' ? generateDevName() : null
   )
   const [multiplayer, setMultiplayer] = useState<NetworkConnectResult | null>(null)
+  // The colophon plays once per page load. Sticky across handleRestart;
+  // only a hard reload remounts App and replays it. DEV + ?skipGenesis
+  // bypasses it for fast iteration. `screenRevealed` flips at the
+  // splash's fade-out start so the underlying screen (and any genesis
+  // sequence it kicks off) mounts during the splash's 800ms fade-out,
+  // producing a crossfade rather than a pop.
+  const skipSplash = shouldSkipGenesis()
+  const [screenRevealed, setScreenRevealed] = useState(skipSplash)
+  const [splashComplete, setSplashComplete] = useState(skipSplash)
+  const handleSplashFadeOutStart = useCallback(() => {
+    setScreenRevealed(true)
+  }, [])
+  const handleSplashComplete = useCallback(() => {
+    setSplashComplete(true)
+  }, [])
 
   const handleRestart = useCallback(() => {
     resetGameState()
@@ -57,46 +80,52 @@ const App = () => {
     }
   }, [multiplayer, route.type])
 
-  // Online flow: connect screen → game
+  let screen: React.ReactElement
   if (route.type === 'online-create' || route.type === 'online-join') {
-    if (multiplayer) {
-      return (
-        <GameScreen
-          key={multiplayer.welcome.sessionId}
-          stewardName={multiplayer.stewardName}
-          skipGenesis={shouldSkipGenesis()}
-          onRestart={handleRestart}
-          multiplayer={{
-            client: multiplayer.client,
-            welcome: multiplayer.welcome,
-            prairieId: multiplayer.prairieId,
-            ownerToken: multiplayer.ownerToken,
-            color: multiplayer.color,
-          }}
-        />
-      )
-    }
-    return (
+    screen = multiplayer ? (
+      <GameScreen
+        key={multiplayer.welcome.sessionId}
+        stewardName={multiplayer.stewardName}
+        skipGenesis={shouldSkipGenesis()}
+        onRestart={handleRestart}
+        multiplayer={{
+          client: multiplayer.client,
+          welcome: multiplayer.welcome,
+          prairieId: multiplayer.prairieId,
+          ownerToken: multiplayer.ownerToken,
+          color: multiplayer.color,
+        }}
+      />
+    ) : (
       <NetworkConnect
         workerUrl={workerUrl}
         prairieId={route.type === 'online-join' ? route.prairieId : null}
         onConnected={setMultiplayer}
       />
     )
-  }
-
-  // Offline flow
-  if (!stewardName) {
-    return <NamePrompt onSubmit={setStewardName} />
+  } else if (!stewardName) {
+    screen = <NamePrompt onSubmit={setStewardName} />
+  } else {
+    screen = (
+      <GameScreen
+        key={stewardName}
+        stewardName={stewardName}
+        skipGenesis={shouldSkipGenesis()}
+        onRestart={handleRestart}
+      />
+    )
   }
 
   return (
-    <GameScreen
-      key={stewardName}
-      stewardName={stewardName}
-      skipGenesis={shouldSkipGenesis()}
-      onRestart={handleRestart}
-    />
+    <>
+      {screenRevealed && screen}
+      {!splashComplete && (
+        <NorthernInformationSplash
+          onFadeOutStart={handleSplashFadeOutStart}
+          onComplete={handleSplashComplete}
+        />
+      )}
+    </>
   )
 }
 
