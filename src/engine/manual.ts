@@ -585,6 +585,68 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     sourceKind: 'event',
     crossRefs: ['character:moab'],
   },
+  // Precis #17 — autonomous flora spread, bee+clover ceremony,
+  // bee-mediated cross-pollination, lineage overlay. recordDiscovery
+  // fires for each of these in engine code; skeletons surface them in
+  // the manual UI. Lore stubs already exist in MANUAL_LORE as TODO.
+  {
+    id: 'event:flora-spread',
+    name: 'Flora Spread',
+    category: ManualCategory.Life,
+    glyph: '%',
+    glyphColor: '#90EE90',
+    unlockKey: 'event:flora-spread',
+    sourceKind: 'event',
+  },
+  {
+    id: 'event:ceremony-cast',
+    name: 'Prairie Ceremony',
+    category: ManualCategory.Life,
+    glyph: '%',
+    glyphColor: '#50C878',
+    unlockKey: 'event:ceremony-cast',
+    sourceKind: 'event',
+    crossRefs: ['recipe:bee+clover', 'flora:clover'],
+  },
+  {
+    id: 'event:cross-pollinated',
+    name: 'Cross-Pollination',
+    category: ManualCategory.Life,
+    glyph: '*',
+    glyphColor: '#FFD700',
+    unlockKey: 'event:cross-pollinated',
+    sourceKind: 'event',
+    crossRefs: ['item:bee', 'event:pollen'],
+  },
+  {
+    id: 'event:lineage-overlay-toggled',
+    name: 'Lineage Overlay',
+    category: ManualCategory.Life,
+    glyph: '%',
+    glyphColor: '#90EE90',
+    unlockKey: 'event:lineage-overlay-toggled',
+    sourceKind: 'event',
+  },
+  {
+    id: 'event:wildflower-growth',
+    name: 'Wildflower Growth',
+    category: ManualCategory.Life,
+    glyph: '*',
+    glyphColor: '#D85FB7',
+    unlockKey: 'event:wildflower-growth',
+    sourceKind: 'event',
+    crossRefs: ['flora:wildflower'],
+  },
+  {
+    id: 'event:tallgrass-growth',
+    name: 'Tall Grass Growth',
+    category: ManualCategory.Life,
+    glyph: '"',
+    glyphColor: '#A89968',
+    unlockKey: 'event:tallgrass-growth',
+    sourceKind: 'event',
+    crossRefs: ['flora:tallGrass'],
+  },
 ]
 
 const buildManualOnlyEntries = (): ManualEntry[] =>
