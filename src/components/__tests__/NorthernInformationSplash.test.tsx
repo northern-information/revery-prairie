@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { MockInstance } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 
 import { NorthernInformationSplash } from '../NorthernInformationSplash'
@@ -17,7 +18,7 @@ const renderSplash = (overrides?: { onFadeOutStart?: () => void; onComplete?: ()
   )
 
 describe('Northern Information splash', () => {
-  let nowSpy: ReturnType<typeof vi.spyOn>
+  let nowSpy: MockInstance<() => number>
 
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'requestAnimationFrame', 'cancelAnimationFrame'] })
