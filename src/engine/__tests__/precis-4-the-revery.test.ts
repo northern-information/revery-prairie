@@ -1,28 +1,27 @@
 // Spec acceptance tests for precis #4 (The Revery).
-// Detailed unit tests live in revery.test.ts, omen-detection.test.ts,
+// Detailed unit tests live in revery.test.ts,
 // egregore-advance.test.ts, phenotype.test.ts, ReverySummary.test.tsx,
 // and ManualPanel.test.tsx. This file is the spec's surface-level acceptance.
+//
+// Precis #32 retired the three omen-detection predicates and the
+// detectOmen function. Tests that asserted omen-driven Revery entry
+// have been removed here; the new pressure-path entry is covered by
+// precis-32-revery-dormancy-pressure.test.ts and dormancy-pressure
+// unit tests. The remaining tests below cover non-omen Revery behavior
+// that survives unchanged.
 import { describe, expect, it } from 'vitest'
 
-import { REVERY_COOLDOWN_MS } from '../constants'
 import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { FLORA_SPECIES } from '../flora/species'
 import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { movePlayer } from '../movement'
-import { detectOmen } from '../omen'
 import { initiateRevery, isReveryLocked, tickRevery } from '../revery'
 import { posKey } from '../position'
-import { FloraSpecies, OmenKind, ReveryPhase, Season, Sky, TileType, Zone } from '../types'
+import { FloraSpecies, OmenKind, ReveryPhase, Sky, TileType } from '../types'
 
-import { clearAroundPlayer, createBeeEntity, createTestState } from './helpers'
+import { clearAroundPlayer, createTestState } from './helpers'
 
 import type { GameState } from '../types'
-
-const setAutumnOverworld = (state: GameState): void => {
-  state.weather.season = Season.Autumn
-  state.currentZone = Zone.Overworld
-  state.lastReveryEndTime = -REVERY_COOLDOWN_MS
-}
 
 const placeFloraAt = (state: GameState, x: number, y: number, species: FloraSpecies, trait = 0.5): void => {
   state.map[y][x] = { type: TileType.Flora }
@@ -47,13 +46,9 @@ describe('the revery (precis #4) — acceptance', () => {
     expect(state.lastSky).toBe(Sky.Sun)
   })
 
-  it('omen-detection: bee on the player tile schedules the Revery (when gates pass)', () => {
-    const state = createTestState()
-    setAutumnOverworld(state)
-    createBeeEntity(state, state.player.x, state.player.y)
-    const omen = detectOmen(state, 60_000)
-    expect(omen).toBe(OmenKind.BeeOnShoulder)
-  })
+  // Removed (precis-32): bee-on-shoulder omen detection. The three predicates
+  // and detectOmen were retired in v6 thinktank round 6. Pressure-path entry
+  // is covered by precis-32-revery-dormancy-pressure.test.ts.
 
   it('revery-enter-and-observe: Observing phase is reached and elapsedYears accumulates', () => {
     const state = createTestState()

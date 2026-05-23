@@ -455,9 +455,6 @@ export const REVERY_COOLDOWN_MS = SEASONAL_PHASE_PERIOD_MS
 // How often the camera shifts during Observing. Stable cadence keeps the
 // drift feeling ceremonial rather than chaotic.
 export const REVERY_CAMERA_DRIFT_INTERVAL_MS = 800
-// How long the player must stand still before the cloud-passing-sun omen
-// is eligible to fire.
-export const REVERY_OMEN_STATIONARY_MS = 2_000
 // Precis #32 — dormancy pressure linear ramp endpoints in seasonalPhase
 // space. Pressure floor = clamp01((seasonalPhase - START) / (END - START))
 // when state.weather.season === Season.Autumn. Ramp reaches ceiling at

@@ -1,62 +1,63 @@
-// Precis #4 — omen detection.
+// Precis #32 — dormancy pressure (forcing function).
 //
-// Three omen variants schedule the Revery when world conditions align:
-//   (a) bee on shoulder — a bee entity steps onto the player's tile
-//   (b) distant meteorite — a shooting star's projected landing is within
-//       Chebyshev distance 3 of the player
-//   (c) cloud passing the sun — sky transitions from Rain/Cloudy to Sun while
-//       the player has been stationary for REVERY_OMEN_STATIONARY_MS
+// The three predicates from precis #4 (bee on shoulder, distant meteorite,
+// cloud passing the sun) are RETIRED. See v6 thinktank round 6 in
+// docs/precis-thinktank-v6.md for the doctrinal critique — the three were
+// rare, frame-stacked, and not aimed at the steward. They have been deleted.
 //
-// All gates that block detection (active Revery / deep time / wrong zone /
-// wrong season / cooldown) are checked centrally at the top of detectOmen.
+// This module is now a pressure tick. Each frame in gameLoop:
+//   - tickDormancyPressure(state) applies the linear ramp floor when the
+//     standard gates pass (no active Revery, no deep time, Overworld zone,
+//     Autumn season, cooldown elapsed). The floor is a linear function of
+//     state.seasonalPhase between REVERY_PRESSURE_RAMP_START (0.5, autumn
+//     equinox) and REVERY_PRESSURE_RAMP_END (0.75, winter solstice).
+//   - contributeDormancyPressure(state, amount) is the entry point precis-36
+//     (The Revery Knot) will call on Knot pickup. Precis-32 itself never
+//     calls this — it exists so the contract is locked once.
 //
-// See harness/specs/precis-4-the-revery.yaml omen-detection behavior.
+// state.dormancyPressure crossing 1.0 schedules the Revery; the threshold
+// check and initiateRevery call live in gameLoop, not here.
 
-import { REVERY_COOLDOWN_MS, REVERY_OMEN_STATIONARY_MS } from './constants'
-import { ComponentType } from './ecs/types'
-import { OmenKind, Season, Sky, Zone } from './types'
+import {
+  REVERY_COOLDOWN_MS,
+  REVERY_PRESSURE_RAMP_END,
+  REVERY_PRESSURE_RAMP_START,
+} from './constants'
+import { Season, Zone } from './types'
 
-import type { GameState, OmenKind as OmenKindT } from './types'
+import type { GameState } from './types'
 
-const OMEN_METEORITE_CHEBYSHEV = 3
+const clamp01 = (x: number): number => Math.max(0, Math.min(1, x))
 
-const chebyshev = (ax: number, ay: number, bx: number, by: number): number =>
-  Math.max(Math.abs(ax - bx), Math.abs(ay - by))
+// Returns true when the per-frame pressure tick should run.
+// Same gate logic as the retired detectOmen — preserves back-to-back-
+// Revery prevention via REVERY_COOLDOWN_MS.
+const pressureGateOpen = (state: GameState, time: number): boolean => {
+  if (state.revery) return false
+  if (state.deepTime?.active) return false
+  if (state.currentZone !== Zone.Overworld) return false
+  if (state.weather.season !== Season.Autumn) return false
+  if (time - state.lastReveryEndTime < REVERY_COOLDOWN_MS) return false
+  return true
+}
 
-const skyWasCloudOrRain = (sky: Sky): boolean => sky === Sky.Rain || sky === Sky.Cloudy
+// Per-frame pressure tick. Sets state.dormancyPressure to max(prior, floor)
+// when the gate is open; no-op otherwise. The floor is a linear ramp from
+// 0 at the autumn equinox (seasonalPhase = 0.5) to 1 at the winter solstice
+// (seasonalPhase = 0.75). Outside the ramp window the floor is 0 (autumn
+// not yet) or 1 (past solstice).
+export const tickDormancyPressure = (state: GameState, time: number): void => {
+  if (!pressureGateOpen(state, time)) return
+  const span = REVERY_PRESSURE_RAMP_END - REVERY_PRESSURE_RAMP_START
+  const floor = clamp01((state.seasonalPhase - REVERY_PRESSURE_RAMP_START) / span)
+  if (floor > state.dormancyPressure) state.dormancyPressure = floor
+}
 
-export const detectOmen = (state: GameState, time: number): OmenKindT | null => {
-  // Gate: already running, deep time, wrong zone, wrong season, or cooldown.
-  if (state.revery) return null
-  if (state.deepTime?.active) return null
-  if (state.currentZone !== Zone.Overworld) return null
-  if (state.weather.season !== Season.Autumn) return null
-  if (time - state.lastReveryEndTime < REVERY_COOLDOWN_MS) return null
-
-  // (a) Bee on shoulder.
-  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
-    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
-    const pos = state.world.getComponent(eid, ComponentType.Position)
-    if (!pos) continue
-    if (pos.x === state.player.x && pos.y === state.player.y) return OmenKind.BeeOnShoulder
-  }
-
-  // (b) Distant meteorite. A shooting star with a projected landing.
-  for (const eid of state.world.query(ComponentType.ShootingStarData)) {
-    const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
-    if (!data || !data.willLand || !data.landingTarget) continue
-    const d = chebyshev(data.landingTarget.x, data.landingTarget.y, state.player.x, state.player.y)
-    if (d <= OMEN_METEORITE_CHEBYSHEV) return OmenKind.DistantMeteorite
-  }
-
-  // (c) Cloud passing the sun. Rain/Cloudy → Sun transition while stationary.
-  if (
-    skyWasCloudOrRain(state.lastSky) &&
-    state.weather.sky === Sky.Sun &&
-    time - state.playerStationarySince >= REVERY_OMEN_STATIONARY_MS
-  ) {
-    return OmenKind.CloudPassingSun
-  }
-
-  return null
+// External contribution entry point. Precis-36 (The Revery Knot) calls this
+// on Knot pickup; precis-32 itself never calls it. Adds a non-negative
+// amount to dormancyPressure, clamped to [0, 1]. Negative amounts are
+// clamped to 0 before addition (no-op).
+export const contributeDormancyPressure = (state: GameState, amount: number): void => {
+  const safe = Math.max(0, amount)
+  state.dormancyPressure = clamp01(state.dormancyPressure + safe)
 }
