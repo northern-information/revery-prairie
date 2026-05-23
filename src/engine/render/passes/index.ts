@@ -32,6 +32,7 @@ export { lineageOverlayPass } from './lineageOverlay'
 export { deepTimeBurningOverlayPass } from './deepTimeBurningOverlay'
 export { pollenOverlayPass } from './pollenOverlay'
 export { burnLinePass } from './burnLine'
+export { clickTargetPass } from './clickTarget'
 // screen-overlay
 export { lightningScreenFlashPass } from './lightningScreenFlash'
 export { angelSpawnDespawnFlashPass } from './angelSpawnDespawnFlash'

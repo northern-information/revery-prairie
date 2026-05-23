@@ -83,30 +83,55 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: left-click-pathfinds-and-interacts
+  - id: left-click-never-moves
     description: >
-      Left-click on the canvas pathfinds the player to the clicked tile.
-      If the resolved tile is an interactable (character, clover, cave
-      breakable wall, ruin door, ruin debris, angel body, etc.),
-      pendingAction is queued so the interaction fires on arrival, and
-      pendingInteractionTarget is set for highlight rendering. If the
-      resolved tile is bare ground, left-click still moves the player —
-      there is no longer a deselect-only branch. The burn-line draft
-      branch (precis #9b, burnDrawMode) is unchanged.
+      Left-click never sets `state.path` and never moves the player. The
+      only interactions a left-click can trigger are:
+      (1) advance an active dialog (existing behavior),
+      (2) update the burn-line draft when `state.burnDrawMode` is true
+          (precis #9b, unchanged),
+      (3) execute an interactable's action *immediately* when the player
+          already stands adjacent to it — for example, left-clicking a
+          character one tile away advances dialog without any pathfinding.
+      Left-click on a far interactable, a far walkable tile, an unwalkable
+      tile, or the player's own tile is a no-op. Players reach a far
+      interactable by right-clicking to walk over and then pressing the
+      interact key.
     inputs:
-      - 'Left-click on a walkable tile in the active zone'
+      - 'Left-click on any tile in the active zone'
     outputs:
-      - 'state.path set to A* path toward the resolved tile'
-      - 'state.pendingAction set when the resolved tile is an interactable, else cleared'
+      - 'state.path is unchanged'
+      - 'an interactable action fires only when the player is already adjacent to the target'
     state_changes:
       - field: path
-        effect: 'set to A* result toward the resolved tile'
-      - field: pathWaypoints
-        effect: 'set to [target]'
+        effect: 'unchanged by left-click'
       - field: pendingAction
-        effect: 'set when an interactable was clicked, else cleared'
+        effect: 'unchanged by left-click'
       - field: pendingInteractionTarget
-        effect: 'set to the interactable tile when present, else cleared'
+        effect: 'unchanged by left-click'
+    determinism: deterministic
+
+  - id: shift-right-click-chains-waypoints
+    description: >
+      Shift + right-click appends a queued waypoint onto the active path.
+      The new segment is `findPath(lastWaypoint, clickedTile, blocked)`
+      and is concatenated onto `state.path`. `state.pathWaypoints` gains
+      the new tile. The waypoint chain renders as distinct markers along
+      the path (existing waypoint render branch). Shift + right-click on
+      the same tile as the last waypoint is a no-op. Shift + right-click
+      with no active path behaves identically to a plain right-click —
+      it starts a new path from the player.
+    inputs:
+      - 'Shift + right-click on a walkable tile while state.path is non-empty'
+    outputs:
+      - 'state.path extended with the appended A* segment'
+      - 'state.pathWaypoints extended with the new target'
+      - 'click-target feedback marker spawns at the new waypoint'
+    state_changes:
+      - field: path
+        effect: 'extended with the new A* segment from the last waypoint to the clicked tile'
+      - field: pathWaypoints
+        effect: 'last waypoint pushed onto the end of the array'
     determinism: deterministic
 
   - id: no-unit-selection-state
@@ -189,12 +214,27 @@ edge_cases:
   - id: zone-transition-no-deselect
     description: 'Player enters cave or ruin'
     expected: 'No deselectAll call; no selection state to clear. Zone transition continues normally.'
+  - id: shift-right-click-same-tile
+    description: 'Shift + right-click on the tile that is already the last waypoint'
+    expected: 'No-op — state.path and state.pathWaypoints unchanged.'
+  - id: shift-right-click-no-path
+    description: 'Shift + right-click with state.path === null (no active path)'
+    expected: 'Behaves as a plain right-click — starts a fresh path from the player to the clicked tile.'
+  - id: left-click-adjacent-character
+    description: 'Player left-clicks on a character occupying an adjacent tile'
+    expected: 'The interaction fires immediately (dialog opens / advance) without setting state.path.'
 
 failure_conditions:
   - trigger: 'Right-click on a walkable tile with no other input'
     expected: 'state.path is set to a valid A* path; player begins walking on the next tick'
   - trigger: 'Right-click on a non-walkable tile'
     expected: 'state.path is unchanged; no error'
+  - trigger: 'Left-click on bare walkable ground'
+    expected: 'state.path is NOT set; player does NOT move'
+  - trigger: 'Left-click on a far interactable (not adjacent)'
+    expected: 'state.path is NOT set; no pendingAction queued; no interaction fires'
+  - trigger: 'Shift + right-click on a walkable tile while state.path is non-empty'
+    expected: 'state.path extended; state.pathWaypoints gains the new target'
   - trigger: 'Left-mouse down + drag + release on bare ground'
     expected: 'No state.selectionBox set at any point; no selection committed; left-click click event still fires on mouseup'
   - trigger: 'Any reference to state.selectedUnits, state.selectionBox, state.unitCommands, state.moveOrderMarkers, state.coyoteMode, or state.coyotePath at runtime'

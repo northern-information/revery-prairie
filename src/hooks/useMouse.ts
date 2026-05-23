@@ -5,6 +5,7 @@ import { expandClickTile } from '@/engine/clickResolution'
 import { screenToTile } from '@/engine/coordinates'
 import { isDeepTimeLocked } from '@/engine/deepTime'
 import { ComponentType } from '@/engine/ecs/types'
+import { spawnClickTarget } from '@/engine/effects'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import {
   advanceDialog,
@@ -211,38 +212,16 @@ export const useMouse = ({
       // Click on the player tile — no-op
       if (tile.x === state.player.x && tile.y === state.player.y) return
 
+      // Left-click never moves the player. The only interaction left-click
+      // can trigger is "execute interaction immediately when adjacent" — e.g.
+      // standing next to a character and left-clicking them advances dialog
+      // without any pathfinding. Far interactables are no-ops; the player
+      // walks over via right-click and then presses the interact key.
       const blocked = getPathfindingBlockers(state, tile)
       const resolved = resolveClickTarget(state, tile, blocked, refreshUI)
-      if (!resolved) return
-
-      if (resolved.action !== null) {
-        state.pendingInteractionTarget = resolved.interactableTile
-        if (resolved.walkTarget.x === state.player.x && resolved.walkTarget.y === state.player.y) {
-          resolved.action()
-          refreshUI()
-          return
-        }
-        state.pendingAction = resolved.action
-        state.previewFn = null
-        updateCamera(state)
-        state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, resolved.walkTarget, blocked, {
-          allowDiagonal: true,
-        })
-        state.pathWaypoints = state.path ? [resolved.walkTarget] : []
-        refreshUI()
-        return
-      }
-
-      // Bare left-click on a walkable tile — pathfind the player there.
-      if (!isWalkableTile(state.map[resolved.walkTarget.y][resolved.walkTarget.x].type)) return
-      state.pendingAction = null
-      state.pendingInteractionTarget = null
-      state.previewFn = null
-      updateCamera(state)
-      state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, resolved.walkTarget, blocked, {
-        allowDiagonal: true,
-      })
-      state.pathWaypoints = state.path ? [resolved.walkTarget] : []
+      if (resolved?.action == null) return
+      if (resolved.walkTarget.x !== state.player.x || resolved.walkTarget.y !== state.player.y) return
+      resolved.action()
       refreshUI()
     }
 
@@ -271,15 +250,37 @@ export const useMouse = ({
       if (!isWalkableTile(state.map[rawTile.y][rawTile.x].type)) return
       if (rawTile.x === state.player.x && rawTile.y === state.player.y) return
 
-      const blocked = getPathfindingBlockers(state, rawTile)
+      const target = { x: rawTile.x, y: rawTile.y }
+      const blocked = getPathfindingBlockers(state, target)
+
+      // Shift + right-click chains the new tile onto the existing path as
+      // a queued waypoint (RTS-style). Without an existing path, shift
+      // behaves the same as a plain right-click.
+      const canChain =
+        e.shiftKey && state.path !== null && state.path.length > 0 && state.pathWaypoints.length > 0
+      if (canChain) {
+        const lastWaypoint = state.pathWaypoints[state.pathWaypoints.length - 1]
+        if (lastWaypoint.x === target.x && lastWaypoint.y === target.y) return
+        const appended = findPath(state.map, state.mapWidth, state.mapHeight, lastWaypoint, target, blocked, {
+          allowDiagonal: true,
+        })
+        if (!appended || appended.length === 0) return
+        state.path = [...(state.path ?? []), ...appended]
+        state.pathWaypoints = [...state.pathWaypoints, target]
+        spawnClickTarget(state, target.x, target.y, performance.now())
+        refreshUI()
+        return
+      }
+
       state.pendingAction = null
       state.pendingInteractionTarget = null
       state.previewFn = null
       updateCamera(state)
-      state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, rawTile, blocked, {
+      state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, target, blocked, {
         allowDiagonal: true,
       })
-      state.pathWaypoints = state.path ? [{ x: rawTile.x, y: rawTile.y }] : []
+      state.pathWaypoints = state.path ? [target] : []
+      if (state.path) spawnClickTarget(state, target.x, target.y, performance.now())
       refreshUI()
     }
 

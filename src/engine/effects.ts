@@ -17,6 +17,15 @@ export const spawnPickupBloom = (state: GameState, x: number, y: number, time: n
   state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
 }
 
+/** Spawn a click-target feedback marker at the destination tile of a click-to-move. */
+export const spawnClickTarget = (state: GameState, x: number, y: number, time: number): void => {
+  const e = state.world.createEntity()
+  state.world.addComponent(e, ComponentType.Position, { x, y })
+  state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'clickTarget', startTime: time })
+  state.world.addComponent(e, ComponentType.EntityTag, 'clickTarget')
+  state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
+}
+
 export const AURA_RADIUS: Record<string, number> = {
   rain: 6,
   'angel-rain': 25,

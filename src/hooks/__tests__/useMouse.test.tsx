@@ -20,12 +20,16 @@ vi.mock('@/engine/camera', () => ({
   updateCamera: vi.fn(),
 }))
 
-const fireContextMenu = (canvas: HTMLCanvasElement) => {
-  canvas.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+const fireContextMenu = (canvas: HTMLCanvasElement, opts: { shiftKey?: boolean } = {}) => {
+  canvas.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...opts }))
 }
 
 const fireMouseEvent = (canvas: HTMLCanvasElement, type: 'mousedown' | 'mousemove' | 'mouseup' | 'click') => {
   canvas.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 }))
+}
+
+const fireClick = (canvas: HTMLCanvasElement) => {
+  canvas.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
 }
 
 const setupHook = (state: GameState) => {
@@ -148,5 +152,55 @@ describe('useMouse — right-click', () => {
     // and the click event that fires alongside the mouseup should not have
     // been blocked by a "just finished drag" flag.
     expect('selectionBox' in state).toBe(false)
+  })
+
+  it('left-click on bare ground does NOT move the player', () => {
+    const { canvas } = setupHook(state)
+
+    act(() => {
+      fireClick(canvas)
+    })
+
+    expect(state.path).toBeNull()
+    expect(state.pathWaypoints).toEqual([])
+  })
+
+  it('shift + right-click appends a waypoint onto an existing path', () => {
+    const { canvas } = setupHook(state)
+
+    // First right-click — establishes the path to target A.
+    const targetA = { x: state.player.x + 3, y: state.player.y }
+    mockedTile = targetA
+    act(() => {
+      fireContextMenu(canvas)
+    })
+    expect(state.path).not.toBeNull()
+    expect(state.pathWaypoints).toHaveLength(1)
+    expect(state.pathWaypoints[0]).toEqual(targetA)
+    const initialPathLength = (state.path ?? []).length
+
+    // shift + right-click — appends target B onto the chain.
+    const targetB = { x: state.player.x + 5, y: state.player.y }
+    mockedTile = targetB
+    act(() => {
+      fireContextMenu(canvas, { shiftKey: true })
+    })
+
+    expect(state.pathWaypoints).toHaveLength(2)
+    expect(state.pathWaypoints[1]).toEqual(targetB)
+    expect((state.path ?? []).length).toBeGreaterThan(initialPathLength)
+    const finalPath = state.path ?? []
+    expect(finalPath[finalPath.length - 1]).toEqual(targetB)
+  })
+
+  it('shift + right-click with no existing path behaves as a plain right-click', () => {
+    const { canvas } = setupHook(state)
+
+    act(() => {
+      fireContextMenu(canvas, { shiftKey: true })
+    })
+
+    expect(state.path).not.toBeNull()
+    expect(state.pathWaypoints).toEqual([mockedTile])
   })
 })

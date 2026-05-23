@@ -16,7 +16,6 @@ source_files:
   - src/engine/renderer.ts
   - src/engine/movement.ts
   - src/engine/monarch.ts
-  - src/engine/selection.ts
   - src/engine/tileWater.ts
   - src/hooks/useCanvasDrop.ts
 dependencies:
