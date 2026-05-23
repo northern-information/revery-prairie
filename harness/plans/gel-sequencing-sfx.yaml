@@ -1,0 +1,73 @@
+plan:
+  id: gel-sequencing-sfx
+  title: 'Gel sequencing one-shot SFX + setAudioEnabled rename'
+  created: '2026-05-23'
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: audio-module-rename-and-playsfx
+    title: 'Add playSfx; rename setMusicEnabled → setAudioEnabled and state.musicEnabled → state.audioEnabled end-to-end (engine, hooks, Menu prop/label, schema test)'
+    spec_id: gel-sequencing-sfx
+    spec_sections:
+      - play-sfx-one-shot
+      - audio-toggle-bundles-sfx
+    context_files:
+      - src/engine/audio.ts
+      - src/engine/__tests__/audio.test.ts
+      - src/engine/__tests__/proximityMusic.test.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/hooks/useMusic.ts
+      - src/components/GameScreen.tsx
+      - src/components/Menu.tsx
+      - src/components/__tests__/Menu.test.tsx
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/harness/__tests__/boot/components.test.tsx
+      - harness/specs/gel-sequencing-sfx.yaml
+      - harness/specs/audio-system.yaml
+    output_files:
+      - src/engine/audio.ts
+      - src/engine/__tests__/audio.test.ts
+      - src/engine/__tests__/proximityMusic.test.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/hooks/useMusic.ts
+      - src/components/GameScreen.tsx
+      - src/components/Menu.tsx
+      - src/components/__tests__/Menu.test.tsx
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/harness/__tests__/boot/components.test.tsx
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/audio.test.ts
+      - npx vitest run src/engine/__tests__/proximityMusic.test.ts
+      - npx vitest run src/components/__tests__/Menu.test.tsx
+      - npx vitest run src/harness/__tests__/serialization
+      - npx vitest run src/harness/__tests__/boot
+    repair: retry
+    tags: [engine, component, integration]
+
+  - id: scan-result-modal-sfx-wiring
+    title: "Fire playSfx('/sfx/sequence.mp3') per cell-reveal tick in ScanResultModal; fire once at mount on prefers-reduced-motion"
+    spec_id: gel-sequencing-sfx
+    spec_sections:
+      - per-cell-sfx-trigger
+    context_files:
+      - src/components/ScanResultModal.tsx
+      - src/components/__tests__/ScanResultModal.test.tsx
+      - src/engine/audio.ts
+      - harness/specs/gel-sequencing-sfx.yaml
+    output_files:
+      - src/components/ScanResultModal.tsx
+      - src/components/__tests__/ScanResultModal.test.tsx
+    depends_on:
+      - audio-module-rename-and-playsfx
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/ScanResultModal.test.tsx
+    repair: retry
+    tags: [component]

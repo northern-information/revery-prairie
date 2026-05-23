@@ -1,0 +1,106 @@
+id: gel-sequencing-sfx
+name: 'Gel sequencing one-shot SFX'
+priority: medium
+layer: integration
+source_files:
+  - src/engine/audio.ts
+  - src/components/ScanResultModal.tsx
+  - src/components/Menu.tsx
+  - src/components/GameScreen.tsx
+  - src/hooks/useMusic.ts
+  - src/engine/state.ts
+  - src/engine/types.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+  - public/sfx/sequence.mp3
+dependencies: [audio-system]
+
+behaviors:
+  - id: play-sfx-one-shot
+    description: >
+      playSfx(url) plays a one-shot sample. each call decodes (or
+      reuses the bufferCache entry for) the URL and creates a fresh
+      AudioBufferSourceNode with loop=false, gain=1, connected to
+      destination, and starts immediately. the node is disconnected
+      and discarded on its onended event so the GC reclaims it. no
+      fade, no crossfade, no tracking — every call is independent and
+      may overlap with prior in-flight one-shots. respects the
+      audioEnabled flag (see audio-toggle behavior) — when disabled,
+      playSfx is a no-op. buffer fetch errors fail silently the same
+      way ambient does.
+    inputs:
+      - 'url string (e.g. /sfx/sequence.mp3)'
+    outputs:
+      - 'one playback of the sample, fire-and-forget'
+    state_changes:
+      - field: '(module) bufferCache'
+        effect: 'populated on first call for a new URL'
+    determinism: deterministic
+
+  - id: audio-toggle-bundles-sfx
+    description: >
+      setMusicEnabled is renamed to setAudioEnabled. the toggle now
+      bundles all audio channels — ambient, dialog, proximity, and
+      one-shot SFX — under a single flag. when disabled, ambient and
+      dialog gains drop to 0 (existing music-toggle behavior in
+      audio-system spec), proximity tracks drop to 0, and any
+      subsequent playSfx call is a no-op until re-enabled. the
+      GameState field state.musicEnabled is renamed to
+      state.audioEnabled (schema test allowlist updated). the menu
+      label "Music: On/Off" becomes "Audio: On/Off". the Menu prop
+      and GameScreen wiring rename accordingly.
+    inputs:
+      - 'boolean toggle from ESC menu'
+    outputs:
+      - 'all audio channels muted/unmuted'
+    state_changes:
+      - field: '(module) audioEnabled'
+        effect: 'replaces (module) enabled; semantics preserved for music + extended to SFX'
+      - field: 'state.audioEnabled'
+        effect: 'replaces state.musicEnabled; persisted in serialization'
+    determinism: deterministic
+
+  - id: per-cell-sfx-trigger
+    description: >
+      ScanResultModal fires playSfx('/sfx/sequence.mp3') exactly once
+      per cell-reveal tick during the animated reveal. the existing
+      64 setTimeout callbacks (i = 1..TOTAL_CELLS at CELL_REVEAL_MS *
+      i within the reveal-start scheduler) each call playSfx
+      alongside setRevealedCells(i). cells are revealed in
+      column-major order so the audio cadence matches the visual
+      cadence (one chirp per cell, 40ms apart, 64 total ticks). when
+      prefers-reduced-motion is true, the animated path is skipped
+      and playSfx is called exactly once at mount instead, so the
+      ceremony still has an audio beat. the modal unmount cleanup
+      clears scheduled timers but does not attempt to stop in-flight
+      one-shots — fire-and-forget.
+    inputs:
+      - 'scan commit opens ScanResultModal (any kind: flora, oak, egregore)'
+    outputs:
+      - '64 overlapping or sequential one-shot plays of sequence.mp3 over the reveal animation; or one bundled play at mount when prefers-reduced-motion is true'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: reduced-motion-fires-once
+    description: 'prefers-reduced-motion is true; the reveal animation is collapsed to instant'
+    expected: 'no per-cell timers are scheduled; instead, playSfx is called exactly once on mount. the modal opens with all 64 cells already revealed and the sample plays once.'
+  - id: audio-disabled-during-reveal
+    description: 'player toggles audio off mid-reveal animation'
+    expected: 'remaining scheduled timers still call playSfx, but playSfx is a no-op while audioEnabled is false; in-flight nodes already started before toggle continue playing to completion (no active stop)'
+  - id: rapid-rescan
+    description: 'player dismisses the modal and immediately commits another scan'
+    expected: 'new modal opens, new 64-tick scheduler starts. any unfinished one-shot nodes from the previous reveal play out independently and overlap is acceptable.'
+  - id: missing-sfx-file
+    description: 'public/sfx/sequence.mp3 is missing or fetch returns 404'
+    expected: 'buffer creation fails silently per existing audio-error pattern; no exception bubbles into the modal; gel reveal continues visually'
+
+failure_conditions:
+  - trigger: 'playSfx called with audioEnabled=false'
+    expected: 'no AudioBufferSourceNode created, no fetch issued beyond cache miss handling; function returns immediately'
+  - trigger: 'AudioContext suspended (autoplay policy) on first scan'
+    expected: 'safeStart resumes on next user click/keydown — but since the user has already pressed [f] to commit the scan, the context is typically already resumed; if not, the first ticks are silent until resume completes'
+
+verification:
+  test_file: src/engine/__tests__/audio.test.ts
+  test_pattern: 'playSfx'
+  command: npx vitest run src/engine/__tests__/audio.test.ts src/components/__tests__/ScanResultModal.test.tsx

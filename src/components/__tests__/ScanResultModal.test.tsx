@@ -2,8 +2,15 @@ import { ScanResultModal } from '../ScanResultModal'
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { playSfx } from '@/engine/audio'
 import type { ScanCommitResult } from '@/engine/scan'
 import { FloraSpecies } from '@/engine/types'
+
+vi.mock('@/engine/audio', () => ({
+  playSfx: vi.fn(),
+}))
+
+const playSfxMock = vi.mocked(playSfx)
 
 const identity = '0e7d7b052690f720498415c0d9c0d36861af3edc5e6d872c2490f2b4a5b8d725'
 const floraResult: ScanCommitResult = {
@@ -16,6 +23,7 @@ const floraResult: ScanCommitResult = {
 describe('scan-result modal', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    playSfxMock.mockClear()
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: false,
       media: query,
@@ -124,6 +132,52 @@ describe('scan-result modal', () => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
     })
     expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
+
+  describe('sequence SFX', () => {
+    it('fires playSfx once per cell-reveal tick across the animated reveal (64 total)', () => {
+      render(<ScanResultModal result={floraResult} onDismiss={() => undefined} />)
+
+      // Before the reveal scheduler fires, no SFX yet.
+      act(() => {
+        vi.advanceTimersByTime(400)
+      })
+      expect(playSfxMock).not.toHaveBeenCalled()
+
+      // Each cell tick fires one playSfx call.
+      act(() => {
+        vi.advanceTimersByTime(40 * 10)
+      })
+      expect(playSfxMock).toHaveBeenCalledTimes(10)
+      expect(playSfxMock).toHaveBeenLastCalledWith('/sfx/sequence.mp3')
+
+      act(() => {
+        vi.advanceTimersByTime(40 * 54)
+      })
+      expect(playSfxMock).toHaveBeenCalledTimes(64)
+    })
+
+    it('fires playSfx exactly once on mount when prefers-reduced-motion is set', () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('reduce'),
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }))
+      render(<ScanResultModal result={floraResult} onDismiss={() => undefined} />)
+      expect(playSfxMock).toHaveBeenCalledTimes(1)
+      expect(playSfxMock).toHaveBeenCalledWith('/sfx/sequence.mp3')
+
+      // Advancing time should not produce more calls — no per-cell scheduler ran.
+      act(() => {
+        vi.advanceTimersByTime(50 + 400 + 40 * 64)
+      })
+      expect(playSfxMock).toHaveBeenCalledTimes(1)
+    })
   })
 
   // Regression — oaks are flora and must open the same ceremonial modal.

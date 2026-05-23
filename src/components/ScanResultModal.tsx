@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 
 import { GelBandView } from './GelBandView'
 
+import { playSfx } from '@/engine/audio'
 import { FLORA_SPECIES } from '@/engine/flora/species'
 import { HEX_GRID_SIZE } from '@/engine/genetics'
 import { OAK_SPECIES } from '@/engine/oaks'
 
 import type { ScanCommitResult } from '@/engine/scan'
+
+const SEQUENCE_SFX_URL = '/sfx/sequence.mp3'
 
 interface ScanResultModalProps {
   result: ScanCommitResult
@@ -71,7 +74,12 @@ export const ScanResultModal = ({ result, onDismiss }: ScanResultModalProps) => 
   const [fullyRevealed, setFullyRevealed] = useState(reducedMotion)
 
   useEffect(() => {
-    if (reducedMotion) return
+    if (reducedMotion) {
+      // Animation collapsed to instant; fire the SFX once so the
+      // ceremony still has an audio beat.
+      playSfx(SEQUENCE_SFX_URL)
+      return
+    }
 
     const timers: ReturnType<typeof setTimeout>[] = []
 
@@ -87,6 +95,7 @@ export const ScanResultModal = ({ result, onDismiss }: ScanResultModalProps) => 
           timers.push(
             setTimeout(() => {
               setRevealedCells(i)
+              playSfx(SEQUENCE_SFX_URL)
             }, CELL_REVEAL_MS * i),
           )
         }

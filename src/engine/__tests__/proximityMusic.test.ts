@@ -3,7 +3,7 @@ import {
   _getState,
   _reset,
   setAmbient,
-  setMusicEnabled,
+  setAudioEnabled,
   startDialogMusic,
   updateProximityMusic,
 } from '../audio'
@@ -267,7 +267,7 @@ describe('proximityMusic', () => {
       const track = _getState().proximityTracks.get('/music/gron.mp3')
       expect(track?.gain.gain.value).toBeGreaterThan(0)
 
-      setMusicEnabled(false)
+      setAudioEnabled(false)
 
       expect(track?.gain.gain.value).toBe(0)
     })
@@ -275,8 +275,8 @@ describe('proximityMusic', () => {
     it('keeps proximity tracks at 0 immediately on re-enable; next tick restores gain', async () => {
       updateProximityMusic([{ url: '/music/gron.mp3', distSq: 4, radiusSq: 36 }])
       await flush()
-      setMusicEnabled(false)
-      setMusicEnabled(true)
+      setAudioEnabled(false)
+      setAudioEnabled(true)
 
       const track = _getState().proximityTracks.get('/music/gron.mp3')
       expect(track?.gain.gain.value).toBe(0)

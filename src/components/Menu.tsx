@@ -16,8 +16,8 @@ interface MenuProps {
   onNewGame: () => void
   metric: boolean
   onToggleUnits: () => void
-  musicEnabled: boolean
-  onToggleMusic: () => void
+  audioEnabled: boolean
+  onToggleAudio: () => void
   autoHidePanels: boolean
   onToggleAutoHidePanels: () => void
   fontScale: number
@@ -29,8 +29,8 @@ export const Menu = ({
   onNewGame,
   metric,
   onToggleUnits,
-  musicEnabled,
-  onToggleMusic,
+  audioEnabled,
+  onToggleAudio,
   autoHidePanels,
   onToggleAutoHidePanels,
   fontScale,
@@ -65,7 +65,7 @@ export const Menu = ({
           </TextButton>
         )}
         <TextButton onClick={onToggleUnits}>Units: {metric ? 'Metric' : 'Imperial'}</TextButton>
-        <TextButton onClick={onToggleMusic}>Music: {musicEnabled ? 'On' : 'Off'}</TextButton>
+        <TextButton onClick={onToggleAudio}>Audio: {audioEnabled ? 'On' : 'Off'}</TextButton>
         <TextButton onClick={onToggleAutoHidePanels}>Auto-hide panels: {autoHidePanels ? 'On' : 'Off'}</TextButton>
         <TextButton onClick={onCycleFontScale}>Font: {FONT_SCALE_LABELS[fontScale] ?? 'Medium'}</TextButton>
         <TextButton
