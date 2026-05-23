@@ -1,8 +1,8 @@
-import { CAVE_VISION_RADIUS, RUIN_VISION_RADIUS } from '../constants'
+import { CAVE_VISION_RADIUS, OVERWORLD_VISION_RADIUS, RUIN_VISION_RADIUS } from '../constants'
 import { posKey } from '../position'
 import { TileType, Zone } from '../types'
 import { blocksLOS, computeFOV, computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar } from '../visibility'
-import { createTestState } from './helpers'
+import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { GameState, RuinInterior, Tile } from '../types'
@@ -713,5 +713,184 @@ describe('fog of war', () => {
       }
     })
 
+  })
+
+  describe('overworld fog of war (precis #38)', () => {
+    /**
+     * Put the player onto a small cleared overworld pocket so vision tests
+     * have predictable terrain underneath. `createTestState` already returns
+     * a state in `Zone.Overworld`; we only need to clear a few tiles around
+     * the player and reset the fog sets so the test starts unseen.
+     */
+    const prepPrairie = (state: GameState): void => {
+      state.currentZone = Zone.Overworld
+      clearAroundPlayer(state, 5)
+      state.overworldFogExplored.clear()
+      state.overworldFogDiscovered.clear()
+    }
+
+    it('hasFogOfWar(Zone.Overworld) is true', () => {
+      expect(hasFogOfWar(Zone.Overworld)).toBe(true)
+    })
+
+    it('OVERWORLD_VISION_RADIUS matches the cave and ruin radii (same eyes, indoors or out)', () => {
+      expect(OVERWORLD_VISION_RADIUS).toBe(3)
+      expect(OVERWORLD_VISION_RADIUS).toBe(CAVE_VISION_RADIUS)
+      expect(OVERWORLD_VISION_RADIUS).toBe(RUIN_VISION_RADIUS)
+    })
+
+    it('createGameState initializes overworldFog* to empty sets (fresh tenure)', () => {
+      const state = createTestState()
+      expect(state.overworldFogExplored).toBeInstanceOf(Set)
+      expect(state.overworldFogDiscovered).toBeInstanceOf(Set)
+      expect(state.overworldFogExplored.size).toBe(0)
+      expect(state.overworldFogDiscovered.size).toBe(0)
+    })
+
+    it('computeZoneVisibility lights the player FOV on the prairie', () => {
+      const state = createTestState()
+      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        prepPrairie(state)
+        const visible = computeZoneVisibility(state)
+        expect(visible.has(posKey(state.player.x, state.player.y))).toBe(true)
+        expect(visible.has(posKey(state.player.x + 1, state.player.y))).toBe(true)
+        expect(visible.has(posKey(state.player.x, state.player.y + 1))).toBe(true)
+        // Beyond OVERWORLD_VISION_RADIUS in open terrain is not visible
+        expect(visible.has(posKey(state.player.x + 10, state.player.y))).toBe(false)
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('does NOT force any entrance tile into the visible set on the prairie', () => {
+      const state = createTestState()
+      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        prepPrairie(state)
+        const visible = computeZoneVisibility(state)
+        // caveEntranceOverworld is a fixed map position outside the player FOV
+        // in a fresh test state. It must NOT be force-added like the cave entrance is.
+        const ent = state.caveEntranceOverworld
+        const dx = ent.x - state.player.x
+        const dy = ent.y - state.player.y
+        const cheb = Math.max(Math.abs(dx), Math.abs(dy))
+        if (cheb > OVERWORLD_VISION_RADIUS) {
+          expect(visible.has(posKey(ent.x, ent.y))).toBe(false)
+        }
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('adds newly visible prairie tiles to overworldFogExplored', () => {
+      const state = createTestState()
+      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        prepPrairie(state)
+        computeZoneVisibility(state)
+        expect(state.overworldFogExplored.has(posKey(state.player.x, state.player.y))).toBe(true)
+        expect(state.overworldFogExplored.size).toBeGreaterThan(0)
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('promotes tiles within DISCOVERY_RADIUS of the player to overworldFogDiscovered', () => {
+      const state = createTestState()
+      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        prepPrairie(state)
+        computeZoneVisibility(state)
+        // player tile and a Chebyshev-1 neighbor are within DISCOVERY_RADIUS=2 and in LOS
+        expect(state.overworldFogDiscovered.has(posKey(state.player.x, state.player.y))).toBe(true)
+        expect(state.overworldFogDiscovered.has(posKey(state.player.x + 1, state.player.y))).toBe(true)
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('does NOT promote tiles beyond DISCOVERY_RADIUS even if visible', () => {
+      const state = createTestState()
+      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        prepPrairie(state)
+        computeZoneVisibility(state)
+        // OVERWORLD_VISION_RADIUS=3 > DISCOVERY_RADIUS=2; a tile at distance 3
+        // is visible (when in LOS) but must NOT be in the discovered set.
+        const tx = state.player.x + 3
+        const ty = state.player.y
+        const tileKey = posKey(tx, ty)
+        // First check it's actually visible (open terrain after clearAroundPlayer)
+        const visible = computeZoneVisibility(state)
+        if (visible.has(tileKey)) {
+          expect(state.overworldFogDiscovered.has(tileKey)).toBe(false)
+        }
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('getTileVisibility returns unexplored for prairie tiles outside the visible/explored sets', () => {
+      const state = createTestState()
+      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        prepPrairie(state)
+        const visible = computeZoneVisibility(state)
+        // Pick a tile far away (and not in visible or explored)
+        const tx = state.player.x + 20
+        const ty = state.player.y + 20
+        expect(visible.has(posKey(tx, ty))).toBe(false)
+        expect(getTileVisibility(state, tx, ty, visible)).toBe('unexplored')
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('fullyDiscovered prairie tiles remain fullyDiscovered after the player moves away (memory persists)', () => {
+      const state = createTestState()
+      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        prepPrairie(state)
+        // First frame: stand still, promote the spot.
+        computeZoneVisibility(state)
+        const playerTile = posKey(state.player.x, state.player.y)
+        expect(state.overworldFogDiscovered.has(playerTile)).toBe(true)
+
+        // Walk far enough away that the original tile is out of LOS.
+        clearAroundPlayer(state, 8)
+        state.player = { x: state.player.x + 10, y: state.player.y }
+        const visibleAfter = computeZoneVisibility(state)
+        expect(visibleAfter.has(playerTile)).toBe(false)
+        expect(state.overworldFogDiscovered.has(playerTile)).toBe(true)
+        expect(getTileVisibility(state, ...playerTile.split(',').map(Number) as [number, number], visibleAfter)).toBe('fullyDiscovered')
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('overworldFog* survive zone transitions (cave round-trip preserves prairie memory)', () => {
+      const state = createTestState()
+      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        prepPrairie(state)
+        computeZoneVisibility(state)
+        const exploredBefore = new Set(state.overworldFogExplored)
+        const discoveredBefore = new Set(state.overworldFogDiscovered)
+        expect(exploredBefore.size).toBeGreaterThan(0)
+        expect(discoveredBefore.size).toBeGreaterThan(0)
+
+        // Simulate entering and leaving the cave. We do not call computeZoneVisibility
+        // for the cave round-trip because that would mutate cave fog state we don't
+        // care about here.
+        state.currentZone = Zone.Cave
+        state.currentZone = Zone.Overworld
+
+        expect(state.overworldFogExplored).toEqual(exploredBefore)
+        expect(state.overworldFogDiscovered).toEqual(discoveredBefore)
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
   })
 })
