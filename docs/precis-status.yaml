@@ -683,6 +683,15 @@ features:
       footage generation, name generator, predecessor render pass) does
       not overrun the camera's own MVP.
 
+
+      v8 thinktank round 1 (2026-05-23). Predecessor lineage records
+      gain a "fate" distinction — whether the tenure ended in the bed
+      (returned to the little house) or in the field (collapsed on the
+      overworld via `#32`'s Closing-phase commit). The field-collapse
+      case carries the collapse tile coordinate so the cellar lineage
+      (`#37`) can reference it directly. _The umbral steward is not a
+      peer of the egregore. The umbral steward is the egregore._
+
   - id: '25'
     name: Egregoric fauna (the parallel fauna register)
     summary: >
@@ -1084,6 +1093,17 @@ features:
       egregoric commit all remain in scope. _The item is the omen. The
       omen is the item._
 
+
+      v8 thinktank round 1 (2026-05-23). Resolves the open question
+      "whether the field collapse leaves a persistent mark for
+      predecessor cameras (`#23`, `#24`)": _yes_, but via the cellar
+      lineage (`#37`) rather than the camera substrate. The camera still
+      records the moment if one was watching; the cellar records the
+      lineage regardless. The Closing-phase commit is cosmologically
+      correct as shipped — the umbral steward is the egregore on the
+      collapse tile, not an NPC. _Service implies a contract. The
+      prairie has no contracts._
+
   - id: '33'
     name: The little house and the girl who waits
     summary: >
@@ -1372,6 +1392,21 @@ features:
       cellar's first ship can be a featureless dimming. _The cellar
       reads the chronicle. The manual catalogs species; the cellar
       catalogs winters._
+
+
+      v8 thinktank round 1 (2026-05-23). The cellar is the home for
+      collapse-tile attribution. When a tenure ends with
+      `state.collapsedStewardTile` set (the field-collapse case from
+      `#32`), the cellar gains a lineage entry pointing at that tile
+      and the steward who fell there (via `#24`'s new "fate" field).
+      Surface: existing Knot rendering carries the entry; the
+      permacomputer reveals it when the next steward scans the violet
+      patch. No new glyph and no new EVA token on the egregore tile
+      itself; the record lives in the cellar lineage, not in surface
+      flora vocabulary. Cellar Knot lore phrasing for collapse-tile
+      lineages is flagged for human authorship — naturalist register,
+      not lab register; mortal register, not mythic register. _The
+      cellar carries the name; the prairie carries the body._
 
   - id: '38'
     name: Overworld gaze, memory, and unseen
