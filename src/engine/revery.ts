@@ -11,10 +11,10 @@
 
 import { REVERY_YEARS_PER_FRAME } from './constants'
 import { ComponentType } from './ecs/types'
-import { advanceEgregoreInRevery } from './egregore/spread'
+import { advanceEgregoreInRevery, commitEgregoreTiles } from './egregore/spread'
 import { pickAdjacentWalkableTile } from './interaction'
 import { resolvePhenotypeLabel } from './phenotype'
-import { FloraSpecies, OmenKind, ReveryPhase } from './types'
+import { FloraSpecies, OmenKind, ReveryPhase, TileType } from './types'
 
 import type {
   GameState,
@@ -204,6 +204,21 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
   if (r.phase === ReveryPhase.Closing) {
     state.reveryCount += 1
     state.lastReveryEndTime = time
+    // Precis #32 — Closing-phase egregoric commit: if this was a summons
+    // Revery and the steward's collapse tile is still Dirt, the prairie
+    // metabolizes the spot the steward fell. Skipped silently if the tile
+    // is no longer eligible (water, wall, flora, ruin, etc.).
+    if (r.summons === true && r.summonsCollapseTile) {
+      const { x, y } = r.summonsCollapseTile
+      if (state.map[y]?.[x]?.type === TileType.Dirt) {
+        commitEgregoreTiles(state, [r.summonsCollapseTile], time)
+      }
+    }
+    // Precis #32 — pressure reset. Belt-and-suspenders with the Autumn →
+    // Winter safety reset in gameLoop. dormancyPressure must zero out so
+    // the next autumn starts from baseline.
+    state.dormancyPressure = 0
+    state.collapsedStewardTile = null
     state.revery = null
     return
   }
