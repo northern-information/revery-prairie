@@ -330,6 +330,17 @@ features:
       `#12` (Crossbreeding UX) was removed from the backlog in the
       same round.
 
+
+      v7 thinktank round 4 (2026-05-23). The overlay-registry seed
+      shipped here (`[1]` default / `[2]` family-tree / `[3]`
+      reserved) is superseded by `#47` (Layer toggle system v2 —
+      Record / Thermal / Rhizome, stackable independent toggles).
+      `#17`'s shipped behavior is untouched — pollination, lineage
+      prefixing, and the family-tree-overlay rendering all stand.
+      The keybind layout and visual contract migrate into `#47`,
+      which absorbs `[2]`'s family-tree edges and extends them into
+      on-prairie lineage-edge drawing within gaze radius.
+
   - id: '14'
     name: Delete the activity event log
     summary: >
@@ -1599,3 +1610,96 @@ features:
       winter's seismograph reading lets the careful steward budget
       their summer — visit ruins under high-activity fields before
       they sink. Defer until #23 ships.
+
+  - id: '46'
+    name: Auto-annotation of lineages
+    summary: >
+      The permacomputer auto-annotates lineages from existing records.
+      Observations like _survived winter ×3_, _mother of 9_, _scanned
+      1241_ are derived purely from genome, lifecycle, weather, and
+      Revery records — no authored content. Annotations attach to
+      lineage identity prefix (not to instances). Surfaced in the
+      naturalist's manual species pages (#6), family-tree hex grid
+      (#3), camera playback (#23), and end-of-Revery summary (#4).
+      Never a running log. First sighting attaches a minimal
+      _observed in year N_; full lineage annotations unlock on
+      `[v]`-hold sequencing.
+    size: M
+    depends_on: ['3', '17', '6']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 4 (2026-05-23). Cosmological reframe: not GMO,
+      noticing — formalized. Implements the permacomputing principle
+      Round 9 of v6 already named (_the world is annotated by your
+      history_) as a function call instead of doctrine. Voice register:
+      instrument-terse in the overlay (`survived winter ×3 / mother of
+      9 / scanned 1241`); chronicle-event prose in the Revery summary.
+      Enriches #16 (tenure ends — predecessor record) without blocking
+      it. The permacomputer is the diegetic excuse for the steward not
+      having to keep a notebook.
+
+  - id: '47'
+    name: Layer toggle system v2 (Record / Thermal / Rhizome)
+    summary: >
+      Formalized `[1]`/`[2]`/`[3]` keyboard overlays — stackable
+      independent toggles. `[1]` Record (lineage, annotations,
+      sequenced status, family-tree edges), `[2]` Thermal (egregoric
+      heat, dormancy boundaries, lightning/fire risk), `[3]` Rhizome
+      (root / mycelium / connectivity). Visual registers partitioned
+      per layer so they compose without collision: Record draws line
+      work; Thermal modulates background hue; Rhizome perturbs the
+      tile glyph. State held as `OverlayMask = { record, thermal,
+      rhizome }`. Includes Record's lineage-edge drawing on the
+      prairie itself — faint connecting lines between related flora
+      tiles within gaze radius, color-keyed by relation degree.
+      Absorbs and supersedes #17's overlay-registry seed.
+    size: L
+    depends_on: ['17', '46', '43', '48']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 4 (2026-05-23). Reframe locked: each layer is
+      a sentence the prairie says about itself (_who is this / what is
+      it doing / what is it connected to_); the steward chooses how
+      many to read at once. Mutually-exclusive was Boon's first lean
+      and was over-corrected toward a clean diagram; stackable is
+      honest to the device. Independent visual registers are the
+      technical guarantee that overlapping layers stay legible.
+      Renaming: `[1]` is _Record_, not _metadata_ — the permacomputer
+      answers a question, it does not query a database. Thermal's
+      resonant window is the shoulder seasons (autumn-pressure-toward-
+      solstice; post-Revery residual heat). Open at spec: edge cost
+      gating, edge visual style (lean stolon-like per #17 precedent),
+      audio cue on toggle, voice boundary between overlay-terse and
+      summary prose.
+
+  - id: '48'
+    name: Rhizome layer (root / mycelium / connectivity)
+    summary: >
+      The `[3]` overlay's content — flora underground connectivity
+      rendered as glyph perturbation, never as a topology atlas.
+      Sparse and poetic. Mycorrhizal links between related flora,
+      visible only when the layer is toggled on. Resonates faintly
+      with seismograph reads (#45) and with winter geology (#44).
+      Visual register only; deliberately not min-maxable.
+    size: M
+    depends_on: ['17']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 4 (2026-05-23). Calla's protection: if the
+      rhizome view shows connections plainly, players route around
+      it — must stay sparse and beautiful, not a utility map. The
+      cosmology gain: the steward gets the closest legible glimpse
+      of the prairie's underground without violating it. Delta's
+      note: rhizome should rumble faintly where the seismograph
+      will eventually take its readings — same substrate, different
+      instruments. Decoupled from #47 so the layer's content can be
+      spec'd independently from the overlay registry that hosts it.
