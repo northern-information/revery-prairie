@@ -225,30 +225,114 @@ features:
     notes: 'Scope locked 2026-05-20: genetics-bearing seeds; genome carried on ItemDrop component in-world, transferred to state.seedGenomes (uid-keyed, mirrors glintingCoins) on pickup; drop-on-dirt = plant (seeds cannot be set down as ground items); vault-spawn derives genome deterministically from (stewardName, ruinIndex, vaultSlot) via generateGenesisIdentity + generateTraitBag; wildflowerSeeds + tallGrassSeeds recategorized Flora → Seed. Resized S → M after taxonomy + planting + genome-threading scope. Out of scope: milkweedSeeds, cloverSeeds, genetic-fragment item class, seed scan UX, autonomous spread (precis-17).'
 
   - id: '13'
-    name: Emergent Angels
+    name: Angels are passages
     summary: >
-      Rewire angel spawning so the angel's hash and aura derive from the prairie's
-      current flora identities, not from a 90s timer + stewardName + spawn coords.
-      The angel becomes a witness of the ecology as it exists at that moment.
-      PMs need to discuss before this is sequenced.
-    depends_on: ['3']
+      Angel encounters become ambient, non-interactive events. Drop dialog,
+      drop the pink highlight (pink is the steward's color), drop the
+      per-encounter canto append. Aura-overlap with the steward is the
+      recording event: when the steward's tile first enters an active
+      angel's aura, write a deduped lineage entry to the cellar Knot
+      (`#37`). Extend ANGEL_AURA_KINDS from three to ten — adds
+      wildflower, tallgrass, fire, lightning, egregore, sundering,
+      meteorite alongside the existing rain, bees, clover. Each new
+      kind personifies an existing or precis-locked substrate. Remove
+      the Cantos screen (state.angelCantos, CantosScreen.tsx, the
+      'cantos' permacomputer nav entry, GameScreen conditional render,
+      PermacomputerShell menu entry). Hex-grid surface remains only in
+      flora sequencing (`#6` gel-band) where the v2 lock put it.
+    size: M
+    depends_on: ['8b', '37', '42', '44']
     status: todo
     spec: null
     plan: null
     pr: null
     notes: >
-      Discussion needed. Open questions: threshold trigger (cumulative diversity,
-      sudden ecological shift, specific trait configurations, or hybrid
-      weather×ecology); hash composition (whole-prairie sample, spatial sample,
-      or temporal-weighted); aura kind derivation (does aura also derive from
-      ecology, opening new aura kinds as new species establish); fallback for
-      barren prairies.
+      v8 thinktank round 2 (2026-05-23). Scope rewrite from the original
+      "Emergent Angels" framing (flora-identity hash derivation, never
+      shipped). The room rejected the hash-from-ecology direction —
+      angels are not phenotype readouts; the v2 lock kept genetics in
+      flora and in the manual gel-band. The flora-hash idea is retired.
 
-      Design intent — angel SHA outputs should be treated like wildcards or
-      egregoric adaptors. Very powerful. Maybe only use once. A canto an angel
-      speaks is not lore; it is a key. Single-use, irrevocable, and potent enough
-      that the player thinks before using it. Mechanics TBD — this is the seed
-      of the idea.
+
+      Astrid: _the angel is not a thing you talk to; the angel is a
+      thing that passes through_. Removing interactivity is what makes
+      the cast safe to expand — once there is no grace economy (no
+      canto, no dialog, no gift), every cosmological actor can have an
+      angel without folding the not-prairie into the prairie's grace.
+      Delta: _the prairie has many cycles, and all of them get faces._
+      Each new aura kind personifies a substrate already running —
+      fire/lightning on `#42`, sundering on `#44`'s winter geology,
+      meteorites on existing state.meteorites and the
+      `#cosmologicalDrift` register, egregore on `#8a`/`#8b`.
+
+
+      The Angel of Egregores is in. Excluding it was Astrid's earlier
+      worry (grace economy folding the not-prairie); with interactivity
+      gone, the grace economy is gone. _Same shelf, different hand._
+      The body renders Voynich; the aura primes egregoric spread under
+      `#8b`'s existing throttle (no new metabolism); the Knot entry is
+      rendered in PUA glyphs awaiting human-authored lore. Excluding
+      would have been the satanic move — _what is left out is what is
+      condemned_ — and the cosmology has been working toward including
+      it since v6 R3 named the egregore _of-but-not-of_.
+
+
+      Engineering scope (Boon): each new kind is a handler in the same
+      shape as the existing bees-spawn and clover-spawn loops at
+      `src/engine/angels.ts:228-310`. Per-frame cost: one proximity
+      sweep per active angel of that kind, same budget as the existing
+      three. Aura-overlap recording: each frame, check the steward's
+      tile against active auras; on first overlap per encounter, write
+      a deduped Knot lineage entry keyed by `(angelKind, encounterHash)`.
+
+
+      Parking note (deferred from original `#13`): the cantos-as-keys /
+      single-use wildcard / egregoric-adaptor idea is decoupled from
+      this amendment. The current scope removes the canto surface
+      entirely; whether some future artifact carries the key-like
+      property is a separate question for a later round.
+
+
+      Open at spec: exact aura-overlap dedupe key (lean `(angelKind,
+      encounterHash)`); Angel of Sundering's effect on `#44`'s
+      ruin-shift probability (additive / multiplicative / regional —
+      defer to `#44`'s own spec); whether the Angel of Egregores' aura
+      is rate-limited differently from autonomous `#8b` spread (lean
+      same throttle — the angel is a face, not a multiplier); whether
+      the egregore-angel's Voynich body uses the same 9x9 footprint as
+      the existing angels or a different render path; the PUA glyph
+      vocabulary for egregore-angel Knot entries (flagged for human
+      authorship).
+
+  - id: '52'
+    name: Angel-encounter sensory cue (angel.mp3)
+    summary: >
+      A single `angel.mp3` audio cue plays when the steward's tile
+      first enters an active angel's aura, deduped per encounter so
+      multiple aura overlaps within the same drift do not retrigger.
+      One-shot, single-channel; no screen interruption, no overlay.
+      The audio is the cue that makes the encounter felt — without
+      it, aura-overlap recording goes invisible. Same cue across all
+      angel kinds (rain, bees, clover, wildflower, tallgrass, fire,
+      lightning, egregore, sundering, meteorite).
+    size: XS
+    depends_on: ['13']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v8 thinktank round 2 (2026-05-23). Calla's load-bearing
+      requirement attached to the angel rewrite — _the angel is felt
+      or it is not there_. Tracked as its own item to give it a spec
+      slot, but spec author may fold into `#13`'s amended scope at
+      their discretion. The asset itself (`angel.mp3`) is flagged for
+      human authorship; the room does not source audio. Same cue for
+      every angel kind: _the angel is the angel, regardless of which
+      cycle it personifies_. Open at spec: exact playback rule
+      (one-shot at entry, do not stack across simultaneous aura
+      overlaps), volume relative to ambient music, whether the cue
+      varies subtly per kind (lean: it does not).
 
   - id: '17'
     name: Autonomous flora spread + bee+clover ceremony + bee-mediated genetics
@@ -1447,6 +1531,20 @@ features:
       lineages is flagged for human authorship — naturalist register,
       not lab register; mortal register, not mythic register. _The
       cellar carries the name; the prairie carries the body._
+
+
+      v8 thinktank round 2 (2026-05-23). The cellar Knot gains a
+      third lineage-entry kind: angel-encounters. When the steward's
+      tile first enters an active angel's aura (any kind — rain,
+      bees, clover, wildflower, tallgrass, fire, lightning, egregore,
+      sundering, meteorite), a deduped Knot entry is appended keyed
+      by `(angelKind, encounterHash)`. Render distinguishes the three
+      kinds (steward, collapse, angel-encounter). Egregore-angel
+      entries render in PUA glyphs, awaiting human-authored lore.
+      Replaces the now-removed Cantos screen as the angel-record
+      surface. _The Knot is the angel's record surface. The hex-grid
+      lived in the wrong place; the Knot is where the encounter
+      belongs._
 
 
       v9 thinktank round 1 (2026-05-23). The cellar's role formalizes
