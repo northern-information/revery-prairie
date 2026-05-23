@@ -1100,7 +1100,7 @@ features:
       sleeps in the offered bed. No origin and no name for the girl in
       the spec; the house is its own explanation.
     depends_on: ['32']
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null
