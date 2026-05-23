@@ -174,11 +174,13 @@ describe('Closing-phase egregoric commit + reset (precis #32)', () => {
     initiateRevery(state, 1000, OmenKind.CloudPassingSun)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
-    // Mutate the tile to water mid-Revery (some other system did it)
-    state.map[py][px] = { type: TileType.Water }
+    // Mutate the tile to a non-Dirt type mid-Revery (some other system did it).
+    // The egregoric-commit eligibility check is strictly TileType.Dirt; anything
+    // else falls through to the silent-skip path.
+    state.map[py][px] = { type: TileType.Sand }
     const before = state.egregorePositions.length
     advanceToClosing(state, 2000)
-    expect(state.map[py][px].type).toBe(TileType.Water) // unchanged
+    expect(state.map[py][px].type).toBe(TileType.Sand) // unchanged
     expect(state.egregorePositions.length).toBe(before)
   })
 

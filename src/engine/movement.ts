@@ -149,9 +149,9 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   }
   state.player.x = nx
   state.player.y = ny
-  // Precis #4 — reset the stationary-since clock on every successful step.
-  // The cloud-passing-sun omen requires the player to stand still for
-  // REVERY_OMEN_STATIONARY_MS before the sky transition fires.
+  // Reset the stationary-since clock on every successful step. The
+  // cloud-passing-sun omen that originally read this field was retired in
+  // precis-32; the field is retained for any future use.
   state.playerStationarySince = performance.now()
 
   // Pollen trail: emit a footstep puff on every step off a clover tile,

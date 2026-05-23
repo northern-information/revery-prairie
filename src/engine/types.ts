@@ -401,7 +401,8 @@ export interface GameState {
   // Lifetime count of completed Reveries. Increments on Closing → null.
   reveryCount: number
   // Wall-clock time of the last Revery's Closing. Used by REVERY_COOLDOWN_MS
-  // gating in detectOmen so back-to-back Reveries can't fire within one year.
+  // gating in tickDormancyPressure so back-to-back Reveries can't fire within
+  // one year.
   lastReveryEndTime: number
   // Monotonic accumulator of cosmological drift (v3 doctrine). 0 baseline in
   // this PR; future features wire passive transmission (v3 layer (a)) and
@@ -425,9 +426,9 @@ export interface GameState {
   // by movement.ts. Was used by the retired cloud-passing omen (precis-4
   // / precis-32); retained for any future use.
   playerStationarySince: number
-  // Previous frame's state.weather.sky value. Used by the cloud-passing omen
-  // to detect Rain/Cloudy → Sun transitions. Updated by gameLoop after
-  // tickWeather.
+  // Previous frame's state.weather.sky value. Updated by gameLoop after
+  // tickWeather. The cloud-passing omen that originally read this field
+  // was retired in precis-32; the field is retained for any future use.
   lastSky: Sky
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
