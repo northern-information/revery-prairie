@@ -22,6 +22,23 @@ const defaultInfoRef = createRef<ItemInfoHandle>()
 const noop = () => undefined
 
 describe('Sidebar', () => {
+  it('renders null during genesis (no genesis HUD in the sidebar)', () => {
+    const state = createGameState('Willow', 80, 40)
+    // Do not call completeGenesis — state.genesis is non-null and
+    // epochIndex < GENESIS_EPOCHS.length, so the Sidebar should
+    // render nothing.
+    const { container } = render(
+      <Sidebar
+        state={state}
+        itemInfoRef={defaultInfoRef}
+        metricsRef={createRef()}
+        refreshUI={noop}
+      />
+    )
+
+    expect(container.querySelector('[data-panel="sidebar"]')).toBeNull()
+  })
+
   it('renders steward name', () => {
     const state = createGameState('Willow', 80, 40)
     completeGenesis(state)
@@ -342,25 +359,6 @@ describe('Sidebar', () => {
 
       expect(screen.getByText('rain')).toBeInTheDocument()
     })
-  })
-
-  describe('genesis HUD', () => {
-    it('renders the year/epoch HUD during genesis', () => {
-      const state = createGameState('Test', 80, 40)
-      // Do NOT call completeGenesis — exercise the genesis-active branch.
-      const { container } = render(
-        <Sidebar
-          state={state}
-          itemInfoRef={defaultInfoRef}
-          metricsRef={createRef()}
-          refreshUI={noop}
-        />
-      )
-
-      expect(container.textContent).toContain('Year')
-      expect(container.textContent).toContain('Epoch')
-    })
-
   })
 
   describe('boot title card sidebar behavior', () => {

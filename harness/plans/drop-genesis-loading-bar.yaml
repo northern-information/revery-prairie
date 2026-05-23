@@ -1,0 +1,184 @@
+plan:
+  id: drop-genesis-loading-bar
+  title: Drop the genesis loading bar, timestamp readout, and sidebar genesis panel
+  created: 2026-05-23
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 1: Engine deletions ---
+  # Removing formatYearsAgo / getGenesisYear / EPOCH_YEAR_RANGES first
+  # surfaces every consumer site via typecheck so the component edits
+  # in tier 2 are well-scoped.
+
+  - id: genesis-year-helpers-delete
+    title: Delete formatYearsAgo, getGenesisYear, and EPOCH_YEAR_RANGES from src/engine/genesis.ts; keep GENESIS_END_YEAR, formatYear, and getEpochProgress
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - year-helpers-deleted
+    context_files:
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: genesis-tests-prune
+    title: Remove the formatYearsAgo describe block and its imports from src/engine/__tests__/genesis.test.ts; retain imports only if a surviving test still needs them
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - tests-pruned-or-rewritten
+    context_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/genesis.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - genesis-year-helpers-delete
+    verification:
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - test
+      - engine
+
+  # --- Tier 2: Component deletions ---
+  # The bar is deleted; GameScreen drops the genesis branch; Sidebar
+  # returns null during genesis instead of rendering the Year/Epoch
+  # panel.
+
+  - id: bottom-bar-delete
+    title: Delete src/components/GenesisBottomBar.tsx
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - genesis-renders-no-hud
+    context_files:
+      - src/components/GenesisBottomBar.tsx
+    output_files:
+      - src/components/GenesisBottomBar.tsx
+    depends_on:
+      - genesis-year-helpers-delete
+    verification: []
+    repair: skip
+    tags:
+      - components
+
+  - id: gamescreen-collapse-genesis-branch
+    title: 'Drop GenesisBottomBar import in GameScreen.tsx; collapse the `state.genesis ? <GenesisBottomBar/> : <bottom-bar>` ternary to `{!state.genesis && <bottom-bar>}`'
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - genesis-renders-no-hud
+    context_files:
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on:
+      - bottom-bar-delete
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+
+  - id: sidebar-drop-genesis-branch
+    title: Remove the genesis-mode branch in Sidebar.tsx (Year/Epoch/progress-bar/skip-hint block); return null when state.genesis is non-null with epochIndex < GENESIS_EPOCHS.length; drop unused formatYearsAgo, getGenesisYear, getEpochProgress imports
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - genesis-renders-no-hud
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/genesis.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - genesis-year-helpers-delete
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+      - sidebar
+
+  - id: sidebar-genesis-null-test
+    title: Add a regression test in Sidebar.test.tsx asserting Sidebar renders null when state.genesis is non-null with epochIndex < GENESIS_EPOCHS.length
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - tests-pruned-or-rewritten
+    context_files:
+      - src/components/__tests__/Sidebar.test.tsx
+      - src/components/Sidebar.tsx
+    output_files:
+      - src/components/__tests__/Sidebar.test.tsx
+    depends_on:
+      - sidebar-drop-genesis-branch
+    verification:
+      - npx vitest run src/components/__tests__/Sidebar.test.tsx
+    repair: retry
+    tags:
+      - test
+      - components
+
+  # --- Tier 3: Comment + doc scrub ---
+  # The overlay still exists and still fades full-screen; only the
+  # comment is stale. Docs lose the HUD paragraph.
+
+  - id: boot-title-card-comment-scrub
+    title: Rewrite the BootTitleCardOverlay.tsx file-header comment to drop the "year readout" reference; describe the overlay as the genesis-to-gameplay handoff mask
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - title-card-comment-scrubbed
+    context_files:
+      - src/components/BootTitleCardOverlay.tsx
+    output_files:
+      - src/components/BootTitleCardOverlay.tsx
+    depends_on:
+      - bottom-bar-delete
+    verification: []
+    repair: skip
+    tags:
+      - components
+      - comments
+
+  - id: stale-engine-comment-scrub
+    title: Scrub any remaining references to "year readout", "GenesisBottomBar", or "genesis bottom bar" in src/engine/ comments
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - stale-comments-scrubbed
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/renderer.ts
+      - src/engine/render/passes/index.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisRenderer.ts
+      - src/engine/renderer.ts
+      - src/engine/render/passes/index.ts
+    depends_on:
+      - bottom-bar-delete
+    verification: []
+    repair: skip
+    tags:
+      - comments
+
+  - id: docs-genesis-md-strip-hud-paragraph
+    title: Remove the HUD paragraph from docs/claude/genesis.md and replace it with one sentence stating genesis renders no HUD overlay
+    spec_id: precis-27-strip-genesis-commentary
+    spec_sections:
+      - docs-reframed
+    context_files:
+      - docs/claude/genesis.md
+    output_files:
+      - docs/claude/genesis.md
+    depends_on:
+      - bottom-bar-delete
+    verification: []
+    repair: skip
+    tags:
+      - docs

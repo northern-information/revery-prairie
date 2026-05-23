@@ -3696,85 +3696,13 @@ export const finalizeGenesisHandoff = (state: GameState, handoffTime: number): v
   state.genesis = null
 }
 
-// Year ranges per epoch — maps the simulation to a reverse-projection
-// timeline. Each entry is [startYear, endYear] where 0 is the inferred
-// origin and GENESIS_END_YEAR is gameplay-now. The lerped value is
-// converted by formatYearsAgo into a calm-tech readout: tilde-prefixed,
-// abbreviated unit, rounded into bands so the screen never claims more
-// precision than geology can cite. Must stay in lockstep with
-// GENESIS_EPOCHS — same length, same order.
-const EPOCH_YEAR_RANGES: [number, number][] = [
-  [0, 500_000_000], // cosmicFormation
-  [500_000_000, 1_000_000_000], // landAccretion
-  [1_000_000_000, 2_000_000_000], // lavaEra
-  [2_000_000_000, 2_500_000_000], // crustCooling
-  [2_500_000_000, 3_000_000_000], // tectonicUplift
-  [3_000_000_000, 4_000_000_000], // firstWater
-  [4_000_000_000, 5_500_000_000], // emergenceOfLife
-  [5_500_000_000, 7_000_000_000], // fireSeason
-  [7_000_000_000, 8_500_000_000], // regrowth
-  [8_500_000_000, 10_000_000_000], // iceAge
-  [10_000_000_000, 11_000_000_000], // postGlacialDieOff
-  [11_000_000_000, 12_000_000_000], // warmPeriod
-  [12_000_000_000, 13_000_000_000], // riseOfCivilizations
-  [13_000_000_000, 13_700_000_000], // fallOfCivilizations
-  [13_700_000_000, 13_800_000_000], // presentDay
-]
-
-/** The year at which genesis ends and gameplay begins. */
+/** The year at which genesis ends and gameplay begins. Read by the
+ *  deep-time year display in Sidebar.tsx as the gameplay-now anchor. */
 export const GENESIS_END_YEAR = 13_800_000_000
-
-/** Get the current simulation year based on epoch index and progress.
- *  Returns Math.floor of the lerped value directly — no rolling
- *  sub-counter, no fabricated low-order digits. formatYearsAgo rounds
- *  into honest display bands. */
-export const getGenesisYear = (sim: GenesisSimState, epochs: GenesisEpoch[]): number => {
-  if (sim.epochIndex >= epochs.length) return GENESIS_END_YEAR
-  const progress = getEpochProgress(sim, epochs)
-  const [startYear, endYear] = EPOCH_YEAR_RANGES[sim.epochIndex]
-  return Math.floor(lerp(startYear, endYear, progress))
-}
-
-/** Convert a year in [0, GENESIS_END_YEAR] into a reverse-projection
- *  readout — tilde-prefixed, abbreviated unit, fixed-width 3-digit
- *  numeric portion. The bottom bar reads these values during genesis
- *  so the screen reads as the permacomputer back-deriving the world
- *  from a name seed. The width is locked so the readout never shifts
- *  horizontally as the lerped year crosses band boundaries — the B
- *  band counts hundred-millions of years (so 13.8B years ago renders
- *  as "~138B"); M and K bands count millions and thousands.
- *
- *  Bands —
- *    yearsAgo < 1_000              → "~now"
- *    rounds to >= 1B (100M step)   → "~NNNB years ago..."
- *    rounds to >= 1M (1M step)     → "~NNNM years ago..."
- *    otherwise (1K step)           → "~NNNK years ago..."
- */
-export const formatYearsAgo = (year: number): string => {
-  const yearsAgo = GENESIS_END_YEAR - year
-  if (yearsAgo < 1_000) return '~now'
-
-  const pad3 = (n: number): string => String(n).padStart(3, '0')
-
-  // Round to the 100M step first; if that lands at >= 1.0B, render in the B band.
-  const tenthsOfB = Math.round(yearsAgo / 100_000_000)
-  if (tenthsOfB >= 10) {
-    return `~${pad3(tenthsOfB)}B years ago...`
-  }
-
-  // Round to the 1M step; if that lands at >= 1M, render in the M band.
-  const m = Math.round(yearsAgo / 1_000_000)
-  if (m >= 1) return `~${pad3(m)}M years ago...`
-
-  // K band — round to the 1K step.
-  const k = Math.round(yearsAgo / 1_000)
-  return `~${pad3(k)}K years ago...`
-}
 
 /** Format a year as a comma-separated integer string (e.g. 13_800_000_000 →
  *  "13,800,000,000"). Used by the deep-time gameplay year display, which
- *  is forward-projecting and unrelated to the reverse-projection genesis
- *  readout. */
+ *  is forward-projecting. */
 export const formatYear = (year: number): string => year.toLocaleString()
 
 export const getEpochProgress = (sim: GenesisSimState, epochs: GenesisEpoch[]): number => {

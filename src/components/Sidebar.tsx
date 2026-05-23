@@ -15,14 +15,7 @@ import {
 import { screenToTile } from '@/engine/coordinates'
 import { ComponentType } from '@/engine/ecs/types'
 import { getTileEffects } from '@/engine/effects'
-import {
-  formatYear,
-  formatYearsAgo,
-  GENESIS_END_YEAR,
-  GENESIS_EPOCHS,
-  getEpochProgress,
-  getGenesisYear,
-} from '@/engine/genesis'
+import { formatYear, GENESIS_END_YEAR, GENESIS_EPOCHS } from '@/engine/genesis'
 import { getDefinition } from '@/engine/items'
 import { isInBounds, posKey } from '@/engine/position'
 import { getLastVisibleSet } from '@/engine/renderer'
@@ -167,48 +160,10 @@ export const Sidebar = ({ state, itemInfoRef, metricsRef }: SidebarProps) => {
         )
       : null
 
-  // Genesis mode: show epoch info + progress bar instead of normal sidebar
+  // Genesis mode: sidebar renders nothing. The genesis screen has no HUD;
+  // the canvas and the BootTitleCardOverlay are the only on-screen elements.
   if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
-    const epochProgress = getEpochProgress(state.genesis, GENESIS_EPOCHS)
-    const overallProgress = (state.genesis.epochIndex + epochProgress) / GENESIS_EPOCHS.length
-
-    return (
-      <div data-panel="sidebar" className={SIDEBAR_SHELL_CLASSES}>
-        <div className="flex flex-col gap-4">
-          <PanelTitle>
-            <span className="game-title">Revery Prairie</span>
-          </PanelTitle>
-          <div>
-            <SectionHeader>Genesis</SectionHeader>
-            <table className="w-full">
-              <tbody>
-                <tr>
-                  <td className="text-muted py-0.5">Year</td>
-                  <td className="py-0.5 text-right">
-                    {formatYearsAgo(getGenesisYear(state.genesis, GENESIS_EPOCHS))}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="text-muted py-0.5">Epoch</td>
-                  <td className="py-0.5 text-right">
-                    {state.genesis.epochIndex + 1}/{GENESIS_EPOCHS.length}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <div className="mt-2 h-1 w-full overflow-hidden rounded bg-white/10">
-              <div
-                className="h-full bg-white/40 transition-none"
-                style={{ width: `${String(Math.round(overallProgress * 100))}%` }}
-              />
-            </div>
-          </div>
-        </div>
-        <div>
-          <p className="text-muted text-center text-xs">Press any key to skip.</p>
-        </div>
-      </div>
-    )
+    return null
   }
 
   // Deep Time mode: show phase info + year counter + progress bar (mirrors genesis layout)

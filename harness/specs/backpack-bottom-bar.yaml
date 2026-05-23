@@ -139,7 +139,7 @@ edge_cases:
     expected: 'no regression — ground items are picked up via walk-over auto-pickup, not by dragging into the widget'
   - id: backpack-during-genesis
     description: 'state.genesis is non-null (genesis is still playing)'
-    expected: 'GenesisBottomBar renders instead of the gameplay bottom-bar; backpack is not mounted'
+    expected: 'gameplay bottom-bar does not mount; backpack is not mounted; genesis renders no HUD — only the canvas and the BootTitleCardOverlay are on screen'
   - id: backpack-during-dialog-or-menu
     description: 'dialog or system menu is open over the gameplay scene'
     expected: 'bottom-bar continues to render underneath; backpack interactions remain enabled unless the overlay above intercepts pointer events'

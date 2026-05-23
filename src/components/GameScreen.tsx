@@ -7,7 +7,6 @@ import { DevPanel } from './DevPanel'
 import { DialogBox } from './DialogBox'
 import { DragCursor } from './DragCursor'
 import { GameCanvas } from './GameCanvas'
-import { GenesisBottomBar } from './GenesisBottomBar'
 import { ScanProgressBar } from './ScanProgressBar'
 import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
@@ -220,9 +219,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
       )}
       <BootTitleCardOverlay state={state} />
       <ScanProgressBar state={state} activeScreen={activeScreen} />
-      {state.genesis ? (
-        <GenesisBottomBar state={state} />
-      ) : (
+      {!state.genesis && (
         <div
           data-panel="bottom-bar"
           className="pointer-events-none fixed inset-x-2 bottom-2 z-10 flex h-48 items-center justify-between gap-2 bg-black/70 p-2"
