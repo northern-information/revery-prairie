@@ -10,6 +10,8 @@ If bees are few.
 — Emily Dickinson
 ```
 
+Revery Prairie is a non-violent, anti-capitalist, anti-colonial game about tending a prairie. This is not an extractive farming game. Full of melancholy, grounded in science, and lightly-seasoned with cosmic horror: it is a "noticing" game.
+
 ## How This Is Built
 
 Revery Prairie is hand-crafted by Tyler Etters and others along with Claude (Anthropic) as a coding partner. Design, voice, and decisions are ours. Boilerplate, refactors, and a lot of the test scaffolding are often Claude's. The workflow is documented openly in `CLAUDE.md` and `docs/claude/`. We're transparent about it because it's true and because the workflow is part of the project.
