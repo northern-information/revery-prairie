@@ -28,6 +28,7 @@ import {
   METEOR_SHOWER_TICK_MS,
   MONARCH_TICK_MS,
   PATH_TICK_MS,
+  POLLEN_BURST_DURATION_MS,
   SATELLITE_SHAKE_DURATION_MS,
   SATELLITE_SPAWN_TICK_MS,
   SATELLITE_TICK_MS,
@@ -501,8 +502,8 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       intervalMs: CEREMONY_WAVE_TICK_MS,
       zone: 'overworld',
       priority: 54,
-      fn: state => {
-        tickFloraWaves(state, Date.now())
+      fn: (state, time) => {
+        tickFloraWaves(state, time)
       },
     },
     {
@@ -602,6 +603,22 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
           if (tag !== 'crumble') continue
           const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
           if (effect && time - effect.startTime > CRUMBLE_DURATION_MS) {
+            state.world.destroyEntity(eid)
+          }
+        }
+      },
+    },
+    {
+      id: 'pollen-burst-cleanup',
+      intervalMs: 0,
+      zone: 'always',
+      priority: 100,
+      fn: (state, time) => {
+        for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+          const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+          if (tag !== 'pollenBurst') continue
+          const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
+          if (effect && time - effect.startTime > POLLEN_BURST_DURATION_MS) {
             state.world.destroyEntity(eid)
           }
         }
