@@ -263,11 +263,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       genesisViewportHeight,
       time
     )
-    // Screen-overlay passes still run during genesis so DOM panels
-    // (the genesis bottom-right year readout, the boot title card
-    // overlay) can paint above the genesis world. The boot title card
-    // uses the gameplay metrics passed in, so its label is rendered at
-    // the gameplay viewport scale (full size).
+    // Screen-overlay passes still run during genesis so the boot title
+    // card overlay (the only DOM overlay during genesis) can paint
+    // above the genesis world. The boot title card uses the gameplay
+    // metrics passed in, so its label is rendered at the gameplay
+    // viewport scale (full size).
     runPassesInSlot('screen-overlay', ctx, state, metrics, time)
     return
   }

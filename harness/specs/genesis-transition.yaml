@@ -11,7 +11,6 @@ source_files:
   - src/engine/types.ts
   - src/engine/state.ts
   - src/components/BootTitleCardOverlay.tsx
-  - src/components/GenesisBottomBar.tsx
   - src/engine/render/passes/index.ts
   - src/components/GameScreen.tsx
   - src/components/Sidebar.tsx
@@ -163,12 +162,10 @@ behaviors:
       The genesis camera centers the prairie on the full canvas — it
       does not subtract rightInsetTiles from the visible width the way
       updateCamera does for gameplay. During genesis there is no right
-      sidebar; the only DOM overlays are the bottom-center GenesisBottomBar
-      year readout (pointer-events-none, fixed bottom-52, w-64) and the
-      eventual boot title card. Both float over the canvas without
-      reserving a side gutter, so anchoring the camera as if a sidebar
-      existed would shift the prairie left and leave a starfield band
-      on the right. The genesis cameraX uses (viewportWidth) as the
+      sidebar and no bottom HUD; the only DOM overlay is the eventual
+      boot title card, which floats over the canvas without reserving
+      a side gutter. Anchoring the camera as if a sidebar existed would
+      shift the prairie left and leave a starfield band on the right. The genesis cameraX uses (viewportWidth) as the
       effective visible width, anchored on the player spawn (one tile
       west of map center, matching createGameState). cameraY math is
       unchanged. At the genesis-to-game handoff the gameplay camera

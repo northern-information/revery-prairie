@@ -137,7 +137,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
             completeGenesis(state)
             callbacks.onRefreshUI?.()
           } else if (time - lastRefresh >= 100) {
-            // Throttled refresh — keeps the year readout ticking under the lerp
+            // Throttled refresh during the genesis lerp.
             lastRefresh = time
             callbacks.onRefreshUI?.()
           }

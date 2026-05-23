@@ -38,6 +38,6 @@ export { lightningScreenFlashPass } from './lightningScreenFlash'
 export { angelSpawnDespawnFlashPass } from './angelSpawnDespawnFlash'
 // Registered last so the zone-transition fade sits above every other
 // screen-overlay. The boot title card lives as a DOM overlay
-// (BootTitleCardOverlay) so it can z-index above other DOM panels like
-// the genesis bottom-right year readout.
+// (BootTitleCardOverlay) so it can z-index above gameplay DOM panels
+// (sidebar, bottom-bar) at the handoff.
 export { zoneTransitionOverlayPass } from './zoneTransitionOverlay'

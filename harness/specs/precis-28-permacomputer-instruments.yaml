@@ -21,8 +21,8 @@ behaviors:
       a pointer-events-auto container; its content does not steal
       drag/drop or click from the canvas because it sits inside an
       overlay slot, not over the world. The widget renders only when
-      state.genesis is null (the genesis branch continues to render
-      GenesisBottomBar without ambient instruments).
+      state.genesis is null (during genesis the gameplay bottom-bar
+      does not mount, so there is no host for AmbientInstruments).
     inputs:
       - 'GameScreen renders outside genesis (state.genesis is null)'
     outputs:
@@ -285,7 +285,7 @@ edge_cases:
     expected: 'progress is 0 and the next bookmark is the one after — at 0.0 the next bookmark is Summer Solstice, at 0.25 it is Autumn Equinox, etc.'
   - id: genesis-active
     description: 'state.genesis is non-null (genesis sim still running)'
-    expected: 'GenesisBottomBar renders instead of the gameplay bottom-bar; AmbientInstruments is not mounted'
+    expected: 'gameplay bottom-bar does not mount; AmbientInstruments is not mounted; genesis renders no HUD'
   - id: rotated-cardinal-frame-locked
     description: 'the rotated-cardinal frame from precis-30 is the only frame the vane reads'
     expected: 'AmbientInstruments does not translate state.weather.windDirection through any rotation matrix or remap table — it reads the enum directly and uses VANE_ROTATION_DEG for visual rotation only. If precis-30''s frame is reverted, this component automatically reverts with it.'
