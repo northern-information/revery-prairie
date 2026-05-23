@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
+import { posKey } from '../position'
 import { initiateRevery, tickRevery } from '../revery'
 import { OmenKind, ReveryPhase, TileType, Zone } from '../types'
 
@@ -94,7 +95,9 @@ describe('summons sequence — Omen → Observing (precis #32)', () => {
     // No Gron entity placed.
     initiateRevery(state, 1000, OmenKind.CloudPassingSun)
     if (state.revery) state.revery.summons = true
-    expect(() => tickRevery(state, 0, 1000)).not.toThrow()
+    expect(() => {
+      tickRevery(state, 0, 1000)
+    }).not.toThrow()
     expect(state.activeDialog).toBeNull() // dialog skipped when Gron missing
     expect(state.revery?.phase).toBe(ReveryPhase.Observing)
   })
@@ -116,7 +119,9 @@ describe('summons sequence — Omen → Observing (precis #32)', () => {
     const oy = originalGronPos?.y
     initiateRevery(state, 1000, OmenKind.CloudPassingSun)
     if (state.revery) state.revery.summons = true
-    expect(() => tickRevery(state, 0, 1000)).not.toThrow()
+    expect(() => {
+      tickRevery(state, 0, 1000)
+    }).not.toThrow()
     const finalPos = state.world.getComponent(gron, ComponentType.Position)
     // Gron position unchanged
     expect(finalPos?.x).toBe(ox)
@@ -161,7 +166,7 @@ describe('Closing-phase egregoric commit + reset (precis #32)', () => {
     expect(state.map[py][px].type).toBe(TileType.Egregore)
     expect(state.egregorePositions.length).toBe(before + 1)
     expect(state.egregorePositions[state.egregorePositions.length - 1]).toEqual({ x: px, y: py })
-    expect(state.egregoreLifecycle.has(`${px},${py}`)).toBe(true)
+    expect(state.egregoreLifecycle.has(posKey(px, py))).toBe(true)
   })
 
   it('skips egregoric commit silently when collapse tile is no longer Dirt', () => {
