@@ -48,7 +48,13 @@ const computePatchTiles = (
 }
 
 export const spawnGlintPatch = (state: GameState, birthTime: number): GlintPatch | null => {
-  const { map, mapWidth, mapHeight } = state
+  // Glint patches always live on the overworld map, even when the steward
+  // is currently inside the house/cave/ruin. Reading state.map would pick
+  // up the wrong dimensions (e.g. the 15x9 house interior at tenure start
+  // post-precis-33) and produce out-of-bounds indices.
+  const map = state.overworldMap
+  const mapWidth = state.overworldMapWidth
+  const mapHeight = state.overworldMapHeight
   for (let attempt = 0; attempt < 50; attempt++) {
     const cx = SPACE_BORDER + Math.floor(Math.random() * (mapWidth - SPACE_BORDER * 2))
     const cy = SPACE_BORDER + Math.floor(Math.random() * (mapHeight - SPACE_BORDER * 2))
@@ -143,13 +149,20 @@ export const tickGlintZones = (state: GameState, time: number): void => {
     const newCy = patch.centerY + dir.dy
     if (
       newCx >= SPACE_BORDER &&
-      newCx < state.mapWidth - SPACE_BORDER &&
+      newCx < state.overworldMapWidth - SPACE_BORDER &&
       newCy >= SPACE_BORDER &&
-      newCy < state.mapHeight - SPACE_BORDER
+      newCy < state.overworldMapHeight - SPACE_BORDER
     ) {
-      const tile = state.map[newCy][newCx].type
+      const tile = state.overworldMap[newCy][newCx].type
       if (tile === TileType.Dirt || tile === TileType.Flora) {
-        const candidate = computePatchTiles(state.map, newCx, newCy, patch.radius, state.mapWidth, state.mapHeight)
+        const candidate = computePatchTiles(
+          state.overworldMap,
+          newCx,
+          newCy,
+          patch.radius,
+          state.overworldMapWidth,
+          state.overworldMapHeight
+        )
         if (candidate.size >= GLINT_PATCH_MIN_TILES) {
           patch.centerX = newCx
           patch.centerY = newCy
