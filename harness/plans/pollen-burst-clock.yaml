@@ -1,0 +1,83 @@
+plan:
+  id: pollen-burst-clock
+  title: Align pollen burst lifecycle on the rAF clock and destroy expired bursts
+  created: '2026-05-23'
+  global_verification:
+    - npm run build
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: align-flora-waves-on-raf-clock
+    title: Pass the gameLoop rAF time to tickFloraWaves instead of Date.now()
+    spec_id: pollen-burst-clock
+    spec_sections:
+      - ceremony-wave-uses-raf-clock
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/floraWaves.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/pollenBurstClock.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-pollen-burst-cleanup-system
+    title: Add a pollen-burst-cleanup tick system that destroys expired bursts
+    spec_id: pollen-burst-clock
+    spec_sections:
+      - pollen-burst-fades-and-is-destroyed
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - align-flora-waves-on-raf-clock
+    verification:
+      - npx vitest run src/engine/__tests__/pollenBurstClock.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-regression-tests
+    title: Add regression tests proving both fixes
+    spec_id: pollen-burst-clock
+    spec_sections:
+      - ceremony-wave-uses-raf-clock
+      - pollen-burst-fades-and-is-destroyed
+      - single-cast-cleanup
+      - clock-monotonic
+    context_files:
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/pollenBurstClock.test.ts
+      - src/engine/floraWaves.ts
+      - src/engine/gameLoop.ts
+      - src/engine/constants.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/__tests__/pollenBurstClock.test.ts
+    depends_on:
+      - add-pollen-burst-cleanup-system
+    verification:
+      - npx vitest run src/engine/__tests__/pollenBurstClock.test.ts
+    repair: retry
+    tags:
+      - test
+    notes: >
+      Two tests required.
+      Test 1 (clock-mismatch regression): construct a state, queue a
+      ceremony wave, advance one tickFloraWaves call with a rAF-like
+      `time` argument (e.g. performance.now()), then assert the
+      spawned pollenBurst entities have startTime within a few ms of
+      that argument — never within billions of ms of Date.now(). Would
+      fail on main because gameLoop.ts:505 passes Date.now() instead.
+      Test 2 (cleanup): seed a pollenBurst entity directly with
+      startTime = T, then run the gameLoop's pollen-burst-cleanup
+      system at time T + POLLEN_BURST_DURATION_MS + 1 and assert the
+      entity has been destroyed (ECS query returns zero pollenBurst
+      entities). Would fail on main because no cleanup system exists.

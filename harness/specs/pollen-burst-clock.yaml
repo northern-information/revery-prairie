@@ -1,0 +1,101 @@
+id: pollen-burst-clock
+name: 'Pollen burst lifecycle uses a single clock and cleans up'
+priority: high
+layer: engine
+source_files:
+  - src/engine/floraWaves.ts
+  - src/engine/gameLoop.ts
+  - src/engine/render/passes/floraWave.ts
+  - src/engine/constants.ts
+dependencies:
+  - recipes
+
+behaviors:
+  - id: ceremony-wave-uses-raf-clock
+    description: >
+      tickFloraWaves is driven from the gameLoop's rAF clock (the same
+      `time` argument every other tick system in gameLoop.ts receives),
+      not Date.now(). Both the wave's lastTickTime and any TimedEffect
+      startTime written during the tick are stamped from that single
+      clock so the renderer (which also reads rAF time) can compute a
+      coherent elapsed duration.
+    inputs:
+      - 'gameLoop tick fires with rAF time argument'
+    outputs:
+      - 'tickFloraWaves(state, time) called with rAF time'
+      - 'pollen burst TimedEffect.startTime equals the rAF time at spawn'
+    state_changes:
+      - field: world
+        effect: 'pollenBurst entities created with startTime in rAF clock'
+      - field: activeWaves
+        effect: 'wave.lastTickTime updated to rAF time'
+    determinism: deterministic
+
+  - id: pollen-burst-fades-and-is-destroyed
+    description: >
+      Pollen burst TimedEffects fade out over POLLEN_BURST_DURATION_MS
+      and the underlying ECS entity is destroyed once elapsed exceeds
+      that duration. A dedicated cleanup system in gameLoop.ts
+      (modeled on crumble-cleanup) iterates pollenBurst-tagged
+      TimedEffect entities each frame and destroys any whose
+      time - startTime > POLLEN_BURST_DURATION_MS. After the ceremony
+      wave finishes, no pollenBurst entities remain in the ECS world.
+    inputs:
+      - 'pollenBurst entity with startTime in rAF clock'
+      - 'current rAF time'
+    outputs:
+      - 'entity destroyed once elapsed exceeds POLLEN_BURST_DURATION_MS'
+    state_changes:
+      - field: world
+        effect: 'expired pollenBurst entities removed via destroyEntity'
+    determinism: deterministic
+
+  - id: bursts-visually-distinct-from-bees-after-fade
+    description: >
+      The floraWave render pass already skips drawing pollenBurst
+      entities once elapsed >= POLLEN_BURST_DURATION_MS. With the
+      clock fix in place, this skip fires correctly. Combined with
+      entity destruction, no gold '*' pollen-burst glyph remains on
+      screen after the wave completes — only actual bee entities
+      (which animate via tickBees) continue to draw with BEE_CHAR.
+    inputs:
+      - 'post-ceremony-wave game state'
+    outputs:
+      - 'no pollenBurst glyphs rendered after POLLEN_BURST_DURATION_MS'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: single-cast-cleanup
+    description: 'One bee+clover combine cast; wait until wave completes plus POLLEN_BURST_DURATION_MS'
+    expected: 'zero pollenBurst entities remain in state.world'
+
+  - id: mid-wave-cleanup
+    description: 'During an active wave, some bursts have expired while others are still fading'
+    expected: 'expired bursts destroyed; un-expired bursts still drawn with correct alpha'
+
+  - id: clock-monotonic
+    description: 'tickFloraWaves and the renderer pass both observe the same rAF time within a frame'
+    expected: 'elapsed = time - startTime is bounded by frame duration plus POLLEN_BURST_DURATION_MS, never a huge magnitude'
+
+failure_conditions:
+  - trigger: 'pollen burst startTime is written in Date.now() while renderer compares against performance.now()'
+    expected: >
+      REGRESSION — this was the original bug. elapsed becomes ~-1.7e12
+      so the fade/skip check never fires, every burst ever spawned
+      renders forever at full opacity, looking like a static cloud of
+      stationary yellow asterisks indistinguishable from bees. The
+      fix must keep both writes and reads on the same clock so this
+      cannot recur.
+
+  - trigger: 'pollen burst entities accumulate in ECS without destruction'
+    expected: >
+      REGRESSION — even with correct rendering, entities with
+      Position + TimedEffect + EntityTag('pollenBurst') + EntityZone
+      pile up forever as more ceremonies are cast, slowing every ECS
+      query that walks those components.
+
+verification:
+  test_file: src/engine/__tests__/pollenBurstClock.test.ts
+  test_pattern: pollen-burst
+  command: npx vitest run src/engine/__tests__/pollenBurstClock.test.ts
