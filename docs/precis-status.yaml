@@ -1203,6 +1203,18 @@ features:
       the house at tenure start). The Revery Knots pool and the root
       cellar (`#37`) remain out-of-scope for this PR.
 
+
+      v9 thinktank round 2 (2026-05-23). The little house gains
+      `pausesPlayerTime: true` on its zone definition (per `#51`).
+      Sleep continues to advance time via the Revery mechanic; non-
+      sleep visits — sitting at the table, picking something off the
+      bed, talking with Emily — do not cost daylight or seasonal
+      progression. The prairie's simulation tick continues at normal
+      rate while the steward is inside; Emily continues at the
+      prairie's tick because she is part of the prairie's
+      simulation, not the steward's clock. Cosmological framing:
+      _home is the place that does not tick for the steward._
+
   - id: '34'
     name: The tenure opens in the little house
     summary: >
@@ -1318,6 +1330,23 @@ features:
       learns slowly across tenures, or not.
 
 
+      v9 thinktank round 1 (2026-05-23). The open question on per-
+      year Knot variation closes: the Knot's `materials` bag is
+      auto-derived at the autumn tying tick, walking the union of
+      four witness footprints (steward gaze + memory, Emily's radius
+      around the little house, the coyote's wander trail, the
+      egregore's patch extent). The Knot is the camera that does
+      not know; the witnesses are plural; the cellar tells the
+      steward what they missed. Derivation engine ships under `#50`
+      (shared substrate with `#46`). The pickup's pressure
+      contribution to `#32` is unchanged; pickup still has no stat
+      surface beyond the existing scalar. The room's earlier
+      instinct toward a steward-offering / curation surface
+      (provisional `#49`) was refused on cosmological grounds —
+      curation is the breeder in a smaller coat — and the `#49`
+      slot vacates.
+
+
       Name lock: `Revery Knot`. FromSoft-shaped on hover — clear about
       function (the Revery's signal) in the cosmology's own vocabulary,
       cryptic about origin until the manual entry surfaces the folk-craft
@@ -1418,6 +1447,31 @@ features:
       lineages is flagged for human authorship — naturalist register,
       not lab register; mortal register, not mythic register. _The
       cellar carries the name; the prairie carries the body._
+
+
+      v9 thinktank round 1 (2026-05-23). The cellar's role formalizes
+      from memorial to revelation surface. The hover text on year-N's
+      Knot reads year-N's plural-witness record — the wildfire on the
+      northwest ridge the steward never reached, the egregore that
+      crept on the southern slope unobserved. The revelation always
+      arrives later, in a future year's cellar visit; never in the
+      year of the event. Witness provenance is internal — the prose
+      reads in the prairie's voice, not "(coyote saw)" attribution.
+      No structural change to the cellar zone; the new behavior
+      lives in the Knot's `materials` bag (`#50`) and is rendered
+      at the cellar's existing hover surface.
+
+
+      v9 thinktank round 2 (2026-05-23). The cellar gains
+      `pausesPlayerTime: true` on its zone definition (per `#51`).
+      Reading Knots is contemplation — stand-and-look, not glance.
+      The daylight clock (`state.timeOfDay`) and seasonal
+      progression clock (`state.season`) do not advance while the
+      steward is inside; the prairie's simulation tick continues
+      at normal rate. Re-entry to the prairie does not snap-
+      advance. Cosmological framing: _memory does not tick_. The
+      cellar is the prairie's archive of itself; archives are not
+      present tense.
 
   - id: '38'
     name: Overworld gaze, memory, and unseen
@@ -1676,6 +1730,17 @@ features:
       it. The permacomputer is the diegetic excuse for the steward not
       having to keep a notebook.
 
+
+      v9 thinktank round 1 (2026-05-23). The auto-annotation
+      substrate is shared with `#50` (Knot per-year auto-derivation).
+      Lineage-as-target stays `#46`'s primary case; year-as-target
+      (via witness-union: steward, Emily, coyote, egregore) is the
+      sibling case under `#50`. The two specs should share a
+      `deriveAnnotations` foundation, not duplicate it. The witness-
+      union footprint helper introduced by `#50` is reusable by
+      `#46` wherever a lineage's record needs to query "what was
+      witnessed by any party" rather than "what the steward saw."
+
   - id: '47'
     name: Layer toggle system v2 (Record / Thermal / Rhizome)
     summary: >
@@ -1738,3 +1803,101 @@ features:
       will eventually take its readings — same substrate, different
       instruments. Decoupled from #47 so the layer's content can be
       spec'd independently from the overlay registry that hosts it.
+
+  - id: '50'
+    name: Knot per-year auto-derivation
+    summary: >
+      The Revery Knot's per-year material variation is auto-derived
+      from the year's prairie state at the autumn tying tick. The
+      derivation walks the union of four witness footprints: the
+      steward (gaze + memory), Emily (radius around the little
+      house), the coyote (its wander trail), and the egregore (its
+      patch extent — Gron's knowing). The result is a `materials`
+      bag cached on the year's `reveryKnotsInCellar` entry and
+      never recomputed. Surfaces in inventory glyph perturbation,
+      cellar hover (alongside `#22` chronicle text), and the manual
+      entry's per-year texture. The cellar hover is the surface
+      that teaches the steward what they missed.
+    size: M
+    depends_on: ['36', '46']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v9 thinktank round 1 (2026-05-23). The cellar transforms from
+      memorial to revelation — across years the steward learns what
+      they missed (a wildfire on the northwest ridge they never
+      reached, an egregore that crept on the southern slope
+      unobserved). The revelation always arrives later, in a future
+      year's cellar visit; never in the year of the event. Witness
+      provenance is internal — the cellar reads events in the
+      prairie's voice, not "(coyote saw)" attribution. The cellar's
+      richness is not a function of the steward's diligence: Emily
+      watched, the coyote roamed, the egregore was; the cellar
+      fills regardless of how much the steward walked. Shares the
+      auto-annotation substrate with `#46` (lineage-as-target stays
+      primary; year-as-target is the sibling case). Resolves `#36`'s
+      open question on per-year variation — derived, not authored,
+      not curated. The room's earlier instinct toward a steward-
+      offering surface (provisional `#49`) was refused on
+      cosmological grounds (curation is the breeder in a smaller
+      coat); the `#49` id vacates the same way `#12` did in v7 R1.
+      _The Knot is the camera that does not know. The cellar is a
+      row of cameras, one per year, each one pointed back at the
+      prairie that made it._ Delta's line for the round: _the
+      cellar tells the steward what they missed across the unseen._
+      Open at spec: coyote wander-trail granularity (lean: every
+      tile, one bit per tile per year); Emily's footprint radius
+      (lean: 10 tiles); whether the cellar prose explicitly names
+      the gap or just renders the event (lean: no acknowledgment);
+      whether Gron's arrival contributes post-hoc (lean: no —
+      autumn-tied); event de-duplication across witnesses (lean:
+      single record per event, sourced from any witness); voice
+      constraint for metabolic / egregoric prose (per v6 R8 — _of-
+      but-not-of_ register, never _invasive_).
+
+  - id: '51'
+    name: Time stops in domestic structures
+    summary: >
+      A `pausesPlayerTime` flag on zone definitions. True for the
+      cellar (`#37`) and the little house (`#33`); false for the
+      cave and the ruins. While the steward is inside a paused-
+      structure zone, the daylight clock (`state.timeOfDay`) and
+      seasonal progression clock (`state.season`) do not advance.
+      The prairie's simulation tick continues at its normal rate —
+      bees, ghosts, coyote, flora lifecycle, weather. Re-entry to
+      the prairie does not snap-advance; the steward returns to
+      the moment they entered.
+    size: S
+    depends_on: ['33', '37']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v9 thinktank round 2 (2026-05-23). Cosmological cut is
+      _domestic vs wild_: the homestead does not tick, the wild
+      does. The cellar's reason is _memory does not tick_ — the
+      cellar is the prairie's archive of itself; archives are not
+      present tense. The little house's reason is _home is the
+      place that does not tick for the steward_ — sleep continues
+      to advance time via the Revery mechanic, but non-sleep
+      visits do not cost daylight. The cave and ruins remain time-
+      flowing because they are the prairie's wild interior. Honors
+      v7 R2's lock (_the trees do not stop when no one is in the
+      forest_): only the steward's clock pauses; the prairie's
+      simulation tick continues at its normal rate. Compounds
+      with `#50` — Round 1 made the cellar a place of plural-
+      witness revelation, this round names what kind of space
+      that requires. Emily continues at the prairie's tick even
+      while the steward is in the little house — she is part of
+      the prairie's simulation, not the steward's clock. Open at
+      spec: which sub-clocks beyond `timeOfDay` and `season` need
+      audit (NPC dialogue cooldowns, etc. — lean: only the two
+      player-facing clocks pause); whether the pause should be
+      visually felt (light angle frozen at entry, ambient audio
+      held — lean: yes, subtly); whether exit cues the resumption
+      (lean: no); whether future domestic spaces inherit
+      automatically (lean: no — the principle is the test,
+      domestic vs wild, drawn deliberately per space).
