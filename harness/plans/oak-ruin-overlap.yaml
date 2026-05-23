@@ -1,0 +1,80 @@
+plan:
+  id: oak-ruin-overlap
+  title: 'Prevent oaks from spawning over ruin entrances via a shared reserved-tile helper'
+  created: '2026-05-23'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/oaks.test.ts src/engine/__tests__/ruins.test.ts
+
+tasks:
+  - id: add-reservation-helper
+    title: 'Add isReservedForStructure helper to position.ts'
+    spec_id: oak-ruin-overlap
+    spec_sections:
+      - structure-tile-reservation-helper
+    context_files:
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/position.ts
+    depends_on: []
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: oak-validator-uses-helper
+    title: 'Reject oak anchors whose 5x5 footprint includes a reserved structure tile'
+    spec_id: oak-ruin-overlap
+    spec_sections:
+      - oak-respects-reserved-tiles
+    context_files:
+      - src/engine/oaks.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/oaks.ts
+    depends_on:
+      - add-reservation-helper
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: ruin-placer-uses-helper
+    title: 'Replace inline CaveEntrance check in placeRuinEntrances with isReservedForStructure'
+    spec_id: oak-ruin-overlap
+    spec_sections:
+      - ruin-placement-uses-reservation-helper
+    context_files:
+      - src/engine/ruins.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - add-reservation-helper
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine]
+
+  - id: regression-tests
+    title: 'Add regression tests: isValidOakPosition rejects ruin entrance/apron/cave entrance overlaps'
+    spec_id: oak-ruin-overlap
+    spec_sections:
+      - oak-respects-reserved-tiles
+      - structure-tile-reservation-helper
+    context_files:
+      - src/engine/__tests__/oaks.test.ts
+      - src/engine/oaks.ts
+      - src/engine/ruins.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/__tests__/oaks.test.ts
+    depends_on:
+      - oak-validator-uses-helper
+      - ruin-placer-uses-helper
+    verification:
+      - npx vitest run src/engine/__tests__/oaks.test.ts
+    repair: retry
+    tags: [test]

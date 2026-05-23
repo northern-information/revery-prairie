@@ -62,6 +62,14 @@ export const isWalkableTile = (tileType: TileType): boolean =>
   tileType !== TileType.RuinDebris &&
   tileType !== TileType.RuinDoorLocked
 
+// Tile types reserved by a placed structure. New entity placers (oaks today,
+// future multi-tile entities) must reject candidate positions whose footprint
+// includes any of these — the tile already belongs to something.
+export const isReservedForStructure = (tileType: TileType): boolean =>
+  tileType === TileType.CaveEntrance ||
+  tileType === TileType.RuinEntrance ||
+  tileType === TileType.RuinApron
+
 /** Find the nearest walkable tile at Chebyshev distance >= minDistance from entrance.
  *  Searches outward shell by shell, preferring south at each distance.
  *  Pass minDistance=2 when exiting a zone to land outside the 3x3 entry hitbox. */
