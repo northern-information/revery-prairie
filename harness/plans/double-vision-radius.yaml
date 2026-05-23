@@ -1,0 +1,41 @@
+plan:
+  id: double-vision-radius
+  title: 'Double player vision radius across all three zones (OVERWORLD/CAVE/RUIN: 3 -> 6)'
+  created: 2026-05-23
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: bump-vision-constants
+    title: 'Set OVERWORLD_VISION_RADIUS, CAVE_VISION_RADIUS, RUIN_VISION_RADIUS to 6 in src/engine/constants.ts'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - prairie-vision-radius
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, constants]
+
+  - id: update-visibility-tests
+    title: 'Update visibility.test.ts assertions from .toBe(3) to .toBe(6) for the three vision radii; preserve the "same eyes" lock test that asserts equality; rename the "claustrophobic feel" test to reflect the relaxed cave radius'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - prairie-vision-radius
+    context_files:
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/visibility.test.ts
+    depends_on:
+      - bump-vision-constants
+    verification:
+      - 'npx vitest run src/engine/__tests__/visibility.test.ts'
+    repair: retry
+    tags: [test]

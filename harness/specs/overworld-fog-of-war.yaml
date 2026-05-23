@@ -65,18 +65,22 @@ behaviors:
   - id: prairie-vision-radius
     description: >
       player vision radius on the prairie is OVERWORLD_VISION_RADIUS
-      (3 tiles), the same value as CAVE_VISION_RADIUS and
-      RUIN_VISION_RADIUS. same eyes, indoors or out. tiles within
-      this radius with unobstructed line-of-sight from the player
-      position are visible. the prairie currently has no LOS-blocking
-      tile types — blocksLOS returns false for all prairie tiles, so
-      the visible set is a Chebyshev disc of radius 3 around the
-      player (clipped to map bounds and shadowcasting's circular
-      mask). shadowcasting is reused unchanged from cave and ruin.
+      (6 tiles), the same value as CAVE_VISION_RADIUS and
+      RUIN_VISION_RADIUS. same eyes, indoors or out — the cosmological
+      lock is preserved at the doubled value. tiles within this radius
+      with unobstructed line-of-sight from the player position are
+      visible. the prairie currently has no LOS-blocking tile types —
+      blocksLOS returns false for all prairie tiles, so the visible
+      set is a Chebyshev disc of radius 6 around the player (clipped
+      to map bounds and shadowcasting's circular mask). shadowcasting
+      is reused unchanged from cave and ruin. With DISCOVERY_RADIUS
+      held at 2, the partiallyDiscovered ring is now 4 tiles wide
+      (Chebyshev distance 3..6), which is the visual layer between
+      full-brightness memory and unexplored.
     inputs:
       - 'player position on the prairie'
       - 'overworld map tile data'
-      - 'OVERWORLD_VISION_RADIUS constant (3)'
+      - 'OVERWORLD_VISION_RADIUS constant (6)'
     outputs:
       - 'Set<string> of currently visible tile keys'
     state_changes: []
