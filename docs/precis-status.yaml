@@ -177,16 +177,6 @@ features:
     pr: https://github.com/northern-information/revery-prairie/pull/348
     notes: 'Scope locked 2026-05-20: genetics-bearing seeds; genome carried on ItemDrop component in-world, transferred to state.seedGenomes (uid-keyed, mirrors glintingCoins) on pickup; drop-on-dirt = plant (seeds cannot be set down as ground items); vault-spawn derives genome deterministically from (stewardName, ruinIndex, vaultSlot) via generateGenesisIdentity + generateTraitBag; wildflowerSeeds + tallGrassSeeds recategorized Flora → Seed. Resized S → M after taxonomy + planting + genome-threading scope. Out of scope: milkweedSeeds, cloverSeeds, genetic-fragment item class, seed scan UX, autonomous spread (precis-17).'
 
-  - id: '12'
-    name: Crossbreeding UX
-    summary: Adjacent → pollinator-mediated crossbreeding.
-    depends_on: ['3', '7']
-    status: todo
-    spec: null
-    plan: null
-    pr: null
-    notes: ''
-
   - id: '13'
     name: Emergent Angels
     summary: >
@@ -272,6 +262,24 @@ features:
        - Perf gate: 1.5x measured baseline of existing
          tickFloraLifecycle + tickCloverGrowth under the 5000-tile
          fixture, not a guessed ms number.
+
+
+      v7 thinktank round 1 (2026-05-22). Autonomous bee-mediated
+      pollination stays — pollen moves via bees, identities mix
+      where bees route, the player does not direct it. That is the
+      prairie's own process and survives the v7 doctrine
+      ("crossbreeding is GMO / capitalist; the steward is a
+      naturalist, not a breeder"). A vocabulary audit rides on this
+      item as a maintenance task — rename `father` / `mother` /
+      `crossTraitBags` in `src/engine/beePollination.ts` and
+      `src/engine/flora/actions/pollinate.ts` to a naturalism
+      register (lean: `pollenSource` / `pistilTile` or
+      `receivingTile` / `pollinateIdentities`); audit the lineage
+      overlay (`[2]`) text, the hex grid label, and the
+      `event:cross-pollinated` manual lore brief for breeder
+      vocabulary. Behavior unchanged; this is a names-only pass.
+      `#12` (Crossbreeding UX) was removed from the backlog in the
+      same round.
 
   - id: '14'
     name: Delete the activity event log
