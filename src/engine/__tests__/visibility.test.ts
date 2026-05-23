@@ -409,12 +409,12 @@ describe('fog of war', () => {
   })
 
   describe('vision radius', () => {
-    it('CAVE_VISION_RADIUS is 3 for claustrophobic feel', () => {
-      expect(CAVE_VISION_RADIUS).toBe(3)
+    it('CAVE_VISION_RADIUS is 6', () => {
+      expect(CAVE_VISION_RADIUS).toBe(6)
     })
 
-    it('RUIN_VISION_RADIUS is 3', () => {
-      expect(RUIN_VISION_RADIUS).toBe(3)
+    it('RUIN_VISION_RADIUS is 6', () => {
+      expect(RUIN_VISION_RADIUS).toBe(6)
     })
   })
 
@@ -734,7 +734,7 @@ describe('fog of war', () => {
     })
 
     it('OVERWORLD_VISION_RADIUS matches the cave and ruin radii (same eyes, indoors or out)', () => {
-      expect(OVERWORLD_VISION_RADIUS).toBe(3)
+      expect(OVERWORLD_VISION_RADIUS).toBe(6)
       expect(OVERWORLD_VISION_RADIUS).toBe(CAVE_VISION_RADIUS)
       expect(OVERWORLD_VISION_RADIUS).toBe(RUIN_VISION_RADIUS)
     })

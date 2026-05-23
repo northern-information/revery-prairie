@@ -49,12 +49,17 @@ behaviors:
 
   - id: player-vision-radius
     description: >
-      player has a vision radius of 3 tiles (CAVE_VISION_RADIUS). only
+      player has a vision radius of 6 tiles (CAVE_VISION_RADIUS). only
       tiles within this radius AND with unobstructed line-of-sight
       from the player position are visible. cave walls (CaveWall,
       CaveBreakableWall) block line-of-sight — the blocking wall tile
       itself is visible but nothing behind it. uses symmetric
-      shadowcasting for consistent, artifact-free FOV.
+      shadowcasting for consistent, artifact-free FOV. CAVE_VISION_RADIUS
+      is held equal to OVERWORLD_VISION_RADIUS and RUIN_VISION_RADIUS
+      per the precis-38 "same eyes, indoors or out" cosmological lock.
+      The prior "claustrophobic feel" framing is intentionally relaxed
+      at the doubled value — corridor widths often exceed the radius
+      no longer.
     inputs:
       - 'player position in cave'
       - 'cave map tile data'
