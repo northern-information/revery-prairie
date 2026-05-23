@@ -1,0 +1,49 @@
+plan:
+  id: minimap-ruin-footprint-fog
+  title: 'Fix: minimap ruin footprints must respect fog of war'
+  created: 2026-05-23
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npx vitest run src/components/__tests__/Minimap.test.tsx'
+
+tasks:
+  - id: add-failing-regression-test
+    title: 'Author failing regression test asserting getVisibleRuinFootprints excludes unexplored tiles (fresh tenure, partially explored ruin, non-overworld zone)'
+    spec_id: minimap-ruin-footprint-fog
+    spec_sections:
+      - footprint-gated-by-fog
+      - helper-exposes-visible-footprints
+    context_files:
+      - src/components/Minimap.tsx
+      - src/engine/visibility.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/components/__tests__/Minimap.test.tsx
+    output_files:
+      - src/components/__tests__/Minimap.test.tsx
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [test]
+
+  - id: extract-helper-and-gate-footprints
+    title: 'Extract getVisibleRuinFootprints helper in Minimap.tsx; drawStructures uses it; footprint loop now per-tile fog-gated'
+    spec_id: minimap-ruin-footprint-fog
+    spec_sections:
+      - footprint-gated-by-fog
+      - helper-exposes-visible-footprints
+    context_files:
+      - src/components/Minimap.tsx
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/Minimap.tsx
+    depends_on:
+      - add-failing-regression-test
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/components/__tests__/Minimap.test.tsx'
+    repair: retry
+    tags: [component, bugfix]

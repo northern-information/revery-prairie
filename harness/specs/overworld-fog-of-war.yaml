@@ -216,11 +216,17 @@ behaviors:
       partiallyDiscovered prairie tiles render dimmed; visible and
       fullyDiscovered render at full color. the player position marker
       and viewport rectangle are not gated by fog and always render.
+      All world-structure layers drawn on the minimap (terrain tiles,
+      cave/ruin entrance markers, civilization-ruin building footprints,
+      character entities) must respect the per-tile fog gate via
+      `isTileExplored`. See `minimap-ruin-footprint-fog` for the
+      footprint-layer contract specifically.
     inputs:
       - 'state.currentZone is Overworld'
       - 'minimap render tick'
     outputs:
       - 'unexplored prairie tiles do not paint on the minimap'
+      - 'unexplored civilization-ruin footprint tiles do not paint on the minimap'
       - 'partiallyDiscovered prairie tiles paint at ~35% alpha'
       - 'player marker and viewport rectangle remain visible'
     state_changes: []

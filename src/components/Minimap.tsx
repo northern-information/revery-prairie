@@ -8,7 +8,7 @@ import { posKey } from '@/engine/position'
 import { TileType, Zone } from '@/engine/types'
 import { getLastVisibleSet, getTileVisibility, hasFogOfWar } from '@/engine/visibility'
 import type { IsoLayout } from './minimapProjection'
-import type { GameState, Tile } from '@/engine/types'
+import type { GameState, Position, Tile } from '@/engine/types'
 import type { TileVisibility } from '@/engine/visibility'
 
 const PLAYER_MARKER_COLOR = '#ff69b4'
@@ -98,18 +98,35 @@ const isTileExplored = (state: GameState, x: number, y: number, visibleSet: Set<
   return vis !== 'unexplored'
 }
 
+// Returns the ruin building-footprint tiles that should render on the
+// minimap this frame, filtered by per-tile fog state. Exported so the
+// fog-gating predicate is testable in isolation; drawStructures
+// delegates here so future structure-layer additions cannot bypass the
+// gate by copy-paste.
+export const getVisibleRuinFootprints = (
+  state: GameState,
+  visibleSet: Set<string> | null
+): Position[] => {
+  if (state.currentZone !== Zone.Overworld) return []
+  const out: Position[] = []
+  for (const ruin of state.civilizationRuins) {
+    for (const pos of ruin.buildingFootprints) {
+      if (isTileExplored(state, pos.x, pos.y, visibleSet)) {
+        out.push(pos)
+      }
+    }
+  }
+  return out
+}
+
 const drawStructures = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   layout: IsoLayout,
   visibleSet: Set<string> | null
 ) => {
-  if (state.currentZone === Zone.Overworld) {
-    for (const ruin of state.civilizationRuins) {
-      for (const pos of ruin.buildingFootprints) {
-        drawIsoTile(ctx, layout, pos.x, pos.y, RUIN_FOOTPRINT_COLOR)
-      }
-    }
+  for (const pos of getVisibleRuinFootprints(state, visibleSet)) {
+    drawIsoTile(ctx, layout, pos.x, pos.y, RUIN_FOOTPRINT_COLOR)
   }
 
   for (let y = 0; y < state.mapHeight; y++) {

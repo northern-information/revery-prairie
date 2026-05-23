@@ -1,10 +1,13 @@
-import { Minimap } from '../Minimap'
+import { getVisibleRuinFootprints, Minimap } from '../Minimap'
 import { computeIsoLayout, getPlayerCenter, MINIMAP_CSS_SIZE, projectIso } from '../minimapProjection'
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { createGameState } from '@/engine/state'
+import { posKey } from '@/engine/position'
 import { Zone } from '@/engine/types'
+
+import type { CivilizationRuin } from '@/engine/genesisTypes'
 
 describe('minimap', () => {
   it('renders a canvas element', () => {
@@ -37,6 +40,73 @@ describe('minimap', () => {
     state.mapHeight = 0
     state.map = []
     expect(() => render(<Minimap state={state} />)).not.toThrow()
+  })
+})
+
+describe('getVisibleRuinFootprints', () => {
+  const makeRuin = (footprints: { x: number; y: number }[]): CivilizationRuin => ({
+    position: footprints[0],
+    name: 'Test Ruin',
+    radius: 1,
+    age: 0,
+    aqueductPaths: [],
+    buildingFootprints: footprints,
+  })
+
+  it('returns no footprints on a fresh tenure with no exploration', () => {
+    const state = createGameState('Test', 80, 40)
+    state.overworldFogExplored = new Set()
+    state.overworldFogDiscovered = new Set()
+    state.civilizationRuins = [makeRuin([{ x: 40, y: 40 }, { x: 41, y: 40 }, { x: 40, y: 41 }])]
+
+    const result = getVisibleRuinFootprints(state, null)
+    expect(result).toEqual([])
+  })
+
+  it('returns only the explored tiles of a partially explored ruin', () => {
+    const state = createGameState('Test', 80, 40)
+    state.overworldFogExplored = new Set([posKey(40, 40)])
+    state.overworldFogDiscovered = new Set()
+    state.civilizationRuins = [
+      makeRuin([
+        { x: 40, y: 40 },
+        { x: 41, y: 40 },
+        { x: 40, y: 41 },
+        { x: 41, y: 41 },
+        { x: 42, y: 40 },
+      ]),
+    ]
+
+    const result = getVisibleRuinFootprints(state, null)
+    expect(result).toEqual([{ x: 40, y: 40 }])
+  })
+
+  it('returns no footprints when state.currentZone is not Overworld', () => {
+    const state = createGameState('Test', 80, 40)
+    state.currentZone = Zone.Cave
+    state.overworldFogExplored = new Set([posKey(40, 40), posKey(41, 40)])
+    state.civilizationRuins = [makeRuin([{ x: 40, y: 40 }, { x: 41, y: 40 }])]
+
+    const result = getVisibleRuinFootprints(state, null)
+    expect(result).toEqual([])
+  })
+
+  it('returns no footprints when civilizationRuins is empty', () => {
+    const state = createGameState('Test', 80, 40)
+    state.civilizationRuins = []
+    const result = getVisibleRuinFootprints(state, null)
+    expect(result).toEqual([])
+  })
+
+  it('includes a footprint tile currently in the visible set even if not in fogExplored', () => {
+    const state = createGameState('Test', 80, 40)
+    state.overworldFogExplored = new Set()
+    state.overworldFogDiscovered = new Set()
+    state.civilizationRuins = [makeRuin([{ x: 40, y: 40 }, { x: 41, y: 40 }])]
+
+    const visibleSet = new Set([posKey(40, 40)])
+    const result = getVisibleRuinFootprints(state, visibleSet)
+    expect(result).toEqual([{ x: 40, y: 40 }])
   })
 })
 
