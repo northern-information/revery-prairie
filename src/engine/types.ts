@@ -364,7 +364,7 @@ export interface GameState {
   // Emily's idle position snapshot during a Revery — written at
   // Omen → Observing, read+cleared at Closing.
   emilyReveryReturn: Position | null
-  // Precis #34 — one-shot latch for the first-wake dialog. False on a
+  // RP-34 — one-shot latch for the first-wake dialog. False on a
   // fresh GameState; flipped to true on the first eligible gameplay
   // frame when firstWakeTrigger auto-opens Emily's dialog. Persists
   // across save/load so re-opening a save does not re-trigger.

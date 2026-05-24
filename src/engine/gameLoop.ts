@@ -215,7 +215,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
-      // Precis #34 — first-wake dialog with Emily. Fires on the first
+      // RP-34 — first-wake dialog with Emily. Fires on the first
       // eligible gameplay frame after the bootTitleCard clears, opening
       // Emily's auto-dialog before the steward has agency to move.
       // Latches state.tenureOpened so it never re-fires this tenure.

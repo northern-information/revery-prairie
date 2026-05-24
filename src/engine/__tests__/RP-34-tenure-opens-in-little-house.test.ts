@@ -1,4 +1,4 @@
-// Acceptance suite for precis #34 — the tenure opens in the little house.
+// Acceptance suite for RP-34 — the tenure opens in the little house.
 // Covers: initial-state latch, firstWakeTrigger eligibility (every gate),
 // one-shot latch behavior, and onRefreshUI side effect. Emily's dialog
 // content is a single unified register asserted in emily-invitation.test.ts;
@@ -24,7 +24,7 @@ const stubZoneTransition = {
   swapApplied: false,
 } as unknown as NonNullable<ReturnType<typeof createGameState>['zoneTransition']>
 
-describe('precis #34 — the tenure opens in the little house', () => {
+describe('RP-34 — the tenure opens in the little house', () => {
   describe('tenureOpened latch', () => {
     it('createGameState initializes tenureOpened to false', () => {
       const state = createGameState('Test', 20, 20)

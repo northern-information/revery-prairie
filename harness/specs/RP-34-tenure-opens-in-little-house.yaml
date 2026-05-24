@@ -1,5 +1,5 @@
-id: precis-34-tenure-opens-in-little-house
-name: 'The tenure opens in the little house — Emily speaks first (precis #34)'
+id: RP-34-tenure-opens-in-little-house
+name: 'The tenure opens in the little house — Emily speaks first (RP-34)'
 priority: high
 layer: integration
 source_files:
@@ -10,11 +10,11 @@ source_files:
   - src/engine/gameLoop.ts
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies:
-  - precis-33-little-house-and-emily
-  - precis-32-revery-dormancy-pressure
+  - RP-33-little-house-and-emily
+  - RP-32-revery-dormancy-pressure
 
-# Doctrine reference: docs/precis-status.yaml id '34' (lines 1313-1368) and
-# docs/precis-thinktank-v6.md round 3.
+# Doctrine reference: docs/backlog.yaml id '34' (lines 1313-1368) and
+# docs/backlog-thinktank-v6.md round 3.
 #
 # v6 round 3 lock: the steward begins inside the little house; the girl is
 # the first character met; the first dialog beat sets the game's voice
@@ -358,7 +358,7 @@ edge_cases:
       time.
     expected: >
       Per #33's serialization-roundtrip edge case ("the save format is
-      not stable across precis-level changes"), formal save/load
+      not stable across backlog-item-level changes"), formal save/load
       semantics are out of scope. For the purposes of this spec: as
       long as state.tenureOpened survives a round-trip via the
       EXPECTED_FIELDS schema, the trigger will not re-fire even if
@@ -455,6 +455,6 @@ failure_conditions:
       the UI to read the new state. No crash.
 
 verification:
-  test_file: src/engine/__tests__/precis-34-tenure-opens-in-little-house.test.ts
-  test_pattern: '^precis #34 — the tenure opens in the little house$'
-  command: 'npx vitest run src/engine/__tests__/precis-34-tenure-opens-in-little-house.test.ts'
+  test_file: src/engine/__tests__/RP-34-tenure-opens-in-little-house.test.ts
+  test_pattern: '^RP-34 — the tenure opens in the little house$'
+  command: 'npx vitest run src/engine/__tests__/RP-34-tenure-opens-in-little-house.test.ts'
