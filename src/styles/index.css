@@ -52,6 +52,13 @@
   --color-permacomputer-dim: #6b5b45;
   --color-danger: #8b0000;
   --color-effect: #4466aa;
+
+  /* Overrides Tailwind's default font-serif (which resolves to Georgia
+     or system serif). Picks up Libre Baskerville from the @font-face
+     blocks above; cascades through system Baskerville → Hoefler →
+     Garamond → Times before generic serif. */
+  --font-serif:
+    'Libre Baskerville', Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif;
 }
 
 *,
@@ -224,12 +231,6 @@ body,
   animation:
     coin-pop 500ms ease-out,
     coin-shimmer 1800ms linear infinite;
-}
-
-.game-title {
-  font-family:
-    'Libre Baskerville', Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif;
-  font-style: italic;
 }
 
 /* Film grain overlay for DOM panels that match the canvas grain pass
