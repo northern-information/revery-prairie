@@ -72,15 +72,17 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   ctx.fillStyle = BG_COLOR
   ctx.fillRect(0, 0, pxWidth, pxHeight)
 
-  // Destination zone label — centered, Times New Roman italic, gold.
+  // Destination zone label — centered, Libre Baskerville italic, gold.
   // Same triangle-wave alpha as the overlay so the text rides the
-  // fade in and out.
+  // fade in and out. main.tsx warms the italic face via
+  // document.fonts.load so this canvas string doesn't fall back to
+  // Times on the first transition.
   const prevFont = ctx.font
   const prevAlign = ctx.textAlign
   const prevBaseline = ctx.textBaseline
   // Scale font with charHeight so it adapts to the viewport's grid.
   const labelSize = Math.max(28, Math.round(metrics.charHeight * 1.6))
-  ctx.font = `italic ${String(labelSize)}px "Times New Roman", Times, serif`
+  ctx.font = `italic ${String(labelSize)}px "Libre Baskerville", Baskerville, "Baskerville Old Face", "Hoefler Text", Garamond, "Times New Roman", serif`
   ctx.fillStyle = ZONE_LABEL_COLOR
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'

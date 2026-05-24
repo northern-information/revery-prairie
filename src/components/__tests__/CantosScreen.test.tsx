@@ -62,10 +62,10 @@ describe('CantosScreen', () => {
     expect(filledCell).toHaveAttribute('tabindex', '0')
   })
 
-  it('uses Times New Roman font in cells', () => {
+  it('uses the Libre Baskerville serif stack in cells', () => {
     render(<CantosScreen cantos={['A'.repeat(64)]} />)
 
     const cell = screen.getByTestId('canto-cell-0')
-    expect(cell.style.fontFamily).toContain('Times New Roman')
+    expect(cell.style.fontFamily).toContain('Libre Baskerville')
   })
 })

@@ -11,6 +11,26 @@
   font-display: block;
 }
 
+/* Libre Baskerville (SIL OFL 1.1) for serif body text: dialog boxes,
+   the Cantos screen, the game title, and the canvas-rendered zone
+   transition label. Latin subset only; if non-ASCII content lands in
+   these surfaces, add the latin-ext subset with unicode-range. */
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('/fonts/libre-baskerville-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Libre Baskerville';
+  src: url('/fonts/libre-baskerville-italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
 @theme {
   --color-dirt: #8b7355;
   --color-clover: #50c878;
@@ -207,7 +227,8 @@ body,
 }
 
 .game-title {
-  font-family: 'Times New Roman', serif;
+  font-family:
+    'Libre Baskerville', Baskerville, 'Baskerville Old Face', 'Hoefler Text', Garamond, 'Times New Roman', serif;
   font-style: italic;
 }
 

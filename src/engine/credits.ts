@@ -3,4 +3,7 @@ export interface Credit {
   role: string
 }
 
-export const CREDITS = [{ name: 'Tyler Etters', role: 'Lead' }] as const satisfies readonly Credit[]
+export const CREDITS = [
+  { name: 'Tyler Etters', role: 'Lead' },
+  { name: 'Pablo Impallari & Rodrigo Fuenzalida', role: 'Libre Baskerville Typeface' },
+] as const satisfies readonly Credit[]
