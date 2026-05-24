@@ -122,6 +122,55 @@ export interface FollowBehavior {
 
 export type CharacterBehavior = DriftBehavior | FollowBehavior
 
+// Time-lapse camera (precis #23). A camera placed on a tile records
+// "photographs" of meaningful events inside its 3x3 footprint. Each
+// photograph captures the {char, color} of the 9 cells at the moment the
+// event fired, plus the subject kind and timestamp. Film count is the
+// only wear surface; the body itself is eternal but unreloadable.
+export const CameraSubject = {
+  Pollination: 'pollination',
+  Rain: 'rain',
+  Bloom: 'bloom',
+  Ember: 'ember',
+  MonarchVisit: 'monarchVisit',
+  GhostPassage: 'ghostPassage',
+  EgregoreScan: 'egregoreScan',
+  CharacterApproach: 'characterApproach',
+  // Precis #23 v9 R3 — pre-seeded subject for the inherited Field
+  // Camera's four seasonal frames of the nearest oak. Authored at
+  // genesis time, not produced by recordCameraSubjectEvent.
+  SeasonalLandmark: 'seasonalLandmark',
+} as const
+
+export type CameraSubject = (typeof CameraSubject)[keyof typeof CameraSubject]
+
+export interface TimeLapseCell {
+  char: string
+  color: string
+}
+
+export interface TimeLapseFrame {
+  recordedAt: number
+  subject: CameraSubject
+  // Row-major 3x3 snapshot: NW, N, NE, W, C, E, SW, S, SE.
+  cells: TimeLapseCell[]
+}
+
+export interface PlacedCamera {
+  // ItemInstance uid of the camera. Survives placement/pickup so
+  // state.cameraFilm and state.cameraArchive can key on it.
+  uid: string
+  x: number
+  y: number
+  zone: Zone
+  ruinIndex?: number
+  startedAt: number
+  // startedAt + (SEASONAL_PHASE_PERIOD_MS / 4). Recording is frozen once
+  // now >= expiresAt even if film remains.
+  expiresAt: number
+  frames: TimeLapseFrame[]
+}
+
 export const MainQuestPhase = {
   AwaitingCoyote: 'awaiting-coyote',
   Gathering: 'gathering',
@@ -541,6 +590,21 @@ export interface GameState {
   manualHighlightEntryId: string | null
   onPlayerMoved: (() => void) | null
   onGenesisComplete: ((handoffTime: number) => void) | null
+  // Time-lapse camera (precis #23). filmRemaining keyed by camera uid;
+  // cameras without an entry are unloaded. placedCameras list each
+  // camera entity placed in the world. cameraArchive accumulates
+  // frames across placement/pickup cycles. playbackCameraUid is the
+  // uid of the camera currently shown in the TimeLapsePlayback modal,
+  // or null when no modal is open.
+  cameraFilm: Map<string, number>
+  placedCameras: PlacedCamera[]
+  cameraArchive: Map<string, TimeLapseFrame[]>
+  playbackCameraUid: string | null
+  // Precis #53 (v9 thinktank R3). Chronological photograph album.
+  // Frames migrate here from cameraArchive[uid] + placedCameras[i].
+  // frames whenever the TimeLapsePlayback modal dismisses. Persists
+  // across tenures. The camera is the lens; the album is the keeping.
+  photographAlbum: TimeLapseFrame[]
 }
 
 export const FloraStage = {

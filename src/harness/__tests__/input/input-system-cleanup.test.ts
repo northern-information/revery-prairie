@@ -101,12 +101,15 @@ describe('input system cleanup', () => {
   })
 
   describe('backpack item hover helper text', () => {
-    it('ItemInfo renders an [X] Drop hint string', () => {
+    it('ItemInfo renders an [X] Drop / Deploy hint string', () => {
       const src = readSrc('src/components/ItemInfo.tsx')
-      // The hint is rendered as `<span>[X]</span> Drop` so any markup may
-      // sit between the bracket and the verb. Allow up to a short span of
-      // characters but require both pieces to appear close together.
-      expect(src).toMatch(/\[X\][^<]*<\/span>\s*Drop|\[X\]\s*Drop/)
+      // The hint is rendered as `<span>[X]</span> {verb}` where verb
+      // depends on the item — 'Deploy' for the Field Camera per
+      // precis #23 v9 R3; 'Drop' otherwise. The pattern accepts the
+      // legacy fixed-Drop form or the new ternary.
+      const fixedDrop = /\[X\][^<]*<\/span>\s*Drop|\[X\]\s*Drop/
+      const ternary = /\[X\][^<]*<\/span>\s*\{[^}]*'Deploy'\s*:\s*'Drop'[^}]*\}/
+      expect(fixedDrop.test(src) || ternary.test(src)).toBe(true)
     })
   })
 })

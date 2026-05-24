@@ -38,6 +38,7 @@ import { generateGenesisIdentity, generateTraitBag } from './genetics'
 import { GenesisEpochId, RuinGenerationMode, RuinRole } from './genesisTypes'
 import { rebuildGlintZones, seedGlintPatches } from './glintZones'
 import { seedOaks } from './oaks'
+import { seedTenureStartFieldCamera } from './timeLapse'
 import { posKey, tileHash as rendererTileHash } from './position'
 import { smoothNoiseSeeded } from './terrain'
 import { FloraSpecies, TileType } from './types'
@@ -3685,6 +3686,11 @@ export const finalizeGenesisHandoff = (state: GameState, handoffTime: number): v
 
   // Scatter oaks across the prairie at deterministic positions.
   seedOaks(state, handoffTime)
+
+  // Precis #23 v9 R3 — once oaks exist, drop the inherited Field
+  // Camera adjacent to the oak nearest the little house entrance,
+  // exhausted, with four pre-seeded seasonal frames.
+  seedTenureStartFieldCamera(state)
 
   // Hand off to the gameplay layer to trigger the player spawn ceremony
   // synchronously. Without this, the gameloop's player-spawn-trigger

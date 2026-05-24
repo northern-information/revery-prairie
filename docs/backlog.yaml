@@ -688,10 +688,10 @@ features:
       tubes); loading film into the camera is a recipe. Film cannot be
       overwritten — exposed frames are exposed. When film is exhausted the
       camera is decoration. Wears like other tools (RP-15).
-    depends_on: ['RP-15']
-    status: todo
-    spec: null
-    plan: null
+    depends_on: []
+    status: in-progress
+    spec: harness/specs/time-lapse-camera.yaml
+    plan: harness/plans/time-lapse-camera.yaml
     pr: null
     notes: >
       v4 thinktank round 7 (2026-05-20). Tyler's breakthrough — FromSoft
@@ -726,6 +726,31 @@ features:
       also the genre's required object for the cosmic-horror register;
       found footage is how horror is expressed in a materialist
       universe; without RP-23, the egregore has no observational surface.
+
+      v9 thinktank round 3 (2026-05-24). Implementation amendment.
+      Substrate shipped via harness/specs/time-lapse-camera.yaml +
+      harness/plans/time-lapse-camera.yaml. Dependency on RP-15
+      dropped — camera body is eternal, film count is the only wear
+      surface. Round 3 locks the encounter shape: camera does NOT
+      spawn in the little house; the film roll stays in the house
+      (at (2, 6)) as the implicit first goal. Camera spawns in the
+      overworld as an already-deployed placedCamera entity adjacent
+      to the oak nearest the little house entrance, with an
+      exhausted body and four pre-seeded frames of that oak across
+      the four seasons (rendered offline at four seasonalPhase
+      anchors). Renamed to "Field Camera" in items.ts (id stays
+      `camera`). Tyler-authored lore: item:camera =
+      "Weatherproof, permacomputer augmented."; item:filmRoll =
+      "Unused N-INFO 400 film roll." Deployed items have no hover
+      (hover is inventory-only). Playback modal does NOT distinguish
+      the inherited camera from a self-recorded one — no title card,
+      no narrator gloss. Auto-unload on playback dismissal: frames
+      migrate from placed.frames + cameraArchive[uid] into the new
+      state.photographAlbum (see RP-58), source buffers clear, camera
+      keeps recording if film and span remain. The camera is the
+      first lineage object; the cellar (RP-37) is its sibling.
+      Photograph is rendered as a gel-band scan per v4 R7 — the
+      cells are hashed into an identity that drives GelBandView.
 
   - id: 'RP-24'
     name: Seeded predecessor stewards
@@ -2244,3 +2269,37 @@ features:
       inside the game). Multiplayer infra cost projection deferred
       separately — `RP-55` handles the gating mechanism; the
       sustainability math is its own audit at launch scale.
+
+  - id: 'RP-58'
+    name: Photograph album (permacomputer tab)
+    summary: >
+      A new permacomputer tab that lists every photograph the
+      steward has ever developed, in chronological capture order.
+      Each entry shows its subject (Pollination, Rain, Bloom,
+      Ember, etc.) and timestamp; clicking re-opens the gel-band
+      reveal ceremony for that single frame. Receives all frames
+      migrated from cameras on playback dismissal — `placed.frames`
+      plus `cameraArchive[uid]` move into `state.photographAlbum`
+      and the source buffers clear. Persists across tenures as
+      part of saved state. Frames flow one way: the camera is the
+      capture device, the album is the keeping.
+    size: S
+    depends_on: ['RP-23', 'RP-28']
+    status: in-progress
+    spec: harness/specs/photograph-album.yaml
+    plan: null
+    pr: null
+    notes: >
+      v9 thinktank round 3 (2026-05-24). Tyler's QoL ask plus
+      the room's framing: _the camera is the lens; the album is
+      the keeping_. Closes the loop on the lineage-object class
+      — photographs belong to the steward who developed them,
+      not to the camera that captured them. Auto-unload at
+      playback dismissal is the migration trigger. New GameState
+      field (`photographAlbum: TimeLapseFrame[]`); one new entry
+      in EXPECTED_FIELDS; one new permacomputer tab UI; clicking
+      an entry re-opens the existing gel-band reveal ceremony for
+      that single frame (single-frame variant of the playback
+      modal). Defer to spec: whether the album lists frames flat
+      or groups them by camera body / by location / by tenure
+      (room defaulted to flat chronological).

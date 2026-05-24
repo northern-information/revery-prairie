@@ -12,11 +12,13 @@ import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
 import { ItemInfo } from './ItemInfo'
 import { ManualPanel } from './ManualPanel'
+import { PhotographAlbumPanel } from './PhotographAlbumPanel'
 import { Menu } from './Menu'
 import { Minimap } from './Minimap'
 import { PermacomputerShell } from './PermacomputerShell'
 import { ReverySummary } from './ReverySummary'
 import { ScanResultModal } from './ScanResultModal'
+import { TimeLapsePlayback } from './TimeLapsePlayback'
 
 import { setAudioEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
@@ -120,6 +122,35 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           }}
         />
       )}
+      {state.playbackCameraUid !== null &&
+        (() => {
+          const uid = state.playbackCameraUid
+          const placed = state.placedCameras.find(c => c.uid === uid)
+          const archive = state.cameraArchive.get(uid) ?? []
+          const frames = [...archive, ...(placed?.frames ?? [])]
+          if (frames.length === 0) {
+            // Reset and skip mount — no frames to show.
+            state.playbackCameraUid = null
+            return null
+          }
+          return (
+            <TimeLapsePlayback
+              cameraUid={uid}
+              frames={frames}
+              onDismiss={() => {
+                // Precis #23 v9 R3 — auto-unload. Migrate the
+                // playback queue into the album, clear the camera's
+                // live buffer and the archive entry. Frames flow
+                // one way: camera → album.
+                state.photographAlbum.push(...frames)
+                if (placed) placed.frames = []
+                state.cameraArchive.delete(uid)
+                state.playbackCameraUid = null
+                refreshUI()
+              }}
+            />
+          )
+        })()}
       <ReverySummary revery={state.revery} />
       {activeScreen && activeScreen !== 'scan-result' && (
         <PermacomputerShell
@@ -143,6 +174,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           )}
           {activeScreen === 'cantos' && <CantosScreen cantos={state.angelCantos} />}
           {activeScreen === 'coyote' && <CoyoteScreen state={state} refreshUI={refreshUI} />}
+          {activeScreen === 'album' && <PhotographAlbumPanel state={state} />}
           {activeScreen === 'system' && (
             <Menu
               onResume={() => {
@@ -234,7 +266,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
             data-panel="item-info"
             className="pointer-events-auto h-full w-48 self-stretch overflow-hidden font-mono text-xs"
           >
-            <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} />
+            <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} cameraFilm={state.cameraFilm} />
           </div>
           <div className="pointer-events-auto">
             <InventoryPanel

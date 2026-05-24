@@ -1,8 +1,9 @@
-import { ACTION_COLOR, CEREMONY_WAVE_RADIUS } from './constants'
+import { ACTION_COLOR, CEREMONY_WAVE_RADIUS, FRAMES_PER_TUBE } from './constants'
 import { sha256Sync } from './crypto'
 import { FLORA_SPECIES } from './flora/species'
 import { createFloraLifecycleEntry } from './floraLifecycleEntry'
 import { generateRuntimeIdentity, generateTraitBag } from './genetics'
+import { removeItem } from './inventory'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { isInBounds, posKey } from './position'
@@ -30,7 +31,15 @@ export interface Recipe {
   resultName: string
   resultIcon?: string
   preview?: (state: GameState) => PreviewTile[]
-  execute: (state: GameState) => boolean
+  // draggedUid/targetUid are populated by drag.ts and combineFromBackpack
+  // so recipes that mutate per-instance state (e.g. loading film into
+  // a specific camera uid) can resolve which item is which. Most
+  // recipes ignore them.
+  execute: (state: GameState, draggedUid?: string, targetUid?: string) => boolean
+  // When false, the caller (drag.ts / combine.ts) does NOT remove the
+  // dragged or target items — the recipe's execute is responsible for
+  // its own ingredient consumption. Defaults to true.
+  autoConsume?: boolean
 }
 
 export const RECIPES: Recipe[] = [
@@ -110,6 +119,36 @@ export const RECIPES: Recipe[] = [
       // Note: event:ceremony-cast discovery is recorded by the
       // combine/drag layer (which already imports manual.ts) — keeping
       // it out of recipes.ts avoids the recipes ↔ manual circular import.
+      return true
+    },
+  },
+  // Precis #23 — load a film roll into a camera. Order-agnostic
+  // (either item may be dragged onto the other). The camera body is
+  // preserved with its original uid so state.cameraFilm keying stays
+  // stable. The film roll is consumed. Rejects when the camera
+  // already has a cameraFilm entry — "film cannot be overwritten,
+  // exposed is exposed."
+  {
+    ingredients: ['filmRoll', 'camera'],
+    kind: RecipeKind.Craft,
+    resultName: 'Loaded Camera',
+    autoConsume: false,
+    execute: (state, draggedUid, targetUid) => {
+      if (!draggedUid || !targetUid) return false
+      const items = [draggedUid, targetUid].map(uid => state.backpack.items.find(i => i.uid === uid))
+      const camera = items.find(i => i?.definitionId === 'camera')
+      const filmRoll = items.find(i => i?.definitionId === 'filmRoll')
+      if (!camera || !filmRoll) return false
+      // Reject only when film is currently loaded (>0). An exhausted
+      // body (0) or a never-loaded body (undefined) accepts a fresh
+      // roll — per Round 3 the inherited camera is exhausted on
+      // arrival and reloading it is exactly how the recipe teaches
+      // loading. "Film cannot be overwritten" applies to unexposed
+      // film still on the body; exposed/spent film is not a barrier.
+      const filmRemaining = state.cameraFilm.get(camera.uid) ?? 0
+      if (filmRemaining > 0) return false
+      removeItem(state.backpack, filmRoll.uid)
+      state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
       return true
     },
   },

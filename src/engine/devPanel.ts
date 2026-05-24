@@ -47,6 +47,7 @@ export const ENTITY_TAG_SUGGESTIONS = [
   'monarch',
   'oak',
   'pickupBloom',
+  'placedCamera',
   'pollenBurst',
   'satellite',
   'satelliteImpact',

@@ -1,4 +1,4 @@
-import { BEE_STARVATION_MS, BEE_TICK_MS, GHOST_TICK_MS } from './constants'
+import { BEE_STARVATION_MS, BEE_TICK_MS, GHOST_TICK_MS, SEASONAL_PHASE_PERIOD_MS } from './constants'
 import { ComponentType } from './ecs/types'
 import { AURA_RADIUS, spawnPickupBloom } from './effects'
 import { FLORA_SPECIES, getTileBeePreference } from './flora/species'
@@ -8,8 +8,10 @@ import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, 
 import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
 import { spawnBeeOrMonarch } from './monarch'
+import { createPlacedCamera } from './timeLapse'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
-import { FloraSpecies, TileType, Zone } from './types'
+import { recordCameraSubjectEvent } from './timeLapse'
+import { CameraSubject, FloraSpecies, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
@@ -232,6 +234,9 @@ const tickDrift = (state: GameState, eid: Entity, definitionId: string, behavior
   if (candidates.length > 0) {
     const target = candidates[Math.floor(Math.random() * candidates.length)]
     state.world.moveEntity(eid, target.x, target.y, GHOST_TICK_MS)
+    // Precis #23 — ghost drifting into a new tile registers as
+    // GhostPassage for any covering placedCamera.
+    recordCameraSubjectEvent(state, target.x, target.y, CameraSubject.GhostPassage, performance.now())
   }
 }
 
@@ -370,6 +375,34 @@ export const dropItem = (state: GameState, definitionId: string, time?: number):
       // Bees are released as world entities instead of ground items
       if (definitionId === 'bee') {
         spawnBeeOrMonarch(state, tx, ty)
+      } else if (definitionId === 'camera') {
+        // Precis #23 — camera placement. Create a placedCamera entity
+        // (not a groundItem, so the proximity-pickup flow skips it) and
+        // arm a PlacedCamera entry in state.placedCameras. The uid is
+        // preserved so cameraFilm and cameraArchive keying stays
+        // stable. If film remains, recording is active for one
+        // season's worth of wall-clock time.
+        const placed = createPlacedCamera(state, {
+          uid: droppedUid,
+          x: tx,
+          y: ty,
+          zone: state.currentZone,
+          now: time ?? performance.now(),
+          spanMs: SEASONAL_PHASE_PERIOD_MS / 4,
+        })
+        state.placedCameras.push(placed)
+        const ce = state.world.createEntity()
+        state.world.addComponent(ce, ComponentType.Position, { x: tx, y: ty })
+        state.world.addComponent(ce, ComponentType.EntityTag, 'placedCamera')
+        state.world.addComponent(ce, ComponentType.EntityZone, getCurrentEntityZone(state))
+        // Re-use the ItemDrop component as the rendering hook so the
+        // existing renderer pass shows the camera glyph at the placed
+        // tile. The component is purely decorative here — pickup
+        // skips placedCamera-tagged entities (proximity-pickup
+        // filters on EntityTag === 'groundItem').
+        state.world.addComponent(ce, ComponentType.ItemDrop, { definitionId: 'camera' })
+        // Deliberately no spawnPickupBloom here — bloom is the visual
+        // for acquisition, not deployment.
       } else {
         const ge = state.world.createEntity()
         state.world.addComponent(ge, ComponentType.Position, { x: tx, y: ty })

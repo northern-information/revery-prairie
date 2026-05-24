@@ -419,6 +419,15 @@ export const playSfx = (url: string): void => {
   if (!audioEnabled) return
 
   const audioCtx = getContext()
+  // Self-resume the AudioContext if it is still suspended. Without
+  // this, an SFX triggered before any music has started (e.g. the
+  // first camera-playback ceremony on a fresh page load) silently
+  // no-ops because source.start cannot drive a suspended context.
+  if (audioCtx.state === 'suspended') {
+    void audioCtx.resume().catch(() => {
+      // ignore — gesture policy may still block; will retry on next call
+    })
+  }
   void loadBuffer(url)
     .then(buffer => {
       if (!audioEnabled) return

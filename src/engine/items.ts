@@ -72,6 +72,25 @@ const ITEMS = {
     glyphColor: '#B87333',
     category: ItemCategory.Tool,
   },
+  // Time-lapse camera (precis #23). Spawned in deep-time-regenerated
+  // ruins. Body is eternal but unreloadable — film is the only wear
+  // surface. Loaded by combining a filmRoll with the camera in the
+  // backpack. Dropped on a tile to record meaningful events in the
+  // 3x3 footprint for one season.
+  camera: {
+    name: 'Field Camera',
+    glyph: '⌖',
+    glyphColor: '#FFD700',
+    category: ItemCategory.Tool,
+  },
+  // N-INFO 400 film roll. Single-use loader for a camera. Spawned in
+  // deep-time-regenerated ruins alongside the camera.
+  filmRoll: {
+    name: 'Film Roll',
+    glyph: '⊐',
+    glyphColor: '#C2B280',
+    category: ItemCategory.Tool,
+  },
 } as const satisfies Record<string, ItemEntry>
 
 export const ITEM_DEFINITIONS: Record<string, ItemDefinition> = Object.fromEntries(

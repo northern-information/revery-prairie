@@ -15,6 +15,16 @@ const SCREEN_TABS: { screen: TabScreen; label: string; isVisible: (state: GameSt
     label: 'COYOTE',
     isVisible: state => state.manualDiscoveries.has('event:rescue-coyote'),
   },
+  // Precis #53 — Album appears once the steward has at least one
+  // developed photograph in state.photographAlbum. Empty-state hint
+  // renders inside the panel if the tab is opened with zero entries
+  // (forward-compatible if visibility is forced elsewhere), but the
+  // tab itself only surfaces after the first roll is developed.
+  {
+    screen: 'album',
+    label: 'ALBUM',
+    isVisible: state => state.photographAlbum.length > 0,
+  },
   { screen: 'system', label: 'SYS', isVisible: () => true },
 ]
 

@@ -389,6 +389,11 @@ export const createGameState = (
     manualHighlightEntryId: null,
     onPlayerMoved: null,
     onGenesisComplete: null,
+    cameraFilm: new Map(),
+    placedCameras: [],
+    cameraArchive: new Map(),
+    playbackCameraUid: null,
+    photographAlbum: [],
   }
 
   // Glinting zone patches are seeded later, inside completeGenesis,
@@ -540,6 +545,24 @@ export const createGameState = (
   // position (by the hearth, west of the fire). Stationary, no AI tick;
   // appears only when state.currentZone === Zone.HouseInterior.
   createCharacterEntity(state, 'emily', { x: 5, y: 2 }, { zone: Zone.HouseInterior })
+
+  // Precis #23 v9 R3 — the film roll begins on the floor of the little
+  // house at (2, 6) as the implicit first goal. _A roll without a
+  // camera_: the steward picks it up, finds no camera in the room,
+  // and walks outside to look. The Field Camera itself spawns in the
+  // overworld adjacent to the oak nearest the house entrance — see
+  // seedTenureStartFieldCamera below.
+  {
+    const e = state.world.createEntity()
+    state.world.addComponent(e, ComponentType.Position, { x: 2, y: 6 })
+    state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'filmRoll' })
+    state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
+    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.HouseInterior })
+  }
+
+  // Field Camera seeding lives in completeGenesis (post-seedOaks) —
+  // the spawn requires the oak network to exist before it can pick
+  // the nearest one. See genesis.ts.
 
   autoSort(backpack)
 

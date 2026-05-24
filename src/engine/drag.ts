@@ -73,7 +73,7 @@ export const executeCombine = (
 ): CombineResult => {
   const recipe = combineTarget.recipe
   const key = recipeKey(recipe)
-  const success = recipe.execute(state)
+  const success = recipe.execute(state, draggedItem.uid, combineTarget.uid)
   if (!success) return { outcome: 'failed' }
 
   if (isStewardSealRecipe(recipe)) {
@@ -85,10 +85,15 @@ export const executeCombine = (
   state.discoveredRecipes.add(key)
   recordDiscovery(state, `recipe:${key}`)
 
-  removeItem(sourceContainer, draggedItem.uid)
-  const targetItem = targetContainer.items.find(i => i.uid === combineTarget.uid)
-  if (targetItem) {
-    removeItem(targetContainer, combineTarget.uid)
+  // autoConsume === false → the recipe.execute managed its own
+  // ingredient removal (e.g. camera+filmRoll loads film without
+  // consuming the camera).
+  if (recipe.autoConsume !== false) {
+    removeItem(sourceContainer, draggedItem.uid)
+    const targetItem = targetContainer.items.find(i => i.uid === combineTarget.uid)
+    if (targetItem) {
+      removeItem(targetContainer, combineTarget.uid)
+    }
   }
 
   if (time !== undefined) {

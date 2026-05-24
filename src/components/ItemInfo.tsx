@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { SectionHeader } from './PanelPrimitives'
 
-import { COIN_DULL_COLOR, COIN_GLINTING_COLOR } from '@/engine/constants'
+import { COIN_DULL_COLOR, COIN_GLINTING_COLOR, FRAMES_PER_TUBE } from '@/engine/constants'
 import { getDefinition, ITEM_DEFINITIONS } from '@/engine/items'
 import { getLore } from '@/engine/manual'
 import type { ItemDefinition } from '@/engine/types'
@@ -16,9 +16,10 @@ export interface ItemInfoHandle {
 
 interface ItemInfoProps {
   glintingCoins?: Set<string>
+  cameraFilm?: Map<string, number>
 }
 
-export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoins }, ref) => {
+export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoins, cameraFilm }, ref) => {
   const [item, setItem] = useState<ItemDefinition | null>(null)
   const currentIdRef = useRef<string | null>(null)
   const currentUidRef = useRef<string | null>(null)
@@ -50,6 +51,19 @@ export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoi
   const uid = currentUidRef.current
   const isGlinting = isCoin && uid !== null && glintingCoins?.has(uid) === true
 
+  // Precis #23 — camera film status. cameraFilm is keyed by camera
+  // ItemInstance uid. Undefined entry → unloaded; 0 → exhausted body;
+  // >0 → loaded with N frames remaining.
+  const isCamera = item?.id === 'camera'
+  const filmRemaining = isCamera && uid !== null ? cameraFilm?.get(uid) : undefined
+  const filmStatus: { label: string; color: string } | null = !isCamera
+    ? null
+    : filmRemaining === undefined
+      ? { label: 'No film loaded.', color: '#888888' }
+      : filmRemaining === 0
+        ? { label: 'Film exhausted.', color: '#888888' }
+        : { label: `Film: ${String(filmRemaining)} / ${String(FRAMES_PER_TUBE)} frames remaining.`, color: '#C2B280' }
+
   return (
     <div>
       {item ? (
@@ -70,8 +84,18 @@ export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoi
               {isGlinting ? 'it glints in the light.' : 'the shine has faded.'}
             </div>
           )}
+          {filmStatus && (
+            <div className="mt-1" style={{ color: filmStatus.color }}>
+              {filmStatus.label}
+            </div>
+          )}
+          {isCamera && (
+            <div className="text-dim mt-1 text-xs italic">
+              Place on a tile to record the events around it for one season.
+            </div>
+          )}
           <div className="text-dim mt-2 text-xs">
-            <span className="text-text">[X]</span> Drop
+            <span className="text-text">[X]</span> {isCamera ? 'Deploy' : 'Drop'}
           </div>
         </>
       ) : null}

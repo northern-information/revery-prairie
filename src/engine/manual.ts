@@ -78,6 +78,8 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   },
   'item:stoneTablet': { lore: 'TODO' },
   'item:aqueductKey': { lore: 'Its verdigris filigree promises passage.' },
+  'item:camera': { lore: 'Weatherproof, permacomputer augmented.' },
+  'item:filmRoll': { lore: 'Unused N-INFO 400 film roll.' },
   // World entities
   'entity:beehive': { lore: 'Awareness is to watch as the millions of drones you captured just walk away.' },
   'entity:monarch': { lore: 'Danaus plexippus. Milkweed is vital to its lifecycle.' },

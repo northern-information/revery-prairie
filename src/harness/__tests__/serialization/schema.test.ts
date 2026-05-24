@@ -151,6 +151,11 @@ const EXPECTED_FIELDS = [
   'onPlayerMoved',
   'onGenesisComplete',
   'heldKeys',
+  'cameraFilm',
+  'placedCameras',
+  'cameraArchive',
+  'playbackCameraUid',
+  'photographAlbum',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {
