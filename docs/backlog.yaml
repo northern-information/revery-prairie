@@ -1359,7 +1359,7 @@ features:
 
 
       v10 thinktank round 1 (2026-05-23). The little house gains
-      the night-beacon treatment during seasonal nights (per `RP-52`).
+      the night-beacon treatment during seasonal nights (per `RP-60`).
       Windows lit, lamp on the porch, Emily silhouetted inside.
       Visible at long range across the prairie when `dayPhase` is
       `night`, at lower intensity during `dusk` / `dawn`. The
@@ -1383,8 +1383,8 @@ features:
       the full prairie they walk into.
     depends_on: ['RP-27', 'RP-33']
     status: shipped
-    spec: null
-    plan: null
+    spec: harness/specs/RP-34-tenure-opens-in-little-house.yaml
+    plan: harness/plans/RP-34-tenure-opens-in-little-house.yaml
     pr: https://github.com/northern-information/revery-prairie/pull/438
     notes: >
       v6 thinktank round 3 (2026-05-22). The cliché of
@@ -1679,10 +1679,10 @@ features:
       history is not erased. No change to gaze radius — same eyes
       seeing.
     depends_on: ['RP-38', 'RP-0']
-    status: todo
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/RP-39-post-revery-memory-softening.yaml
+    plan: harness/plans/RP-39-post-revery-memory-softening.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/424
     notes: >
       v7 thinktank round 2 (2026-05-23). Calla's framing: the door
       opens onto a prairie that has moved on without the steward. Full
@@ -2136,13 +2136,13 @@ features:
     name: Fireflies (native bioluminescence)
     summary: >
       Sparse particle pass keyed to tall grass and damp tiles,
-      emitting only during spring and summer nights (per `RP-52`'s
+      emitting only during spring and summer nights (per `RP-60`'s
       `dayPhase`). Ambient, no behavior, no interaction. Of-this-
       Earth bioluminescence — the prairie speaking with its own
       light when the sun isn't drowning it. Absent in autumn and
       winter. One new render pass under
       `src/engine/render/passes/`.
-    depends_on: ['RP-52']
+    depends_on: ['RP-60']
     status: todo
     spec: null
     plan: null
@@ -2166,7 +2166,7 @@ features:
     name: Will-o'-the-wisps (witness lights, same-season prior-year)
     summary: >
       Up to four wisps per year — one per seasonal night (per
-      `RP-52`'s `dayPhase`). Each wisp's drifting path encodes the
+      `RP-60`'s `dayPhase`). Each wisp's drifting path encodes the
       same-season slice of the prior year's footprint of one of
       v9 R1's plural witnesses (coyote wander trail, egregore
       patch perimeter, Emily's housebound circuit). The steward
@@ -2176,7 +2176,7 @@ features:
       which witness sourced it. Live, one-year-delayed sibling
       of the cellar's plural-witness revelation in `RP-50`; shares
       the `WitnessFootprint` substrate with `RP-50`.
-    depends_on: ['RP-52', 'RP-50']
+    depends_on: ['RP-60', 'RP-50']
     status: todo
     spec: null
     plan: null
