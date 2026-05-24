@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
+import { isPromotedByEvidence, type InFlightScan } from './scan.js'
 
 export type Status = 'todo' | 'in-progress' | 'shipped'
 export type DerivedStatus = Status | 'next'
@@ -49,7 +50,22 @@ export const deriveStatus = (feature: Feature, all: Feature[]): DerivedStatus =>
   return allShipped ? 'next' : 'todo'
 }
 
-export const groupByColumn = (features: Feature[]): Record<DerivedStatus, Feature[]> => {
+// Mirrors /churn step 1b: a YAML `todo` item with any in-flight evidence
+// is shown in IN PROGRESS. Other statuses are unchanged.
+export const effectiveStatus = (
+  feature: Feature,
+  all: Feature[],
+  scan: InFlightScan | null,
+): DerivedStatus => {
+  const base = deriveStatus(feature, all)
+  if (scan && isPromotedByEvidence(feature, scan)) return 'in-progress'
+  return base
+}
+
+export const groupByColumn = (
+  features: Feature[],
+  scan: InFlightScan | null = null,
+): Record<DerivedStatus, Feature[]> => {
   const groups: Record<DerivedStatus, Feature[]> = {
     todo: [],
     next: [],
@@ -57,7 +73,7 @@ export const groupByColumn = (features: Feature[]): Record<DerivedStatus, Featur
     shipped: [],
   }
   for (const f of features) {
-    groups[deriveStatus(f, features)].push(f)
+    groups[effectiveStatus(f, features, scan)].push(f)
   }
   return groups
 }

@@ -1,10 +1,12 @@
 import { Box, Text } from 'ink'
 import { depSummary, type Feature } from './data.js'
+import { evidenceSourceLines, type InFlightScan } from './scan.js'
 
 interface DetailPaneProps {
   feature: Feature | null
   all: Feature[]
   expanded: boolean
+  scan: InFlightScan | null
 }
 
 const STATUS_COLOR = {
@@ -13,7 +15,7 @@ const STATUS_COLOR = {
   shipped: 'green',
 } as const
 
-export const DetailPane = ({ feature, all, expanded }: DetailPaneProps) => {
+export const DetailPane = ({ feature, all, expanded, scan }: DetailPaneProps) => {
   if (!feature) {
     return (
       <Box borderStyle="round" borderColor="gray" paddingX={1}>
@@ -23,6 +25,10 @@ export const DetailPane = ({ feature, all, expanded }: DetailPaneProps) => {
   }
 
   const deps = depSummary(feature, all)
+  const evidence = scan?.byId.get(feature.id) ?? null
+  const evidenceLines = evidence ? evidenceSourceLines(evidence) : []
+  const isStale = scan?.stale.includes(feature.id) ?? false
+  const isBranchOnly = scan?.branchOnly.has(feature.id) ?? false
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="white" paddingX={1}>
@@ -50,6 +56,25 @@ export const DetailPane = ({ feature, all, expanded }: DetailPaneProps) => {
         <Text dimColor>   pr: </Text>
         <Text>{feature.pr ?? '—'}</Text>
       </Box>
+      {evidenceLines.length > 0 ? (
+        <Box marginTop={1} flexDirection="column">
+          <Box>
+            <Text dimColor>in-flight evidence</Text>
+            {feature.status === 'todo' && !isBranchOnly ? (
+              <Text color="magenta" bold>{' * promoted (YAML still says todo)'}</Text>
+            ) : null}
+            {isBranchOnly ? (
+              <Text color="gray" bold>{' ~ branch exists, no harness work yet'}</Text>
+            ) : null}
+            {isStale ? (
+              <Text color="red" bold>{' ! stale — YAML says shipped, evidence persists'}</Text>
+            ) : null}
+          </Box>
+          {evidenceLines.map((line, i) => (
+            <Text key={i} dimColor>{`  ${line}`}</Text>
+          ))}
+        </Box>
+      ) : null}
       {expanded && feature.notes ? (
         <Box marginTop={1} flexDirection="column">
           <Text dimColor>notes:</Text>

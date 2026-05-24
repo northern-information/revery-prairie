@@ -526,7 +526,7 @@ features:
       spec). The 1-in-7 unstable-meteorite explode mechanic in entities.ts:113
       is deleted in the same spec.
     depends_on: []
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null
