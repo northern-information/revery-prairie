@@ -106,7 +106,6 @@ behaviors:
     outputs:
       - 'interactWithCharacter returns opened: false'
       - "activeDialog is not set to { characterId: 'moab' }"
-      - 'state.reveries does not contain fire revery (unless separately obtained)'
     state_changes: []
     determinism: deterministic
 

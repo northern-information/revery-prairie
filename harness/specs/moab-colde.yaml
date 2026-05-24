@@ -56,54 +56,20 @@ behaviors:
 
   - id: moab-first-interaction-dialog
     description: >
-      First time the player talks to Moab (presses [f] while facing
-      him), dialog shows '...' — single line using the standard dialog
-      system. gift is not delivered on interaction open; it is delivered
-      when the player completes the dialog (advances past the last line).
+      When the player presses [f] while facing Moab, dialog opens using
+      the standard dialog system. The line set is selected by
+      `getMoabDialog`, which routes by `state.moabState`
+      (Walking/Refusing/Dismissed for the torchbearer cycle) and then
+      falls back to season-based registers (Winter/Spring/Summer/Autumn)
+      per RP-9a. Moab does not carry a gift; the character record has
+      no `gift` field.
     inputs:
-      - "Player facing Moab, [f] pressed, giftsReceived does not contain 'moab'"
+      - 'Player facing Moab, [f] pressed'
     outputs:
-      - 'activeDialog shows 1 line'
+      - "activeDialog set to the register chosen by getMoabDialog"
     state_changes:
       - field: activeDialog
         effect: "set to { characterId: 'moab', lineIndex: 0 }"
-    determinism: deterministic
-
-  - id: moab-gift-delivery
-    description: >
-      When the player completes Moab's initial dialog (advances past the
-      last line), advanceDialog calls giveCharacterGift. delivers fire
-      revery via gift.kind === 'revery'. pushes 'fire' to state.reveries,
-      auto-assigns to first empty action bar slot via autoAssignRevery,
-      adds 'moab' to giftsReceived, records revery:fire and event:moab-gift
-      discoveries. one-time per character via the generic gift system.
-      item gifts are stubbed as deferred.
-    inputs:
-      - 'Player completes Moab dialog, gift not yet received'
-    outputs:
-      - 'ReveryDefinition for fire revery returned via advanceDialog result'
-    state_changes:
-      - field: reveries
-        effect: "'fire' appended"
-      - field: actionBar
-        effect: 'fire revery auto-assigned to first empty slot'
-      - field: giftsReceived
-        effect: "'moab' added to the set"
-      - field: manualDiscoveries
-        effect: 'revery:fire and event:moab-gift recorded'
-    determinism: deterministic
-
-  - id: moab-subsequent-interaction
-    description: >
-      After giftsReceived contains 'moab', talking to Moab shows his
-      postGiftDialog. Dialog opens and closes with the post-gift lines.
-    inputs:
-      - "Player facing Moab, [f] pressed, giftsReceived contains 'moab'"
-    outputs:
-      - "activeDialog with single '...' line"
-    state_changes:
-      - field: activeDialog
-        effect: "set to { characterId: 'moab', lineIndex: 0 }, but uses post-gift dialog"
     determinism: deterministic
 
   - id: moab-rendering
@@ -126,14 +92,10 @@ edge_cases:
     expected: 'Moab is placed at npcSpot but his tile is masked as CaveWall by caveHiddenPositions. Player cannot see or reach him.'
   - id: moab-persists-across-cave-visits
     description: 'Player leaves cave and re-enters'
-    expected: 'Moab is a persistent ECS entity tagged with Zone.Cave. giftsReceived persists on GameState so the gift is only given once.'
+    expected: 'Moab is a persistent ECS entity tagged with Zone.Cave.'
 failure_conditions:
-  - trigger: 'Player completes Moab dialog twice before breaking the wall (impossible but defensive)'
-    expected: 'No crash. giftsReceived prevents double gift on second dialog completion.'
   - trigger: 'enterCave called when moab definition is not registered'
     expected: 'Character definition is registered at module load time in CHARACTERS const. No runtime registration needed.'
-  - trigger: 'giveCharacterGift called after gift already received'
-    expected: 'returns null, giftsReceived guard prevents double delivery'
 
 verification:
   test_file: src/engine/__tests__/moab-colde.test.ts

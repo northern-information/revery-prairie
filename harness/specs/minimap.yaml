@@ -147,12 +147,11 @@ behaviors:
       previous ActionBar position — its container becomes a fixed
       bottom-center element. The lower-right column is empty (no
       content). The minimap, event log, and right column do not
-      overlap. The ReveriesPanel / ActionBar / CommandPanel are not
-      rendered while this layout is active.
+      overlap.
     inputs:
       - 'GameScreen rendered with state'
     outputs:
-      - 'Minimap in lower-left, event log in lower-center, no action bar'
+      - 'Minimap in lower-left, event log in lower-center'
     state_changes: []
     determinism: deterministic
 
@@ -167,22 +166,6 @@ behaviors:
       - 'GameScreen rendered'
     outputs:
       - 'No Sidebar source file or render call exists anywhere in the project'
-    state_changes: []
-    determinism: deterministic
-
-  - id: hide-action-bar
-    description: >
-      ActionBar and CommandPanel are no longer rendered from
-      GameScreen. The wrapper div that previously contained the
-      `hasSelection ? CommandPanel : ActionBar` switch is removed.
-      Both component files are preserved. Keyboard activation of
-      reveries via 1-4 still works at the engine layer because that
-      logic lives in useKeyboard, not in the ActionBar component —
-      but no visual feedback is shown.
-    inputs:
-      - 'GameScreen rendered'
-    outputs:
-      - 'No ActionBar or CommandPanel in the rendered tree'
     state_changes: []
     determinism: deterministic
 
