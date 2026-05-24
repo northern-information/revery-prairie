@@ -542,6 +542,17 @@ features:
       does it bias and how. Standalone — does not block anything else on the
       board.
 
+      v11 thinktank round 1 (2026-05-24). Placement path now flows
+      through RP-59's in-hand + left-click rather than a drag or
+      `[x]` drop. Meteorites can still be dropped via `[x]` as a
+      regular `ItemDrop`; drop and place are now two distinct verbs
+      with different semantics — drop creates a ground item, place
+      appends to `state.placedMeteorites` and contributes to
+      hallowed-ground geometry. RP-59 depends on this spec for the
+      `state.placedMeteorites` substrate; coordinate landing order
+      at spec time. The hallowed-ground geometry question remains
+      open here.
+
   - id: 'RP-19'
     name: Soil depletion
     summary: >
@@ -751,6 +762,15 @@ features:
       first lineage object; the cellar (RP-37) is its sibling.
       Photograph is rendered as a gel-band scan per v4 R7 — the
       cells are hashed into an identity that drives GelBandView.
+
+      v11 thinktank round 1 (2026-05-24). The field camera is _set
+      up_ from in-hand via RP-59's placement path, not dropped. The
+      camera's `PlaceableSpec.place` consumes the inventory slot
+      entirely (the camera is a unique artifact, not a stack). The
+      verb in player-facing copy is _set up_ — not _drop_, not
+      _place_. Drop via `[x]` remains available as a general
+      affordance. RP-59 becomes a coordination partner for any
+      remaining placement-path polish on this spec.
 
   - id: 'RP-24'
     name: Seeded predecessor stewards
@@ -2303,3 +2323,50 @@ features:
       modal). Defer to spec: whether the album lists frames flat
       or groups them by camera body / by location / by tenure
       (room defaulted to flat chronological).
+
+  - id: 'RP-59'
+    name: In-hand + place (additive placement verb, HUD affordance)
+    summary: >
+      New `equippedItemUid: ItemUid | null` field on `GameState`,
+      single-owner via the inventory layer, registered in
+      `EXPECTED_FIELDS`, uid-keyed for stack/sort/merge resilience.
+      Each placeable item registers a `PlaceableSpec` —
+      `{ verb, canPlace, place }`. Left-click (currently unused
+      outside cursor positioning) becomes the place action when
+      something is in hand. The cursor's hot-pink highlight tile is
+      unchanged in form; when `canPlace` passes, the cursor's inner
+      glyph swaps to the in-hand item — a "loaded" cursor. A slot on
+      the permacomputer bottom-bar instrument cluster shows the
+      in-hand item's glyph and name in hot pink. `[x] to drop` is
+      preserved untouched for every item type, placeables included —
+      drop and place are two distinct verbs.
+    size: M
+    depends_on: ['RP-18', 'RP-23', 'RP-28']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 1 (2026-05-24). The seed: Tyler working on
+      RP-18 (meteorite hallowed ground) and RP-23 (field camera)
+      noticed that "[x] to drop" + drag-and-drop is vestigial
+      crafting-game language and that the verb is wrong — you don't
+      drop a camera, you set it up; you don't drop a meteorite to
+      make a sacred space, you place it. The room landed on _two
+      verbs, not one_: drop stays for disowning a thing; place is
+      added for dedicating one. v4 R7's _the inventory is the
+      character sheet_ has been waiting for exactly this mechanic.
+      Delta's rename lock: player-facing copy reads _in hand_, not
+      _equipped_ — the prairie has no other RPG-coded nouns.
+      Calla's HUD lock: the bag holds, the hand declares — a
+      bottom-bar slot makes the second verb legible. Open at spec:
+      exact unequip input (right-click vs. `[e]` vs. clicking the
+      in-hand slot); exact location of the bottom-bar in-hand slot
+      within RP-28's cluster; treatment of the loaded cursor over an
+      illegal tile (lean drop the glyph entirely vs. render it
+      muted); whether non-placeable items can be in hand as a future
+      hook for RP-15 wear-on-use (lean placeable-only for now);
+      per-item hover-hint copy from `PlaceableSpec.verb`. Out of
+      scope: RP-11 (seeds, drop-on-dirt-to-plant) migrating to
+      sow-from-in-hand — room's lean is follow-up spec, ship RP-59
+      for meteorites and camera first.
