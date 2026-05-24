@@ -2150,3 +2150,97 @@ features:
       (CI-guarded ban). Lore authoring is human-only per
       `docs/claude/manual.md`. Flag for human lore author at spec
       time. _The wisps are the cellar's footnotes, ahead of time._
+
+  - id: '55'
+    name: Ownership-gated multiplayer handshake
+    summary: >
+      A per-purchase license token, issued by the storefront on
+      first launch (itch or Steam, format TBD per storefront — lean:
+      HMAC-signed payload with a per-storefront secret), is included
+      in the worker handshake on first connection and validated
+      worker-side before the Durable Object accepts the player.
+      Single-player runs entirely offline and has no token check.
+      `shared/src/protocol.ts` gains a token field on the connect
+      message; `worker/src/` gains a validation step; the client
+      persists the token in local storage on first successful entry.
+    size: S
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 2 (2026-05-23). The handshake is the only
+      seam where ownership is checked; DRM-free posture is preserved
+      because the desktop build runs without network presence at
+      all. Multiplayer is a free bonus on the purchased game, not a
+      separate product — never convert multiplayer into pay-to-play,
+      never gate single-player on the network. Open at spec: token
+      format and per-storefront secret rotation; what happens when
+      the worker rejects a token (silent fall-back to single-player
+      vs. a brief modal); whether the token also unlocks the
+      Cloudflare-hosted web build of the full game, or only the
+      desktop wrappers.
+
+  - id: '56'
+    name: Bounded free demo (first year of tenure)
+    summary: >
+      The first year of tenure is freely playable on the web
+      hosting and on itch/Steam demo channels. The second-year
+      solstice Revery transition prompts purchase to continue. The
+      demo's save persists across the upgrade — the player who buys
+      does not start over. Lean boundary: the first year (one full
+      seasonal cycle, twenty wall-clock minutes). The save uses the
+      same shape as the full game with a `demoModeUpgradedAt` field
+      stamped at purchase time; no separate demo state.
+    size: S
+    depends_on: ['55']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 2 (2026-05-23). The bounded demo is the
+      arrival ritual — long enough to taste the cosmology, short
+      enough to invite commitment. The web demo runs at near-zero
+      marginal cost on the existing Cloudflare hosting and can
+      stay live indefinitely. Open at spec: exact boundary unit
+      (lean year, alt season too short, alt two-years too generous);
+      the wording of the purchase prompt at the second-year solstice
+      (must not break the cosmology's voice — the prairie does not
+      narrate itself); whether the demo also stops at a hard wall
+      mid-second-year if the player somehow skips the solstice.
+
+  - id: '57'
+    name: Desktop build pipeline (itch + Steam)
+    summary: >
+      Tauri-wrapped desktop builds for itch.io (DRM-free download)
+      and Steam (when feature-complete), plus the corresponding
+      storefront upload pipelines (itch butler, Steam SDK). All
+      three surfaces (web demo, itch full, Steam full) carry the
+      same build artifact pinned to the same release tag. No
+      platform-exclusive content ever.
+    size: M
+    depends_on: ['55', '56']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 2 (2026-05-23). Tauri preferred over
+      Electron for footprint; the canvas + React renderer ports
+      cleanly to either. Open at spec: storefront launch order
+      (lean itch first, Steam later — itch rewards the artisanal
+      posture and lets the artifact establish at the right register
+      before the larger storefront sees it); price point (lean a
+      small whole number in the $7–$15 band; not $1.99 which insults
+      the work, not $30 which insults the audience); refund policy
+      (lean generous, no questions for the first hour of play, the
+      standard Steam shape); courtesy-key process (lean a quiet
+      email address grants a key, no public application form —
+      honors Tyler's FOSS lineage at the only seam where it can be
+      honored without breaking the price-the-artifact lock);
+      storefront verb (lean _Buy_ — the verb of stewardship stays
+      inside the game). Multiplayer infra cost projection deferred
+      separately — `#55` handles the gating mechanism; the
+      sustainability math is its own audit at launch scale.
