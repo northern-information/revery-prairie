@@ -68,8 +68,12 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'flora:wildflower': { lore: 'TODO' },
   'flora:tallGrass': { lore: 'TODO' },
   'item:meteorite': {
-    lore: 'O, fallen stars! What celestial bounty do ye bring? Shower us with your metals, your riches, your mystery.',
+    lore: 'Fallen star used for creating hallowed ground to keep flora in… or out.',
   },
+  // RP-18 — placed meteorites form stone circles. The entry unlocks
+  // the first time getHallowedPolygons returns a non-empty array (a closed
+  // shape forms). Lore is human-authored only.
+  'event:stone-circle': { lore: 'TODO' },
   'item:honey': {
     lore: 'Out of the eater came something to eat, and out of the strong came something sweet. - Judges 14:14',
   },

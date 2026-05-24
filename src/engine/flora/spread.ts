@@ -21,6 +21,7 @@ import { crossTraitBags, generateRuntimeIdentity, generateTraitBag } from '@/eng
 import { recordDiscovery } from '@/engine/manual'
 import { setMapTile } from '@/engine/map'
 import { CARDINAL, isInBounds, posKey } from '@/engine/position'
+import { getStoneCircleGraph, segmentCrossesAnyMeteoriteEdge } from '@/engine/stoneCircles'
 import { FloraSpecies, Season, TileType } from '@/engine/types'
 
 import type { TraitBag } from '@/engine/genetics'
@@ -166,6 +167,12 @@ export const commitFloraPreviews = (
   const binomial = FLORA_SPECIES[species].latinBinomial
   let committed = false
 
+  // RP-18 wall semantics — flora cannot spread across a meteorite-
+  // pair edge any more than egregoric flora can. Compute the edge set
+  // once and skip any preview whose parent→child segment crosses one.
+  const placed = state.placedMeteorites
+  const edges = placed.length >= 2 ? getStoneCircleGraph(placed) : []
+
   for (const key of previews) {
     const [xStr, yStr] = key.split(',')
     const x = Number(xStr)
@@ -174,6 +181,12 @@ export const commitFloraPreviews = (
     if (state.map[y][x].type !== TileType.Dirt) continue
 
     const parentKey = findParentKey(state, x, y, species)
+    if (edges.length > 0 && parentKey !== undefined) {
+      const [pxs, pys] = parentKey.split(',')
+      const parentX = Number(pxs)
+      const parentY = Number(pys)
+      if (segmentCrossesAnyMeteoriteEdge(placed, edges, parentX, parentY, x, y)) continue
+    }
     const parent = parentKey !== undefined ? state.floraLifecycle.get(parentKey) : undefined
     const parentIdentity = parent?.identity
 

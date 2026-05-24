@@ -152,6 +152,16 @@ export const InventoryPanel = ({
         onStartDrag={handleStartDrag}
         onUpdatePreview={updatePreview}
         onDrop={drop}
+        // RP-18 — meteorite hover sets a transient preview flag; the
+        // stoneCircles render pass reads state.player live on every draw,
+        // so preview lines follow the steward as they move. Cleared on
+        // hover-out or hover over any non-meteorite cell.
+        onItemHover={definitionId => {
+          const wanted = definitionId === 'meteorite'
+          if (state.stoneCirclePreview === wanted) return
+          state.stoneCirclePreview = wanted
+          refreshUI()
+        }}
         itemInfoRef={itemInfoRef}
         glintingCoins={state.glintingCoins}
         coinGlintPopTimes={state.coinGlintPopTimes}

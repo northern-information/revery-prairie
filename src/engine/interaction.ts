@@ -4,11 +4,11 @@ import { contributeDormancyPressure } from './omen'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { RuinRole } from './genesisTypes'
+import { findFitPosition, placeItem } from './inventory'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { archivePlacedCameraFrames } from './timeLapse'
-import { findFitPosition } from './inventory'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { invalidateMapCache } from './tileBgCache'
 import { MainQuestPhase, MoabState, Season, TileType, Zone } from './types'
@@ -665,9 +665,9 @@ export const breakWall = (state: GameState, time: number): boolean => {
   return true
 }
 
-// Precis #23 — find the adjacent placedCamera entity (Chebyshev
-// distance 1), if any, in the current zone. Returns the entity id +
-// PlacedCamera struct, or null.
+// RP-23 — find the adjacent placedCamera entity (Chebyshev distance 1),
+// if any, in the current zone. Returns the entity id + PlacedCamera
+// struct, or null.
 const findAdjacentPlacedCamera = (state: GameState): { eid: number; camera: import('./types').PlacedCamera } | null => {
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
@@ -690,11 +690,10 @@ const findAdjacentPlacedCamera = (state: GameState): { eid: number; camera: impo
 
 export type PlacedCameraInteractionResult = 'playback' | 'picked-up' | 'no-space' | 'none'
 
-// Precis #23 — handle the interaction key facing an adjacent
-// placedCamera. If frames exist (placement OR archive), open the
-// playback modal. Otherwise pick the camera back up into the
-// backpack with its original uid. Backpack-full blocks pickup
-// without disturbing the placement.
+// RP-23 — handle the interaction key facing an adjacent placedCamera.
+// If frames exist (placement OR archive), open the playback modal.
+// Otherwise pick the camera back up into the backpack with its original
+// uid. Backpack-full blocks pickup without disturbing the placement.
 export const tryPlacedCameraInteraction = (state: GameState): PlacedCameraInteractionResult => {
   const adjacent = findAdjacentPlacedCamera(state)
   if (!adjacent) return 'none'
@@ -722,10 +721,10 @@ export const tryPlacedCameraInteraction = (state: GameState): PlacedCameraIntera
   return 'picked-up'
 }
 
-// Precis #23 — invoked from the playback modal's "Pack Up" path.
-// Closes playback (clears playbackCameraUid) and picks the camera up
-// with its accumulated frames migrated into cameraArchive. Returns
-// false if backpack-full or no placement matches the uid.
+// RP-23 — invoked from the playback modal's "Pack Up" path. Closes
+// playback (clears playbackCameraUid) and picks the camera up with its
+// accumulated frames migrated into cameraArchive. Returns false if
+// backpack-full or no placement matches the uid.
 export const packUpPlaybackCamera = (state: GameState, uid: string): boolean => {
   const camera = state.placedCameras.find(c => c.uid === uid)
   if (!camera) {
@@ -754,5 +753,42 @@ export const packUpPlaybackCamera = (state: GameState, uid: string): boolean => 
   archivePlacedCameraFrames(state, camera)
   if (entityId !== null) state.world.destroyEntity(entityId)
   state.playbackCameraUid = null
+  return true
+}
+
+// RP-18 — return the tile of a placed meteorite under the player's foot
+// or in the facing direction (in that order), or null. Read-only — the
+// render pass and the [F] Pickup tooltip both call this to decide
+// whether to highlight the meteorite and show the prompt.
+export const findPickupableMeteorite = (state: GameState): Position | null => {
+  const targets: Position[] = [{ x: state.player.x, y: state.player.y }]
+  const facing = DIRECTIONS[state.playerFacing]
+  targets.push({ x: state.player.x + facing.x, y: state.player.y + facing.y })
+  for (const t of targets) {
+    if (state.placedMeteorites.some(p => p.x === t.x && p.y === t.y)) return t
+  }
+  return null
+}
+
+// RP-18 — F-tap removal for a placed meteorite. Checks the player's
+// standing tile first, then the facing tile. On the first hit the entry
+// is spliced from state.placedMeteorites and a 'meteorite' ItemInstance
+// is added to the backpack; a pickup bloom fires at the matched tile.
+// Returns false (and leaves state unchanged) when no placed meteorite
+// matches or the backpack has no fit — letting the keyboard handler fall
+// through to the scan logic.
+export const pickUpFacingOrStandingPlacedMeteorite = (state: GameState, time?: number): boolean => {
+  const target = findPickupableMeteorite(state)
+  if (!target) return false
+  const fit = findFitPosition(state.backpack, 'meteorite')
+  if (!fit) return false
+  const idx = state.placedMeteorites.findIndex(p => p.x === target.x && p.y === target.y)
+  if (idx === -1) return false
+  state.placedMeteorites.splice(idx, 1)
+  placeItem(state.backpack, 'meteorite', fit.gridX, fit.gridY)
+  recordDiscovery(state, 'item:meteorite')
+  if (time !== undefined) {
+    spawnPickupBloom(state, target.x, target.y, time)
+  }
   return true
 }

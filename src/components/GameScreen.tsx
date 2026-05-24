@@ -7,6 +7,7 @@ import { DevPanel } from './DevPanel'
 import { DialogBox } from './DialogBox'
 import { DragCursor } from './DragCursor'
 import { GameCanvas } from './GameCanvas'
+import { MeteoritePickupPrompt } from './MeteoritePickupPrompt'
 import { ScanProgressBar } from './ScanProgressBar'
 import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
@@ -251,6 +252,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
       )}
       <BootTitleCardOverlay state={state} />
       <ScanProgressBar state={state} activeScreen={activeScreen} />
+      <MeteoritePickupPrompt state={state} />
       {!state.genesis && (
         <div
           data-panel="bottom-bar"

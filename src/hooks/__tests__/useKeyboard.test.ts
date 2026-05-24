@@ -48,6 +48,7 @@ vi.mock('@/engine/interaction', () => ({
   interactWithCharacter: vi.fn(() => ({ opened: false, gift: null })),
   isFacingLockedDoor: vi.fn(() => false),
   openLockedGateDialog: vi.fn(),
+  pickUpFacingOrStandingPlacedMeteorite: vi.fn(() => false),
   tryPlacedCameraInteraction: vi.fn(() => 'none'),
   unlockRuinDoor: vi.fn(() => false),
   updateFacingEntity: vi.fn(),

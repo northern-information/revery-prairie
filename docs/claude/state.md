@@ -31,3 +31,8 @@ new fields also require updating `EXPECTED_FIELDS` in `src/harness/__tests__/ser
 ## removed: RP-33 also drops `playerSpawn`
 
 The `state.playerSpawn` field and the `PlayerSpawn` interface are removed entirely. The falling-star spawn ceremony is gone — the player spawns inside the house at tenure start. All `state.playerSpawn.visible` gates in `movement.ts`, `renderer.ts`, `camera.ts`, and `useGameEngine.ts` are deleted (player is always visible from frame 1). `EXPECTED_FIELDS` loses `playerSpawn` in the same PR that adds the new fields above.
+
+## Placed meteorites and stone-circle preview (RP-18)
+
+- **`placedMeteorites: Position[]`** — multi-spawner, single lifecycle. `dropItem` in `src/engine/entities.ts` appends an entry when the dropped item is a meteorite (one of the DROP_DELTAS positions). `pickUpFacingOrStandingPlacedMeteorite` in `src/engine/interaction.ts` splices an entry out when the player taps F on or while facing a placed meteorite tile. All other readers are read-only (the `stoneCircles` render pass, the egregore spread containment filter, the manual unlock check).
+- **`stoneCirclePreview: boolean`** — owner + clearers. `InventoryGrid.tsx`'s `onMouseEnter` handler sets it `true` when the hovered item is a meteorite; `onMouseLeave` and hover over a non-meteorite cell clear it. The `stoneCircles` render pass reads `state.player` live on every draw when the flag is true, so preview lines follow the steward as they walk. No engine code writes this field — it is purely a UI affordance plumbed through the engine state because the renderer is engine-side.

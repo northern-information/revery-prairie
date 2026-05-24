@@ -10,6 +10,7 @@ import { recordDiscovery } from './manual'
 import { spawnBeeOrMonarch } from './monarch'
 import { createPlacedCamera } from './timeLapse'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
+import { getHallowedPolygons, getStoneCircleGraph } from './stoneCircles'
 import { recordCameraSubjectEvent } from './timeLapse'
 import { CameraSubject, FloraSpecies, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
@@ -312,6 +313,50 @@ const canPlantSeedAt = (state: GameState, x: number, y: number): boolean => {
   return true
 }
 
+// RP-18 — meteorites place rather than drop. Valid tile is Dirt or
+// Flora (water and structural tiles excluded by type), and the position
+// must not already host another placed meteorite.
+export const canPlaceMeteoriteAt = (state: GameState, x: number, y: number): boolean => {
+  if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
+  const tileType = state.map[y][x].type
+  if (tileType !== TileType.Dirt && tileType !== TileType.Flora) return false
+  for (const p of state.placedMeteorites) {
+    if (p.x === x && p.y === y) return false
+  }
+  return true
+}
+
+// RP-18 — return the tile where the next dropItem('meteorite') call
+// would land, or null if no DROP_DELTAS tile is valid. Used by the
+// inventory-hover preview so the pink preview lines render at the actual
+// drop destination rather than at the player's standing tile.
+export const findMeteoriteDropTarget = (state: GameState): Position | null => {
+  for (const d of DROP_DELTAS) {
+    const tx = state.player.x + d.x
+    const ty = state.player.y + d.y
+    if (canPlaceMeteoriteAt(state, tx, ty)) return { x: tx, y: ty }
+  }
+  return null
+}
+
+// RP-18 — commit a meteorite placement at a specific tile. Used by
+// the drag-to-canvas drop path (useCanvasDrop) so the steward can place
+// meteorites anywhere reachable, not only at DROP_DELTAS-adjacent tiles.
+// Returns true on success and fires the same pickupBloom + stone-circle
+// discovery hook that the player-adjacent dropItem branch uses.
+export const placeMeteoriteAt = (state: GameState, x: number, y: number, time?: number): boolean => {
+  if (!canPlaceMeteoriteAt(state, x, y)) return false
+  state.placedMeteorites.push({ x, y })
+  if (time !== undefined) {
+    spawnPickupBloom(state, x, y, time)
+  }
+  if (state.placedMeteorites.length >= 3) {
+    const polygons = getHallowedPolygons(state.placedMeteorites, getStoneCircleGraph(state.placedMeteorites))
+    if (polygons.length > 0) recordDiscovery(state, 'event:stone-circle')
+  }
+  return true
+}
+
 export const dropItem = (state: GameState, definitionId: string, time?: number): boolean => {
   // Find the item in the backpack or open container
   const containers = getActiveContainers(state)
@@ -328,6 +373,24 @@ export const dropItem = (state: GameState, definitionId: string, time?: number):
   }
 
   if (!sourceContainer || !sourceItem) return false
+
+  // RP-18 — meteorites place onto the first valid DROP_DELTAS tile
+  // rather than dropping as ground items. The placement appends to
+  // state.placedMeteorites (no ECS ground-item entity is created). Aligns
+  // with v4 cosmology — placing a stone is a commitment, not a stockpile
+  // shuffle.
+  if (definitionId === 'meteorite') {
+    for (const d of DROP_DELTAS) {
+      const tx = state.player.x + d.x
+      const ty = state.player.y + d.y
+      if (canPlaceMeteoriteAt(state, tx, ty)) {
+        removeItem(sourceContainer, sourceItem.uid)
+        placeMeteoriteAt(state, tx, ty, time)
+        return true
+      }
+    }
+    return false
+  }
 
   // RP-11 — seed items plant onto adjacent Dirt rather than dropping
   // as ground items. Cannot be set down as bare ground items. Aligns with

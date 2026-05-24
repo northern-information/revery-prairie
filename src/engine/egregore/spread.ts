@@ -16,7 +16,7 @@
 // not existing as data. Spread is a pure tile-conversion event.
 
 import { FIRST_REVERY_EGREGORE_COUNT, SEASONAL_PHASE_PERIOD_MS } from '@/engine/constants'
-import { candidateDirtNeighbors } from '@/engine/egregore/positions'
+import { candidateDirtNeighborsContained } from '@/engine/egregore/positions'
 import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from '@/engine/egregore/species'
 import { generateEgregoreGenome } from '@/engine/genetics/egregore'
 import { posKey } from '@/engine/position'
@@ -42,7 +42,7 @@ export const tickEgregoreSpread = (state: GameState, time: number): void => {
   const currentYear = Math.floor(time / SEASONAL_PHASE_PERIOD_MS)
   if (currentYear === state.lastEgregoreSpreadYear) return
 
-  const candidates = candidateDirtNeighbors(state)
+  const candidates = candidateDirtNeighborsContained(state)
   if (candidates.length === 0) {
     // Consume the year slot even with no candidates — the throttle is
     // about cadence, not retries within a single year.
@@ -104,7 +104,7 @@ const manhattan = (a: Position, b: Position): number => Math.abs(a.x - b.x) + Ma
 // neighbors exist).
 export const advanceEgregoreInRevery = (state: GameState, time = 0): Position[] => {
   if (state.egregorePositions.length === 0) return []
-  const candidates = candidateDirtNeighbors(state)
+  const candidates = candidateDirtNeighborsContained(state)
   if (candidates.length === 0) return []
 
   const count = state.reveryCount === 0 ? FIRST_REVERY_EGREGORE_COUNT : 6 + (state.reveryCount % 4)
