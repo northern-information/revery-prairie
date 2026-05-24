@@ -7,7 +7,9 @@ arg: optional — `skip` to surface the next candidate instead of the top one
 
 # /churn
 
-Setup wrapper that removes the "what's next?" decision. Reads `docs/precis-status.yaml`, auto-picks one item, asks you the route (feature vs change), and hands off to the right harness skill with the precis summary as the description.
+Setup wrapper that removes the "what's next?" decision. Reads `docs/precis-status.yaml`, auto-picks one *new* item to start, asks you the route (feature vs change), and hands off to the right harness skill with the precis summary as the description.
+
+`/churn` only suggests **new** work — never in-progress or suspected-in-flight items. The user already knows what's in flight (their active worktrees and open PRs); they don't need `/churn` to redirect them to finish it. Finishing in-flight work is a separate session-management concern, not a queueing decision.
 
 `/churn` flips the picked item to `in-progress` on main and commits before handing off, so parallel `/churn` sessions can't pick the same item. The downstream skill still owns spec/plan/worktree/PR — `/churn`'s only write is the one-line status flip.
 
@@ -23,7 +25,9 @@ Field shape and the "NEXT = all deps shipped" rule are defined in `tools/precis/
 
 ### 1b. Detect suspected-in-flight work from git/gh state
 
-YAML status can lag reality — a worktree or PR can exist before the `todo → in-progress` flip lands, or after the flip got reverted. Gather signals from two layers (external name-based, and per-worktree file-based) and join them against the precis ids loaded in step 1.
+YAML status can lag reality — a worktree or PR can exist before the `todo → in-progress` flip lands, or after the flip got reverted. We detect this not to *pick* in-flight items (we never do), but to (i) exclude them from the NEXT pool so we don't propose starting fresh on something that already has a worktree, and (ii) emit a stale-branch warning when a `shipped` item has lingering artifacts.
+
+Gather signals from two layers (external name-based, and per-worktree file-based) and join them against the precis ids loaded in step 1.
 
 **External signals — run in parallel:**
 
@@ -54,24 +58,24 @@ From the union of those paths, extract evidence:
 
 Use `git -C <path>` so each scan runs against the worktree, not the main checkout. Do not `cd` into the worktree.
 
-**Reconcile against YAML status:**
+**Reconcile against YAML status — build two sets of ids:**
 
-- YAML `in-progress` + any evidence → confirmed in-flight (no surprise).
-- YAML `todo` + any precis-id evidence (external or internal) → **suspected in-flight**. Promote into the in-flight bucket in step 2.
-- YAML `shipped` + any precis-id evidence → **stale branch/worktree suspected**. Do not promote. Surface as a one-line warning at the end of step 3 suggesting `/git-cleanup` — *unless* the only evidence for that worktree is `thinktank:`, in which case the worktree is doing legitimate non-precis doc work; suppress the warning.
-- Branch matches the regex but the worktree has no internal-scan evidence → record as `branch-only` and still promote, but flag in the pick block as "branch exists, no harness work started yet."
-- Thinktank-only evidence with no branch-name match → ignore for precis-id purposes.
-- No YAML match → ignore (not a precis item).
+- `inFlightIds` — ids to exclude from the NEXT pool:
+  - YAML `in-progress` (any item, with or without evidence).
+  - YAML `todo` + any precis-id evidence (external or internal). YAML lags reality.
+  - Branch matches the regex but the worktree has no internal-scan evidence → still treat as in-flight (`branch-only`); the user may want to finish or abandon it manually.
+- `staleIds` — ids to warn about:
+  - YAML `shipped` + any precis-id evidence — *unless* the only evidence for that worktree is `thinktank:`, in which case the worktree is doing legitimate non-precis doc work; suppress the warning.
 
-### 2. Auto-pick one item
+Thinktank-only evidence with no branch-name match → ignore for precis-id purposes. No YAML match → ignore (not a precis item).
+
+### 2. Auto-pick one NEW item
 
 Apply this order, first match wins:
 
-a. **In-flight wins.** Any item that is either `status: in-progress` in the YAML *or* flagged suspected-in-flight in step 1b, sorted by id ascending (alpha-suffix convention: `8a < 8b < 9 < 10`). If any exist, surface the lowest. Finishing in-flight work outranks starting new work.
+a. **NEXT candidates.** Items with `status: todo` whose `depends_on` ids all resolve to `status: shipped` in the same file, and whose id is **not** in `inFlightIds` from step 1b. Sort by id ascending (alpha-suffix convention: `8a < 8b < 9 < 10`). Take the lowest.
 
-b. **Otherwise, NEXT candidates.** Items with `status: todo` whose `depends_on` ids all resolve to `status: shipped` in the same file, and which were not already promoted in (a). Sort by id ascending. Take the lowest.
-
-c. **If neither bucket yields a candidate**, report "no eligible items — everything is blocked or shipped" and exit. Suggest `/maintain-backlog` in case shipped items haven't been reconciled against merged PRs.
+b. **If no candidate**, report "no eligible new items — everything is blocked, in-flight, or shipped." If `inFlightIds` is non-empty, list them so the user knows what to finish before churn can suggest something new. Otherwise suggest `/maintain-backlog` in case shipped items haven't been reconciled against merged PRs.
 
 If the user passed `skip` (or `next`) as an argument, exclude any previously-surfaced ids in this conversation and pick the next candidate by the same rules. Cap at three skips per invocation, then stop and ask the user to run `npm run backlog` for a wider view.
 
@@ -84,10 +88,12 @@ Show a compact block:
 - `depends_on:` resolved to names, with shipped status confirmed (e.g. `['0' Reclaim Revery ✓, '1' Multi-species Flora ✓]`)
 - First two paragraphs of `notes` if present, truncated with `…` if longer
 - Spec/plan status: whether the paths in `spec:` / `plan:` are populated, and whether the files exist on disk
-- Existing `pr:` link, if any
-- **In-flight evidence** if the pick was promoted in step 1b: list the sources verbatim (e.g. `worktree:.claude/worktrees/precis-23-time-lapse-camera, open-pr:#440, spec:.claude/worktrees/precis-23-time-lapse-camera:harness/specs/precis-23-time-lapse-camera.yaml`). Call out the YAML mismatch explicitly if YAML still says `todo`. If the evidence is `branch-only` (worktree/branch exists but no spec/plan/yaml work yet), say so — the user may prefer to abandon the empty worktree and let the downstream skill start fresh.
+- Existing `pr:` link, if any (should be `null` for a NEW pick — flag if not)
 
-After the pick block, if step 1b flagged any **stale** ids (YAML `shipped` + evidence), append a one-line warning per id naming the branch/worktree/PR and suggesting `/git-cleanup`.
+After the pick block:
+
+- If `inFlightIds` is non-empty, append one line: "Also in flight (not picked): {comma-separated id+name list}." The user can redirect to one of these if they'd rather finish than start new.
+- If `staleIds` is non-empty, append a one-line warning per id naming the branch/worktree/PR and suggesting `/git-cleanup`.
 
 End with: "Run `/churn skip` to try the next candidate, or pick a route below."
 
@@ -118,13 +124,12 @@ Precis items are roadmap features, so `/new-feature` is the default. The "Other"
 
 ### 5. Flip and commit on main
 
-Before handing off, claim the item by flipping its status on main:
+Before handing off, claim the item by flipping its status on main. The pick is always a `todo` (in-flight items are excluded in step 2), so the flip is unconditional:
 
-1. If the picked item is already `in-progress`, skip this step entirely (no edit, no commit).
-2. Otherwise, edit `docs/precis-status.yaml` at the line captured in step 1: change `status: todo` → `status: in-progress`. Leave every other entry untouched.
-3. Stage just that file: `git add docs/precis-status.yaml`.
-4. Commit with a one-line subject: `Mark precis-{id} in-progress` (no body, no co-author trailer needed — this is a status claim, not a feature commit).
-5. Do not push. The downstream skill's branch will be cut from this commit on main.
+1. Edit `docs/precis-status.yaml` at the line captured in step 1: change `status: todo` → `status: in-progress`. Leave every other entry untouched.
+2. Stage just that file: `git add docs/precis-status.yaml`.
+3. Commit with a one-line subject: `Mark precis-{id} in-progress` (no body, no co-author trailer needed — this is a status claim, not a feature commit).
+4. Do not push. The downstream skill's branch will be cut from this commit on main.
 
 If the commit fails (pre-commit hook, lint, etc.), stop and surface the error — do not retry, do not bypass with `--no-verify`. The user has to resolve before churn can hand off.
 
@@ -137,32 +142,29 @@ Synthesize a description string with these parts, in order:
 3. A one-line "deps:" trailer naming the shipped dependencies (for context).
 4. A one-line note: `Status already flipped to in-progress on main (commit {sha}). Do not re-flip inside the worktree.`
 
-5. **If the pick has in-flight evidence from step 1b**, append a "resume context" trailer listing each evidence source verbatim, so the downstream skill knows to enter the existing worktree (`EnterWorktree path:<path>`) rather than create a new one. Example: `Resume context: an existing worktree at .claude/worktrees/precis-23-time-lapse-camera and open PR #440 already exist for this id — enter the existing worktree instead of creating a new one.`
-
 Invoke the chosen skill via the `Skill` tool, passing the synthesized description as `args`. Control transfers to the downstream skill; `/churn` is done.
 
 ## Anti-rationalizations
 
 | Excuse the agent will tell itself | Rebuttal |
 | --- | --- |
+| "Finishing in-flight work should win over starting new work — I'll surface the in-flight item." | No. `/churn` is for picking *new* work to start. The user already sees their worktrees and open PRs; they don't need `/churn` to nag them about finishing. Surfacing in-flight as the pick treats finishing as a queueing decision, which it isn't. |
 | "The user said 'don't make me decide' — skip the routing question too." | The route (feature vs change) is a product decision the user wants to keep. `/churn` removes the *picking* decision, not the *scoping* one. |
 | "I'll delegate the flip to the downstream worktree to keep main clean." | No. The flip must land on main *before* handoff so parallel `/churn` runs see the item as claimed. The collision risk outranks the worktree-purity preference for this one-line status edit. |
 | "Main isn't clean — I'll stash and proceed." | No. Abort and surface the dirty state to the user. Auto-stashing hides in-flight work and the recovery is not obvious. |
 | "This precis item is huge — I'll suggest carving it into a slice." | The user explicitly opted out of scoping prompts. Pass the summary through verbatim. The downstream skill's own clarifying questions will surface scope if needed. |
-| "Multiple `in-progress` items exist — I'll ask the user which to finish." | No. Auto-pick the lowest id. The user said "no menu." If they want a different one, they'll redirect. |
 | "I'll search merged PRs to confirm `shipped` deps are really shipped." | The YAML is the source of truth for status. `/maintain-backlog` reconciles against PRs — don't duplicate that work here. |
 | "The downstream skill always re-asks for a description — I'll skip steps 3–6." | The presented block is your evidence to the user that the right item was picked, and the flip on main is what prevents collisions. Without steps 3–4 they can't redirect; without step 5 a parallel `/churn` will collide. Keep all four steps. |
-| "Worktree-detection found something but YAML disagrees — I'll fix the YAML before flipping." | The step-5 flip already moves YAML `todo` → `in-progress` for suspected-in-flight picks. Don't pre-edit YAML in step 1b or step 3 — surface the mismatch in the pick block, let step 5 do the single write. For YAML `shipped` + evidence (stale), do not flip at all; emit the `/git-cleanup` warning and move on. |
+| "An in-flight item has YAML `todo` — I'll fix the YAML during 1b." | No. `/churn` doesn't pick in-flight items, so it doesn't need to flip their YAML status either. Leave the mismatch alone — the worktree where that work lives will reconcile its own YAML when it's done. Only the picked item's YAML gets touched, in step 5. |
 | "I'll `git fetch` before checking remote branches so the signal is fresh." | No. Fetching can be slow and has side effects on the user's local state. Use what's already there and note potential staleness if it matters. |
-| "Multiple worktrees match the same precis id — I'll pick the newest one." | Don't pick. List both in the evidence trailer (and in the handoff "resume context") and let the user choose which to enter. |
 | "The branch name already identifies the precis id — skip the internal file scan." | The branch name is a hint, not proof. A renamed branch, a typo'd branch, or a branch where someone started a different precis after creating the worktree all break the regex assumption. The spec/plan filenames embed the id directly; scan them. |
 | "I'll `cd` into each worktree to run the diff." | No. Use `git -C <path>` so each command operates on the worktree without changing the session's working directory. `cd`-ing into a worktree mid-scan and forgetting to `cd` back leaves later commands operating on the wrong tree. |
-| "The worktree has thinktank changes only — promote it as in-flight." | No. Thinktank rounds don't map to a precis id, so there's nothing to promote. Treat thinktank-only evidence as a "this worktree is alive" marker that suppresses the stale warning, nothing more. |
+| "The worktree has thinktank changes only — flag it." | No. Thinktank rounds don't map to a precis id, so there's nothing to flag. Treat thinktank-only evidence as a "this worktree is alive" marker that suppresses the stale warning, nothing more. |
 
 ## Exit criterion
 
 Either:
 
-- The picked item is `in-progress` on main (either by the new commit from step 5, or because it was already in-progress when picked), the downstream harness skill is now running with the precis description in its working context, and the user has approved the route; or
-- No eligible candidates exist, reported clearly with `/maintain-backlog` as the suggested next action; or
+- The picked NEW item is `in-progress` on main (by the commit from step 5), the downstream harness skill is now running with the precis description in its working context, and the user has approved the route; or
+- No eligible new candidates exist, reported clearly — listing in-flight ids if any, and suggesting `/maintain-backlog` if everything else is shipped; or
 - Main was not clean / not checked out, and `/churn` aborted with a message explaining why.
