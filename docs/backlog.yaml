@@ -240,7 +240,6 @@ features:
       'cantos' permacomputer nav entry, GameScreen conditional render,
       PermacomputerShell menu entry). Hex-grid surface remains only in
       flora sequencing (`RP-6` gel-band) where the v2 lock put it.
-    size: M
     depends_on: ['RP-8b', 'RP-37', 'RP-42', 'RP-44']
     status: todo
     spec: null
@@ -315,7 +314,6 @@ features:
       it, aura-overlap recording goes invisible. Same cue across all
       angel kinds (rain, bees, clover, wildflower, tallgrass, fire,
       lightning, egregore, sundering, meteorite).
-    size: XS
     depends_on: ['RP-13']
     status: todo
     spec: null
@@ -526,10 +524,10 @@ features:
       spec). The 1-in-7 unstable-meteorite explode mechanic in entities.ts:113
       is deleted in the same spec.
     depends_on: []
-    status: in-progress
+    status: shipped
     spec: harness/specs/RP-18-stone-circles.yaml
     plan: harness/plans/RP-18-stone-circles.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/443
     notes: >
       v4 thinktank round 4 (2026-05-19). Meteorites started as a universal
       resource and have been a leftover for some time. v4 reframes them as
@@ -715,10 +713,10 @@ features:
       overwritten — exposed frames are exposed. When film is exhausted the
       camera is decoration. Wears like other tools (RP-15).
     depends_on: []
-    status: in-progress
+    status: shipped
     spec: harness/specs/time-lapse-camera.yaml
     plan: harness/plans/time-lapse-camera.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/442
     notes: >
       v4 thinktank round 7 (2026-05-20). Tyler's breakthrough — FromSoft
       games are materialist (spells are scrolls, abilities are talismans,
@@ -1384,10 +1382,10 @@ features:
       between the enclosed interior the player has been looking at and
       the full prairie they walk into.
     depends_on: ['RP-27', 'RP-33']
-    status: in-progress
+    status: shipped
     spec: null
     plan: null
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/438
     notes: >
       v6 thinktank round 3 (2026-05-22). The cliché of
       starting-on-awakening is doctrinally earned because the game's
@@ -1652,7 +1650,6 @@ features:
       indoors or out. Persist FOW state on `GameState` per tenure.
       Cull entity render passes outside the visible radius; simulation
       underneath continues to run.
-    size: M
     depends_on: []
     status: shipped
     spec: harness/specs/overworld-fog-of-war.yaml
@@ -1681,7 +1678,6 @@ features:
       the house has shape again. Memory persists but dims; lived
       history is not erased. No change to gaze radius — same eyes
       seeing.
-    size: S
     depends_on: ['RP-38', 'RP-0']
     status: todo
     spec: null
@@ -1704,7 +1700,6 @@ features:
       prairie. The fog state from the previous tenure does not carry
       forward into the new one. The Knot retains lineage, the cellar
       retains the chronicle; the eyes do not.
-    size: S
     depends_on: ['RP-38', 'RP-24']
     status: todo
     spec: null
@@ -1728,7 +1723,6 @@ features:
       is not in scope; only revisit if x-ray fails the feel test. Fog
       of war (`RP-38`) handles LOS truncation naturally. Cave and ruin
       entrances may be placed on cliff faces as arches.
-    size: M
     depends_on: []
     status: todo
     spec: null
@@ -1754,7 +1748,6 @@ features:
       water, and bare earth act as firebreaks. Scorched-tile state
       with multi-year recovery curve; tallgrass benefits post-burn
       (real prairie ecology). Smoke and fire render passes.
-    size: M
     depends_on: ['RP-41']
     status: todo
     spec: null
@@ -1785,7 +1778,6 @@ features:
       reads the lifted temperature instead of raw weather.temperature.
       Visible signal — adjacent flora not-yet-dormant in winter —
       reuses existing color logic.
-    size: S
     depends_on: ['RP-8a', 'RP-8b']
     status: todo
     spec: null
@@ -1814,7 +1806,6 @@ features:
       brittle artifacts). Sunk ruins logged in the cellar Knot (`RP-37`)
       — the cellar remembers what the prairie lets go. Cliffs may also
       rise or fall on the same boundary (smaller scope decision).
-    size: L
     depends_on: ['RP-41', 'RP-43', 'RP-37']
     status: todo
     spec: null
@@ -1851,7 +1842,6 @@ features:
       the egregoric rhizome layer to the player without ever rendering
       it directly — the steward sees the trace of the pulse, not the
       rhizome itself.
-    size: M
     depends_on: ['RP-23', 'RP-44']
     status: todo
     spec: null
@@ -1882,7 +1872,6 @@ features:
       Never a running log. First sighting attaches a minimal
       _observed in year N_; full lineage annotations unlock on
       `[v]`-hold sequencing.
-    size: M
     depends_on: ['RP-3', 'RP-17', 'RP-6']
     status: todo
     spec: null
@@ -1925,7 +1914,6 @@ features:
       prairie itself — faint connecting lines between related flora
       tiles within gaze radius, color-keyed by relation degree.
       Absorbs and supersedes RP-17's overlay-registry seed.
-    size: L
     depends_on: ['RP-17', 'RP-46', 'RP-43', 'RP-48']
     status: todo
     spec: null
@@ -1956,7 +1944,6 @@ features:
       visible only when the layer is toggled on. Resonates faintly
       with seismograph reads (RP-45) and with winter geology (RP-44).
       Visual register only; deliberately not min-maxable.
-    size: M
     depends_on: ['RP-17']
     status: todo
     spec: null
@@ -1973,6 +1960,21 @@ features:
       instruments. Decoupled from RP-47 so the layer's content can be
       spec'd independently from the overlay registry that hosts it.
 
+  - id: 'RP-49'
+    name: '[reserved] ID gap from the precis → backlog migration'
+    summary: >
+      Intentional placeholder. RP-49 was never assigned a feature during
+      the legacy precis sequencing; this stub fills the gap so /churn
+      never surfaces it as NEXT, and so the renumbering pass that moved
+      a duplicate RP-52 to RP-60 has a clear record of why RP-49 stays
+      unfilled. Do not assign work to this id.
+    depends_on: []
+    status: shipped
+    spec: null
+    plan: null
+    pr: null
+    notes: ''
+
   - id: 'RP-50'
     name: Knot per-year auto-derivation
     summary: >
@@ -1987,7 +1989,6 @@ features:
       cellar hover (alongside `RP-22` chronicle text), and the manual
       entry's per-year texture. The cellar hover is the surface
       that teaches the steward what they missed.
-    size: M
     depends_on: ['RP-36', 'RP-46']
     status: todo
     spec: null
@@ -2049,7 +2050,6 @@ features:
       bees, ghosts, coyote, flora lifecycle, weather. Re-entry to
       the prairie does not snap-advance; the steward returns to
       the moment they entered.
-    size: S
     depends_on: ['RP-33', 'RP-37']
     status: todo
     spec: null
@@ -2082,7 +2082,7 @@ features:
       automatically (lean: no — the principle is the test,
       domestic vs wild, drawn deliberately per space).
 
-  - id: 'RP-52'
+  - id: 'RP-60'
     name: Holographic day/night derived from seasonalPhase
     summary: >
       Each season holds one day and one night, derived from
@@ -2098,7 +2098,6 @@ features:
       not the memory layer. The steward's gaze radius compresses
       during the seasonal night. No new clock, no new field on
       `GameState`, no save-shape change.
-    size: S
     depends_on: []
     status: todo
     spec: null
@@ -2143,7 +2142,6 @@ features:
       light when the sun isn't drowning it. Absent in autumn and
       winter. One new render pass under
       `src/engine/render/passes/`.
-    size: S
     depends_on: ['RP-52']
     status: todo
     spec: null
@@ -2178,7 +2176,6 @@ features:
       which witness sourced it. Live, one-year-delayed sibling
       of the cellar's plural-witness revelation in `RP-50`; shares
       the `WitnessFootprint` substrate with `RP-50`.
-    size: M
     depends_on: ['RP-52', 'RP-50']
     status: todo
     spec: null
@@ -2223,7 +2220,6 @@ features:
       `shared/src/protocol.ts` gains a token field on the connect
       message; `worker/src/` gains a validation step; the client
       persists the token in local storage on first successful entry.
-    size: S
     depends_on: []
     status: todo
     spec: null
@@ -2253,7 +2249,6 @@ features:
       seasonal cycle, twenty wall-clock minutes). The save uses the
       same shape as the full game with a `demoModeUpgradedAt` field
       stamped at purchase time; no separate demo state.
-    size: S
     depends_on: ['RP-55']
     status: todo
     spec: null
@@ -2280,7 +2275,6 @@ features:
       three surfaces (web demo, itch full, Steam full) carry the
       same build artifact pinned to the same release tag. No
       platform-exclusive content ever.
-    size: M
     depends_on: ['RP-55', 'RP-56']
     status: todo
     spec: null
@@ -2318,12 +2312,11 @@ features:
       and the source buffers clear. Persists across tenures as
       part of saved state. Frames flow one way: the camera is the
       capture device, the album is the keeping.
-    size: S
     depends_on: ['RP-23', 'RP-28']
-    status: in-progress
+    status: shipped
     spec: harness/specs/photograph-album.yaml
     plan: null
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/442
     notes: >
       v9 thinktank round 3 (2026-05-24). Tyler's QoL ask plus
       the room's framing: _the camera is the lens; the album is
@@ -2355,7 +2348,6 @@ features:
       in-hand item's glyph and name in hot pink. `[x] to drop` is
       preserved untouched for every item type, placeables included —
       drop and place are two distinct verbs.
-    size: M
     depends_on: ['RP-18', 'RP-23', 'RP-28']
     status: todo
     spec: null
