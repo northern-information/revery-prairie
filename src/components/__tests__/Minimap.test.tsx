@@ -1,5 +1,6 @@
-import { getVisibleRuinFootprints, Minimap } from '../Minimap'
+import { Minimap } from '../Minimap'
 import { computeIsoLayout, getPlayerCenter, MINIMAP_CSS_SIZE, projectIso } from '../minimapProjection'
+import { getVisibleRuinFootprints } from '../minimapStructures'
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
