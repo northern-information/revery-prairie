@@ -151,6 +151,42 @@ behaviors:
         effect: 'listener function stored for cleanup'
     determinism: deterministic
 
+  - id: splash-audio-layer
+    description: >
+      `playSplashAudio(url)` and `stopSplashAudio(fadeMs?)` manage a
+      third, independent track channel reserved for the
+      Northern Information splash colophon cue. The splash track is a
+      one-shot, non-looping source with its gain driven by an
+      explicit triangle-wave envelope: ramp 0 → 1 over
+      `SPLASH_FADE_IN_MS` (2000ms), hold at 1 for `SPLASH_HOLD_MS`
+      (2400ms), ramp 1 → 0 over `SPLASH_FADE_OUT_MS` (1600ms), then
+      destroy. Total envelope duration (6000ms) matches the natural
+      length of the source mp3 so audio reaches silence as the
+      track ends. The envelope is driven by a dedicated rAF loop
+      (separate from the existing crossfade `fadeRafId`) so it does
+      not contend with ambient zone crossfades. Only one
+      `splashTrack` exists at a time; a second `playSplashAudio`
+      call destroys the previous track before creating a new one
+      (mirroring `startDialogMusic`). The splash layer does NOT duck
+      ambient and is NOT ducked by dialog — it runs in parallel.
+      When `audioEnabled` is false at call time, `playSplashAudio`
+      is a no-op. `stopSplashAudio(fadeMs)` ramps the current gain
+      to 0 over `fadeMs` (default 300ms) and then destroys the
+      track; calling it when no splash track exists is a no-op.
+      `stopAll()` also destroys any active splash track.
+    inputs:
+      - 'url string passed to playSplashAudio (one-shot, no fadeMs param)'
+      - 'optional fadeMs passed to stopSplashAudio (default 300ms)'
+    outputs:
+      - 'splashTrack source playing with triangle-wave gain envelope'
+      - 'splashTrack auto-destroyed after envelope completes OR at stopSplashAudio fade end'
+    state_changes:
+      - field: '(module) splashTrack'
+        effect: 'created on playSplashAudio, destroyed on envelope completion or stopSplashAudio fade end'
+      - field: '(module) splashRafId'
+        effect: 'rAF id stored during the envelope animation; cancelled by stopSplashAudio or stopAll'
+    determinism: deterministic
+
   - id: first-gesture-primer
     description: >
       At module load, before any safeStart call, the audio module

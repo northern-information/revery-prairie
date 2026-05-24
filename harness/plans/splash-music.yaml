@@ -1,0 +1,88 @@
+plan:
+  id: splash-music
+  title: 'Northern Information splash: gated pre-gesture state with triangle-wave audio cue'
+  created: '2026-05-24'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: audio-splash-layer
+    title: 'Add playSplashAudio + stopSplashAudio to engine/audio.ts with a triangle-wave gain envelope (800/1800/800 ms) and a dedicated splashRafId; ensure stopAll tears down splashTrack'
+    spec_id: audio-system
+    spec_sections:
+      - splash-audio-layer
+    context_files:
+      - src/engine/audio.ts
+    output_files:
+      - src/engine/audio.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: splash-gate-and-audio-wire
+    title: 'Rewrite NorthernInformationSplash to a two-phase component: pre-gesture hint state ("Click To Begin") with no RAF, then first-gesture transitions to the running state that starts the triangle-wave timer and calls playSplashAudio("/sfx/northern-information.mp3"); subsequent gesture skips with stopSplashAudio(300); unmount cleanup calls stopSplashAudio()'
+    spec_id: northern-information-splash
+    spec_sections:
+      - pre-gesture-hint-state
+      - first-gesture-starts-splash-and-audio
+      - triangle-wave-opacity-curve
+      - audio-mirrors-triangle-wave
+      - click-or-key-skips-running-splash
+      - image-rendered-centered-on-black
+      - film-grain-strong-class-on-root
+    context_files:
+      - src/components/NorthernInformationSplash.tsx
+      - src/engine/audio.ts
+      - src/App.tsx
+    output_files:
+      - src/components/NorthernInformationSplash.tsx
+    depends_on:
+      - audio-splash-layer
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component]
+
+  - id: audio-splash-tests
+    title: 'Extend src/engine/__tests__/audio.test.ts with splash-layer tests: playSplashAudio creates a non-looping track, envelope ramps gain through 0 → 1 → hold → 0 over 3400ms, completion destroys the track, second playSplashAudio destroys the prior track, stopSplashAudio(300) fast-fades and destroys, audioEnabled=false makes playSplashAudio a no-op, stopAll destroys splashTrack'
+    spec_id: audio-system
+    spec_sections:
+      - splash-audio-layer
+    context_files:
+      - src/engine/__tests__/audio.test.ts
+      - src/engine/audio.ts
+    output_files:
+      - src/engine/__tests__/audio.test.ts
+    depends_on:
+      - audio-splash-layer
+    verification:
+      - npx vitest run src/engine/__tests__/audio.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: splash-component-tests
+    title: 'Rewrite NorthernInformationSplash tests for the gated flow: starts in pre-gesture state with "Click To Begin" hint and NO <img>; first gesture mounts <img>, starts RAF, and invokes playSplashAudio via a passed-in injection seam; subsequent gesture during running state fires onFadeOutStart + stopSplashAudio(300) but NOT onComplete until visual fade completes; unmount during running state calls stopSplashAudio()'
+    spec_id: northern-information-splash
+    spec_sections:
+      - pre-gesture-hint-state
+      - first-gesture-starts-splash-and-audio
+      - click-or-key-skips-running-splash
+      - splash-mounts-as-very-first-surface
+      - film-grain-strong-class-on-root
+      - triangle-wave-opacity-curve
+    context_files:
+      - src/components/__tests__/NorthernInformationSplash.test.tsx
+      - src/components/NorthernInformationSplash.tsx
+      - src/engine/audio.ts
+    output_files:
+      - src/components/__tests__/NorthernInformationSplash.test.tsx
+    depends_on:
+      - splash-gate-and-audio-wire
+    verification:
+      - npx vitest run src/components/__tests__/NorthernInformationSplash.test.tsx
+    repair: retry
+    tags: [test]

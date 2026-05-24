@@ -1,4 +1,21 @@
-import { _getState, _reset, setAmbient, setAudioEnabled, startDialogMusic, stopAll, stopDialogMusic } from '../audio'
+import type { MockInstance } from 'vitest'
+
+import {
+  _getState,
+  _reset,
+  _SPLASH_FADE_IN_MS,
+  _SPLASH_FADE_OUT_MS,
+  _SPLASH_HOLD_MS,
+  _SPLASH_TOTAL_MS,
+  _splashEnvelopeGain,
+  playSplashAudio,
+  setAmbient,
+  setAudioEnabled,
+  startDialogMusic,
+  stopAll,
+  stopDialogMusic,
+  stopSplashAudio,
+} from '../audio'
 
 import type { Track } from '../audio'
 
@@ -342,6 +359,151 @@ describe('audio manager', () => {
       // fetch should only have been called once for this URL (cached buffer)
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
       expect(fetchMock.mock.calls.filter((c: string[]) => c[0] === '/music/overworld.mp3')).toHaveLength(1)
+    })
+  })
+
+  describe('playSplashAudio / stopSplashAudio', () => {
+    type NowSpy = MockInstance<() => number>
+    const advance = (nowSpy: NowSpy, t: number): void => {
+      nowSpy.mockReturnValue(t)
+      // Drain pending RAF callbacks so the envelope step re-reads now().
+      // Each step schedules the next; flush until quiescent or capped.
+      for (let i = 0; i < 20 && rafCallbacks.length > 0; i++) {
+        flushRaf(t)
+      }
+    }
+
+    it('exposes the expected triangle-wave envelope shape', () => {
+      expect(_splashEnvelopeGain(0)).toBe(0)
+      expect(_splashEnvelopeGain(_SPLASH_FADE_IN_MS / 2)).toBeCloseTo(0.5, 5)
+      expect(_splashEnvelopeGain(_SPLASH_FADE_IN_MS)).toBe(1)
+      expect(_splashEnvelopeGain(_SPLASH_FADE_IN_MS + _SPLASH_HOLD_MS / 2)).toBe(1)
+      expect(_splashEnvelopeGain(_SPLASH_FADE_IN_MS + _SPLASH_HOLD_MS)).toBe(1)
+      expect(_splashEnvelopeGain(_SPLASH_FADE_IN_MS + _SPLASH_HOLD_MS + _SPLASH_FADE_OUT_MS / 2)).toBeCloseTo(0.5, 5)
+      expect(_splashEnvelopeGain(_SPLASH_TOTAL_MS)).toBe(0)
+      expect(_splashEnvelopeGain(_SPLASH_TOTAL_MS + 100)).toBe(0)
+    })
+
+    it('creates a non-looping splash track on play', async () => {
+      playSplashAudio('/sfx/northern-information.mp3')
+      await flush()
+
+      const { splashTrack } = _getState()
+      expect(splashTrack).not.toBeNull()
+      expect(getSource(splashTrack)?.loop).toBe(false)
+      expect(getSource(splashTrack)?.start).toHaveBeenCalledOnce()
+    })
+
+    it('drives gain through the triangle wave as time advances', async () => {
+      const nowSpy = vi.spyOn(performance, 'now')
+      nowSpy.mockReturnValue(0)
+
+      playSplashAudio('/sfx/northern-information.mp3')
+      await flush()
+      // Start envelope from t=0
+      advance(nowSpy, 0)
+
+      const { splashTrack } = _getState()
+      expect(splashTrack).not.toBeNull()
+      const gain = getGain(splashTrack)
+
+      advance(nowSpy, _SPLASH_FADE_IN_MS / 2)
+      expect(gain?.gain.value).toBeCloseTo(0.5, 5)
+
+      advance(nowSpy, _SPLASH_FADE_IN_MS + _SPLASH_HOLD_MS / 2)
+      expect(gain?.gain.value).toBe(1)
+
+      advance(nowSpy, _SPLASH_FADE_IN_MS + _SPLASH_HOLD_MS + _SPLASH_FADE_OUT_MS / 2)
+      expect(gain?.gain.value).toBeCloseTo(0.5, 5)
+
+      nowSpy.mockRestore()
+    })
+
+    it('destroys the splash track when the envelope completes', async () => {
+      const nowSpy = vi.spyOn(performance, 'now')
+      nowSpy.mockReturnValue(0)
+
+      playSplashAudio('/sfx/northern-information.mp3')
+      await flush()
+      advance(nowSpy, 0)
+
+      const trackBefore = _getState().splashTrack
+      const sourceBefore = getSource(trackBefore)
+      expect(trackBefore).not.toBeNull()
+
+      advance(nowSpy, _SPLASH_TOTAL_MS + 1)
+
+      expect(_getState().splashTrack).toBeNull()
+      expect(sourceBefore?.stop).toHaveBeenCalled()
+      expect(sourceBefore?.disconnect).toHaveBeenCalled()
+
+      nowSpy.mockRestore()
+    })
+
+    it('destroys a prior splash track when called again', async () => {
+      playSplashAudio('/sfx/northern-information.mp3')
+      await flush()
+      const firstGain = getGain(_getState().splashTrack)
+      expect(firstGain).not.toBeNull()
+
+      playSplashAudio('/sfx/northern-information.mp3')
+      await flush()
+
+      expect(firstGain?.disconnect).toHaveBeenCalled()
+      expect(_getState().splashTrack).not.toBeNull()
+    })
+
+    it('stopSplashAudio fades and destroys the track', async () => {
+      const nowSpy = vi.spyOn(performance, 'now')
+      nowSpy.mockReturnValue(0)
+
+      playSplashAudio('/sfx/northern-information.mp3')
+      await flush()
+      advance(nowSpy, 0)
+      advance(nowSpy, _SPLASH_FADE_IN_MS) // gain at 1
+      const track = _getState().splashTrack
+      const source = getSource(track)
+      expect(track).not.toBeNull()
+
+      stopSplashAudio(300)
+      // splashTrack nulls immediately on stopSplashAudio
+      expect(_getState().splashTrack).toBeNull()
+
+      // Advance through the skip-fade window
+      advance(nowSpy, _SPLASH_FADE_IN_MS + 400)
+
+      expect(source?.stop).toHaveBeenCalled()
+      expect(source?.disconnect).toHaveBeenCalled()
+
+      nowSpy.mockRestore()
+    })
+
+    it('stopSplashAudio is a no-op when there is no splash track', () => {
+      expect(() => {
+        stopSplashAudio()
+      }).not.toThrow()
+      expect(_getState().splashTrack).toBeNull()
+    })
+
+    it('playSplashAudio is a no-op when audio is disabled', async () => {
+      setAudioEnabled(false)
+      playSplashAudio('/sfx/northern-information.mp3')
+      await flush()
+
+      expect(_getState().splashTrack).toBeNull()
+      setAudioEnabled(true)
+    })
+
+    it('stopAll destroys the splash track', async () => {
+      playSplashAudio('/sfx/northern-information.mp3')
+      await flush()
+      const gain = getGain(_getState().splashTrack)
+      expect(gain).not.toBeNull()
+
+      stopAll()
+
+      expect(_getState().splashTrack).toBeNull()
+      expect(gain?.disconnect).toHaveBeenCalled()
     })
   })
 })

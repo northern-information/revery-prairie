@@ -9,6 +9,17 @@ export const ZONE_MUSIC: Record<Zone, string> = {
 
 const FADE_MS = 300
 
+// Splash envelope (Northern Information colophon cue). Mirrors the
+// triangle wave used by NorthernInformationSplash.tsx for visual
+// opacity, so the audio gain follows the same shape. Total duration
+// fits the natural length of the source mp3 (~6s) so the envelope
+// reaches 0 just as the track ends.
+const SPLASH_FADE_IN_MS = 2000
+const SPLASH_HOLD_MS = 2400
+const SPLASH_FADE_OUT_MS = 1600
+const SPLASH_TOTAL_MS = SPLASH_FADE_IN_MS + SPLASH_HOLD_MS + SPLASH_FADE_OUT_MS
+const SPLASH_SKIP_FADE_MS = 300
+
 // --- Track type ---
 
 export interface Track {
@@ -25,6 +36,9 @@ const bufferCache = new Map<string, AudioBuffer>()
 let ambientTrack: Track | null = null
 let ambientUrl: string | null = null
 let dialogTrack: Track | null = null
+let splashTrack: Track | null = null
+let splashRafId: number | null = null
+let splashStartTime: number | null = null
 let fadeRafId: number | null = null
 let audioEnabled = true
 let pendingResume: (() => void) | null = null
@@ -89,7 +103,7 @@ const loadBuffer = async (url: string): Promise<AudioBuffer> => {
   return audioBuffer
 }
 
-const createTrack = async (url: string): Promise<Track> => {
+const createTrack = async (url: string, loop = true): Promise<Track> => {
   const audioCtx = getContext()
   const buffer = await loadBuffer(url)
   const gain = audioCtx.createGain()
@@ -98,7 +112,7 @@ const createTrack = async (url: string): Promise<Track> => {
 
   const source = audioCtx.createBufferSource()
   source.buffer = buffer
-  source.loop = true
+  source.loop = loop
   source.connect(gain)
 
   return { url, buffer, source, gain }
@@ -273,6 +287,7 @@ export const stopDialogMusic = (fadeMs: number = FADE_MS): void => {
 
 export const stopAll = (): void => {
   cancelFade()
+  cancelSplashRaf()
 
   // Clear pending autoplay retry so a destroyed track is never resumed
   pendingResume = null
@@ -290,10 +305,112 @@ export const stopAll = (): void => {
     dialogTrack = null
   }
 
+  if (splashTrack) {
+    destroyTrack(splashTrack)
+    splashTrack = null
+  }
+  splashStartTime = null
+
   for (const track of proximityTracks.values()) destroyTrack(track)
   proximityTracks.clear()
   proximityPending.clear()
   proximityWanted.clear()
+}
+
+// --- splash audio layer ---
+
+const cancelSplashRaf = (): void => {
+  if (splashRafId !== null) {
+    cancelAnimationFrame(splashRafId)
+    splashRafId = null
+  }
+}
+
+const splashEnvelopeGain = (elapsed: number): number => {
+  if (elapsed <= 0) return 0
+  if (elapsed < SPLASH_FADE_IN_MS) return elapsed / SPLASH_FADE_IN_MS
+  const holdEnd = SPLASH_FADE_IN_MS + SPLASH_HOLD_MS
+  if (elapsed < holdEnd) return 1
+  if (elapsed < SPLASH_TOTAL_MS) return 1 - (elapsed - holdEnd) / SPLASH_FADE_OUT_MS
+  return 0
+}
+
+const startSplashEnvelope = (track: Track): void => {
+  splashStartTime = performance.now()
+  const step = (): void => {
+    if (!splashTrack || splashStartTime === null) {
+      splashRafId = null
+      return
+    }
+    const elapsed = performance.now() - splashStartTime
+    if (elapsed >= SPLASH_TOTAL_MS) {
+      destroyTrack(track)
+      splashTrack = null
+      splashStartTime = null
+      splashRafId = null
+      return
+    }
+    track.gain.gain.value = splashEnvelopeGain(elapsed)
+    splashRafId = requestAnimationFrame(step)
+  }
+  splashRafId = requestAnimationFrame(step)
+}
+
+export const playSplashAudio = (url: string): void => {
+  if (!audioEnabled) return
+
+  // Destroy any existing splash track (defensive — e.g. double-mount).
+  if (splashTrack) {
+    cancelSplashRaf()
+    destroyTrack(splashTrack)
+    splashTrack = null
+    splashStartTime = null
+  }
+
+  void createTrack(url, false)
+    .then(track => {
+      // Race: a stopSplashAudio or stopAll fired between fetch start
+      // and resolution. Drop the track without starting it.
+      if (splashTrack !== null) {
+        destroyTrack(track)
+        return
+      }
+      splashTrack = track
+      safeStart(track)
+      startSplashEnvelope(track)
+    })
+    .catch(() => {
+      // Fetch or decode failure — silent (same pattern as ambient/dialog).
+    })
+}
+
+export const stopSplashAudio = (fadeMs: number = SPLASH_SKIP_FADE_MS): void => {
+  if (!splashTrack) return
+
+  cancelSplashRaf()
+  const dying = splashTrack
+  splashTrack = null
+  splashStartTime = null
+
+  const startGain = dying.gain.gain.value
+  if (fadeMs <= 0) {
+    destroyTrack(dying)
+    return
+  }
+
+  const startTime = performance.now()
+  const step = (): void => {
+    const elapsed = performance.now() - startTime
+    const t = Math.min(elapsed / fadeMs, 1)
+    dying.gain.gain.value = startGain * (1 - t)
+    if (t < 1) {
+      splashRafId = requestAnimationFrame(step)
+    } else {
+      splashRafId = null
+      destroyTrack(dying)
+    }
+  }
+  splashRafId = requestAnimationFrame(step)
 }
 
 // --- proximity emitters ---
@@ -398,6 +515,10 @@ export const setAudioEnabled = (value: boolean): void => {
 
   if (ambientTrack) ambientTrack.gain.gain.value = value ? 1 : 0
   if (dialogTrack) dialogTrack.gain.gain.value = value ? 1 : 0
+  // Splash track: muting cuts immediately rather than fading, because
+  // the envelope RAF will overwrite gain on the next frame anyway. On
+  // re-enable, the envelope's next step restores the right value.
+  if (splashTrack) splashTrack.gain.gain.value = value ? splashTrack.gain.gain.value : 0
   // Proximity tracks always start at 0 on toggle. On re-enable, the next
   // updateProximityMusic tick restores the right gain from player
   // position; leaving at 0 avoids a momentary blast at full volume.
@@ -454,12 +575,31 @@ export const _getState = (): {
   ambientTrack: Track | null
   ambientUrl: string | null
   dialogTrack: Track | null
+  splashTrack: Track | null
+  splashRafId: number | null
   fadeRafId: number | null
   audioEnabled: boolean
   pendingResume: (() => void) | null
   proximityTracks: Map<string, Track>
   proximityPending: Set<string>
-} => ({ ambientTrack, ambientUrl, dialogTrack, fadeRafId, audioEnabled, pendingResume, proximityTracks, proximityPending })
+} => ({
+  ambientTrack,
+  ambientUrl,
+  dialogTrack,
+  splashTrack,
+  splashRafId,
+  fadeRafId,
+  audioEnabled,
+  pendingResume,
+  proximityTracks,
+  proximityPending,
+})
+
+export const _splashEnvelopeGain = splashEnvelopeGain
+export const _SPLASH_TOTAL_MS = SPLASH_TOTAL_MS
+export const _SPLASH_FADE_IN_MS = SPLASH_FADE_IN_MS
+export const _SPLASH_HOLD_MS = SPLASH_HOLD_MS
+export const _SPLASH_FADE_OUT_MS = SPLASH_FADE_OUT_MS
 
 export const _computeProximityGain = computeProximityGain
 
