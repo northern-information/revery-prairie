@@ -6,7 +6,7 @@ import { FLORA_SPECIES } from './flora/species'
 import { clearAllGrowthPreviews } from './floraGrowthPreviews'
 import { generateGenesisIdentity, generateTraitBag } from './genetics'
 import { nameToSeed } from './genesis'
-import { RuinRole } from './genesisTypes'
+import { RuinGenerationMode, RuinRole } from './genesisTypes'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { clearMovementTweens } from './movementTween'
@@ -1151,6 +1151,48 @@ export const spawnDormantGardenItems = (state: GameState, ruinIndex: number): vo
   if (garden.tabletPosition) {
     spawnRuinGroundItem(state, ruinIndex, garden.tabletPosition, 'stoneTablet')
   }
+  // Precis #23 — dormant branch. Today the camera + film roll spawn
+  // only inside the little house at tenure start (see state.ts). This
+  // gate fires only if a future spec wires deep-time regeneration to
+  // flip state.ruinGenerationMode → Complex. As of writing, nothing
+  // in the codebase sets that flag — genesis.ts:2128 explicitly
+  // delegates Complex to Starter. Kept as a placeholder so the
+  // future complex ruin generator has a hook for tool/film spawns.
+  if (state.ruinGenerationMode === RuinGenerationMode.Complex && interior) {
+    const cameraSpawns = findTimeLapseSpawnTiles(interior, garden)
+    if (cameraSpawns) {
+      spawnRuinGroundItem(state, ruinIndex, cameraSpawns.camera, 'camera')
+      spawnRuinGroundItem(state, ruinIndex, cameraSpawns.filmRoll, 'filmRoll')
+    }
+  }
+}
+
+// Find two distinct walkable interior tiles for the camera and film
+// roll spawn (precis #23). Skips the entrance and the key/tablet
+// positions so items don't stack. Returns null if fewer than two
+// suitable tiles exist.
+const findTimeLapseSpawnTiles = (
+  interior: RuinInterior,
+  garden: DormantGardenData,
+): { camera: Position; filmRoll: Position } | null => {
+  const reserved = new Set<string>()
+  reserved.add(posKey(interior.entranceInterior.x, interior.entranceInterior.y))
+  if (garden.keyPosition) reserved.add(posKey(garden.keyPosition.x, garden.keyPosition.y))
+  if (garden.tabletPosition) reserved.add(posKey(garden.tabletPosition.x, garden.tabletPosition.y))
+  reserved.add(posKey(garden.seedVault.x, garden.seedVault.y))
+
+  const picks: Position[] = []
+  for (let y = 0; y < interior.mapHeight && picks.length < 2; y++) {
+    for (let x = 0; x < interior.mapWidth && picks.length < 2; x++) {
+      const t = interior.map[y][x]
+      if (!isWalkableTile(t.type)) continue
+      if (reserved.has(posKey(x, y))) continue
+      picks.push({ x, y })
+      reserved.add(posKey(x, y))
+    }
+  }
+  if (picks.length < 2) return null
+  return { camera: picks[0], filmRoll: picks[1] }
 }
 
 // ---------------------------------------------------------------------------

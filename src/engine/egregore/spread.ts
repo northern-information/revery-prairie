@@ -20,7 +20,8 @@ import { candidateDirtNeighbors } from '@/engine/egregore/positions'
 import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from '@/engine/egregore/species'
 import { generateEgregoreGenome } from '@/engine/genetics/egregore'
 import { posKey } from '@/engine/position'
-import { EgregoreActivityStage, Season, TileType, Zone } from '@/engine/types'
+import { recordCameraSubjectEvent } from '@/engine/timeLapse'
+import { CameraSubject, EgregoreActivityStage, Season, TileType, Zone } from '@/engine/types'
 
 import type { GameState, Position } from '@/engine/types'
 
@@ -139,5 +140,8 @@ export const commitEgregoreTiles = (state: GameState, positions: Position[], tim
       species,
       genome,
     })
+    // Precis #23 — a new egregore tile appearing inside a placed
+    // camera's footprint registers as EgregoreScan.
+    recordCameraSubjectEvent(state, pos.x, pos.y, CameraSubject.EgregoreScan, time)
   }
 }

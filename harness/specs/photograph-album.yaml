@@ -1,0 +1,94 @@
+id: photograph-album
+name: 'Photograph album (permacomputer tab)'
+priority: medium
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/components/PhotographAlbumPanel.tsx
+  - src/components/PermacomputerShell.tsx
+  - src/components/GameScreen.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - time-lapse-camera
+
+behaviors:
+  - id: photograph-album-state
+    description: >
+      GameState gains a `photographAlbum: TimeLapseFrame[]` field
+      initialized as an empty array. Frames migrate into the album
+      when the TimeLapsePlayback modal dismisses (see
+      `time-lapse-camera.auto-unload-on-playback-dismissal`). The
+      album is added to EXPECTED_FIELDS in the serialization schema
+      test. Save/load roundtrips the album. Frames are appended in
+      chronological capture order; the album persists across
+      tenures.
+    inputs:
+      - 'initialGameState()'
+    outputs:
+      - 'state.photographAlbum instanceof Array and is empty'
+    state_changes: []
+    determinism: deterministic
+
+  - id: album-permacomputer-tab
+    description: >
+      A new `PhotographAlbumPanel` component renders as a tab within
+      the existing PermacomputerShell (precis #28). The tab label is
+      'Album'. The panel lists every entry in `state.photographAlbum`
+      in capture order — most recent first. Each row shows the
+      subject label (POLLINATION, RAIN, etc., or SEASONAL LANDMARK
+      for the pre-seeded frames), a timestamp formatted as `t = N
+      s`, and a small monospaced thumbnail of the 3x3 cells at 20px
+      per cell. Empty album state renders a single dim line —
+      "No photographs yet. Deploy a Field Camera in the field."
+    inputs:
+      - 'PermacomputerShell rendered with the Album tab active'
+      - 'state.photographAlbum may be empty or non-empty'
+    outputs:
+      - 'panel DOM contains one row per entry, with subject + timestamp + thumbnail'
+    state_changes: []
+    determinism: deterministic
+
+  - id: album-entry-reveal-ceremony
+    description: >
+      Clicking a row in the album opens the existing TimeLapsePlayback
+      modal in single-frame mode — only that frame is in the playback
+      queue. The reveal ceremony runs normally (heading fade,
+      column-major cell reveal, /sfx/sequence.mp3 beat). On
+      dismissal, the modal closes and the album panel remains.
+      Re-clicking different rows re-opens the modal each time.
+      Single-frame playback does NOT mutate the album — the source
+      buffer is the album itself, and rows are not removed by being
+      viewed.
+    inputs:
+      - 'Album tab active; click on row i'
+    outputs:
+      - 'TimeLapsePlayback modal opens with queue = [album[i]]'
+      - 'album is unchanged after modal dismissal'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: empty-album-renders-hint
+    description: 'state.photographAlbum is empty when the player opens the Album tab'
+    expected: 'panel renders the empty-state hint line; no rows render'
+  - id: many-frames-scroll
+    description: 'state.photographAlbum has hundreds of entries (long tenure)'
+    expected: 'panel scrolls vertically; row rendering remains performant; no virtualization required for v1 — defer to a follow-up if it becomes a bottleneck'
+  - id: pre-seeded-frames-appear-after-first-playback
+    description: 'Player presses [f] on the genesis-time deployed Field Camera at the oak; modal opens with 4 frames; dismiss'
+    expected: 'after dismissal, state.photographAlbum.length === 4 with the 4 SeasonalLandmark frames'
+  - id: live-recorded-frames-merge-with-archive
+    description: 'Player deploys a camera, captures 3 events; later picks up via Pack Up (archive=3); deploys again, captures 2 more; presses [f]'
+    expected: 'after modal dismissal, state.photographAlbum gains 5 entries (3 archived + 2 live) in capture order'
+
+failure_conditions:
+  - trigger: 'TimeLapsePlayback dismissed when state.placedCameras is empty (e.g. album-entry single-frame mode)'
+    expected: 'no migration occurs; album entries are not duplicated; modal closes cleanly'
+  - trigger: 'Album tab opened when state.photographAlbum is undefined (should never happen — field is initialized to [])'
+    expected: 'defensive default to empty array; no crash'
+
+verification:
+  test_file: src/engine/__tests__/photographAlbum.test.ts
+  test_pattern: 'photograph album'
+  command: 'npx vitest run src/engine/__tests__/photographAlbum.test.ts'

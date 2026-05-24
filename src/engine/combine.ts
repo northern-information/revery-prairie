@@ -1,5 +1,5 @@
 import { triggerStewardSeal } from './interaction'
-import { buildOccupancyGrid, containerHasItem, findItemByDefinition, removeItem } from './inventory'
+import { buildOccupancyGrid, findItemByDefinition, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
 import { isWalkableTile } from './position'
 import { findRecipe, isStewardSealRecipe, recipeKey } from './recipes'
@@ -55,19 +55,23 @@ export const combineFromBackpack = (state: GameState, defIdA: string, defIdB: st
   const recipe = findRecipe(defIdA, defIdB)
   if (!recipe) return false
 
-  if (!containerHasItem(state.backpack, defIdA) || !containerHasItem(state.backpack, defIdB)) {
-    return false
-  }
+  const itemA = findItemByDefinition(state.backpack, defIdA)
+  const itemB = findItemByDefinition(state.backpack, defIdB)
+  if (!itemA || !itemB) return false
 
   // Check standing tile before consuming items — recipe.execute also checks,
   // but we need to bail before removing ingredients
   const standingOn = state.map[state.player.y][state.player.x].type
   if (standingOn === TileType.Sand || !isWalkableTile(standingOn)) return false
 
-  findAndRemoveItem(state, defIdA)
-  findAndRemoveItem(state, defIdB)
+  // autoConsume === false leaves ingredient management to the recipe
+  // (e.g. camera+filmRoll consumes only the film roll).
+  if (recipe.autoConsume !== false) {
+    findAndRemoveItem(state, defIdA)
+    findAndRemoveItem(state, defIdB)
+  }
 
-  const succeeded = recipe.execute(state)
+  const succeeded = recipe.execute(state, itemA.uid, itemB.uid)
   if (succeeded && isStewardSealRecipe(recipe)) {
     triggerStewardSeal(state, time ?? performance.now())
     // RP-17 — ceremony cast discovery is recorded here so the

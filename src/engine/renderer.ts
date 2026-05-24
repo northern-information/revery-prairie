@@ -588,9 +588,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (mpos) monarchPositions.add(posKey(mpos.x, mpos.y))
   }
 
-  // Populate ground item positions (from ECS)
+  // Populate ground item positions (from ECS). placedCamera-tagged
+  // entities also render through this pass — they carry an ItemDrop
+  // component for the glyph but the 'placedCamera' tag keeps the
+  // proximity-pickup sweep from auto-acquiring them.
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.ItemDrop)) {
-    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') continue
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (tag !== 'groundItem' && tag !== 'placedCamera') continue
     if (!inZone(eid)) continue
     const gpos = state.world.getComponent(eid, ComponentType.Position)
     const drop = state.world.getComponent(eid, ComponentType.ItemDrop)

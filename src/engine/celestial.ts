@@ -19,7 +19,8 @@ import {
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { isInBounds, posKey } from './position'
-import { TileType, Zone } from './types'
+import { recordCameraSubjectEvent } from './timeLapse'
+import { CameraSubject, TileType, Zone } from './types'
 import { spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
@@ -132,6 +133,9 @@ export const tickShootingStars = (state: GameState, time: number): void => {
             state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
             state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
           }
+          // Precis #23 — targeted meteorite landing is an Ember
+          // subject for any covering placedCamera.
+          recordCameraSubjectEvent(state, x, y, CameraSubject.Ember, time)
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, {
@@ -154,6 +158,9 @@ export const tickShootingStars = (state: GameState, time: number): void => {
             state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
             state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
           }
+          // Precis #23 — meteorite landing is an Ember subject for any
+          // covering placedCamera, regardless of pickup outcome.
+          recordCameraSubjectEvent(state, x, y, CameraSubject.Ember, time)
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })

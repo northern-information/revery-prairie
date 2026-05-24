@@ -11,6 +11,7 @@ import {
   clearRuinDebris,
   getAdjacentCharacter,
   interactWithCharacter,
+  tryPlacedCameraInteraction,
   isFacingLockedDoor,
   openLockedGateDialog,
   unlockRuinDoor,
@@ -27,6 +28,7 @@ export type PermacomputerScreen =
   | 'divination'
   | 'cantos'
   | 'coyote'
+  | 'album'
   | 'scan-result'
   | null
 
@@ -168,6 +170,14 @@ export const useKeyboard = ({
               refreshUI()
               return
             }
+          }
+          // Precis #23 — adjacent placedCamera handles its own
+          // interact branch (open playback if frames exist, else pick
+          // up). Routes through tryPlacedCameraInteraction.
+          const cameraResult = tryPlacedCameraInteraction(state)
+          if (cameraResult !== 'none') {
+            refreshUI()
+            return
           }
           // Interact with adjacent character
           const adjacent = getAdjacentCharacter(state)

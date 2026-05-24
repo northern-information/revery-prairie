@@ -1,0 +1,565 @@
+id: time-lapse-camera
+name: 'Time-lapse camera (analog 35mm field instrument)'
+priority: medium
+layer: integration
+source_files:
+  - src/engine/items.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/effects.ts
+  - src/engine/manual.ts
+  - src/engine/recipes.ts
+  - src/engine/interaction.ts
+  - src/engine/ruins.ts
+  - src/engine/timeLapse.ts
+  - src/engine/constants.ts
+  - src/components/TimeLapsePlayback.tsx
+  - src/components/GameCanvas.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies: []
+
+behaviors:
+  - id: camera-item-defined
+    description: >
+      A new ItemDefinition `camera` exists in ITEMS (src/engine/items.ts)
+      with name 'Field Camera' (Round 3 rename), glyph '⌖', glyphColor
+      '#FFD700' (bee/gold palette), category ItemCategory.Tool. Standard
+      pickup flow applies — spawnPickupBloom on acquisition. Manual
+      entry `item:camera` registered with the Tyler-authored lore
+      'Weatherproof, permacomputer augmented.' (Round 3). No special
+      stacking behavior; cameras occupy a single inventory cell.
+    inputs:
+      - 'ITEM_DEFINITIONS lookup by id "camera"'
+    outputs:
+      - 'returns the camera ItemDefinition'
+    state_changes: []
+    determinism: deterministic
+
+  - id: film-roll-item-defined
+    description: >
+      A new ItemDefinition `filmRoll` exists in ITEMS with name
+      'Film Roll', glyph '⊐', glyphColor '#C2B280', category
+      ItemCategory.Tool. Manual entry `item:filmRoll` registered
+      with the Tyler-authored lore 'Unused N-INFO 400 film roll.'
+      (Round 3). Film rolls are non-stackable singular items. The
+      roll is consumed when loaded into a camera.
+    inputs:
+      - 'ITEM_DEFINITIONS lookup by id "filmRoll"'
+    outputs:
+      - 'returns the filmRoll ItemDefinition'
+    state_changes: []
+    determinism: deterministic
+
+  - id: camera-state-shape
+    description: >
+      GameState gains four new fields. (a) `state.cameraFilm:
+      Map<string, number>` — keyed by camera ItemInstance uid,
+      stores frames remaining (max 50). Cameras without an entry
+      are unloaded. (b) `state.placedCameras: PlacedCamera[]`
+      where PlacedCamera is `{ uid, x, y, zone, ruinIndex?,
+      startedAt, expiresAt, frames }` and `frames` is an array
+      of `TimeLapseFrame`. (c) `state.cameraArchive: Map<string,
+      TimeLapseFrame[]>` — keyed by camera uid, accumulates
+      frames across placement/pickup cycles. (d)
+      `state.photographAlbum: TimeLapseFrame[]` (Round 3) —
+      chronological list of every frame the steward has ever
+      developed via playback dismissal. A TimeLapseFrame is
+      `{ recordedAt, subject, cells }` where `subject` is a
+      `CameraSubject` enum value and `cells` is a flat 9-entry
+      array of `{ char, color }` covering the 3x3 neighborhood
+      in row-major order (NW, N, NE, W, C, E, SW, S, SE). All
+      four new fields are added to EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts.
+      Save/load roundtrips each field without loss.
+    inputs:
+      - 'initialGameState()'
+    outputs:
+      - 'state.cameraFilm instanceof Map and is empty'
+      - 'state.placedCameras has one entry (the genesis-time Field Camera near nearest oak)'
+      - 'state.cameraArchive has one entry (4 pre-seeded oak frames)'
+      - 'state.photographAlbum is an empty array'
+    state_changes: []
+    determinism: deterministic
+
+  - id: camera-subject-enumeration
+    description: >
+      A new `CameraSubject` as-const object enumerates the
+      meaningful events a camera registers a frame for. v1
+      kinds — `Pollination` (a bee deposits pollen on a flora
+      tile inside the 3x3, advancing its lifecycle stage),
+      `Rain` (rain front first reaches a tile inside the 3x3
+      this season), `Bloom` (a flora tile inside the 3x3
+      transitions from non-Flowering to Flowering stage),
+      `Ember` (a fire/ember entity arrives inside the 3x3 —
+      meteorite impact, future fire system),
+      `MonarchVisit` (a Monarch entity arrives inside the
+      3x3), `GhostPassage` (a ghost entity arrives inside the
+      3x3), `EgregoreScan` (a Voynich-rendered flora tile
+      appears or advances inside the 3x3),
+      `CharacterApproach` (a named character moves into the
+      3x3). Raw cosmetic tile changes (sand drift, palette
+      wash, cursor highlight) are NOT subjects. The list is
+      extensible — future event kinds add new constants
+      without breaking existing frames. Exhaustive switch
+      statements on CameraSubject must default to a no-op for
+      forward compatibility.
+    inputs:
+      - 'CameraSubject lookup by key'
+    outputs:
+      - 'returns the string literal for that subject kind'
+    state_changes: []
+    determinism: deterministic
+
+  - id: load-film-into-camera
+    description: >
+      Dragging a `filmRoll` item onto a `camera` item inside
+      the backpack consumes the filmRoll and sets
+      `state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)`
+      where FRAMES_PER_TUBE = 50. The camera ItemInstance
+      keeps its uid (CLAUDE.md uid-preservation rule). This
+      is implemented as a new Recipe in RECIPES with
+      `kind: RecipeKind.Craft`, ingredients
+      `['filmRoll', 'camera']`, resultName 'Loaded Camera'.
+      The recipe's `execute` removes only the filmRoll and
+      writes to cameraFilm — the camera is NOT consumed.
+      Discovery recorded as `recipe:camera+filmRoll`. Manual
+      lore for the recipe entry is `{ lore: 'TODO' }`.
+    inputs:
+      - 'GameState with one camera and one filmRoll in backpack'
+      - 'combineFromBackpack(state, "filmRoll", "camera")'
+    outputs:
+      - 'boolean: true'
+    state_changes:
+      - field: backpack.items
+        effect: 'filmRoll removed; camera retained with original uid'
+      - field: cameraFilm
+        effect: 'entry added: camera.uid -> 50'
+      - field: discoveredRecipes
+        effect: 'recipe:camera+filmRoll added'
+    determinism: deterministic
+
+  - id: reject-load-onto-loaded-camera
+    description: >
+      Dragging a filmRoll onto a camera that already has an
+      entry in `state.cameraFilm` (whether the count is >0 or
+      exactly 0) is rejected. The recipe execute returns
+      false; neither item is consumed. Enforces "film cannot
+      be overwritten — exposed is exposed". Once loaded, a
+      camera body cannot be reloaded for its lifetime.
+    inputs:
+      - 'GameState with a camera already in cameraFilm (any value)'
+      - 'combineFromBackpack(state, "filmRoll", "camera")'
+    outputs:
+      - 'boolean: false'
+    state_changes: []
+    determinism: deterministic
+
+  - id: place-camera-on-tile
+    description: >
+      Dropping a camera item from the backpack onto an
+      adjacent walkable overworld tile creates a
+      PlacedCamera entry in state.placedCameras and removes
+      the ItemInstance from the backpack. filmRemaining
+      (from state.cameraFilm) is preserved through
+      placement. If filmRemaining > 0, recording is armed:
+      `startedAt = now`, `expiresAt = now +
+      (SEASONAL_PHASE_PERIOD_MS / 4)`, `frames = []`. If the camera
+      was never loaded or filmRemaining is 0, `expiresAt`
+      equals `startedAt` so no recording occurs but
+      placement still succeeds. A world entity with
+      EntityTag = 'placedCamera' is added at the dropped
+      tile with the camera glyph.
+    inputs:
+      - 'GameState with a camera in backpack and an adjacent walkable tile'
+      - 'drop intent at (x, y)'
+    outputs:
+      - 'boolean: true'
+    state_changes:
+      - field: backpack.items
+        effect: 'camera ItemInstance removed'
+      - field: placedCameras
+        effect: 'PlacedCamera entry appended with uid, x, y, zone, startedAt, expiresAt, frames=[]'
+      - field: world
+        effect: 'entity created with Position(x,y), EntityTag "placedCamera"'
+    determinism: deterministic
+
+  - id: pickup-placed-camera
+    description: >
+      Adjacent interaction (interaction key) with a
+      placedCamera that has ZERO captured frames moves it
+      back into the backpack as an ItemInstance with its
+      original uid; placedCamera entry and world entity
+      destroyed. Film count in state.cameraFilm preserved.
+      If frames or cameraArchive entries exist, the
+      interaction opens playback instead (see
+      `playback-modal-opens-on-interaction`); pickup in
+      that case requires a dedicated pickup affordance
+      (long-hold interaction or modal-internal "Pack Up"
+      button). On pickup with frames present, the
+      placement's frames are appended to
+      cameraArchive[uid] in capture order. Backpack-full
+      blocks pickup with no mutation.
+    inputs:
+      - 'GameState with a placedCamera adjacent to player'
+      - 'pickup intent'
+    outputs:
+      - 'boolean: true on success'
+    state_changes:
+      - field: backpack.items
+        effect: 'camera ItemInstance appended with the placement uid'
+      - field: placedCameras
+        effect: 'matching PlacedCamera removed'
+      - field: world
+        effect: 'matching placedCamera entity destroyed'
+      - field: cameraArchive
+        effect: 'PlacedCamera.frames appended (frames migrated, not duplicated)'
+    determinism: deterministic
+
+  - id: frame-capture-on-meaningful-event
+    description: >
+      A new module src/engine/timeLapse.ts exposes
+      `recordCameraSubjectEvent(state, x, y, subject, now)`.
+      Callers across the engine invoke this function at the
+      site of each meaningful event listed in
+      `camera-subject-enumeration`. For each PlacedCamera
+      whose 3x3 footprint includes (x, y), with `now <
+      expiresAt` AND filmRemaining > 0, a new TimeLapseFrame
+      is appended to camera.frames with `recordedAt = now`,
+      `subject`, and `cells = captureCells(state, camera.x,
+      camera.y)`. `cameraFilm[uid]` decrements by 1.
+      `captureCells` resolves each of the 9 tiles to a
+      {char, color} via the same logic as the world-tile
+      render pass (terrain + flora + entity overlay). If
+      multiple cameras overlap (x, y), each receives a
+      frame. Engine call sites — bee pollination (monarch.ts
+      bee-clover deposit), rain front first touch
+      (weather.ts), flora bloom (flora lifecycle stage
+      transition), meteorite impact (meteorites.ts),
+      monarch arrival (monarch.ts movement), ghost arrival
+      (ghosts.ts movement), egregore advance (egregore.ts),
+      character movement into 3x3 (characters.ts).
+    inputs:
+      - 'GameState with a PlacedCamera, filmRemaining > 0, now < expiresAt'
+      - 'recordCameraSubjectEvent(state, x, y, subject, now) where (x, y) overlaps camera 3x3'
+    outputs: []
+    state_changes:
+      - field: placedCameras[i].frames
+        effect: 'TimeLapseFrame appended with {recordedAt, subject, cells}'
+      - field: cameraFilm
+        effect: 'cameraFilm[uid] decremented by 1'
+    determinism: deterministic
+
+  - id: frame-capture-rejected-when-out-of-budget
+    description: >
+      `recordCameraSubjectEvent` is a no-op for a given
+      camera when `filmRemaining === 0` OR `now >=
+      expiresAt`. The placedCamera persists as a glyph at
+      its tile (decoration). Frames already captured are
+      retained. This implements the v4 framing — "an
+      empty body on a tile, a memory of a tool".
+    inputs:
+      - 'GameState with PlacedCamera, cameraFilm[uid] === 0 OR now >= expiresAt'
+      - 'recordCameraSubjectEvent(state, x, y, subject, now)'
+    outputs: []
+    state_changes: []
+    determinism: deterministic
+
+  - id: span-expiry-freezes-recording
+    description: >
+      When `now >= camera.expiresAt`, recording stops
+      permanently for that placement. Future
+      recordCameraSubjectEvent calls find this camera
+      ineligible (see prior behavior). On pickup, the
+      placement's frames migrate to
+      cameraArchive[uid]. If the player re-places the
+      same camera with filmRemaining > 0, the span clock
+      resets (startedAt = now_replace, expiresAt =
+      now_replace + (SEASONAL_PHASE_PERIOD_MS / 4)) and new frames
+      append to the new placement.frames buffer. Archive
+      frames from prior placements remain untouched.
+    inputs:
+      - 'GameState with PlacedCamera, now >= expiresAt'
+      - 'recordCameraSubjectEvent during expired window'
+    outputs: []
+    state_changes: []
+    determinism: deterministic
+
+  - id: playback-modal-opens-on-interaction
+    description: >
+      Adjacent interaction on a placedCamera that has at
+      least one frame in either `camera.frames` OR
+      `cameraArchive[uid]` opens the
+      `TimeLapsePlayback` modal and sets
+      `state.playbackCameraUid = uid`. Pickup
+      affordance for cameras-with-frames lives inside
+      the playback modal (a "Pack Up" control). The
+      playback queue is `[...cameraArchive[uid] ??
+      [], ...camera.frames]` in capture order — full
+      history. Game continues to tick under the modal
+      (does not pause).
+    inputs:
+      - 'GameState with PlacedCamera, frames.length > 0 OR cameraArchive[uid].length > 0'
+      - 'interaction input on adjacent placedCamera tile'
+    outputs:
+      - 'boolean: true'
+    state_changes:
+      - field: playbackCameraUid
+        effect: 'set to the placedCamera uid'
+    determinism: deterministic
+
+  - id: playback-sequence-ceremony
+    description: >
+      TimeLapsePlayback.tsx mirrors the ScanResultModal
+      ceremony pattern. For each TimeLapseFrame in the
+      queue, the modal performs a per-photograph reveal —
+      (1) subject heading fades in (BINOMIAL_FADE_MS,
+      400ms), (2) the 3x3 photograph cells reveal one at
+      a time in column-major order (CELL_REVEAL_MS each,
+      reusing GelBandView's reveal animation pacing — 40ms
+      per cell × 9 cells = 360ms total per photograph), (3)
+      each cell reveal plays the existing
+      `/sfx/sequence.mp3` SFX, (4) `fullyRevealed` flag
+      flips when all 9 cells are visible, (5) any key
+      advances to the next photograph in the queue, (6)
+      the last photograph in the queue stays on screen
+      until dismissed (Escape or click outside the modal).
+      prefers-reduced-motion collapses the per-photograph
+      reveal to an instant render and plays the SFX once
+      per photograph. Dismissal sets playbackCameraUid =
+      null.
+    inputs:
+      - 'state.playbackCameraUid is non-null and queue.length >= 1'
+    outputs:
+      - 'modal cycles through frames with reveal animation; key advances; Escape dismisses'
+    state_changes:
+      - field: playbackCameraUid
+        effect: 'set to null on dismissal'
+    determinism: deterministic
+
+  - id: photograph-visual-language
+    description: >
+      Each photograph is the 3x3 frame.cells rendered as
+      a 3x3 grid of monospaced ASCII cells (NO bitmap
+      images — char+color only). Cell size is 40px square
+      to match GelBandView's CELL_WIDTH. The grid is
+      wrapped in GelBandView-inherited chrome — reticle
+      crop corners (-top-4 -left-4 etc., 2px borders,
+      `border-bee` color), edge-printed side labels in
+      vertical-rl writing mode with `text-bee` color and
+      `font-mono text-[9px] tracking-[0.3em]`. Left edge
+      label reads `NORTHERN-INFORMATION ·
+      {camera.uid.slice(0,8)}` (rotated 180deg). Right
+      edge label reads `▶ {camera.uid.slice(0,8)} ◀ ·
+      N-INFO 400`. Modal background is solid black with
+      the `film-grain-overlay` class applied (re-using
+      the existing overlay component). Above the
+      photograph is the subject heading — a 2xl text-text
+      common name (e.g. 'POLLINATION', 'RAIN',
+      'EGREGORE SCAN') and a smaller text-dim italic
+      timestamp line (`Spring · Day 12 · 13:42`). The
+      heading style matches ScanResultModal's heading
+      slot. Dim-yellow palette throughout (bg-bee /
+      text-bee tokens).
+    inputs:
+      - 'TimeLapsePlayback rendering a frame with subject and cells'
+    outputs:
+      - 'modal DOM contains the gel chrome, subject heading, 3x3 cell grid in the captured char+color'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ruin-spawn-complex-mode
+    description: >
+      In complex-mode ruins (deep-time-regenerated, NOT
+      starter tutorial ruins), the ruin spawn pipeline
+      places exactly one camera ground item and exactly
+      one filmRoll ground item at distinct walkable
+      tiles inside the ruin interior. Starter ruins
+      (state.deepTime.castCount === 0) never spawn
+      cameras or film rolls. After a deep-time cast,
+      newly regenerated ruins may spawn them. At most
+      one camera and one filmRoll per ruin. The two
+      items spawn at separate tiles so they cannot be
+      picked up simultaneously by a single move.
+    inputs:
+      - 'GameState after a deep-time cast that regenerates ruin N'
+    outputs:
+      - 'ruin N has one camera ground item and one filmRoll ground item at distinct tiles'
+    state_changes:
+      - field: world
+        effect: 'two new groundItem entities tagged with definitionIds "camera" and "filmRoll"'
+    determinism: deterministic
+
+  - id: pickup-bloom-on-acquisition
+    description: >
+      Walking within Chebyshev distance 1 of a camera
+      or filmRoll ground item triggers the standard
+      proximity-pickup flow and calls
+      spawnPickupBloom(state, x, y, time) at the pickup
+      site, consistent with every other item
+      acquisition per CLAUDE.md.
+    inputs:
+      - 'player within Chebyshev distance 1 of a camera or filmRoll ground item'
+    outputs:
+      - 'item added to backpack, bloom spawned'
+    state_changes:
+      - field: backpack.items
+        effect: 'ItemInstance appended with the ground-item definitionId and a fresh uid'
+      - field: world
+        effect: 'ground item entity destroyed'
+      - field: pickupBlooms
+        effect: 'bloom appended at (x, y) with time'
+    determinism: deterministic
+
+  - id: field-camera-spawns-at-tenure-start-oak
+    description: >
+      At genesis / tenure start (precis #23 v9 thinktank Round 3),
+      one Field Camera spawns in the overworld as an already-deployed
+      `placedCamera` entity adjacent to the oak nearest the little
+      house entrance. The placement tile is the walkable tile in the
+      oak's 8-neighborhood closest to the house entrance (Chebyshev
+      tie-break: lower-y first, then lower-x). The camera body
+      inherits exhausted — `state.cameraFilm.set(uid, 0)`. Four
+      pre-seeded frames are inserted into `state.cameraArchive[uid]`,
+      one per season (spring, summer, autumn, winter), each
+      captured offline at the oak's tile with a season-tinted palette
+      override. The film roll continues to spawn in the little house
+      at (2, 6). No additional camera spawns in the house.
+    inputs:
+      - 'createGameState() at tenure start with at least one oak placed'
+    outputs:
+      - 'state.placedCameras has one entry adjacent to nearest oak'
+      - 'state.cameraArchive[uid].length === 4'
+      - 'state.cameraFilm[uid] === 0'
+      - 'no camera ground-item entity in the house'
+      - 'film roll ground-item entity at house (2, 6) unchanged'
+    state_changes:
+      - field: placedCameras
+        effect: 'one entry appended with overworld coords near nearest oak'
+      - field: cameraFilm
+        effect: 'entry added: uid -> 0'
+      - field: cameraArchive
+        effect: 'entry added: uid -> [4 TimeLapseFrame entries]'
+      - field: world
+        effect: 'placedCamera entity created at overworld coords'
+    determinism: deterministic
+
+  - id: deployed-camera-no-hover
+    description: >
+      Per Round 3 lock — deployed items in the world have NO inventory
+      hover. The ItemInfo panel only renders for inventory items the
+      cursor enters. A `placedCamera` entity in the world is a glyph
+      on a tile; passing the mouse over the tile shows the standard
+      cursor tile info (terrain), not the camera's item lore.
+    inputs:
+      - 'placedCamera entity at (x, y)'
+      - 'mouse over (x, y)'
+    outputs:
+      - 'no ItemInfo panel renders for the camera'
+    state_changes: []
+    determinism: deterministic
+
+  - id: auto-unload-on-playback-dismissal
+    description: >
+      When the TimeLapsePlayback modal closes (Escape, click outside,
+      or finishing the last frame), all frames in the active
+      `placedCamera.frames` buffer AND in `state.cameraArchive[uid]`
+      migrate into `state.photographAlbum` in chronological capture
+      order. Both source buffers are then cleared (placed.frames =
+      [], cameraArchive.delete(uid)). The camera body continues to
+      record from a fresh empty buffer if film and span remain. The
+      flow is one-way: camera → album. Re-viewing happens via the
+      album, not the camera.
+    inputs:
+      - 'state.playbackCameraUid is non-null; modal dismiss event'
+      - 'placedCamera.frames may contain N entries; cameraArchive[uid] may contain M'
+    outputs:
+      - 'state.photographAlbum gains N + M new entries (in order)'
+      - 'placedCamera.frames === []'
+      - 'cameraArchive has no entry for uid'
+      - 'state.playbackCameraUid === null'
+    state_changes:
+      - field: photographAlbum
+        effect: 'N + M TimeLapseFrame entries appended in capture order'
+      - field: placedCameras[i].frames
+        effect: 'cleared to []'
+      - field: cameraArchive
+        effect: 'entry for uid removed'
+      - field: playbackCameraUid
+        effect: 'set to null'
+    determinism: deterministic
+
+  - id: pre-seeded-frame-content
+    description: >
+      The four pre-seeded frames at tenure start each depict the oak
+      tile with a season-tinted color override. The subject value is
+      a new `CameraSubject.SeasonalLandmark` enum value so the album
+      heading reads contextually (e.g. 'SPRING — OAK'). Each frame's
+      `cells` array is computed by calling captureCells(state, oakX,
+      oakY) with a temporary palette override at genesis time only —
+      no runtime mutation. recordedAt timestamps space the four
+      frames a quarter-year apart to imply a full year of witness.
+    inputs:
+      - 'genesis-time oak coordinates'
+    outputs:
+      - '4 TimeLapseFrame entries with subject = SeasonalLandmark'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: drop-blocked-by-non-walkable
+    description: 'Player attempts to drop camera onto a non-walkable adjacent tile (Space, CaveWall, etc.)'
+    expected: 'drop fails, camera remains in backpack, no PlacedCamera entry created'
+  - id: drop-blocked-by-occupied-tile
+    description: 'Player attempts to drop camera onto a tile already occupied by another placedCamera or ground item entity'
+    expected: 'drop fails, camera remains in backpack'
+  - id: pickup-with-full-backpack
+    description: 'Player invokes Pack Up while backpack has no empty cell that fits a 1x1 item'
+    expected: 'pickup fails, PlacedCamera remains in place, no state mutation, modal returns an error toast'
+  - id: unloaded-camera-no-recording
+    description: 'A camera placed without ever having film loaded; many meaningful events fire in 3x3'
+    expected: 'no frames captured, no film entry created, camera remains decoration; pickup succeeds with empty frames'
+  - id: pickup-mid-recording-preserves-frames
+    description: 'Player places, 4 events fire (4 frames captured), picks up via Pack Up'
+    expected: 'cameraArchive[uid].length === 4; cameraFilm[uid] === 46; placedCameras has the entry removed; world entity destroyed'
+  - id: replacement-after-archive-merges-on-pickup
+    description: 'Player places, 3 frames captured, picks up (archive=3), places again, 5 more frames captured, picks up'
+    expected: 'cameraArchive[uid].length === 8 in capture order; cameraFilm[uid] === 42'
+  - id: starter-ruin-no-camera
+    description: 'Starter zone with state.deepTime.castCount === 0 has 3 ruins spawned'
+    expected: 'no camera or filmRoll ground item in any of the 3 ruins; aqueductKey/stoneTablet spawns unchanged'
+  - id: quiet-season-underfills-tube
+    description: 'Camera placed at start of winter in a tile with no meaningful events for 10 game-seconds'
+    expected: 'frames.length === 0 after 10 seconds; cameraFilm[uid] unchanged at 50; the camera is a hum, not a record'
+  - id: identical-event-back-to-back
+    description: 'A bee pollinates the same flora tile twice in succession (two distinct pollination events)'
+    expected: 'two frames captured (one per event), two film decrements; subject="Pollination" on both; cells may match or differ depending on lifecycle stage change'
+  - id: load-into-exhausted-camera-rejected
+    description: 'Player drags filmRoll onto a camera with cameraFilm[uid] === 0 (previously exhausted)'
+    expected: 'combine returns false; filmRoll not consumed; cameraFilm[uid] remains 0'
+  - id: playback-empty-frames-no-modal
+    description: 'Player interacts with a placedCamera that has zero frames and zero archived frames'
+    expected: 'no playback modal opens; interaction routes to pickup path instead'
+  - id: multiple-cameras-overlap-event
+    description: 'Two placedCameras have 3x3 footprints that both include the tile (x, y) where a bee pollinates'
+    expected: 'each camera receives a Pollination frame and decrements its own filmRemaining by 1; frame cells may differ slightly because each camera centers on its own tile (different 3x3 windows)'
+  - id: prefers-reduced-motion-playback
+    description: 'User has prefers-reduced-motion: reduce'
+    expected: 'each photograph renders instantly without the column-major cell reveal; SFX still plays once per photograph; advance and dismiss controls behave the same'
+  - id: extensible-subject-default
+    description: 'A future code path passes a CameraSubject value not yet handled in the playback heading switch'
+    expected: 'modal renders the photograph with the raw subject string as the heading (no crash, no missing render)'
+
+failure_conditions:
+  - trigger: 'Drop intent at a non-walkable or out-of-bounds tile'
+    expected: 'drop fails, no PlacedCamera created, no world entity created, camera remains in backpack'
+  - trigger: 'filmRoll + camera combine when camera is already in cameraFilm (loaded or exhausted)'
+    expected: 'combine returns false, filmRoll preserved, no recipe discovery recorded'
+  - trigger: 'recordCameraSubjectEvent called when state.placedCameras is empty'
+    expected: 'no-op, no errors'
+  - trigger: 'TimeLapsePlayback opened with playbackCameraUid pointing to a camera with empty queue'
+    expected: 'modal does not mount, playbackCameraUid is reset to null'
+
+verification:
+  test_file: src/engine/__tests__/timeLapseCamera.test.ts
+  test_pattern: 'time-lapse camera'
+  command: 'npx vitest run src/engine/__tests__/timeLapseCamera.test.ts'

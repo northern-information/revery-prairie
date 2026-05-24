@@ -1,0 +1,273 @@
+plan:
+  id: time-lapse-camera
+  title: 'Add time-lapse camera with film roll, sparse event-driven capture, and ScanResultModal-style playback ceremony'
+  created: 2026-05-23
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: types-state-constants-items
+    title: 'Add camera/filmRoll items, CameraSubject enum, PlacedCamera/TimeLapseFrame types, GameState fields, FRAMES_PER_TUBE constant; extend EXPECTED_FIELDS'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - camera-item-defined
+      - film-roll-item-defined
+      - camera-state-shape
+      - camera-subject-enumeration
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/items.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/items.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [engine, types, state]
+
+  - id: manual-lore-stubs
+    title: 'Register MANUAL_LORE stubs for item:camera and item:filmRoll with { lore: "TODO" }'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - camera-item-defined
+      - film-roll-item-defined
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/manual.ts
+      - src/engine/items.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - types-state-constants-items
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, manual]
+
+  - id: load-film-recipe
+    title: 'Add filmRoll+camera recipe to RECIPES (loads film without consuming camera; rejects re-load)'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - load-film-into-camera
+      - reject-load-onto-loaded-camera
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/recipes.ts
+      - src/engine/combine.ts
+      - src/engine/inventory.ts
+      - src/engine/items.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/recipes.ts
+    depends_on:
+      - types-state-constants-items
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/combine.test.ts'
+    repair: retry
+    tags: [engine, recipes]
+
+  - id: timelapse-module
+    title: 'Create src/engine/timeLapse.ts: recordCameraSubjectEvent, captureCells, placedCamera lifecycle helpers'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - frame-capture-on-meaningful-event
+      - frame-capture-rejected-when-out-of-budget
+      - span-expiry-freezes-recording
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/timeLapse.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/position.ts
+      - src/engine/items.ts
+      - src/engine/renderer.ts
+      - src/engine/floraLifecycle.ts
+    output_files:
+      - src/engine/timeLapse.ts
+    depends_on:
+      - types-state-constants-items
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, timelapse]
+
+  - id: placement-and-pickup
+    title: 'Wire camera drop-to-place and pickup interactions; emit placedCamera entity; migrate frames to cameraArchive on pickup'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - place-camera-on-tile
+      - pickup-placed-camera
+      - pickup-bloom-on-acquisition
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/interaction.ts
+      - src/engine/drag.ts
+      - src/engine/inventory.ts
+      - src/engine/effects.ts
+      - src/engine/timeLapse.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/engine/drag.ts
+    depends_on:
+      - timelapse-module
+      - manual-lore-stubs
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/drag.test.ts'
+    repair: retry
+    tags: [engine, interaction]
+
+  - id: ruin-spawn-complex-mode
+    title: 'Spawn camera + filmRoll ground items in deep-time-regenerated ruins; starter ruins exempt'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - ruin-spawn-complex-mode
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/ruins.ts
+      - src/engine/deepTime.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/ruins.ts
+    depends_on:
+      - types-state-constants-items
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, ruins]
+
+  - id: event-callsites
+    title: 'Invoke recordCameraSubjectEvent at Pollination / Rain / Bloom / Ember / MonarchVisit / GhostPassage / EgregoreScan / CharacterApproach sites'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - frame-capture-on-meaningful-event
+      - camera-subject-enumeration
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/timeLapse.ts
+      - src/engine/monarch.ts
+      - src/engine/celestial.ts
+      - src/engine/weather/index.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/egregore.ts
+      - src/engine/entities.ts
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/monarch.ts
+      - src/engine/celestial.ts
+      - src/engine/weather/index.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/egregore.ts
+      - src/engine/entities.ts
+      - src/engine/characters.ts
+    depends_on:
+      - timelapse-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, integration]
+
+  - id: playback-modal-component
+    title: 'Implement TimeLapsePlayback.tsx: per-photograph reveal ceremony, gel chrome, prefers-reduced-motion'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - playback-sequence-ceremony
+      - photograph-visual-language
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/components/TimeLapsePlayback.tsx
+      - src/components/GelBandView.tsx
+      - src/components/ScanResultModal.tsx
+      - src/engine/types.ts
+      - src/engine/audio.ts
+    output_files:
+      - src/components/TimeLapsePlayback.tsx
+    depends_on:
+      - types-state-constants-items
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [components, modal]
+
+  - id: playback-integration
+    title: 'Mount TimeLapsePlayback in GameCanvas; route adjacent-interaction on placedCamera to playback vs pickup'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - playback-modal-opens-on-interaction
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/components/GameCanvas.tsx
+      - src/components/TimeLapsePlayback.tsx
+      - src/engine/interaction.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/GameCanvas.tsx
+      - src/engine/interaction.ts
+    depends_on:
+      - playback-modal-component
+      - placement-and-pickup
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [components, integration]
+
+  - id: time-lapse-camera-tests
+    title: 'Write src/engine/__tests__/timeLapseCamera.test.ts covering all behaviors, edge_cases, and failure_conditions'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - camera-item-defined
+      - film-roll-item-defined
+      - camera-state-shape
+      - camera-subject-enumeration
+      - load-film-into-camera
+      - reject-load-onto-loaded-camera
+      - place-camera-on-tile
+      - pickup-placed-camera
+      - frame-capture-on-meaningful-event
+      - frame-capture-rejected-when-out-of-budget
+      - span-expiry-freezes-recording
+      - playback-modal-opens-on-interaction
+      - ruin-spawn-complex-mode
+      - pickup-bloom-on-acquisition
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/__tests__/timeLapseCamera.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/timeLapse.ts
+      - src/engine/items.ts
+      - src/engine/recipes.ts
+      - src/engine/combine.ts
+      - src/engine/interaction.ts
+      - src/engine/ruins.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/timeLapseCamera.test.ts
+    depends_on:
+      - load-film-recipe
+      - placement-and-pickup
+      - ruin-spawn-complex-mode
+      - event-callsites
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/timeLapseCamera.test.ts'
+    repair: retry
+    tags: [engine, tests]

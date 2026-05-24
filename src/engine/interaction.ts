@@ -7,6 +7,8 @@ import { RuinRole } from './genesisTypes'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
+import { archivePlacedCameraFrames } from './timeLapse'
+import { findFitPosition } from './inventory'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { invalidateMapCache } from './tileBgCache'
 import { MainQuestPhase, MoabState, Season, TileType, Zone } from './types'
@@ -24,7 +26,7 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
   if (
     spatialAtInCurrentZone(state, x, y).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-      return tag === 'character'
+      return tag === 'character' || tag === 'placedCamera'
     })
   ) {
     return true
@@ -663,3 +665,94 @@ export const breakWall = (state: GameState, time: number): boolean => {
   return true
 }
 
+// Precis #23 — find the adjacent placedCamera entity (Chebyshev
+// distance 1), if any, in the current zone. Returns the entity id +
+// PlacedCamera struct, or null.
+const findAdjacentPlacedCamera = (state: GameState): { eid: number; camera: import('./types').PlacedCamera } | null => {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue
+      const x = state.player.x + dx
+      const y = state.player.y + dy
+      for (const eid of spatialAtInCurrentZone(state, x, y)) {
+        const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+        if (tag !== 'placedCamera') continue
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        if (!pos) continue
+        const camera = state.placedCameras.find(c => c.x === pos.x && c.y === pos.y && c.zone === state.currentZone)
+        if (!camera) continue
+        return { eid, camera }
+      }
+    }
+  }
+  return null
+}
+
+export type PlacedCameraInteractionResult = 'playback' | 'picked-up' | 'no-space' | 'none'
+
+// Precis #23 — handle the interaction key facing an adjacent
+// placedCamera. If frames exist (placement OR archive), open the
+// playback modal. Otherwise pick the camera back up into the
+// backpack with its original uid. Backpack-full blocks pickup
+// without disturbing the placement.
+export const tryPlacedCameraInteraction = (state: GameState): PlacedCameraInteractionResult => {
+  const adjacent = findAdjacentPlacedCamera(state)
+  if (!adjacent) return 'none'
+  const { eid, camera } = adjacent
+
+  const archive = state.cameraArchive.get(camera.uid) ?? []
+  const hasFrames = camera.frames.length > 0 || archive.length > 0
+  if (hasFrames) {
+    state.playbackCameraUid = camera.uid
+    return 'playback'
+  }
+
+  // No frames — pick the camera back up. Find a slot first; bail
+  // without mutation if the backpack is full.
+  const fit = findFitPosition(state.backpack, 'camera')
+  if (!fit) return 'no-space'
+  state.backpack.items.push({
+    uid: camera.uid,
+    definitionId: 'camera',
+    gridX: fit.gridX,
+    gridY: fit.gridY,
+  })
+  archivePlacedCameraFrames(state, camera)
+  state.world.destroyEntity(eid)
+  return 'picked-up'
+}
+
+// Precis #23 — invoked from the playback modal's "Pack Up" path.
+// Closes playback (clears playbackCameraUid) and picks the camera up
+// with its accumulated frames migrated into cameraArchive. Returns
+// false if backpack-full or no placement matches the uid.
+export const packUpPlaybackCamera = (state: GameState, uid: string): boolean => {
+  const camera = state.placedCameras.find(c => c.uid === uid)
+  if (!camera) {
+    state.playbackCameraUid = null
+    return false
+  }
+  const fit = findFitPosition(state.backpack, 'camera')
+  if (!fit) return false
+
+  // Find the matching entity so we can destroy it.
+  let entityId: number | null = null
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
+    if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'placedCamera') continue
+    const pos = state.world.getComponent(eid, ComponentType.Position)
+    if (pos?.x !== camera.x || pos.y !== camera.y) continue
+    entityId = eid
+    break
+  }
+
+  state.backpack.items.push({
+    uid: camera.uid,
+    definitionId: 'camera',
+    gridX: fit.gridX,
+    gridY: fit.gridY,
+  })
+  archivePlacedCameraFrames(state, camera)
+  if (entityId !== null) state.world.destroyEntity(entityId)
+  state.playbackCameraUid = null
+  return true
+}
