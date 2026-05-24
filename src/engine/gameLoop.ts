@@ -236,12 +236,15 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
         if (state.activeDialog) return
         if (state.revery) return
         if (state.zoneTransition) return
-        // Order matters: set activeDialog BEFORE tenureOpened so the
-        // first typing-tick this frame reads the first-wake register
-        // from getEmilyDialog.
+        // EMILY_DIALOG[0] is the spring-equinox greeting ("Happy first
+        // day of spring, steward."). On a non-spring tenure-open the
+        // greeting is skipped — start at lineIndex 1 instead. The
+        // greeting is reserved for first-wake-in-spring only; manual
+        // [f] re-engagements also skip it (see interaction.ts).
+        const startLineIndex = state.weather.season === Season.Spring ? 0 : 1
         state.activeDialog = {
           characterId: 'emily',
-          lineIndex: 0,
+          lineIndex: startLineIndex,
           typingIndex: 0,
           typingDone: false,
           transitioning: false,

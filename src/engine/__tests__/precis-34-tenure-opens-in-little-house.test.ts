@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createGameLoop } from '../gameLoop'
 import { createGameState } from '../state'
-import { Zone } from '../types'
+import { Season, Zone } from '../types'
 
 import { createTestState } from './helpers'
 
@@ -33,8 +33,9 @@ describe('precis #34 — the tenure opens in the little house', () => {
   })
 
   describe('firstWakeTrigger TickSystem', () => {
-    it('opens Emily dialog and latches tenureOpened on the first eligible tick', () => {
+    it('opens Emily dialog at lineIndex 0 (greeting included) when tenure opens in spring', () => {
       const state = createTestState({ keepHouseSpawn: true })
+      state.weather.season = Season.Spring
       const refreshUI = vi.fn()
       const loop = createGameLoop(state, { onRefreshUI: refreshUI })
 
@@ -53,6 +54,17 @@ describe('precis #34 — the tenure opens in the little house', () => {
         transitionStartTime: 0,
       })
       expect(refreshUI).toHaveBeenCalled()
+    })
+
+    it('opens Emily dialog at lineIndex 1 (skipping the greeting) when tenure opens outside spring', () => {
+      for (const season of [Season.Summer, Season.Autumn, Season.Winter]) {
+        const state = createTestState({ keepHouseSpawn: true })
+        state.weather.season = season
+        const loop = createGameLoop(state, {})
+        loop.tick(0)
+        expect(state.activeDialog?.lineIndex).toBe(1)
+        expect(state.tenureOpened).toBe(true)
+      }
     })
 
     it('does not re-fire after tenureOpened latches (one-shot)', () => {

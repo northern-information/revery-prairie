@@ -38,15 +38,21 @@ dependencies:
 #     The unified register below replaces them in this spec.
 #
 # What #34 ships (this spec):
-#   1. A unified, year-round Emily dialog register (`EMILY_DIALOG`) of
-#      three locked lines, replacing the four seasonal registers from
-#      #33. Lines are authored by the user (not TODO placeholders) and
+#   1. A unified Emily dialog register (`EMILY_DIALOG`) of three
+#      locked lines, replacing the four seasonal registers from #33.
+#      Lines are authored by the user (not TODO placeholders) and
 #      include the v6 R2 canonical refrain as the third line.
 #   2. A one-shot first-wake dialog beat — Emily auto-initiates her
 #      dialog when the steward wakes in the house at tenure start,
 #      before the player has moved. Same `EMILY_DIALOG` register;
 #      no dedicated first-wake register.
-#   3. A persistent flag (`state.tenureOpened`) that gates the auto-
+#   3. A conditional opening lineIndex: the firstWakeTrigger opens
+#      at lineIndex 0 (greeting included) only when tenure opens in
+#      spring; otherwise it opens at lineIndex 1. Manual [f]
+#      engagements with Emily always open at lineIndex 1, regardless
+#      of season — the greeting is reserved for the spring-equinox
+#      tenure open.
+#   4. A persistent flag (`state.tenureOpened`) that gates the auto-
 #      trigger so it never re-fires after the first wake (Esc, walk-
 #      away, save/reload all leave it true).
 #
@@ -64,16 +70,24 @@ dependencies:
 #      interior. The player has not pressed [f]; the dialog appears as
 #      part of waking.
 #
-#   3. Dialog content is locked to three lines, identical year-round:
+#   3. Dialog content is locked to three lines:
 #
-#        1. "Happy first day of spring, steward."
-#        2. "I wonder what this year's knot will hold?"
-#        3. "You will return before the winter solstice, to revery."
+#        0. "Happy first day of spring, steward."   (greeting)
+#        1. "I wonder what this year's knot will hold?"
+#        2. "You will return before the winter solstice, to revery."
 #
-#      Lines 1 and 2 are doctrinal additions; line 3 is the v6 R2
+#      Lines 0 and 1 are doctrinal additions; line 2 is the v6 R2
 #      canonical refrain locked in the thinktank. The four seasonal
 #      registers from #33 (and the TODO placeholders within them) are
 #      deleted; replaced by a single `EMILY_DIALOG` export.
+#
+#      The greeting (line 0) is conditional: it appears only when
+#      the firstWakeTrigger fires AND the season is Spring. Every
+#      other path — non-spring tenure-open, manual [f] in any season,
+#      every subsequent visit — opens the dialog at lineIndex 1,
+#      skipping the greeting. The greeting is reserved for the
+#      spring-equinox tenure open and is otherwise unreachable for
+#      that tenure.
 #
 #   4. The autumn-only awaitingConfirmation arm from #33 is preserved.
 #      The third line is the same year-round, but the existing
@@ -208,10 +222,14 @@ behaviors:
       gameloop's phase filter; no inline `state.genesis` check is
       written or permitted — see the meta-test "no genesis guards
       remain in game loop system bodies" in genesis.test.ts.)
-      When all hold, the system sets:
+      The opening lineIndex depends on the season:
+        * state.weather.season === Season.Spring → lineIndex 0
+          (greeting included)
+        * any other season → lineIndex 1 (greeting skipped)
+      When all eligibility holds, the system sets:
         state.activeDialog = {
           characterId: 'emily',
-          lineIndex: 0,
+          lineIndex: <0 or 1 per the season rule above>,
           typingIndex: 0,
           typingDone: false,
           transitioning: false,
@@ -223,14 +241,34 @@ behaviors:
     inputs:
       - 'first eligible gameplay tick after tenure-start handoff'
     outputs:
-      - 'state.activeDialog === { characterId: "emily", lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }'
+      - 'state.activeDialog.characterId === "emily"'
+      - 'state.activeDialog.lineIndex === 0 when season is Spring; === 1 otherwise'
       - 'state.tenureOpened === true'
       - 'callbacks.onRefreshUI was called'
     state_changes:
       - field: activeDialog
-        effect: 'set to emily / line 0 / not typing'
+        effect: 'set to emily / season-derived lineIndex / not typing'
       - field: tenureOpened
         effect: 'set to true (one-shot latch)'
+    determinism: deterministic
+
+  - id: manual-f-skips-greeting
+    description: >
+      The [f]-press interaction path in `src/engine/interaction.ts`
+      (`interactWithCharacter`) sets the opening lineIndex to 1 when
+      the character is Emily, skipping the spring-equinox greeting.
+      For every other character (Gron, Moab, angels, ghosts) the
+      lineIndex stays at 0. This means manual engagements with Emily
+      never play the greeting, even during spring — the greeting is
+      reserved for the firstWakeTrigger's one-shot auto-open.
+    inputs:
+      - '[f] press when the player is adjacent to Emily and facing her'
+    outputs:
+      - 'state.activeDialog.characterId === "emily"'
+      - 'state.activeDialog.lineIndex === 1 regardless of season'
+    state_changes:
+      - field: activeDialog
+        effect: 'opened at lineIndex 1 for Emily; lineIndex 0 for all other characters'
     determinism: deterministic
 
   - id: first-wake-trigger-idempotent
@@ -363,8 +401,9 @@ edge_cases:
   - id: autumn-tenure-open-and-walk-to-last-line
     description: >
       Tenure opens in autumn. firstWakeTrigger fires, opening
-      EMILY_DIALOG at lineIndex 0. Player walks the dialog to the last
-      line and lets typing finish (or presses [f] to skip).
+      EMILY_DIALOG at lineIndex 1 (greeting skipped because season is
+      not Spring). Player advances the dialog to the last line and
+      lets typing finish (or presses [f] to skip typing).
     expected: >
       The existing #33 autumn arm logic fires unchanged — the season
       is Autumn, revery is null, lineIndex === EMILY_DIALOG.length - 1,
@@ -372,6 +411,19 @@ edge_cases:
       = 'offered'. The player can then confirm (committing to Revery)
       or cancel (reverting emilyInvitation). The first-wake auto-open
       does not bypass or pre-arm the autumn invitation surface.
+
+  - id: spring-tenure-open-greeting-is-one-shot
+    description: >
+      Tenure opens in spring. firstWakeTrigger fires, opening
+      EMILY_DIALOG at lineIndex 0 (greeting included). Player closes
+      the dialog (any path — Esc, walking out, advance to end). Player
+      later returns and presses [f] near Emily, still in spring.
+    expected: >
+      The second engagement opens at lineIndex 1 — the greeting is
+      not replayed. The greeting is a tenure-open ceremony, not a
+      spring-only convention; once consumed, it does not return for
+      this tenure. (Re-tenure is needed to hear it again, and only
+      if that tenure opens in spring.)
 
 failure_conditions:
   - trigger: >

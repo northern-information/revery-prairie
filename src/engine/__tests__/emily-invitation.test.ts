@@ -1,8 +1,11 @@
 import { EMILY_DIALOG, getCharacterDialog } from '../characters'
-import { advanceDialog, tickDialogTyping } from '../interaction'
+import { advanceDialog, interactWithCharacter, tickDialogTyping } from '../interaction'
+import { createGameState, enterHouseAtTenureStart } from '../state'
 import { Season } from '../types'
 import { createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import type { GameState } from '../types'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -133,5 +136,27 @@ describe('Emily dialog content lock', () => {
       "I wonder what this year's knot will hold?",
       'You will return before the winter solstice, to revery.',
     ])
+  })
+})
+
+describe('precis #34 — manual [f] skips the spring-equinox greeting', () => {
+  it('opens Emily at lineIndex 1 regardless of season', () => {
+    // Construct a real state so Emily's ECS entity is present (createTestState
+    // destroys character entities).
+    const state = createGameState('Test', 20, 20)
+    enterHouseAtTenureStart(state)
+    // Player walks one tile west of Emily (Emily at (5, 2)) and faces left.
+    state.player = { x: 6, y: 2 }
+    state.playerFacing = 'left'
+
+    for (const season of [Season.Spring, Season.Summer, Season.Autumn, Season.Winter]) {
+      state.weather.season = season
+      state.activeDialog = null
+      const result = interactWithCharacter(state)
+      expect(result.opened).toBe(true)
+      const dialog = state.activeDialog as GameState['activeDialog']
+      expect(dialog?.characterId).toBe('emily')
+      expect(dialog?.lineIndex).toBe(1)
+    }
   })
 })

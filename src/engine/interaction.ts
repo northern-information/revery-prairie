@@ -159,9 +159,13 @@ export const interactWithCharacter = (
     return { opened: false, gift: null, coyoteToggled: false }
   }
 
+  // Emily's EMILY_DIALOG[0] is the spring-equinox greeting reserved for
+  // the first-wake auto-open (see gameLoop.ts firstWakeTrigger).
+  // Manual [f] engagements always skip the greeting and start at line 1.
+  const startLineIndex = character.definitionId === 'emily' ? 1 : 0
   state.activeDialog = {
     characterId: character.definitionId,
-    lineIndex: 0,
+    lineIndex: startLineIndex,
     typingIndex: 0,
     typingDone: false,
     transitioning: false,
