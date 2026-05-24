@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 
 import { playSplashAudio, stopSplashAudio } from '@/engine/audio'
 
-const SPLASH_FADE_IN_MS = 800
-const SPLASH_HOLD_MS = 1800
-const SPLASH_FADE_OUT_MS = 800
+const SPLASH_FADE_IN_MS = 2000
+const SPLASH_HOLD_MS = 2400
+const SPLASH_FADE_OUT_MS = 1600
 const SPLASH_TOTAL_MS = SPLASH_FADE_IN_MS + SPLASH_HOLD_MS + SPLASH_FADE_OUT_MS
 const SKIP_AUDIO_FADE_MS = 300
 

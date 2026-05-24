@@ -25,8 +25,8 @@ class MockAudioContext {
 }
 vi.stubGlobal('AudioContext', MockAudioContext)
 
-const FADE_OUT_START_MS = 2600
-const SPLASH_TOTAL_MS = 3400
+const FADE_OUT_START_MS = 4400
+const SPLASH_TOTAL_MS = 6000
 
 let mockTime = 0
 

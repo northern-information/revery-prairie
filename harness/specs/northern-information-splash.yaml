@@ -91,11 +91,12 @@ behaviors:
   - id: triangle-wave-opacity-curve
     description: >
       Once started by the first gesture, the splash opacity follows
-      a triangle wave identical in shape to `BootTitleCardOverlay`
-      (`overlayAlpha`): 0 → 1 across `SPLASH_FADE_IN_MS` (800ms),
-      held at 1 for `SPLASH_HOLD_MS` (1800ms), then 1 → 0 across
-      `SPLASH_FADE_OUT_MS` (800ms). Total visible duration is 3400ms
-      after the first gesture. Opacity is driven by
+      a triangle wave: 0 → 1 across `SPLASH_FADE_IN_MS` (2000ms),
+      held at 1 for `SPLASH_HOLD_MS` (2400ms), then 1 → 0 across
+      `SPLASH_FADE_OUT_MS` (1600ms). Total visible duration is
+      6000ms after the first gesture, sized to fit the natural
+      length of the colophon mp3 so the audio envelope reaches 0
+      just as the track ends. Opacity is driven by
       `performance.now()` deltas against the `startRef` captured at
       gesture time, with a `requestAnimationFrame` loop that
       re-renders on every frame. When elapsed exceeds total
@@ -105,11 +106,11 @@ behaviors:
       - 'splash started at time T0 (first gesture)'
       - 'elapsed = performance.now() - T0'
     outputs:
-      - 'opacity = elapsed / 800 when elapsed < 800'
-      - 'opacity = 1 when 800 ≤ elapsed < 2600'
-      - 'opacity = 1 - (elapsed - 2600) / 800 when 2600 ≤ elapsed < 3400'
-      - 'onFadeOutStart is invoked exactly once when elapsed first crosses 2600'
-      - 'onComplete is invoked exactly once when elapsed ≥ 3400'
+      - 'opacity = elapsed / 2000 when elapsed < 2000'
+      - 'opacity = 1 when 2000 ≤ elapsed < 4400'
+      - 'opacity = 1 - (elapsed - 4400) / 1600 when 4400 ≤ elapsed < 6000'
+      - 'onFadeOutStart is invoked exactly once when elapsed first crosses 4400'
+      - 'onComplete is invoked exactly once when elapsed ≥ 6000'
     state_changes: []
     determinism: deterministic
 
@@ -118,18 +119,17 @@ behaviors:
       `playSplashAudio(url)` (new export in `src/engine/audio.ts`)
       creates a one-shot, non-looping `splashTrack` with its gain
       driven by the same triangle-wave envelope as the visual: gain
-      ramps from 0 to 1 over 800ms, holds at 1 for 1800ms, then
-      ramps from 1 to 0 over 800ms, terminating at 3400ms total. The
-      track is destroyed and disconnected after the fade-out
+      ramps from 0 to 1 over 2000ms, holds at 1 for 2400ms, then
+      ramps from 1 to 0 over 1600ms, terminating at 6000ms total.
+      The track is destroyed and disconnected after the fade-out
       completes. Audio enable/disable (`state.audioEnabled` and the
       module-level `audioEnabled` flag) gates the track: when
       disabled, `playSplashAudio` is a no-op and the visual splash
       continues unaffected. The splash audio runs INDEPENDENT of
       ambient/dialog/proximity layers — it does not duck ambient or
-      get ducked by dialog. The natural mp3 duration may exceed
-      3.4s; the envelope cuts it cleanly at the end of the visual
-      fade-out by ramping gain to 0 and then stopping the source
-      node.
+      get ducked by dialog. Total envelope duration matches the
+      natural length of the source mp3 (~6s) so the audio reaches
+      silence as the track ends, not via a hard cut.
     inputs:
       - 'splash first-gesture transition fires playSplashAudio("/sfx/northern-information.mp3")'
       - 'audioEnabled is true at gesture time'

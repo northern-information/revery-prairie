@@ -11,10 +11,12 @@ const FADE_MS = 300
 
 // Splash envelope (Northern Information colophon cue). Mirrors the
 // triangle wave used by NorthernInformationSplash.tsx for visual
-// opacity, so the audio gain follows the same shape.
-const SPLASH_FADE_IN_MS = 800
-const SPLASH_HOLD_MS = 1800
-const SPLASH_FADE_OUT_MS = 800
+// opacity, so the audio gain follows the same shape. Total duration
+// fits the natural length of the source mp3 (~6s) so the envelope
+// reaches 0 just as the track ends.
+const SPLASH_FADE_IN_MS = 2000
+const SPLASH_HOLD_MS = 2400
+const SPLASH_FADE_OUT_MS = 1600
 const SPLASH_TOTAL_MS = SPLASH_FADE_IN_MS + SPLASH_HOLD_MS + SPLASH_FADE_OUT_MS
 const SPLASH_SKIP_FADE_MS = 300
 
