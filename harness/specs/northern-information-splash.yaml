@@ -6,8 +6,10 @@ source_files:
   - src/components/NorthernInformationSplash.tsx
   - src/App.tsx
   - public/applied-sciences-and-phantasms-working-division-flourescent.png
+  - public/sfx/northern-information.mp3
 dependencies:
   - film-grain-overlay
+  - audio-system
 
 behaviors:
   - id: splash-mounts-as-very-first-surface
@@ -30,40 +32,128 @@ behaviors:
         effect: 'starts false on first mount; flips to true exactly once when the splash signals completion'
     determinism: deterministic
 
+  - id: pre-gesture-hint-state
+    description: >
+      Until the player provides a first gesture (click or keydown),
+      the splash sits in a "begin" state. The PNG colophon is NOT
+      rendered yet. Instead the splash root shows the black backdrop
+      with the film-grain-overlay-strong utility plus a small
+      centered hint label reading "Click To Begin" (Title Case). The
+      hint uses the same monospace family as the rest of the game
+      and a subtle opacity (~0.6) so it reads as an instruction, not
+      as the colophon. No requestAnimationFrame timer is running yet;
+      the splash does NOT decay or auto-advance from this state. This
+      avoids browser autoplay policy blocking the audio: the audio
+      track will be loaded but not started until the gesture-driven
+      sequence begins.
+    inputs:
+      - 'splash mounted on fresh page load with no prior gesture'
+    outputs:
+      - 'splash root carries bg-black, film-grain-overlay-strong'
+      - '<img> for the colophon is NOT in the DOM yet'
+      - 'a single centered label with text "Click To Begin" is visible'
+      - 'no RAF loop is scheduled'
+    state_changes:
+      - field: 'NorthernInformationSplash.startedRef'
+        effect: 'false until first gesture'
+    determinism: deterministic
+
+  - id: first-gesture-starts-splash-and-audio
+    description: >
+      The first click or keydown received while in the pre-gesture
+      hint state transitions the splash into its running state.
+      `startedRef` flips to true; the pre-gesture hint unmounts; the
+      colophon `<img>` mounts; the RAF loop begins with
+      `startTime = performance.now()`; and `playSplashAudio` (a new
+      function exported from `src/engine/audio.ts`) is invoked with
+      `/sfx/northern-information.mp3`. The same gesture also primes
+      the audio context via the existing
+      `audio-system.first-gesture-primer`, so audio decoding and
+      gain-node creation can resolve immediately. No `onFadeOutStart`
+      or `onComplete` fires from this first gesture — it is a "begin"
+      trigger, not a "skip" trigger.
+    inputs:
+      - 'first click on the splash backdrop OR first document keydown while startedRef is false'
+    outputs:
+      - 'startedRef set to true'
+      - 'colophon <img> begins rendering at opacity computed by the triangle wave (0 at t=0)'
+      - 'requestAnimationFrame loop schedules splashAlpha re-renders'
+      - 'playSplashAudio("/sfx/northern-information.mp3") invoked exactly once'
+    state_changes:
+      - field: 'NorthernInformationSplash.startedRef'
+        effect: 'flipped from false to true'
+      - field: 'NorthernInformationSplash.startRef'
+        effect: 'set to performance.now() at gesture time'
+      - field: '(audio module) splashTrack'
+        effect: 'created and gain.value initialized to 0 prior to triangle-wave envelope'
+    determinism: deterministic
+
   - id: triangle-wave-opacity-curve
     description: >
-      The splash opacity follows a triangle wave identical in shape
-      to `BootTitleCardOverlay` (`overlayAlpha`):
-      0 → 1 across `SPLASH_FADE_IN_MS` (800ms), held at 1 for
-      `SPLASH_HOLD_MS` (1800ms), then 1 → 0 across
-      `SPLASH_FADE_OUT_MS` (800ms). Total visible duration is 3400ms.
-      Opacity is driven by `performance.now()` deltas against a
-      `startTime` captured at mount, with a `requestAnimationFrame`
-      loop that re-renders on every frame. When the elapsed time
-      exceeds total duration, the splash calls `onComplete` and
-      returns `null` on the next render.
+      Once started by the first gesture, the splash opacity follows
+      a triangle wave identical in shape to `BootTitleCardOverlay`
+      (`overlayAlpha`): 0 → 1 across `SPLASH_FADE_IN_MS` (800ms),
+      held at 1 for `SPLASH_HOLD_MS` (1800ms), then 1 → 0 across
+      `SPLASH_FADE_OUT_MS` (800ms). Total visible duration is 3400ms
+      after the first gesture. Opacity is driven by
+      `performance.now()` deltas against the `startRef` captured at
+      gesture time, with a `requestAnimationFrame` loop that
+      re-renders on every frame. When elapsed exceeds total
+      duration, the splash calls `onComplete` and returns `null` on
+      the next render.
     inputs:
-      - 'splash mounted at time T0'
+      - 'splash started at time T0 (first gesture)'
       - 'elapsed = performance.now() - T0'
     outputs:
       - 'opacity = elapsed / 800 when elapsed < 800'
       - 'opacity = 1 when 800 ≤ elapsed < 2600'
       - 'opacity = 1 - (elapsed - 2600) / 800 when 2600 ≤ elapsed < 3400'
+      - 'onFadeOutStart is invoked exactly once when elapsed first crosses 2600'
       - 'onComplete is invoked exactly once when elapsed ≥ 3400'
     state_changes: []
     determinism: deterministic
 
+  - id: audio-mirrors-triangle-wave
+    description: >
+      `playSplashAudio(url)` (new export in `src/engine/audio.ts`)
+      creates a one-shot, non-looping `splashTrack` with its gain
+      driven by the same triangle-wave envelope as the visual: gain
+      ramps from 0 to 1 over 800ms, holds at 1 for 1800ms, then
+      ramps from 1 to 0 over 800ms, terminating at 3400ms total. The
+      track is destroyed and disconnected after the fade-out
+      completes. Audio enable/disable (`state.audioEnabled` and the
+      module-level `audioEnabled` flag) gates the track: when
+      disabled, `playSplashAudio` is a no-op and the visual splash
+      continues unaffected. The splash audio runs INDEPENDENT of
+      ambient/dialog/proximity layers — it does not duck ambient or
+      get ducked by dialog. The natural mp3 duration may exceed
+      3.4s; the envelope cuts it cleanly at the end of the visual
+      fade-out by ramping gain to 0 and then stopping the source
+      node.
+    inputs:
+      - 'splash first-gesture transition fires playSplashAudio("/sfx/northern-information.mp3")'
+      - 'audioEnabled is true at gesture time'
+    outputs:
+      - 'splashTrack source node started at t=0 relative to gesture'
+      - 'gain envelope mirrors splashAlpha(elapsed) exactly'
+      - 'track destroyed (source.stop, source.disconnect, gain.disconnect) at elapsed ≥ 3400'
+    state_changes:
+      - field: '(audio module) splashTrack'
+        effect: 'created on play, destroyed on completion or skip-fade-out'
+    determinism: deterministic
+
   - id: image-rendered-centered-on-black
     description: >
-      The splash root carries `bg-black` and centers the PNG asset
+      Once the splash is started (post-first-gesture), the root
+      carries `bg-black` and centers the PNG asset
       (`/applied-sciences-and-phantasms-working-division-flourescent.png`)
-      via flex `items-center justify-center`. The `<img>` element uses
-      `max-h-[80vh] max-w-[80vw]` with `object-contain` so the image
-      letterboxes inside the viewport without clipping at any aspect
-      ratio. No image transform, no animation other than the parent
-      opacity tween.
+      via flex `items-center justify-center`. The `<img>` element
+      uses `max-h-[80vh] max-w-[80vw]` with `object-contain` so the
+      image letterboxes inside the viewport without clipping at any
+      aspect ratio. No image transform, no animation other than the
+      parent opacity tween.
     inputs:
-      - 'splash mounted in any viewport size'
+      - 'splash started in any viewport size'
     outputs:
       - '<img> with src="/applied-sciences-and-phantasms-working-division-flourescent.png", max-h-[80vh] max-w-[80vw] object-contain'
     state_changes: []
@@ -72,50 +162,47 @@ behaviors:
   - id: film-grain-strong-class-on-root
     description: >
       The splash root element carries the `film-grain-overlay-strong`
-      CSS utility class (defined at `src/styles/index.css:237`). The
-      utility's `::after` pseudo-element inherits opacity from its
-      host's `style.opacity`, so the grain texture tweens with the
-      splash's triangle-wave opacity — the same mechanism
-      `BootTitleCardOverlay` relies on. No additional grain wiring
-      is needed.
+      CSS utility class (defined at `src/styles/index.css:237`) in
+      both pre-gesture and running states. The utility's `::after`
+      pseudo-element inherits opacity from its host's `style.opacity`,
+      so the grain texture tweens with the splash's triangle-wave
+      opacity in the running state. In the pre-gesture state the
+      root carries opacity 1, so the grain is fully visible behind
+      the "Click To Begin" hint.
     inputs:
-      - 'splash is rendered'
+      - 'splash is rendered (pre-gesture OR running)'
     outputs:
       - 'splash root className includes "film-grain-overlay-strong"'
     state_changes: []
     determinism: deterministic
 
-  - id: click-or-key-skips-splash
+  - id: click-or-key-skips-running-splash
     description: >
-      The splash root carries `cursor-pointer` and a click handler;
-      a document-level `keydown` listener is registered for the
-      lifetime of the component. Either a click on the backdrop
-      OR any keydown immediately starts the splash fade-out (via
-      `onFadeOutStart`) and then fires `onComplete` so the splash
-      unmounts — short-circuiting the triangle-wave timer. The skip
+      Any click on the backdrop OR keydown received AFTER the splash
+      has started (startedRef === true) is treated as a skip. The
+      splash starts its fade-out immediately (via `onFadeOutStart`),
+      audio fades out over 300ms via `stopSplashAudio(300)`, and the
+      visual completes its existing 800ms fade-out before calling
+      `onComplete`. The audio fade is shorter than the visual fade
+      so the music ends slightly before the screen clears, which
+      blends naturally into the underlying screen reveal. Skip
       idempotency is enforced by `completedRef`: once skip has
-      fired, additional clicks or keydowns are no-ops. The same
-      gesture also primes the AudioContext via the
-      first-gesture-primer in audio-system, so genesis ambient
-      becomes audible from this same first interaction. Underlying
-      controls (NamePrompt input, NetworkConnect buttons) do not
-      receive the skip gesture because the splash backdrop sits
-      above them (z-50, pointer-events: auto) — the click is
-      consumed by the backdrop handler, not the underlying form.
-      Once the splash unmounts, focus and pointer events reach the
-      underlying form normally.
+      fired, additional clicks or keydowns are no-ops.
     inputs:
-      - 'user clicks anywhere on the splash backdrop'
-      - 'user presses any key while the splash is visible'
+      - 'click on splash backdrop while startedRef is true and completedRef is false'
+      - 'keydown while startedRef is true and completedRef is false'
     outputs:
-      - 'onFadeOutStart and onComplete fire exactly once'
-      - 'splash unmounts'
-      - 'audio context is primed via the audio-system first-gesture-primer'
+      - 'onFadeOutStart fires exactly once if not already fired'
+      - 'stopSplashAudio(300) invoked — gain ramps from current value to 0 over 300ms then destroys splashTrack'
+      - 'visual fade-out continues for the remaining 800ms (or current portion thereof)'
+      - 'onComplete fires exactly once when visual fade completes'
     state_changes:
       - field: 'completedRef.current'
         effect: 'set to true on first skip; subsequent gestures are no-ops'
       - field: 'fadeOutStartedRef.current'
         effect: 'set to true on first skip; onFadeOutStart fires exactly once'
+      - field: '(audio module) splashTrack'
+        effect: 'gain ramped to 0 over 300ms, then track destroyed'
     determinism: deterministic
 
   - id: splash-plays-once-per-page-load
@@ -151,10 +238,44 @@ behaviors:
     outputs:
       - 'splashComplete initialized to true'
       - 'splash component does not mount'
+      - 'playSplashAudio is NOT invoked'
     state_changes: []
     determinism: deterministic
 
 edge_cases:
+  - id: audio-disabled-at-mount
+    description: 'state.audioEnabled / audio module disabled when first gesture fires'
+    expected: >
+      `playSplashAudio` short-circuits and returns early. The visual
+      splash sequence still runs identically — triangle-wave opacity,
+      3400ms total duration, fade-out, onComplete. The visual is
+      authoritative over the audio.
+
+  - id: mp3-fails-to-load
+    description: 'public/sfx/northern-information.mp3 is missing or fetch/decode fails'
+    expected: >
+      `playSplashAudio` swallows the error silently (same pattern as
+      ambient/dialog). The visual splash continues to run on its
+      timer and completes at 3400ms. The user sees the colophon
+      without sound.
+
+  - id: skip-during-pre-gesture
+    description: 'There is no pre-gesture skip — every first gesture STARTS the splash'
+    expected: >
+      No skip path runs before startedRef flips. The very first
+      click/keydown unconditionally enters the running state and
+      starts audio. The user must then click/key a second time to
+      skip.
+
+  - id: skip-during-fade-in
+    description: 'User skips at e.g. elapsed=200ms (during the 800ms fade-in)'
+    expected: >
+      Visual opacity is currently 0.25. `onFadeOutStart` fires,
+      `stopSplashAudio(300)` ramps audio gain from current (~0.25)
+      to 0 over 300ms. The component switches to a fade-out RAF that
+      decays from the current opacity to 0 over its remaining
+      duration. `onComplete` fires when the visual fade completes.
+
   - id: asset-fails-to-load
     description: 'The PNG asset is missing, returns 404, or fails to decode'
     expected: >
@@ -179,7 +300,10 @@ edge_cases:
       `handleRestart` clears `stewardName` and resets game state.
       `App` re-renders into the offline NamePrompt path. The
       splash does NOT replay because `splashComplete` is sticky
-      across renders within the same App mount.
+      across renders within the same App mount. `stopAll` (called
+      by useMusic unmount during the restart) destroys any
+      lingering splashTrack as a defensive cleanup, though by this
+      point the splash track will have already self-terminated.
 
   - id: navigation-from-offline-to-online
     description: 'Player loads the offline route and later navigates to /p/<id>'
@@ -196,8 +320,11 @@ edge_cases:
       Each App mount initializes a fresh `splashComplete` (false
       in production, false-or-true via the dev shortcut). The
       requestAnimationFrame loop and the onComplete callback are
-      cleaned up on unmount via the useEffect cleanup. No leaked
-      RAF handles, no double `onComplete` firing.
+      cleaned up on unmount via the useEffect cleanup. The audio
+      module's `stopSplashAudio()` is called on cleanup so a
+      premature unmount during the running state does not leave a
+      track playing. No leaked RAF handles, no double `onComplete`
+      firing.
 
 failure_conditions:
   - trigger: 'public/applied-sciences-and-phantasms-working-division-flourescent.png is missing in the build output'
@@ -206,6 +333,11 @@ failure_conditions:
       the <img> via `visibility: hidden`; the black backdrop +
       grain still display; the splash still completes at 3400ms.
       No crash, no infinite stall.
+
+  - trigger: 'public/sfx/northern-information.mp3 is missing in the build output'
+    expected: >
+      `playSplashAudio` logs nothing and returns. Splash runs
+      visually as if audio were disabled. No crash.
 
   - trigger: 'performance.now() is unavailable (very old runtime)'
     expected: >
@@ -216,11 +348,14 @@ failure_conditions:
   - trigger: 'A second copy of the splash is somehow mounted (developer error)'
     expected: >
       Each instance runs its own RAF loop and its own
-      onComplete; they do not coordinate. The expectation is
-      that `App.tsx` is the single owner of the mount — no
-      module-level guard.
+      onComplete; they do not coordinate. The audio module only
+      holds a single `splashTrack` slot — the second
+      `playSplashAudio` call destroys the first track before
+      creating a new one (same pattern as `startDialogMusic`).
+      The expectation is that `App.tsx` is the single owner of
+      the mount — no module-level guard.
 
 verification:
   test_file: src/components/__tests__/NorthernInformationSplash.test.tsx
   test_pattern: 'Northern Information splash'
-  command: 'npx vitest run src/components/__tests__/NorthernInformationSplash.test.tsx'
+  command: 'npx vitest run src/components/__tests__/NorthernInformationSplash.test.tsx src/engine/__tests__/audio.test.ts'
