@@ -42,6 +42,35 @@ const proximityPending = new Set<string>()
 // the promise resolves.
 const proximityWanted = new Set<string>()
 
+// First-gesture primer. Modern browsers create AudioContexts in a
+// 'suspended' state until a user gesture resumes them. Genesis playback
+// has no required input — without an explicit primer, ambient music
+// stays silent until the player happens to click something in-game.
+// We register a document-level pointerdown+keydown listener on module
+// load; the first gesture creates (if needed) and resumes the context,
+// then removes itself. safeStart's per-track resume path remains as a
+// fallback for any sequencing that races the primer.
+let audioPrimed = false
+const primeAudioOnFirstGesture = (): void => {
+  if (audioPrimed) return
+  audioPrimed = true
+  const audioCtx = getContext()
+  if (audioCtx.state === 'suspended') {
+    void audioCtx.resume().catch(() => {
+      // Some other path will retry.
+    })
+  }
+  if (pendingResume) {
+    const fn = pendingResume
+    pendingResume = null
+    fn()
+  }
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('pointerdown', primeAudioOnFirstGesture, { once: true, capture: true })
+  document.addEventListener('keydown', primeAudioOnFirstGesture, { once: true, capture: true })
+}
+
 // --- helpers ---
 
 const getContext = (): AudioContext => {

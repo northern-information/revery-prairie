@@ -43,21 +43,33 @@ behaviors:
     description: >
       Each frame, tickZoneTransition reads state.zoneTransition and time.
       Before progress reaches 0.5, the active map is the source map. When
-      progress crosses 0.5, the deferred swap fires exactly once. The
-      swap calls the existing enterCave, enterRuin, exitCave, or exitRuin
-      function which mutates state.map, state.player, state.currentZone,
-      state.currentRuinIndex, and clears navigation state. After progress
-      reaches 1, state.zoneTransition is cleared.
+      progress crosses 0.5, the deferred swap fires exactly once and the
+      transition's `swapApplied` flag flips false → true. The swap calls
+      the existing enterCave, enterRuin, exitCave, exitRuin, or
+      enterHouse / exitHouse function which mutates state.map,
+      state.player, state.currentZone, state.currentRuinIndex, and
+      clears navigation state. After progress reaches 1,
+      state.zoneTransition is cleared. The gameLoop transition system
+      observes `swapApplied` and fires `onRefreshUI` once at the
+      midpoint-swap moment (in addition to the existing refresh at
+      progress >= 1) so React-side consumers (useMusic ambient
+      selection, sidebar / cursor info) see the new zone the instant
+      the swap takes effect, rather than waiting another half-duration
+      for the transition to clear.
     inputs:
       - state.zoneTransition is not null
       - current time
     outputs:
       - progress in [0, 1] derived from elapsed time and duration
       - one map swap performed exactly once per transition at progress >= 0.5
+      - swapApplied flips false → true exactly once at progress >= 0.5
+      - onRefreshUI fires once at the midpoint-swap moment and again when state.zoneTransition clears
       - state.zoneTransition cleared when progress >= 1
     state_changes:
       - field: state.zoneTransition
         effect: cleared to null when progress >= 1
+      - field: state.zoneTransition.swapApplied
+        effect: flips false → true exactly once at progress >= 0.5
       - field: state.map
         effect: swapped to destination map exactly once when progress crosses 0.5
       - field: state.player

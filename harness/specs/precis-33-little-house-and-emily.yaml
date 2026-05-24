@@ -14,6 +14,7 @@ source_files:
   - src/engine/movement.ts
   - src/engine/camera.ts
   - src/engine/renderer.ts
+  - src/engine/render/passes/fireplaceGlow.ts
   - src/engine/interaction.ts
   - src/engine/manual.ts
   - src/engine/revery.ts
@@ -94,13 +95,16 @@ dependencies:
 #      useGameEngine.ts become unconditional (player always visible from
 #      frame 1).
 #
-#   3. House interior layout is a deterministic golden rectangle, wide.
-#      Outer footprint 30 × 18; walkable interior 28 × 16. Bed on the
-#      east wall. Fireplace at the north wall center. Emily one tile west
-#      of the fireplace. South wall center is the exit — a 3-wide
-#      pink-door opening (TileType.HouseExit at x=14,15,16; y=17) per
-#      the existing cave/ruin exit idiom (`#ff69b4` reserved user-action
-#      pink — CaveExit and RuinExit already use this color). Warm browns
+#   3. House interior layout is a deterministic 15 × 9 rectangle (HOUSE_WIDTH
+#      × HOUSE_HEIGHT in constants.ts). The perimeter is HouseWall; the
+#      inner 13 × 7 is HouseFloor. A 3-tile Fireplace stands at row 1
+#      (centered on x=7) directly in front of the north wall, with a
+#      3-tile HouseHearth row directly south (row 2). HouseBed sits on
+#      the east wall at (13, 4); HouseChair sits on the west wall at
+#      (1, 4). South wall center is the exit — a 3-wide pink-door
+#      opening (TileType.HouseExit at x=6,7,8; y=8) per the existing
+#      cave/ruin exit idiom (`#ff69b4` reserved user-action pink —
+#      CaveExit and RuinExit already use this color). Warm browns
 #      throughout the interior palette; pink exclusively reserved for
 #      the door (and any other user-action surfaces).
 #
@@ -238,40 +242,44 @@ behaviors:
   - id: house-zone-and-interior
     description: >
       Zone gains a new variant HouseInterior. A new src/engine/house.ts
-      module owns the interior. createHouseInterior() generates a 30 × 18
+      module owns the interior. createHouseInterior() generates a 15 × 9
       deterministic map (no RNG): perimeter HouseWall tiles, HouseFloor
-      interior, one Fireplace at (15, 0), one HouseBed at (28, 8), one
-      HouseChair at (2, 8), and THREE HouseExit tiles along the south
-      wall at (14, 17), (15, 17), (16, 17) — a 3-wide pink-door opening
-      following the existing cave/ruin exit idiom (color `#ff69b4`, the
-      reserved user-action hot pink). The function returns
-      `{ map, width, height, exitInterior, spawnInterior,
-      bedInterior, chairInterior }` where `exitInterior = {x: 15, y: 17}`
+      interior, a 3-tile Fireplace at row 1 centered on x=7 (i.e. at
+      x=6,7,8; y=1), a 3-tile HouseHearth row directly south at
+      x=6,7,8; y=2, one HouseBed at (13, 4) on the east wall, one
+      HouseChair at (1, 4) on the west wall, and THREE HouseExit
+      tiles along the south wall at (6, 8), (7, 8), (8, 8) — a 3-wide
+      pink-door opening following the existing cave/ruin exit idiom
+      (color `#ff69b4`, the reserved user-action hot pink). The function
+      returns `{ map, width, height, exitInterior, spawnInterior,
+      bedInterior, chairInterior }` where `exitInterior = {x: 7, y: 8}`
       (the middle of the 3-wide door — used as the canonical exit-center
       anchor for transition iris animations and the spawn-anchor calc),
-      `spawnInterior = {x: 15, y: 16}` (one tile north of the exit),
-      `bedInterior = {x: 28, y: 8}`, `chairInterior = {x: 2, y: 8}`.
-      GameState gains six new fields: `houseMap: Tile[][]`,
-      `houseMapWidth: number`, `houseMapHeight: number`,
-      `houseEntranceInterior: Position` (= spawnInterior),
-      `houseBedInterior: Position`, `houseChairInterior: Position`.
+      `spawnInterior = {x: 9, y: 2}` (on the hearth row east of the
+      fireplace; see player-starts-inside-house for why this opens the
+      first-frame tableau toward Emily), `bedInterior = {x: 13, y: 4}`,
+      `chairInterior = {x: 1, y: 4}`. GameState gains six new fields:
+      `houseMap: Tile[][]`, `houseMapWidth: number`,
+      `houseMapHeight: number`, `houseEntranceInterior: Position`
+      (= spawnInterior), `houseBedInterior: Position`,
+      `houseChairInterior: Position`.
     inputs:
       - 'createGameState invocation'
     outputs:
-      - 'state.houseMap is a 30 × 18 grid populated per the layout above'
-      - 'state.houseMapWidth = 30, state.houseMapHeight = 18'
-      - 'state.houseEntranceInterior = {x: 15, y: 16}'
-      - 'state.houseBedInterior = {x: 28, y: 8}'
-      - 'state.houseChairInterior = {x: 2, y: 8}'
+      - 'state.houseMap is a 15 × 9 grid populated per the layout above'
+      - 'state.houseMapWidth = 15, state.houseMapHeight = 9'
+      - 'state.houseEntranceInterior = {x: 9, y: 2}'
+      - 'state.houseBedInterior = {x: 13, y: 4}'
+      - 'state.houseChairInterior = {x: 1, y: 4}'
     state_changes:
       - field: houseMap
         effect: 'initialized to the deterministic interior layout'
       - field: houseMapWidth
-        effect: 'set to 30'
+        effect: 'set to 15'
       - field: houseMapHeight
-        effect: 'set to 18'
+        effect: 'set to 9'
       - field: houseEntranceInterior
-        effect: 'set to {x: 15, y: 16}'
+        effect: 'set to {x: 9, y: 2}'
     determinism: deterministic
 
   - id: house-overworld-placement
@@ -304,31 +312,36 @@ behaviors:
 
   - id: player-starts-inside-house
     description: >
-      At createGameState time, after the house interior is built, the
-      player position is set to state.houseEntranceInterior (interior
-      coords {x: 15, y: 16}), state.currentZone is set to Zone.HouseInterior,
-      and state.map / state.mapWidth / state.mapHeight point at the
-      house interior buffers. The overworld buffers are retained on
-      state.overworldMap / state.overworldMapWidth / state.overworldMapHeight
-      so that future zone exits can swap back. Player facing is set to
-      'up' so the player visually orients toward the fireplace and Emily.
-      Camera centers on the player using updateCamera.
+      enterHouseAtTenureStart is called unconditionally from
+      useGameEngine after createGameState (production and tests alike).
+      The player position is set to state.houseEntranceInterior
+      (interior coords {x: 9, y: 2}), state.currentZone is set to
+      Zone.HouseInterior, and state.map / state.mapWidth /
+      state.mapHeight point at the house interior buffers. The
+      overworld buffers are retained on state.overworldMap /
+      state.overworldMapWidth / state.overworldMapHeight so that
+      future zone exits can swap back. Player facing is set to 'left'
+      so the steward mirrors Emily across the hearth row at frame 1 —
+      the steward stands at (9, 2) on the hearth, Emily stands at her
+      chair on the opposite west side of the room, and the player's
+      first frame frames the two of them by the fire. Camera centers
+      on the player using updateCamera.
     inputs:
       - 'createGameState invocation, after house interior + overworld house entrance placement'
     outputs:
-      - 'state.player = {x: 15, y: 16}'
+      - 'state.player = {x: 9, y: 2}'
       - 'state.currentZone = Zone.HouseInterior'
       - 'state.map points at state.houseMap'
-      - 'state.playerFacing = "up"'
+      - 'state.playerFacing = "left"'
     state_changes:
       - field: player
-        effect: 'set to interior spawn position'
+        effect: 'set to interior spawn position {x: 9, y: 2}'
       - field: currentZone
         effect: 'set to Zone.HouseInterior'
       - field: map / mapWidth / mapHeight
         effect: 'point at the house interior buffers'
       - field: playerFacing
-        effect: 'set to "up"'
+        effect: 'set to "left"'
     determinism: deterministic
 
   - id: remove-falling-star-spawn
@@ -622,9 +635,9 @@ behaviors:
       glyphs.length` where FIRE_TICK_MS is a new constant in constants.ts
       (default value 200ms — fast enough to read as fire, slow enough not
       to flicker). Glyph color cycles between two warm tones (e.g.,
-      '#FF8C42' and '#FFD56B') at the same cadence. The fireplace
-      occupies one tile at house-interior {x: 15, y: 0} and is not
-      walkable; the player cannot step onto it.
+      '#FF8C42' and '#FFD56B') at the same cadence. Fireplace tiles
+      occupy the 3-tile row at house-interior y=1, x=6,7,8 and are not
+      walkable; the player cannot step onto them.
     inputs:
       - 'renderer asks for the fireplace tile glyph and color at frame time t'
     outputs:
@@ -632,6 +645,24 @@ behaviors:
       - 'color is one of two warm tones selected by the same cadence'
     state_changes: []
     determinism: deterministic
+
+  - id: fireplace-glow-attenuated
+    description: >
+      The fireplaceGlow render pass draws a radial gradient over each
+      Fireplace tile that pulses with the same warm-tone cadence as
+      the glyph cycle. Alpha is tuned to read as ambient hearth light,
+      not a flashbang — the gradient stops at center=0.2 and
+      mid=0.08 (radial position 0.4), tapering to 0 at the edge. This
+      is an ~80% reduction from the initial implementation's center=1.0
+      / mid=0.4 stops, which appeared visually blinding against the
+      interior browns. Tune by adjusting the alpha stops at the two
+      gradient.addColorStop calls in src/engine/render/passes/fireplaceGlow.ts.
+    inputs:
+      - 'render pass runs each frame while at least one Fireplace tile is on screen'
+    outputs:
+      - 'radial gradient drawn over each Fireplace tile with center alpha 0.2, mid alpha 0.08, edge alpha 0'
+    state_changes: []
+    determinism: time-based
 
   - id: manual-entries
     description: >

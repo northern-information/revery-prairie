@@ -16,7 +16,7 @@ describe('precis #33 — house interior layout', () => {
     expect(r.height).toBe(9)
     expect(r.map.length).toBe(9)
     expect(r.map[0].length).toBe(15)
-    expect(r.spawnInterior).toEqual({ x: 7, y: 7 })
+    expect(r.spawnInterior).toEqual({ x: 9, y: 2 })
     expect(r.exitInterior).toEqual({ x: 7, y: 8 })
     expect(r.bedInterior).toEqual({ x: 13, y: 4 })
     expect(r.chairInterior).toEqual({ x: 1, y: 4 })

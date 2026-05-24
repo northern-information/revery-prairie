@@ -20,7 +20,11 @@ const HOUSE_EXIT_CENTER_X = 7
 const HOUSE_EXIT_Y = 8
 const HOUSE_BED: Position = { x: 13, y: 4 }
 const HOUSE_CHAIR: Position = { x: 1, y: 4 }
-const HOUSE_SPAWN: Position = { x: 7, y: 7 }
+// Player tenure-start spawn — opposite Emily across the room's vertical
+// centerline (Emily at x=5, mirrored to x=9), same hearth row. Faces
+// west toward Emily so the first frame frames the two of them by the
+// fire.
+const HOUSE_SPAWN: Position = { x: 9, y: 2 }
 
 export interface HouseInteriorResult {
   map: Tile[][]

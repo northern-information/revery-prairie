@@ -67,6 +67,35 @@ behaviors:
         effect: 'set to null'
     determinism: deterministic
 
+  - id: genesis-aware-ambient
+    description: >
+      While state.genesis is non-null, useMusic picks the overworld
+      ambient track (ZONE_MUSIC[Zone.Overworld]) regardless of
+      state.currentZone. precis-33 places the steward inside the
+      house at tenure start, so state.currentZone is HouseInterior
+      from frame 1 — but the genesis cinematic plays the overworld
+      ambient (the cinematic shows the prairie taking shape, not
+      the house interior). The selection logic applies both to
+      the audio-enabled-just-flipped path and the regular zone-
+      change path. A new `prevGenesisRef` tracks whether genesis
+      was active on the previous render; when `state.genesis !== null`
+      changes value, setAmbient is called even if the zone did not
+      change, so the ambient track crossfades at the handoff
+      (genesis ends → zone-matching ambient takes over).
+    inputs:
+      - 'state.genesis non-null vs null'
+      - 'state.currentZone'
+      - 'state.audioEnabled'
+    outputs:
+      - 'while state.genesis is non-null: ambient = ZONE_MUSIC[Zone.Overworld]'
+      - 'at the genesis → null transition: setAmbient fires with the current-zone track even when zone did not change'
+    state_changes:
+      - field: '(useMusic ref) prevGenesisRef.current'
+        effect: 'updated to state.genesis !== null after each render that triggers setAmbient'
+      - field: 'audio module ambientTrack'
+        effect: 'crossfaded to the zone-matching track at genesis-to-gameplay handoff'
+    determinism: deterministic
+
 edge_cases:
   - id: strictmode-double-mount
     description: >

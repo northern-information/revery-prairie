@@ -559,7 +559,10 @@ export const enterHouseAtTenureStart = (state: GameState): void => {
   state.mapHeight = state.houseMapHeight
   state.currentZone = Zone.HouseInterior
   state.player = { x: state.houseEntranceInterior.x, y: state.houseEntranceInterior.y }
-  state.playerFacing = 'up'
+  // Face west — Emily is across the room to the steward's left, by the
+  // chair. The first frame should frame the two of them together at
+  // the fire.
+  state.playerFacing = 'left'
   state.camera = {
     x: state.player.x - Math.floor(state.viewportWidth / 2),
     y: state.player.y - Math.floor(state.viewportHeight / 2),

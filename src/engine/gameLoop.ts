@@ -186,9 +186,14 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       priority: -19,
       fn: (state: GameState, time: number) => {
         if (!state.zoneTransition) return
+        const wasApplied = state.zoneTransition.swapApplied
         tickZoneTransition(state, time)
-        // When the transition clears, request a UI refresh so the
-        // sidebar / cursor info update against the new zone.
+        // Request a UI refresh both when the swap fires at midpoint (so
+        // useMusic / sidebar see the new zone immediately) and when the
+        // transition clears at progress=1.
+        if (state.zoneTransition?.swapApplied && !wasApplied) {
+          callbacks.onRefreshUI?.()
+        }
         if (state.zoneTransition === null) {
           callbacks.onRefreshUI?.()
         }

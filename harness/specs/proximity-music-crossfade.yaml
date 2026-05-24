@@ -175,6 +175,30 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: proximity-suppressed-during-genesis
+    description: >
+      While state.genesis is non-null (i.e. the genesis cinematic is
+      playing), tickProximityMusic short-circuits — it calls
+      updateProximityMusic with an empty sample array, which tears
+      down any existing proximity tracks at the audio module and
+      keeps the ambient gain at full. Without this guard, the
+      steward stands at the overworld map center next to Gron during
+      genesis (well inside Gron's MusicEmitter radius), and Gron's
+      proximity track would play over the cinematic ambient. The
+      suppression is restricted to the genesis window — at the
+      genesis-to-gameplay handoff (state.genesis flips to null),
+      subsequent ticks rebuild the samples normally and Gron's
+      track ramps up if the player is still in range.
+    inputs:
+      - 'state.genesis is non-null'
+    outputs:
+      - 'updateProximityMusic called with empty samples'
+      - 'no proximity tracks are created during the genesis window'
+    state_changes:
+      - field: '(audio module) proximityTracks'
+        effect: 'kept empty for the duration of state.genesis being non-null'
+    determinism: deterministic
+
   - id: music-toggle-affects-proximity
     description: >
       setMusicEnabled(false) sets all proximity track gains to 0
