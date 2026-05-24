@@ -28,6 +28,21 @@ Ask clarifying questions:
 
 Wait for answers before proceeding.
 
+### 1b. Suggest a session rename
+
+Derive a short kebab-case label for this session:
+
+- If the input names a precis id (rare for fixes, but possible if routed from `/churn`), use `precis-{id}-{2-4-word-slug}`.
+- Otherwise, prefix with `fix-` and slug from the bug description: lowercase, hyphen-separated, 2–4 words. Examples: "cursor color wrong on dialog" → `fix-cursor-dialog-color`; "inventory close button overlap" → `fix-inventory-close-overlap`.
+
+Emit one line to the user, verbatim formatting:
+
+```
+Suggested session name — run `/rename {label}` to label this session in the prompt bar.
+```
+
+Do not block on this. The skill cannot invoke `/rename` itself (built-in slash commands are user-only); the user runs it (or ignores it) and flow continues to step 2.
+
 ### 2. Investigate the root cause
 
 Locate the offending file and line. Provide:
