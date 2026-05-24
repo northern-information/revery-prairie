@@ -396,18 +396,23 @@ describe('oak TraitBag sequencing', () => {
   })
 
   it('genesis-seeded oaks have matching TraitBags across two runs with the same stewardName', () => {
+    // createGameState consumes Math.random for house / cave placement, so
+    // spy on Math.random BEFORE constructing either state. Reset the
+    // cursor before each construction so both states draw from identical
+    // sequences; reset again before each seedOaks call.
+    const seq = Array.from({ length: 4000 }, (_, i) => ((i * 9301 + 49297) % 233280) / 233280)
+    let cursor = 0
+    vi.spyOn(Math, 'random').mockImplementation(() => seq[cursor++ % seq.length])
+
+    cursor = 0
     const stateA = createOakTestState()
     stateA.stewardName = 'alice'
     stateA.player = { x: 5, y: 5 }
+    cursor = 0
     const stateB = createOakTestState()
     stateB.stewardName = 'alice'
     stateB.player = { x: 5, y: 5 }
-    // seedOaks uses Math.random for anchor selection. Spy on it with a
-    // deterministic sequence and reset the cursor between runs so both
-    // states draw from the same anchor stream.
-    const seq = Array.from({ length: 2000 }, (_, i) => ((i * 9301 + 49297) % 233280) / 233280)
-    let cursor = 0
-    vi.spyOn(Math, 'random').mockImplementation(() => seq[cursor++ % seq.length])
+
     cursor = 0
     seedOaks(stateA, 0)
     cursor = 0

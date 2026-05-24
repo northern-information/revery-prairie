@@ -1,5 +1,5 @@
 import { storeAngelCanto } from './angels'
-import { EMILY_DIALOG_AUTUMN, getCharacterDefinition, getCharacterDialog } from './characters'
+import { EMILY_DIALOG, getCharacterDefinition, getCharacterDialog } from './characters'
 import { contributeDormancyPressure } from './omen'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
@@ -159,9 +159,13 @@ export const interactWithCharacter = (
     return { opened: false, gift: null, coyoteToggled: false }
   }
 
+  // Emily's EMILY_DIALOG[0] is the spring-equinox greeting reserved for
+  // the first-wake auto-open (see gameLoop.ts firstWakeTrigger).
+  // Manual [f] engagements always skip the greeting and start at line 1.
+  const startLineIndex = character.definitionId === 'emily' ? 1 : 0
   state.activeDialog = {
     characterId: character.definitionId,
-    lineIndex: 0,
+    lineIndex: startLineIndex,
     typingIndex: 0,
     typingDone: false,
     transitioning: false,
@@ -228,7 +232,7 @@ export const advanceDialog = (
       state.activeDialog.characterId === 'emily' &&
       state.weather.season === Season.Autumn &&
       state.revery === null &&
-      state.activeDialog.lineIndex === EMILY_DIALOG_AUTUMN.length - 1
+      state.activeDialog.lineIndex === EMILY_DIALOG.length - 1
     ) {
       state.activeDialog.awaitingConfirmation = true
       if (state.emilyInvitation === 'unoffered') {
@@ -312,7 +316,7 @@ export const tickDialogTyping = (state: GameState, now: number): void => {
       state.activeDialog.characterId === 'emily' &&
       state.weather.season === Season.Autumn &&
       state.revery === null &&
-      state.activeDialog.lineIndex === EMILY_DIALOG_AUTUMN.length - 1
+      state.activeDialog.lineIndex === EMILY_DIALOG.length - 1
     ) {
       state.activeDialog.awaitingConfirmation = true
       if (state.emilyInvitation === 'unoffered') {
