@@ -14,6 +14,7 @@ import {
   type Status,
 } from './data.js'
 import { moveFeatureAndOpenPr, openUrl } from './git.js'
+import { scanInFlight, type InFlightScan } from './scan.js'
 
 const YAML_REL = 'docs/precis-status.yaml'
 const YAML_PATH = resolve(process.cwd(), YAML_REL)
@@ -62,6 +63,11 @@ const STATUS_LABEL: Record<Status, string> = {
   shipped: 'shipped',
 }
 
+type ScanState =
+  | { kind: 'idle' }
+  | { kind: 'scanning' }
+  | { kind: 'done'; scan: InFlightScan }
+
 export const App = () => {
   const { exit } = useApp()
   const { stdout } = useStdout()
@@ -70,6 +76,7 @@ export const App = () => {
   const [expanded, setExpanded] = useState(false)
   const [termWidth, setTermWidth] = useState(() => stdout.columns || 120)
   const [mode, setMode] = useState<Mode>({ kind: 'browse' })
+  const [scanState, setScanState] = useState<ScanState>({ kind: 'idle' })
 
   useEffect(() => {
     const onResize = () => {
@@ -81,10 +88,12 @@ export const App = () => {
     }
   }, [stdout])
 
+  const scan = scanState.kind === 'done' ? scanState.scan : null
+
   const groups = useMemo(() => {
     if (!load.features) return null
-    return groupByColumn(load.features)
-  }, [load.features])
+    return groupByColumn(load.features, scan)
+  }, [load.features, scan])
 
   const locate = useMemo(() => {
     if (!groups || !selectedId) return null
@@ -107,9 +116,27 @@ export const App = () => {
     if (first) setSelectedId(first.id)
   }, [groups, locate])
 
+  const runScan = useCallback((features: Feature[] | null) => {
+    if (!features) return
+    setScanState({ kind: 'scanning' })
+    // Defer the synchronous shell calls so Ink renders the scanning indicator
+    // before the spawnSync barrage. `gh pr list` is the slowest hop (~1–2s).
+    setImmediate(() => {
+      const result = scanInFlight(process.cwd(), features)
+      setScanState({ kind: 'done', scan: result })
+    })
+  }, [])
+
   const reload = useCallback(() => {
     setLoad(tryLoad())
   }, [])
+
+  // Re-scan whenever the loaded features change (initial mount, file watcher,
+  // explicit `r` reload). runScan is a stable callback so this effect only
+  // fires on feature changes.
+  useEffect(() => {
+    runScan(load.features)
+  }, [runScan, load.features])
 
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null
@@ -276,6 +303,14 @@ export const App = () => {
   const nextCount = groups.next.length
   const nextPick = groups.next[0]
 
+  const promotedCount = scan
+    ? load.features.filter(
+        (f) => f.status === 'todo' && scan.byId.has(f.id) && !scan.branchOnly.has(f.id),
+      ).length
+    : 0
+  const staleCount = scan?.stale.length ?? 0
+  const thinktankCount = scan?.unmappedThinktank.length ?? 0
+
   return (
     <Box flexDirection="column" padding={1} width={termWidth}>
       <Box>
@@ -291,17 +326,56 @@ export const App = () => {
           <Text dimColor>—</Text>
         )}
       </Box>
+      <Box>
+        <Text dimColor>scan: </Text>
+        {scanState.kind === 'scanning' ? (
+          <Text color="yellow">scanning…</Text>
+        ) : scanState.kind === 'done' ? (
+          <>
+            <Text color="green">ok</Text>
+            {promotedCount > 0 ? (
+              <Text color="magenta">{`  ·  ${promotedCount} promoted *`}</Text>
+            ) : null}
+            {staleCount > 0 ? (
+              <Text color="red">{`  ·  ${staleCount} stale !`}</Text>
+            ) : null}
+            {thinktankCount > 0 ? (
+              <Text dimColor>{`  ·  ${thinktankCount} thinktank-only worktree${thinktankCount === 1 ? '' : 's'}`}</Text>
+            ) : null}
+            {scanState.scan.warnings.length > 0 ? (
+              <Text color="yellow">{`  ·  ${scanState.scan.warnings.length} warning${scanState.scan.warnings.length === 1 ? '' : 's'}`}</Text>
+            ) : null}
+          </>
+        ) : (
+          <Text dimColor>idle</Text>
+        )}
+      </Box>
       <Box marginTop={1}>
         <Kanban
           groups={groups}
           selectedColumn={locate?.column ?? 'next'}
           selectedIndex={locate?.index ?? 0}
           termWidth={termWidth}
+          scan={scan}
         />
       </Box>
       <Box marginTop={1}>
-        <DetailPane feature={selected} all={load.features} expanded={expanded} />
+        <DetailPane feature={selected} all={load.features} expanded={expanded} scan={scan} />
       </Box>
+
+      {scan && scan.stale.length > 0 ? (
+        <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="red" paddingX={1}>
+          <Text color="red" bold>Stale worktrees / branches detected:</Text>
+          {scan.stale.map((id) => {
+            const ev = scan.byId.get(id)
+            const sources = ev ? evidenceSummary(ev) : ''
+            return (
+              <Text key={id} dimColor>{`  #${id} — ${sources}`}</Text>
+            )
+          })}
+          <Text dimColor>Run /git-cleanup to clear them.</Text>
+        </Box>
+      ) : null}
 
       <ModeOverlay mode={mode} selected={selected} />
 
@@ -312,6 +386,17 @@ export const App = () => {
       </Box>
     </Box>
   )
+}
+
+const evidenceSummary = (ev: import('./scan.js').IdEvidence): string => {
+  const parts: string[] = []
+  if (ev.worktrees.length > 0) parts.push(`${ev.worktrees.length} worktree(s)`)
+  if (ev.remoteBranches.length > 0) parts.push(`${ev.remoteBranches.length} remote-branch(es)`)
+  if (ev.openPrs.length > 0) parts.push(`PR ${ev.openPrs.map((n) => `#${n}`).join(', ')}`)
+  if (ev.specs.length > 0) parts.push(`${ev.specs.length} spec edit(s)`)
+  if (ev.plans.length > 0) parts.push(`${ev.plans.length} plan edit(s)`)
+  if (ev.yamlFlips.length > 0) parts.push(`${ev.yamlFlips.length} yaml flip(s)`)
+  return parts.join(', ')
 }
 
 interface ModeOverlayProps {

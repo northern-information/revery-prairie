@@ -23,11 +23,11 @@ Field shape and the "NEXT = all deps shipped" rule are defined in `tools/precis/
 
 ### 1b. Detect suspected-in-flight work from git/gh state
 
-YAML status can lag reality — a worktree or PR can exist before the `todo → in-progress` flip lands, or after the flip got reverted. Gather three deterministic signals and join them against the precis ids loaded in step 1.
+YAML status can lag reality — a worktree or PR can exist before the `todo → in-progress` flip lands, or after the flip got reverted. Gather signals from two layers (external name-based, and per-worktree file-based) and join them against the precis ids loaded in step 1.
 
-Run these in parallel:
+**External signals — run in parallel:**
 
-- `git worktree list --porcelain` — local worktrees
+- `git worktree list --porcelain` — local worktrees with their paths
 - `git for-each-ref --format='%(refname:short)' refs/remotes/origin` — remote branches (do not run `git fetch`; use what's already there)
 - `gh pr list --state open --json number,headRefName,title --limit 100` — open PRs
 
@@ -37,13 +37,30 @@ For each branch name, worktree branch, or PR head ref, apply this regex to extra
 ^(?:worktree-)?precis-(\d+[a-z]?)-
 ```
 
-Drop names that don't match (e.g. `precis-thinktank-v10-round-2`, `churn-immediate-flip`). For matches, build a per-id evidence list naming the source(s): `worktree:<path>`, `remote-branch:<name>`, `open-pr:#<n>`.
+Drop names that don't match (e.g. `precis-thinktank-v10-round-2`, `churn-immediate-flip`). For matches, record per-id evidence naming the source(s): `worktree:<path>`, `remote-branch:<name>`, `open-pr:#<n>`.
 
-An id has evidence if it appears in any of the three lists. Reconcile against YAML status:
+**Per-worktree internal scan — for each local worktree from the list above:**
 
-- YAML `in-progress` + evidence → confirmed in-flight (no surprise).
-- YAML `todo` + evidence → **suspected in-flight** (the gap this step exists to catch). Promote into the in-flight bucket in step 2.
-- YAML `shipped` + evidence → **stale branch/worktree suspected**. Do not promote. Surface as a one-line warning at the end of step 3 suggesting `/git-cleanup`.
+Branch names lie (renames, typos, ad-hoc names) but the artifacts being edited don't. For each worktree path, gather changed files from both committed and uncommitted state:
+
+- `git -C <path> diff --name-only main` — files modified relative to main
+- `git -C <path> status --porcelain` — uncommitted working-tree changes
+
+From the union of those paths, extract evidence:
+
+- Filename matches `^harness/(specs|plans)/precis-(\d+[a-z]?)-` → strongest signal; the id is in the path. Record `spec:<path>:<file>` or `plan:<path>:<file>`.
+- `docs/precis-status.yaml` is in the changed set → read the worktree's copy and compare each entry's `status` against `main`'s copy (use `git -C <path> show main:docs/precis-status.yaml`). Any id whose status differs is evidence; record `yaml-flipped:<path>:<id>:<old>→<new>`.
+- Any `docs/precis-thinktank-v*.md` is in the changed set → weak signal of active doc work. Record `thinktank:<path>:<file>` but do **not** derive a precis id from it (thinktank rounds aren't precis items).
+
+Use `git -C <path>` so each scan runs against the worktree, not the main checkout. Do not `cd` into the worktree.
+
+**Reconcile against YAML status:**
+
+- YAML `in-progress` + any evidence → confirmed in-flight (no surprise).
+- YAML `todo` + any precis-id evidence (external or internal) → **suspected in-flight**. Promote into the in-flight bucket in step 2.
+- YAML `shipped` + any precis-id evidence → **stale branch/worktree suspected**. Do not promote. Surface as a one-line warning at the end of step 3 suggesting `/git-cleanup` — *unless* the only evidence for that worktree is `thinktank:`, in which case the worktree is doing legitimate non-precis doc work; suppress the warning.
+- Branch matches the regex but the worktree has no internal-scan evidence → record as `branch-only` and still promote, but flag in the pick block as "branch exists, no harness work started yet."
+- Thinktank-only evidence with no branch-name match → ignore for precis-id purposes.
 - No YAML match → ignore (not a precis item).
 
 ### 2. Auto-pick one item
@@ -68,7 +85,7 @@ Show a compact block:
 - First two paragraphs of `notes` if present, truncated with `…` if longer
 - Spec/plan status: whether the paths in `spec:` / `plan:` are populated, and whether the files exist on disk
 - Existing `pr:` link, if any
-- **In-flight evidence** if the pick was promoted in step 1b: list the sources (e.g. `worktree:.claude/worktrees/precis-23-time-lapse-camera, open-pr:#440`). Call out the YAML mismatch explicitly if YAML still says `todo` — the user may want to resume the existing worktree rather than start fresh.
+- **In-flight evidence** if the pick was promoted in step 1b: list the sources verbatim (e.g. `worktree:.claude/worktrees/precis-23-time-lapse-camera, open-pr:#440, spec:.claude/worktrees/precis-23-time-lapse-camera:harness/specs/precis-23-time-lapse-camera.yaml`). Call out the YAML mismatch explicitly if YAML still says `todo`. If the evidence is `branch-only` (worktree/branch exists but no spec/plan/yaml work yet), say so — the user may prefer to abandon the empty worktree and let the downstream skill start fresh.
 
 After the pick block, if step 1b flagged any **stale** ids (YAML `shipped` + evidence), append a one-line warning per id naming the branch/worktree/PR and suggesting `/git-cleanup`.
 
@@ -138,6 +155,9 @@ Invoke the chosen skill via the `Skill` tool, passing the synthesized descriptio
 | "Worktree-detection found something but YAML disagrees — I'll fix the YAML before flipping." | The step-5 flip already moves YAML `todo` → `in-progress` for suspected-in-flight picks. Don't pre-edit YAML in step 1b or step 3 — surface the mismatch in the pick block, let step 5 do the single write. For YAML `shipped` + evidence (stale), do not flip at all; emit the `/git-cleanup` warning and move on. |
 | "I'll `git fetch` before checking remote branches so the signal is fresh." | No. Fetching can be slow and has side effects on the user's local state. Use what's already there and note potential staleness if it matters. |
 | "Multiple worktrees match the same precis id — I'll pick the newest one." | Don't pick. List both in the evidence trailer (and in the handoff "resume context") and let the user choose which to enter. |
+| "The branch name already identifies the precis id — skip the internal file scan." | The branch name is a hint, not proof. A renamed branch, a typo'd branch, or a branch where someone started a different precis after creating the worktree all break the regex assumption. The spec/plan filenames embed the id directly; scan them. |
+| "I'll `cd` into each worktree to run the diff." | No. Use `git -C <path>` so each command operates on the worktree without changing the session's working directory. `cd`-ing into a worktree mid-scan and forgetting to `cd` back leaves later commands operating on the wrong tree. |
+| "The worktree has thinktank changes only — promote it as in-flight." | No. Thinktank rounds don't map to a precis id, so there's nothing to promote. Treat thinktank-only evidence as a "this worktree is alive" marker that suppresses the stale warning, nothing more. |
 
 ## Exit criterion
 
