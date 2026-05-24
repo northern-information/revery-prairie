@@ -1,4 +1,4 @@
-// Precis #6 — naturalist's manual scan-to-discover.
+// RP-6 — naturalist's manual scan-to-discover.
 //
 // Pure functions for selecting a scan target and committing a scan.
 // State transitions live in the keyboard handler (useKeyboard.ts);

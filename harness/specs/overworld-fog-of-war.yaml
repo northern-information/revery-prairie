@@ -126,7 +126,7 @@ behaviors:
       name) starts with both sets empty — the prairie is fully unseen
       on the first frame. tiles outside the spawn FOV remain unexplored
       until the steward walks toward them. (cellar-bound carry-forward
-      and explicit per-tenure reset semantics are covered by precis #40
+      and explicit per-tenure reset semantics are covered by RP-40
       and are out of scope here.)
     inputs:
       - 'createGameState called with a new steward name'
@@ -262,7 +262,7 @@ failure_conditions:
   - trigger: 'computeZoneVisibility force-adds an entrance tile while currentZone is Overworld'
     expected: 'an unintended always-lit anchor appears on the prairie; spec is violated. force-add is only for Cave and Ruin entrances.'
   - trigger: 'OVERWORLD_VISION_RADIUS differs from CAVE_VISION_RADIUS or RUIN_VISION_RADIUS'
-    expected: 'the precis cosmological lock ("same eyes, indoors or out") is violated. all three must hold the same value.'
+    expected: 'the backlog item cosmological lock ("same eyes, indoors or out") is violated. all three must hold the same value.'
 
 verification:
   test_file: src/engine/__tests__/visibility.test.ts

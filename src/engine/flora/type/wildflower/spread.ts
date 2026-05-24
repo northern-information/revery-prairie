@@ -1,4 +1,4 @@
-// Precis #17 — wildflower spread config.
+// RP-17 — wildflower spread config.
 //
 // Echinacea purpurea spreads by pollinator-mediated radial expansion.
 // Unlike clover's rotating spiral front, wildflower has no directional

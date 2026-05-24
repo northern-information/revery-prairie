@@ -42,7 +42,7 @@ const collectRainAuras = (state: GameState, zone: ZoneType): RainAura[] => {
 }
 
 // Wind direction → rain front sweep axis in the rotated cardinal frame
-// (precis-thinktank-v5 round 1). Under the rotated frame, cardinals (N/E/S/W)
+// (backlog-thinktank-v5 round 1). Under the rotated frame, cardinals (N/E/S/W)
 // point at the diamond's tips on screen, so their fronts sweep along the
 // iso-diagonal coordinates u = x + y (the diamond's vertical screen axis) and
 // v = x - y (the diamond's horizontal screen axis). Ordinals (NE/SE/SW/NW)

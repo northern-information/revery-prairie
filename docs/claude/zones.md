@@ -8,7 +8,7 @@ transition fires after every `movePlayer`. on exit, player placed one tile south
 
 breakable wall: `[e]` to break, converts to `CaveFloor`, sets `caveRevealed = true`, spawns crumble effect. hidden chamber masked until revealed. **cave entrance is indestructible** — tile-overwriting mechanics must exclude `TileType.CaveEntrance`.
 
-## little house — `Zone.HouseInterior` (precis #33)
+## little house — `Zone.HouseInterior` (RP-33)
 
 separate 30x18 interior map. deterministic layout (no RNG), built by `createHouseInterior()` in `src/engine/house.ts`. perimeter `HouseWall`, `HouseFloor` interior, `Fireplace` at (15, 0), `HouseBed` at (28, 8), `HouseChair` at (2, 8). south wall opens with a **3-wide pink-door** — three `HouseExit` tiles at (14, 17), (15, 17), (16, 17), rendered in `#ff69b4` per the existing cave/ruin exit idiom. `exitInterior` is the middle exit; `spawnInterior` is (15, 16) one tile north of it.
 

@@ -298,7 +298,7 @@ export const tickMeteorShower = (state: GameState, time: number): void => {
       shower.lastFiredAnchorIndex = nearest
     }
 
-    // Precis #33 — the falling-star spawn ceremony is removed. The
+    // RP-33 — the falling-star spawn ceremony is removed. The
     // player now spawns inside the little house at tenure start.
     recordDiscovery(state, 'event:meteor-shower')
     return

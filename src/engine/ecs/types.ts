@@ -28,7 +28,7 @@ export const ComponentType = {
   SatelliteData: 'satelliteData',
   MonarchState: 'monarchState',
   PickupExemption: 'pickupExemption',
-  // Precis #17 — pollen carried by a bee or monarch. Cross-species
+  // RP-17 — pollen carried by a bee or monarch. Cross-species
   // mixing is allowed in the bag. Bag is emptied when the entity
   // enters Chebyshev-1 of any beehive. See src/engine/pollination.ts.
   PollenBag: 'pollenBag',

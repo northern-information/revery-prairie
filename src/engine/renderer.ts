@@ -1165,7 +1165,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Precompute the per-frame seasonal-wash target. The wash blends every
   // native tile glyph toward the current season's anchor color, lerped
   // continuously across the four cardinal phases (winter / spring /
-  // summer / autumn). Egregore tiles (precis #8a) are exempt year-round
+  // summer / autumn). Egregore tiles (RP-8a) are exempt year-round
   // and short-circuit the wash so their violet Voynich script pops in
   // every season. Cave and ruin zones are unwashed (no overworld weather
   // underground).
@@ -1459,7 +1459,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         } else {
           const tile = map[my][mx]
           char = entranceGlyphMap.get(tileKey) ?? TILE_CHARS[tile.type]
-          // Precis #33 — fireplace animation cycles through the three
+          // RP-33 — fireplace animation cycles through the three
           // chars at FIRE_TICK_MS; color alternates between two warm
           // tones at the same cadence.
           if (tile.type === TileType.Fireplace) {
@@ -1479,7 +1479,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           if (lifecycle && lifecycle.stage !== FloraStage.Healthy) {
             switch (lifecycle.stage) {
               case FloraStage.Dormant:
-                // Winter pause (precis #2). Glyph unchanged; color is
+                // Winter pause (RP-2). Glyph unchanged; color is
                 // the per-species dormantColor from FLORA_SPECIES.
                 color = FLORA_SPECIES[lifecycle.species].dormantColor
                 break
@@ -1517,7 +1517,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             // fallback to preserve visual variety.
             color = CLOVER_HEALTHY_COLORS[tileHash(mx, my) % CLOVER_HEALTHY_COLORS.length]
           } else if (tile.type === TileType.Egregore) {
-            // Egregoric flora (precis #8a) — per-position Voynich glyph
+            // Egregoric flora (RP-8a) — per-position Voynich glyph
             // from EGREGORE_GLYPHS. Font swap to 'Voynich' happens at
             // the draw call below; here we only resolve the glyph + the
             // shared blue-grey color (TILE_COLORS).
@@ -1537,7 +1537,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           } else if (tile.type === TileType.Sand) {
             color = SAND_COLORS[tileHash(mx, my) % SAND_COLORS.length]
           } else if (tile.type === TileType.Fireplace) {
-            // Precis #33 — fireplace color alternates at FIRE_TICK_MS.
+            // RP-33 — fireplace color alternates at FIRE_TICK_MS.
             const fireTick = Math.floor(time / FIRE_TICK_MS)
             color = fireTick % 2 === 0 ? FIREPLACE_COLOR_A : FIREPLACE_COLOR_B
           } else {

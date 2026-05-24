@@ -137,7 +137,7 @@ export const tickFloraLifecycle = (state: GameState, zone: ZoneType, time: numbe
       const water = state.tileWater.get(key) ?? WATER_MAX
       const isStressed = water === 0 || !entry.hasLight
 
-      // Seasonal dormancy (precis #2): in winter, healthy flora goes Dormant
+      // Seasonal dormancy (RP-2): in winter, healthy flora goes Dormant
       // and stays that way until the season is no longer winter. Dormant
       // tiles do not advance, do not enter the stress death path, and do not
       // emit pollen. Transitions are immediate per the locked design — a
@@ -196,8 +196,8 @@ export const tickFloraLifecycle = (state: GameState, zone: ZoneType, time: numbe
   }
 }
 
-// Player-facing harvest and cut mechanics were deleted in precis #1.
-// Clover acquisition routes through ruin recovery (precis #5) and the
+// Player-facing harvest and cut mechanics were deleted in RP-1.
+// Clover acquisition routes through ruin recovery (RP-5) and the
 // [f] / [x]-without-hovered-item keybind branches were dropped from
 // src/hooks/useKeyboard.ts.
 

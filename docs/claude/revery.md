@@ -4,14 +4,14 @@ referenced from `CLAUDE.md`. read when touching the long-form ceremonial phase, 
 
 ## state
 
-- **`state.revery: ReveryState | null`** — null in normal play. Non-null while a Revery is active. Shape: `{ active, startTime, phase, elapsedYears, reveryCount (captured), snapshotBeforeRevery, scheduledChanges, summaryReady, omenKind, summons?, summonsAudioCue?, summonsCollapseTile? }`. The `summons*` fields are precis-32 additions; they are present only when the Revery was triggered by the pressure-ceiling path.
+- **`state.revery: ReveryState | null`** — null in normal play. Non-null while a Revery is active. Shape: `{ active, startTime, phase, elapsedYears, reveryCount (captured), snapshotBeforeRevery, scheduledChanges, summaryReady, omenKind, summons?, summonsAudioCue?, summonsCollapseTile? }`. The `summons*` fields are RP-32 additions; they are present only when the Revery was triggered by the pressure-ceiling path.
 - **`state.reveryCount: number`** — lifetime count, starts 0, increments on Revery completion (during Closing → null transition).
 - **`state.lastReveryEndTime: number`** — used by the cooldown gate. `REVERY_COOLDOWN_MS` default = `SEASONAL_PHASE_PERIOD_MS` (one year).
 - **`state.cosmologicalDrift: number`** — 0 baseline, monotonically increasing. No incrementers in #4; future features wire passive transmission (v3 layer (a)) and meteorite-placement (v3 layer (c)).
 - **`state.revealedPhenotypes: Map<FloraSpecies, RevealedPhenotype[]>`** — one entry per (species, axis) pair the player has had a Revery resolve. Re-resolving the same pair OVERWRITES; no duplicates.
-- **`state.dormancyPressure: number`** (precis-32) — domain [0, 1]. Climbs across autumn via the linear ramp in `tickDormancyPressure`; crossing 1.0 schedules the Revery. Resets to 0 at Revery Closing and on Autumn → Winter without a Revery.
-- **`state.collapsedStewardTile: Position | null`** (precis-32) — set to the steward's tile at Omen → Observing when the Revery is a summons; cleared at Closing. Downstream render passes may read this to apply a dormant-flora wash to the collapsed tile.
-- **`state.playerStationarySince: number`** — wall-clock time of the player's last successful movement. The cloud-passing omen no longer reads this (precis-32 retired the three omen predicates) but the field remains for other systems.
+- **`state.dormancyPressure: number`** (RP-32) — domain [0, 1]. Climbs across autumn via the linear ramp in `tickDormancyPressure`; crossing 1.0 schedules the Revery. Resets to 0 at Revery Closing and on Autumn → Winter without a Revery.
+- **`state.collapsedStewardTile: Position | null`** (RP-32) — set to the steward's tile at Omen → Observing when the Revery is a summons; cleared at Closing. Downstream render passes may read this to apply a dormant-flora wash to the collapsed tile.
+- **`state.playerStationarySince: number`** — wall-clock time of the player's last successful movement. The cloud-passing omen no longer reads this (RP-32 retired the three omen predicates) but the field remains for other systems.
 - **`state.lastSky: Sky`** — previous frame's `state.weather.sky`. The cloud-passing omen no longer reads this; field retained for any future use.
 
 ## phase machine
@@ -25,19 +25,19 @@ referenced from `CLAUDE.md`. read when touching the long-form ceremonial phase, 
 
 `isReveryLocked(state)` returns true during `observing` and `summary`; false during `closing` and when `state.revery` is null.
 
-## dormancy pressure (precis-32)
+## dormancy pressure (RP-32)
 
-The three omen-detection predicates from precis-4 (bee on shoulder, distant meteorite, cloud passing the sun) are **retired**. They were rare, frame-stacked, and not aimed at the steward — see v6 thinktank round 6 for the doctrinal critique. `detectOmen` no longer exists.
+The three omen-detection predicates from RP-4 (bee on shoulder, distant meteorite, cloud passing the sun) are **retired**. They were rare, frame-stacked, and not aimed at the steward — see v6 thinktank round 6 for the doctrinal critique. `detectOmen` no longer exists.
 
 `tickDormancyPressure(state)` runs each frame in `gameLoop`. Same gates as the old `detectOmen`: skipped when `state.revery !== null`, when `state.deepTime?.active`, when `state.currentZone !== Zone.Overworld`, when the season is not Autumn, or when the cooldown `REVERY_COOLDOWN_MS` has not elapsed since the last Revery.
 
 Inside the gate, `state.dormancyPressure` is set to `max(prior, floor)` where the floor is a linear ramp from autumn equinox (`seasonalPhase = REVERY_PRESSURE_RAMP_START = 0.5`) to winter solstice (`seasonalPhase = REVERY_PRESSURE_RAMP_END = 0.75`). Outside the ramp window the floor is 0 (autumn not yet) or 1 (past solstice). Without any external contributions, the ramp alone reaches 1.0 exactly at the solstice frame — the Revery is guaranteed within a year.
 
-`contributeDormancyPressure(state, amount)` adds a non-negative `amount` to `state.dormancyPressure`, clamped to [0, 1]. This is the entry point precis-36 (The Revery Knot) will call on Knot pickup; precis-32 itself never calls it.
+`contributeDormancyPressure(state, amount)` adds a non-negative `amount` to `state.dormancyPressure`, clamped to [0, 1]. This is the entry point RP-36 (The Revery Knot) will call on Knot pickup; RP-32 itself never calls it.
 
-When `state.dormancyPressure >= 1` and `state.revery === null`, `gameLoop` calls `initiateRevery` with `OmenKind.CloudPassingSun` as a placeholder for the existing `ReveryState.omenKind` shape, and immediately sets `state.revery.summons = true`. precis-36 will replace the placeholder when the Knot pickup becomes the canonical trigger.
+When `state.dormancyPressure >= 1` and `state.revery === null`, `gameLoop` calls `initiateRevery` with `OmenKind.CloudPassingSun` as a placeholder for the existing `ReveryState.omenKind` shape, and immediately sets `state.revery.summons = true`. RP-36 will replace the placeholder when the Knot pickup becomes the canonical trigger.
 
-## summons sequence (precis-32)
+## summons sequence (RP-32)
 
 When `state.revery.summons === true` and the phase is `Omen`, `tickRevery` runs an additional sequence before the standard Omen → Observing flip:
 
@@ -49,7 +49,7 @@ When `state.revery.summons === true` and the phase is `Omen`, `tickRevery` runs 
 
 Gron remains adjacent for the rest of the Revery — his position is not reverted at Closing.
 
-## Closing-phase egregoric commit (precis-32)
+## Closing-phase egregoric commit (RP-32)
 
 At the Closing phase, after `reveryCount` increment and `lastReveryEndTime` update, when `state.revery.summons === true` and `state.revery.summonsCollapseTile` points at a dirt-eligible tile:
 
@@ -87,13 +87,13 @@ Manual entries render the list below the lore (and below the hex grid from #6).
 
 Subsequent Reveries (`reveryCount >= 1`) no-op. The ongoing per-Revery winter-phased spread ships in #8b.
 
-## Revery scene — the little house (precis #33)
+## Revery scene — the little house (RP-33)
 
 The Revery is rendered in the house interior, regardless of where pressure trips threshold. Two paths into the same scene:
 
-- **Confirm-in-house**: player visits Emily during autumn, advances to her invitation line, presses `[f]` again. `contributeDormancyPressure(state, 1.0)` jumps the field to ceiling. On the next frame the threshold-trigger from precis-32 begins the Revery with the steward already in the house. precis-32's Gron-teleport and collapse-tile commit gracefully no-op (their failure cases cover the cross-zone steward). At `Omen → Observing`, `revery-house-scene` repositions the steward to `houseBedInterior` and Emily to `houseChairInterior`; her prior idle position is captured in `state.emilyReveryReturn`.
+- **Confirm-in-house**: player visits Emily during autumn, advances to her invitation line, presses `[f]` again. `contributeDormancyPressure(state, 1.0)` jumps the field to ceiling. On the next frame the threshold-trigger from RP-32 begins the Revery with the steward already in the house. RP-32's Gron-teleport and collapse-tile commit gracefully no-op (their failure cases cover the cross-zone steward). At `Omen → Observing`, `revery-house-scene` repositions the steward to `houseBedInterior` and Emily to `houseChairInterior`; her prior idle position is captured in `state.emilyReveryReturn`.
 
-- **Field-summons**: player has not visited Emily this autumn; precis-32's pressure ramp reaches 1.0 at the winter solstice frame. The steward collapses in the field, Gron teleports adjacent, precis-32 captures the collapse tile on the overworld. At `Omen → Observing`, `revery-house-scene` performs an **immediate synchronous zone swap** to `HouseInterior` (the existing fade between Omen and Observing covers the gap), then repositions steward and Emily as above. At `Closing`, precis-32's egregore commit fires on the original overworld collapse tile — _the prairie metabolizes the spot the steward fell_, even though the Revery itself played in the house.
+- **Field-summons**: player has not visited Emily this autumn; RP-32's pressure ramp reaches 1.0 at the winter solstice frame. The steward collapses in the field, Gron teleports adjacent, RP-32 captures the collapse tile on the overworld. At `Omen → Observing`, `revery-house-scene` performs an **immediate synchronous zone swap** to `HouseInterior` (the existing fade between Omen and Observing covers the gap), then repositions steward and Emily as above. At `Closing`, RP-32's egregore commit fires on the original overworld collapse tile — _the prairie metabolizes the spot the steward fell_, even though the Revery itself played in the house.
 
 At `Closing` (both paths): Emily's position is restored from `state.emilyReveryReturn`; the steward stays on the bed and walks off at their pace; `state.emilyInvitation` resets to `'unoffered'` so the cycle can repeat the next autumn.
 
@@ -102,6 +102,6 @@ At `Closing` (both paths): Emily's position is restored from `state.emilyReveryR
 - The Revery is the headline ceremony. v4 frames it as the year-scale leak — heat death is the antagonist; tending is the verb.
 - _The steward does not enter the Revery; the Revery enters the steward._ v6 round 1 lock.
 - Player does nothing during the Revery. Camera drifts. Year counter. Summary at end.
-- The retired omen predicates (bee on shoulder, distant meteorite, cloud passing the sun) and their constants (`REVERY_OMEN_STATIONARY_MS`, the helper `detectOmen`) are gone. v6 round 6: _an omen is the prairie noticing the steward back._ The omen variant itself (the Revery Knot) ships in precis-36.
+- The retired omen predicates (bee on shoulder, distant meteorite, cloud passing the sun) and their constants (`REVERY_OMEN_STATIONARY_MS`, the helper `detectOmen`) are gone. v6 round 6: _an omen is the prairie noticing the steward back._ The omen variant itself (the Revery Knot) ships in RP-36.
 - v3: `npm run verify` is the cross-cutting gate; new state fields require `EXPECTED_FIELDS` updates per `docs/claude/state.md`.
-- Doctrine source: `docs/precis-thinktank-v3.md` section "The Revery"; supplementary v4 framing in `docs/precis-thinktank-v4.md` round 2; v6 thinktank rounds 1, 4, 5, 6 for the pressure model and summons sequence.
+- Doctrine source: `docs/backlog-thinktank-v3.md` section "The Revery"; supplementary v4 framing in `docs/backlog-thinktank-v4.md` round 2; v6 thinktank rounds 1, 4, 5, 6 for the pressure model and summons sequence.

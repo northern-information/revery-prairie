@@ -88,11 +88,11 @@ Slash commands start the pipeline. Each is conversational — the AI gathers req
 
 ### Sequencing the Precis
 
-The long-running precis rollout (24 features and counting, from "delete the four player-cast spells" through the Revery, controlled burn, genetics, egregoric flora, and failure-state biomes) is sequenced separately from any single harness spec:
+The long-running backlog rollout (24 features and counting, from "delete the four player-cast spells" through the Revery, controlled burn, genetics, egregoric flora, and failure-state biomes) is sequenced separately from any single harness spec:
 
-- `docs/precis-thinktank-v3.md` — locked doctrine: vocabulary, cosmology, time, genetics decision, the sequence + dependency graph
-- `docs/precis-thinktank-v4.md` — additive doctrine on top of v3: heat-death cosmology, wear as a universal mechanic, tenure handoff, lineage multiplayer
-- `docs/precis-status.yaml` — running state: each feature's status, spec/plan/pr links, notes
+- `docs/backlog-thinktank-v3.md` — locked doctrine: vocabulary, cosmology, time, genetics decision, the sequence + dependency graph
+- `docs/backlog-thinktank-v4.md` — additive doctrine on top of v3: heat-death cosmology, wear as a universal mechanic, tenure handoff, lineage multiplayer
+- `docs/backlog.yaml` — running state: each feature's status, spec/plan/pr links, notes
 - `npm run backlog` — terminal kanban (TODO / NEXT / IN PROGRESS / SHIPPED) rendered from the YAML. Live-reloads when you edit it
 
 Start each feature by checking the dashboard's NEXT column, then run `/new-feature` (or `/change-request` / `/bug-report`) and reference v3 + v4 for doctrine.
@@ -118,7 +118,7 @@ Start each feature by checking the dashboard's NEXT column, then run `/new-featu
 | `npm run spec:validate`   | Validate harness specs                   |
 | `npm run harness:run`     | Execute a harness plan                   |
 | `npm run harness:check`   | Detect spec-code drift                   |
-| `npm run backlog`         | Terminal kanban for the precis backlog   |
+| `npm run backlog`         | Terminal kanban for the backlog item backlog   |
 
 ## License
 

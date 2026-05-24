@@ -1,0 +1,345 @@
+id: RP-27-strip-genesis-commentary
+name: 'RP-27 — Strip genesis epoch commentary; reframe as reverse deep-time projection'
+priority: high
+layer: integration
+source_files:
+  - docs/backlog.yaml
+  - docs/claude/genesis.md
+  - src/engine/genesisTypes.ts
+  - src/engine/genesis.ts
+  - src/engine/genesisRenderer.ts
+  - src/engine/gameLoop.ts
+  - src/engine/state.ts
+  - src/engine/types.ts
+  - src/engine/manual.ts
+  - src/engine/renderer.ts
+  - src/engine/render/passes/index.ts
+  - src/components/BootTitleCardOverlay.tsx
+  - src/components/GameScreen.tsx
+  - src/hooks/useGameEngine.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+  - src/engine/__tests__/genesis.test.ts
+dependencies: []
+
+behaviors:
+  - id: commentary-strings-deleted
+    description: >
+      Every GENESIS_EPOCHS entry in src/engine/genesis.ts loses
+      its `commentary` field. All 14 strings ('Simulating birth
+      of cosmos...', 'Dust coalesces...', 'Plates collide and
+      ranges rise...', 'A kingdom of lava absolute...', 'The
+      crust cools...', 'Oceans gather in the lowlands...',
+      'Primordial life emerges...', 'The sky falls...', 'Life
+      grows back...', 'Glaciers advance, carving the land...',
+      'An extinction event...', 'Glaciers melt and life
+      continues...', 'Civilizations emerge...', 'Empires crumble
+      and sink beneath the land...', 'A steward is called...')
+      are removed. The GenesisEpoch interface in
+      src/engine/genesisTypes.ts loses its `commentary: string`
+      field. The getGenesisCommentary export is removed from
+      genesis.ts.
+    inputs:
+      - 'codebase after RP-27 lands'
+    outputs:
+      - "grep for 'commentary' in src/engine/genesis.ts returns zero results"
+      - "grep for 'commentary' in src/engine/genesisTypes.ts returns zero results"
+      - "grep for 'getGenesisCommentary' in src/ returns zero results"
+    state_changes: []
+    determinism: deterministic
+
+  - id: epoch-narration-callback-removed
+    description: >
+      The per-epoch narration callback is removed end to end.
+      tickGenesis loses its `onEpochStart` parameter; the
+      onGenesisEpochStart field is removed from GameState in
+      src/engine/types.ts; createGameState in src/engine/state.ts
+      no longer initialises it; gameLoop.ts no longer passes it
+      to tickGenesis; useGameEngine.ts comment about wiring the
+      callback is rewritten to describe only the title-card
+      reason for the layout-effect deferral. The
+      narratedEpochCount field on GenesisSimState is also
+      deleted — it existed solely to gate the narration callback
+      (tickGenesis "fire once per epoch" guard and
+      completeGenesis "flush remaining epochs" loop). With no
+      callback the field has zero readers, so the field
+      declaration, initialiser, and guard sites are all
+      removed. completeGenesis loses its trailing
+      narration-flush while-loop entirely; runAllMutations is
+      already gated by epochIndex and is unaffected.
+    inputs:
+      - 'codebase after RP-27 lands'
+    outputs:
+      - "grep for 'onGenesisEpochStart' in src/ returns zero hits"
+      - "grep for 'onEpochStart' in src/ returns zero hits"
+      - "grep for 'narratedEpochCount' in src/ returns zero hits"
+      - "tickGenesis signature is (sim, epochs, time) — three args, no callback"
+      - "completeGenesis contains no while loop iterating narratedEpochCount"
+    state_changes:
+      - field: GameState.onGenesisEpochStart
+        effect: 'removed from the GameState type and from createGameState'
+      - field: GenesisSimState.narratedEpochCount
+        effect: 'removed from the GenesisSimState interface and from createGenesisState'
+    determinism: deterministic
+
+  - id: genesis-renders-no-hud
+    description: >
+      src/components/GenesisBottomBar.tsx is deleted entirely.
+      src/components/GameScreen.tsx no longer imports or mounts
+      GenesisBottomBar; the `state.genesis ? <GenesisBottomBar />
+      : <bottom-bar>` ternary collapses to `{!state.genesis &&
+      <bottom-bar>}`, so during genesis neither the gameplay
+      bottom-bar nor any HUD card mounts. src/components/Sidebar.tsx
+      has also been deleted entirely (see the minimap spec's
+      sidebar-deleted behavior). The genesis screen is the canvas
+      plus the BootTitleCardOverlay (which fades in at the handoff);
+      no year readout, no progress bar, no epoch counter, no skip
+      hint anywhere on screen. The diegetic discipline from
+      backlog-thinktank-v4 round 9 still holds — no
+      consumer-electronics gestures (boot animations, splash
+      screens, loading bars, percentage indicators) — and the
+      bordered-card year+bar that this backlog item originally introduced
+      is now also retired: the screen is silent under the
+      simulation.
+    inputs:
+      - 'GameScreen renders with state.genesis non-null'
+    outputs:
+      - 'no file src/components/GenesisBottomBar.tsx exists'
+      - 'grep for "GenesisBottomBar" in src/ returns zero hits'
+      - 'no DOM element has data-panel="genesis-bottom-bar"'
+      - 'no DOM element has data-panel="bottom-bar" while state.genesis is non-null'
+    state_changes: []
+    determinism: deterministic
+
+  - id: year-helpers-deleted
+    description: >
+      formatYearsAgo, getGenesisYear, and EPOCH_YEAR_RANGES are
+      removed from src/engine/genesis.ts. No code computes or
+      displays a "years ago" string during genesis — the
+      reverse-projection year readout that this backlog item originally
+      introduced is fully retired. getEpochProgress is retained
+      because src/engine/genesisRenderer.ts reads it for the
+      elevation tween. GENESIS_END_YEAR and formatYear are retained
+      as exports for future callers (the Sidebar deep-time year
+      display that previously consumed them has also been deleted
+      as part of the sidebar removal).
+    inputs:
+      - 'codebase after this change lands'
+    outputs:
+      - 'grep for "formatYearsAgo" in src/ returns zero hits'
+      - 'grep for "getGenesisYear" in src/ returns zero hits'
+      - 'grep for "EPOCH_YEAR_RANGES" in src/ returns zero hits'
+      - 'grep for "GENESIS_END_YEAR" in src/ resolves to its declaration in src/engine/genesis.ts'
+      - 'grep for "getEpochProgress" in src/ still resolves to its declaration in src/engine/genesis.ts plus the genesisRenderer.ts caller'
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-manual-entry-deleted
+    description: >
+      The Genesis entry in src/engine/manual.ts is removed
+      entirely. buildGenesisEntry is deleted. The MANUAL_ENTRIES
+      registry (or wherever the genesis entry is registered) no
+      longer references it. MANUAL_LORE['event:genesis'] is
+      deleted if present. The screen is now a reverse projection,
+      not a narrated event — there is no manual entry to
+      describe it. Any other manual entries that cross-reference
+      'event:genesis' are updated to drop the reference (this
+      affects only crossRefs strings, not the entry's existence).
+    inputs:
+      - 'manual is browsed after RP-27 lands'
+    outputs:
+      - "grep for 'event:genesis' in src/engine/manual.ts returns zero hits"
+      - "buildGenesisEntry does not exist as an export or local"
+      - "MANUAL_LORE['event:genesis'] is undefined"
+      - 'the manual UI shows no entry titled Genesis'
+    state_changes: []
+    determinism: deterministic
+
+  - id: title-card-comment-scrubbed
+    description: >
+      src/components/BootTitleCardOverlay.tsx's comment about
+      "covering the year readout during the title-card hold" is
+      rewritten — there is no year readout (and no other HUD
+      element) to cover anymore. The overlay still renders as a
+      full-screen (`inset-0 z-50`) black-with-title-text fade
+      during the title-card hold; only the explanatory comment
+      changes. The comment now describes the overlay as the
+      genesis-to-gameplay handoff mask.
+    inputs:
+      - 'codebase after this change lands'
+    outputs:
+      - 'no comment in BootTitleCardOverlay.tsx mentions "commentary"'
+      - 'no comment in BootTitleCardOverlay.tsx mentions "year readout"'
+      - 'the overlay still fades full-screen during the title-card hold (inset-0 z-50)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: tests-pruned-or-rewritten
+    description: >
+      Test surfaces are touched. In src/engine/__tests__/genesis.test.ts,
+      the 'genesis narration callback', 'completeGenesis narration flush',
+      and 'getGenesisCommentary' describes are removed (they were removed
+      in the original RP-27 work and remain removed). The
+      'formatYearsAgo' describe block — added by the original RP-27
+      work — is now also removed, along with the 'getEpochProgress clock
+      consistency' subcase that imported formatYearsAgo /
+      GENESIS_END_YEAR / getGenesisYear solely for year assertions.
+      Imports of formatYearsAgo, getGenesisYear, and EPOCH_YEAR_RANGES
+      are removed from the file. Imports of GENESIS_END_YEAR and
+      getEpochProgress are retained only if a surviving test still
+      references them. The remaining tests in the file
+      (createGenesisState, runAllMutations, etc.) are not touched.
+    inputs:
+      - 'codebase after this change lands'
+    outputs:
+      - 'npx vitest run src/engine/__tests__/genesis.test.ts passes'
+      - 'grep for "formatYearsAgo" in src/engine/__tests__/genesis.test.ts returns zero hits'
+      - 'grep for "getGenesisYear" in src/engine/__tests__/genesis.test.ts returns zero hits'
+      - "grep for 'Simulating birth of cosmos' in src/ returns zero hits"
+    state_changes: []
+    determinism: deterministic
+
+  - id: schema-allowlist-updated
+    description: >
+      src/harness/__tests__/serialization/schema.test.ts has
+      'onGenesisEpochStart' removed from its EXPECTED_FIELDS
+      allowlist. The serialization schema test continues to
+      pass.
+    inputs:
+      - 'serialization schema test run'
+    outputs:
+      - "grep for 'onGenesisEpochStart' in src/harness returns zero hits"
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts passes'
+    state_changes: []
+    determinism: deterministic
+
+  - id: stale-comments-scrubbed
+    description: >
+      Source-file comments that reference the deleted commentary
+      system or the now-deleted genesis bottom bar are rewritten
+      or removed. The original RP-27 sites — genesisRenderer.ts
+      epoch palette comment, renderer.ts comment about "the
+      commentary pass and the boot title card overlay",
+      src/engine/render/passes/index.ts comment about "the genesis
+      commentary bottom-right" — must contain no references to
+      'commentary'. Any newer comments that referenced 'year
+      readout', 'genesis bottom bar', 'GenesisBottomBar', or
+      'bottom-right year readout' are also rewritten or deleted,
+      because the bar is gone.
+    inputs:
+      - 'codebase after this change lands'
+    outputs:
+      - "grep for 'commentary' in src/engine/genesisRenderer.ts returns zero hits"
+      - "grep for 'commentary' in src/engine/renderer.ts returns zero hits"
+      - "grep for 'commentary' in src/engine/render/passes/index.ts returns zero hits"
+      - "grep -i 'birth of cosmos\\|dust coalesces' src/ returns zero hits"
+      - "grep for 'GenesisBottomBar' in src/engine/ returns zero hits"
+      - "grep -i 'year readout' in src/engine/ returns zero hits"
+    state_changes: []
+    determinism: deterministic
+
+  - id: docs-reframed
+    description: >
+      docs/claude/genesis.md continues to frame genesis as a
+      reverse deep-time projection (the permacomputer back-
+      derives the world from the steward's name seed via
+      nameToSeed + mulberry32 + 14 epoch mutations). The
+      paragraph describing the bordered-card year readout +
+      gold fill bar that the original RP-27 work
+      introduced is removed — the screen has no HUD. The
+      replacement sentence states explicitly that genesis
+      renders no HUD overlay; the only on-screen elements
+      during the simulation are the canvas and (at the
+      handoff) the BootTitleCardOverlay. The doc must not
+      describe genesis as a narrated prologue, as a
+      commentary-driven cutscene, or as carrying a loading
+      bar / progress bar / year readout / bordered card. The
+      skip mechanism and soil-health sections may be retained
+      structurally but their tone must match the calm-tech /
+      permacomputing register — no "narrate", no "cutscene"
+      vocabulary.
+    inputs:
+      - 'codebase after this change lands'
+    outputs:
+      - "grep for 'commentary' in docs/claude/genesis.md returns zero hits"
+      - "grep for 'narrate\\|prologue\\|cutscene' in docs/claude/genesis.md returns zero hits"
+      - "grep -iE 'bordered card|fill bar|year readout|loading bar|progress bar' docs/claude/genesis.md returns zero hits"
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: instant-skip-via-skip-genesis-url-param
+    description: >
+      The ?skipGenesis=true dev path calls completeGenesis()
+      which runs all mutations synchronously. Without a
+      narration callback and without a year-readout HUD this
+      path still works — it produces a playable world and
+      the title card swap fires normally.
+    expected: >
+      ?skipGenesis=true still produces a playable world. Title
+      card swap fires normally. No HUD frame is observed on
+      the way through.
+  - id: manual-cross-references-to-genesis
+    description: >
+      Other manual entries (zone:cave, item:aqueduct fragments,
+      etc.) may cross-reference 'event:genesis' in their
+      crossRefs arrays. After the original RP-27 manual-entry
+      deletion those references are invalid IDs. The manual
+      cross-ref lookup must tolerate a missing target gracefully
+      (skip the link rather than crash) OR every cross-ref to
+      'event:genesis' must be pruned from the source data.
+      Default: prune the references — the manual UI shouldn't
+      render dead links.
+    expected: >
+      No manual entry retains a 'event:genesis' crossRef. The
+      manual loads and renders without error.
+  - id: handoff-frame-with-no-hud
+    description: >
+      Between completeGenesis firing and the BootTitleCardOverlay
+      reaching full opacity, there is a brief window where the
+      simulation is "done" but the title card is not yet covering
+      the screen. With the genesis HUD removed, this window
+      shows the prairie canvas plain — no "~now" hold, no fade
+      from a year readout, no bar emptying. The BootTitleCardOverlay
+      then fades in over the canvas as before.
+    expected: >
+      Player sees the prairie canvas momentarily before the
+      title card fades in. No HUD residue is visible.
+  - id: no-new-exposed-seam-affordance
+    description: >
+      The spec's original "open question" — adding a hash readout,
+      tile counter, or seed-bytes display — is resolved at no.
+      Nothing is added. The screen exposes its seams only through
+      the renderer's per-tile mutation animations and the
+      deterministic epoch order. The bordered-card year+bar that
+      the original RP-27 work introduced is also retired by
+      this change, leaving no HUD at all during genesis.
+    expected: >
+      No component, prop, or state field surfaces seed bytes /
+      hash / tile counts / year / epoch progress. The genesis
+      screen renders the canvas only (plus the BootTitleCardOverlay
+      at the handoff).
+
+failure_conditions:
+  - trigger: "grep -nE \"['\\\"]Simulating birth of cosmos|['\\\"]Dust coalesces|['\\\"]Plates collide|['\\\"]A kingdom of lava|['\\\"]The crust cools|['\\\"]Oceans gather|['\\\"]Primordial life|['\\\"]The sky falls|['\\\"]Life grows back|['\\\"]Glaciers advance|['\\\"]An extinction event|['\\\"]Glaciers melt|['\\\"]Civilizations emerge|['\\\"]Empires crumble|['\\\"]A steward is called\" -r src/ returns any hits"
+    expected: 'CI fails — commentary strings persist somewhere in src/'
+  - trigger: "grep for 'getGenesisCommentary\\|onGenesisEpochStart\\|onEpochStart\\|narratedEpochCount' in src/ returns any hits"
+    expected: 'CI fails — the narration callback, accessor, or count guard still exists'
+  - trigger: 'src/components/GenesisBottomBar.tsx exists'
+    expected: 'CI fails — the genesis HUD component was reintroduced'
+  - trigger: 'grep -r "GenesisBottomBar\\|formatYearsAgo\\|getGenesisYear\\|EPOCH_YEAR_RANGES" src/ returns any hits'
+    expected: 'CI fails — the genesis year-readout HUD or its helpers were reintroduced'
+  - trigger: 'A DOM element with data-panel="bottom-bar" or data-panel="genesis-bottom-bar" mounts while state.genesis is non-null'
+    expected: 'CI fails — genesis must render no bottom HUD overlay'
+  - trigger: "grep for 'commentary\\|narrate\\|prologue\\|cutscene' in docs/claude/genesis.md returns any hits"
+    expected: 'CI fails — the doc still describes genesis as a narrated event'
+  - trigger: "grep -iE 'bordered card|fill bar|year readout|loading bar|progress bar' docs/claude/genesis.md returns any hits"
+    expected: 'CI fails — the doc still describes the retired HUD card'
+  - trigger: 'npm run spec:validate exits non-zero'
+    expected: 'CI fails — spec or plan files reference deleted symbols'
+  - trigger: 'A new HUD element (year readout, hash readout, seed bytes, tile counter, loading bar, progress bar, percentage indicator like "63% loaded", splash screen, boot animation, "press any key to skip" hint, bordered card with epoch progress, or any other ambient widget) mounts during genesis.'
+    expected: 'CI fails — the diegetic test bans HUD overlays during genesis per backlog-thinktank-v4 round 9 and per this change'
+
+verification:
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: 'genesis'
+  command: 'npx vitest run src/engine/__tests__/genesis.test.ts'

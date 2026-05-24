@@ -1,4 +1,4 @@
-// Precis #17 — species-agnostic spread config.
+// RP-17 — species-agnostic spread config.
 //
 // Each flora species ships a SpeciesSpreadConfig declaring its spread
 // behavior. The engine in src/engine/flora/spread.ts is parameterized

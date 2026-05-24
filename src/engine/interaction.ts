@@ -65,7 +65,7 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
   if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Flora) {
     return true
   }
-  // Egregore tiles are F-hold scan targets (precis-8a egregore-glyph-scan-fix).
+  // Egregore tiles are F-hold scan targets (RP-8a egregore-glyph-scan-fix).
   // The cursor highlights them and the facing entity reticle locks on, same
   // affordance as flora.
   if (isInBounds(x, y, state.mapWidth, state.mapHeight) && state.map[y][x].type === TileType.Egregore) {
@@ -181,7 +181,7 @@ export const interactWithCharacter = (
 }
 
 /**
- * Precis #33 — close the active dialog, with a cancel-Emily-invitation
+ * RP-33 — close the active dialog, with a cancel-Emily-invitation
  * guard. If Emily's invitation was 'offered' but never reached 'confirmed'
  * (the confirm path sets 'confirmed' BEFORE calling this), revert to
  * 'unoffered' so the player can re-arm by re-engaging Emily.
@@ -199,7 +199,7 @@ export const advanceDialog = (
 ): { continuing: boolean; gift: GiftAnnouncement | null } => {
   if (!state.activeDialog) return { continuing: false, gift: null }
 
-  // Precis #33 — invitation confirm: [f] while awaitingConfirmation is
+  // RP-33 — invitation confirm: [f] while awaitingConfirmation is
   // set commits dormancy pressure to threshold and closes the dialog.
   // Runs BEFORE the typing-skip path so a second [f] press at the
   // armed last line is interpreted as confirmation, not as a no-op.
@@ -225,7 +225,7 @@ export const advanceDialog = (
     const line = dialog[state.activeDialog.lineIndex]
     state.activeDialog.typingIndex = line.length
     state.activeDialog.typingDone = true
-    // Precis #33 — Emily's autumn invitation can also arm via the
+    // RP-33 — Emily's autumn invitation can also arm via the
     // typing-skip path (player pressed [f] mid-typing to reveal the
     // full last line). Mirror the tickDialogTyping arm logic.
     if (
@@ -261,7 +261,7 @@ export const advanceDialog = (
     state.pendingSavedBees = false
   }
 
-  // Precis #9b — completing dialog with Moab while he is walking the
+  // RP-9b — completing dialog with Moab while he is walking the
   // line dismisses him. moabState flips to 'dismissed'; the torchbearer
   // tick converts that to 'returning' next pass and Moab pathfinds back
   // to the cave. lockedBurnLine stays in state until Spring → Summer.
@@ -308,10 +308,10 @@ export const tickDialogTyping = (state: GameState, now: number): void => {
   state.activeDialog.typingIndex++
   if (state.activeDialog.typingIndex >= line.length) {
     state.activeDialog.typingDone = true
-    // Precis #33 — Emily's autumn last line is the invitation. Arm
+    // RP-33 — Emily's autumn last line is the invitation. Arm
     // awaitingConfirmation; flip emilyInvitation to 'offered' on the
     // first arming this autumn. Suppressed if a Revery is already
-    // active (the precis-32 threshold-trigger gates on revery === null).
+    // active (the RP-32 threshold-trigger gates on revery === null).
     if (
       state.activeDialog.characterId === 'emily' &&
       state.weather.season === Season.Autumn &&
@@ -337,7 +337,7 @@ export const giveCharacterGift = (
   const def = getCharacterDefinition(characterId)
   if (!def.gift) return null
   if (state.giftsReceived.has(characterId)) return null
-  // Item gifts — deferred to precis #5 (ruin recovery).
+  // Item gifts — deferred to RP-5 (ruin recovery).
   return null
 }
 
@@ -534,7 +534,7 @@ const rescueCoyote = (state: GameState): void => {
   }
 }
 
-// Exported for precis-32 — the summons sequence in revery.ts teleports
+// Exported for RP-32 — the summons sequence in revery.ts teleports
 // Gron to an adjacent walkable tile via this helper.
 export const pickAdjacentWalkableTile = (state: GameState, px: number, py: number): Position | null => {
   for (const d of CARDINAL) {

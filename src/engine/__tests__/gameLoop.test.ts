@@ -830,7 +830,7 @@ describe('background tab return', () => {
   })
 })
 
-describe('scan auto-commit (precis #6)', () => {
+describe('scan auto-commit (RP-6)', () => {
   const placeFlora = (state: ReturnType<typeof createTestState>, x: number, y: number, species: FloraSpecies): void => {
     state.map[y][x] = { type: TileType.Flora }
     const key = posKey(x, y)

@@ -253,7 +253,7 @@ const placeEgregore = (
   state.map[y][x] = { type: TileType.Egregore }
 }
 
-describe('egregore scan (precis #8a)', () => {
+describe('egregore scan (RP-8a)', () => {
   it('selectScanTarget returns an egregore variant for an on-tile egregore', () => {
     const state = createTestState()
     clearAroundPlayer(state, 2)

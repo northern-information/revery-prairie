@@ -1,4 +1,4 @@
-// Precis #17 — clover spread config.
+// RP-17 — clover spread config.
 //
 // Extracted from src/engine/clover.ts. The spiral-front growth pattern
 // is unique to clover (bee-mediated, rotating angular front centered

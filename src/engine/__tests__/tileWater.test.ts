@@ -81,7 +81,7 @@ describe('tileWater', () => {
       // fringe). With RAIN_FRONT_FRINGE=8 the core starts at offset 8, so
       // place the front 12 tiles behind the test tile to land solidly in core.
       // SW maps to { axis: 'x', sign: 1 } in the rotated cardinal frame
-      // (precis-thinktank-v5 round 1), matching what the tests below assume:
+      // (backlog-thinktank-v5 round 1), matching what the tests below assume:
       // a front advancing along +x. Swapped from the old WindDirection.E.
       state.weather.windDirection = WindDirection.SW
       state.rainFrontOffset = state.player.x + 1 - 12
@@ -188,7 +188,7 @@ describe('tileWater', () => {
     beforeEach(() => {
       state = createTestState()
       // SW maps to { axis: 'x', sign: 1 } in the rotated cardinal frame
-      // (precis-thinktank-v5 round 1), matching what the tests below assume:
+      // (backlog-thinktank-v5 round 1), matching what the tests below assume:
       // a front advancing along +x. Swapped from the old WindDirection.E.
       state.weather.windDirection = WindDirection.SW
       state.rainFrontOffset = 0
@@ -248,7 +248,7 @@ describe('tileWater', () => {
   })
 })
 
-// Golden fixture for the rotated cardinal frame (precis-thinktank-v5 round 1).
+// Golden fixture for the rotated cardinal frame (backlog-thinktank-v5 round 1).
 // Pins each cardinal's (axis, sign) return so the old frame cannot be
 // reintroduced by accident. Cardinals sweep along iso diagonals (u = x + y,
 // v = x - y); ordinals sweep along storage axes.

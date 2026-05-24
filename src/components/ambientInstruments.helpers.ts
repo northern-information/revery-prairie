@@ -6,7 +6,7 @@ import type { WindDirection } from '@/engine/types'
 // base arrow SVG points N; the component applies CSS transform:
 // rotate(...) to produce the other seven directions. No translation
 // layer between state and screen — the enum reads directly under
-// precis-30's rotated frame.
+// RP-30's rotated frame.
 export const VANE_ROTATION_DEG: Record<WindDirection, number> = {
   N: 0,
   NE: 45,

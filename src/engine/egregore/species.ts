@@ -1,4 +1,4 @@
-// Precis #8b — Egregoric flora (mechanical biome).
+// RP-8b — Egregoric flora (mechanical biome).
 //
 // Two species share TileType.Egregore. They have no FloraSpecies enum
 // entry — the cosmological boundary is rendered as a separate type

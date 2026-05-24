@@ -1,18 +1,18 @@
 ---
 name: thinktank
-description: Stage a new round of the precis thinktank — Astrid, Boon, Calla, Delta argue a design question, then append the round to a `docs/precis-thinktank-v*.md` doc
+description: Stage a new round of the backlog item thinktank — Astrid, Boon, Calla, Delta argue a design question, then append the round to a `docs/backlog-thinktank-v*.md` doc
 user_invocable: true
 ---
 
 # /thinktank
 
-Conversational skill for running a new round of the precis thinktank. The thinktank is the editorial back-and-forth where design decisions get hashed out before they become specs. See `docs/precis-thinktank-v4.md` for the running document; v1–v3 are the archive.
+Conversational skill for running a new round of the backlog item thinktank. The thinktank is the editorial back-and-forth where design decisions get hashed out before they become specs. See `docs/backlog-thinktank-v4.md` for the running document; v1–v3 are the archive.
 
 ## The cast
 
 These voices are stable across versions. Honor them.
 
-- **Astrid** — vision purist. Defends precis themes literally. Tests every proposal against the five-line cosmology (heat death is the antagonist; tending is the verb; the tenure is the unit; the lineage is the medium; the inventory is the character sheet). Quotes Dickinson, points at tone. Says "no" when a mechanic would humanize what the cosmology forbids.
+- **Astrid** — vision purist. Defends doctrine themes literally. Tests every proposal against the five-line cosmology (heat death is the antagonist; tending is the verb; the tenure is the unit; the lineage is the medium; the inventory is the character sheet). Quotes Dickinson, points at tone. Says "no" when a mechanic would humanize what the cosmology forbids.
 - **Boon** — systems-first. Every loop should compound. Talks in substrate, dependencies, perf budgets, file paths, LOC. Names the smallest spec that earns its keep. Will scope a thing down before scoping it up.
 - **Calla** — player-experience pragmatist. Asks "what does the next session feel like?" Separates mastery / commitment / loss when they get conflated. Will defend a feeling against a system if the feeling is load-bearing.
 - **Delta** — late-arriving frame-breaker. Joined in v4. Renames things. Says the unfashionable true thing. Coins the line the round ends up being remembered by ("permanence is a capitalist assumption", "the camera does not know"). Often the one who pushes a round toward consensus by reframing the question.
@@ -23,7 +23,7 @@ A round usually has all four. If a round is narrower, drop the voices that have 
 
 ### 1. Pick the target doc
 
-List `docs/precis-thinktank-v*.md` (newest first). Ask the user which doc to append to. Default to the highest-numbered one. If the highest is closed (has a `## Verification` section that reads like a sign-off), offer to start a new version — `docs/precis-thinktank-v{N+1}.md` — and seed it with a short preamble that references the previous version the same way v4's preamble references v2/v3.
+List `docs/backlog-thinktank-v*.md` (newest first). Ask the user which doc to append to. Default to the highest-numbered one. If the highest is closed (has a `## Verification` section that reads like a sign-off), offer to start a new version — `docs/backlog-thinktank-v{N+1}.md` — and seed it with a short preamble that references the previous version the same way v4's preamble references v2/v3.
 
 Wait for the answer before continuing.
 
@@ -33,7 +33,7 @@ Ask conversationally — don't dump all the questions at once. Get the seed firs
 
 - **The seed.** What did Tyler bring to the room? A question, a worry, an offhand observation. This becomes the `_Tyler: "…"_` epigraph under the round heading. Quote him verbatim if he gave you a sentence; paraphrase faithfully and confirm if he gave you a sketch.
 - **Who's in the room.** Default: all four. Ask only if the seed obviously narrows it (e.g. a pure perf question may not need Astrid).
-- **What's already locked.** If the seed touches a system that already has shipped specs or v3/v4 locks, name them so the round doesn't relitigate settled ground. Skim `docs/precis-status.yaml` and the target doc's top-matter ("Locked in v4" / "Open in v4") for context.
+- **What's already locked.** If the seed touches a system that already has shipped specs or v3/v4 locks, name them so the round doesn't relitigate settled ground. Skim `docs/backlog.yaml` and the target doc's top-matter ("Locked in v4" / "Open in v4") for context.
 - **Optional sub-sections.** Long rounds (see Round 7 and 8 in v4) organize the dialogue under `###` sub-headings. If the seed has multiple distinct facets, suggest a sub-section spine and confirm.
 
 ### 3. Find the next round number
@@ -63,7 +63,7 @@ _Tyler: "the seed quote, verbatim or faithful paraphrase."_
 
 ### Tracked as
 
-- **`#NN Title (short)`** — size, deps, one sentence on what it is. New items get the next free integer id in `docs/precis-status.yaml`.
+- **`#NN Title (short)`** — size, deps, one sentence on what it is. New items get the next free integer id in `docs/backlog.yaml`.
 - **Amendment to `#NN`:** if a round modifies the scope of an already-tracked item, say so explicitly.
 
 ### Open questions deferred to specs
@@ -89,9 +89,9 @@ Show the user the drafted round in chat before writing. Ask for revisions. Itera
 
 Append the round to the target doc just above the `## Verification` section if one exists, otherwise at the bottom. Add a blank line and a horizontal rule (`---`) before the new round if the previous round didn't already end with one (the v4 rounds use `---` separators between rounds).
 
-### 7. Update `docs/precis-status.yaml`
+### 7. Update `docs/backlog.yaml`
 
-For every new `#NN` item in the round's `### Tracked as` section, append an entry to `features:` in `docs/precis-status.yaml`. **Field order is locked** (per the header comment in the YAML) — match it exactly:
+For every new `#NN` item in the round's `### Tracked as` section, append an entry to `features:` in `docs/backlog.yaml`. **Field order is locked** (per the header comment in the YAML) — match it exactly:
 
 ```yaml
   - id: 'NN'
@@ -139,7 +139,7 @@ If the doc has no top-matter Locked/Open section, skip this step.
 Show the user:
 
 - The file path of the target thinktank doc and a one-line summary of the round (number + title).
-- The list of new `#NN` entries added to `precis-status.yaml`.
+- The list of new `#NN` entries added to `backlog.yaml`.
 - Any in-place edits to existing entries (amendments, status changes).
 - Any top-matter Locked/Open list changes.
 

@@ -41,7 +41,7 @@ const CHARACTERS = {
     // is the default (Summer/Autumn) register — preserved for callers
     // that don't route through getCharacterDialog (legacy tests,
     // snapshot fixtures). Last line is Moab's egregore refusal
-    // (precis #8a). Folk register; never names the egregores directly.
+    // (RP-8a). Folk register; never names the egregores directly.
     // Folk name: "the other clover". Different from the ghost's folk
     // name on purpose — no two NPCs agree on a name per v3 doctrine.
     dialog: ['...', 'The other clover. We do not grow that.'],
@@ -60,7 +60,7 @@ const CHARACTERS = {
     glyphColor: '#5FD3BC',
     dialog: ['The gate is locked.'],
   },
-  // Precis #33 — Emily, the girl who waits, inside the little house.
+  // RP-33 — Emily, the girl who waits, inside the little house.
   // Stationary character at house-interior (14, 1), one tile west of
   // the fireplace. The runtime dispatcher in getCharacterDialog
   // overrides this field with getEmilyDialog(state) based on the
@@ -86,7 +86,7 @@ export const getCharacterDefinition = (id: string): CharacterDefinition => {
   return def
 }
 
-// Ghost #0 carries the egregore refusal line (precis #8a). Folk name:
+// Ghost #0 carries the egregore refusal line (RP-8a). Folk name:
 // "the Far Garden" — distinct from Moab's "the other clover" so the
 // folk-name divergence rule from v3 doctrine is observable on a
 // single playthrough.
@@ -130,7 +130,7 @@ const GRON_DIALOG_COMBINING: string[] = ['Well what are you waiting for, steward
 
 const GRON_DIALOG_SEALED: string[] = ['Ahhh, yes. You are indeed the steward.', "Here, I've been saving these."]
 
-// Precis #32 — Gron's line at the solstice summons. Lore TODO per
+// RP-32 — Gron's line at the solstice summons. Lore TODO per
 // project doctrine (feedback_no_write_lore + v4 R5 / v6 R5 Gron register
 // locks: statements not questions, no contractions, no editorial affect,
 // no opinion of the steward, music precedes arrival). Humans author the
@@ -138,7 +138,7 @@ const GRON_DIALOG_SEALED: string[] = ['Ahhh, yes. You are indeed the steward.', 
 const GRON_DIALOG_SOLSTICE_SUMMONS: string[] = ['TODO: solstice summons dialog']
 
 const getGronDialog = (state: GameState): string[] => {
-  // Precis #32 — summons takes precedence over the main quest branches.
+  // RP-32 — summons takes precedence over the main quest branches.
   // Returned when the active Revery is a pressure-ceiling-path summons
   // and the phase is still Omen (i.e. Gron has just teleported in).
   if (state.revery?.summons === true && state.revery.phase === ReveryPhase.Omen) {
@@ -159,10 +159,10 @@ const getGronDialog = (state: GameState): string[] => {
   }
 }
 
-// Moab the drip torchbearer speaks in three seasonal registers (precis #9a).
+// Moab the drip torchbearer speaks in three seasonal registers (RP-9a).
 // Folk-Coldë voice rules: no contractions, statements not questions, no
 // direct address by title, no editorial affect. Every register's last
-// line is the precis #8a egregore refusal, preserved verbatim.
+// line is the RP-8a egregore refusal, preserved verbatim.
 const MOAB_DIALOG_WINTER: string[] = [
   '...',
   'The line waits.',
@@ -177,7 +177,7 @@ const MOAB_DIALOG_SPRING: string[] = [
 
 const MOAB_DIALOG_DEFAULT: string[] = ['...', 'The other clover. We do not grow that.']
 
-// Precis #9b — registers used while Moab is mid-cycle. moabState
+// RP-9b — registers used while Moab is mid-cycle. moabState
 // overrides season-routing when he is Walking, Refusing, or Dismissed.
 const MOAB_DIALOG_WALKING: string[] = [
   'The line is where the winter put it.',
@@ -198,7 +198,7 @@ const MOAB_DIALOG_DISMISSED: string[] = [
 ]
 
 const getMoabDialog = (state: GameState): string[] => {
-  // Precis #9b — moabState overrides seasonal routing during the cycle.
+  // RP-9b — moabState overrides seasonal routing during the cycle.
   if (state.moabState === MoabState.Walking) return MOAB_DIALOG_WALKING
   if (state.moabState === MoabState.Refusing) return MOAB_DIALOG_REFUSING
   if (state.moabState === MoabState.Dismissed) return MOAB_DIALOG_DISMISSED
@@ -216,9 +216,9 @@ const getMoabDialog = (state: GameState): string[] => {
 }
 
 // Emily speaks the same three lines year-round, on every [f] interaction
-// and on the precis #34 first-wake auto-open. The LAST line is the
+// and on the RP-34 first-wake auto-open. The LAST line is the
 // invitation — pressing [f] on it while season is Autumn arms
-// activeDialog.awaitingConfirmation and routes through the precis #33
+// activeDialog.awaitingConfirmation and routes through the RP-33
 // confirm-to-Revery path. In other seasons the same line plays as
 // foreshadowing; no arm, no confirm prompt.
 //

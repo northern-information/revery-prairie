@@ -203,7 +203,7 @@ export const spreadWildfire = (
 
     // Burn this tile — preserve the original species AND identity through
     // the recovery path so burnt wildflower recovers as wildflower with the
-    // same plant identity (precis #3: burnt flora keeps identity).
+    // same plant identity (RP-3: burnt flora keeps identity).
     burned.add(key)
     const priorEntry = state.floraLifecycle.get(key)
     const priorSpecies = priorEntry?.species ?? FloraSpecies.Clover

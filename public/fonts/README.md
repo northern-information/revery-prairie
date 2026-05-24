@@ -1,6 +1,6 @@
 # Voynich font (egregoric typeface)
 
-Per precis #8a (Egregoric flora — thematic) the renderer applies `font-family: 'Voynich'` to all not-of-this-Earth content: `TileType.Egregore` tiles, egregore manual entry bodies, the Egregore manual category tab label, and (8b+) egregoric flora/entities.
+Per RP-8a (Egregoric flora — thematic) the renderer applies `font-family: 'Voynich'` to all not-of-this-Earth content: `TileType.Egregore` tiles, egregore manual entry bodies, the Egregore manual category tab label, and (8b+) egregoric flora/entities.
 
 `voynich.ttf` is **committed** to this directory as a required build asset. The file is the kreativekorp Voynich Unicode font (CC0, ~215 KiB).
 

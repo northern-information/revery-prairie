@@ -12,7 +12,7 @@ import { createTestState } from './helpers'
 
 import type { GameState, ReverySnapshot } from '../types'
 
-// Precis #32 — dormancy pressure tests.
+// RP-32 — dormancy pressure tests.
 //
 // Covers the linear ramp from autumn equinox (seasonalPhase 0.5) to winter
 // solstice (seasonalPhase 0.75), the gate logic (no active Revery, no deep
@@ -25,7 +25,7 @@ const setRampReady = (state: GameState): void => {
   state.lastReveryEndTime = -REVERY_COOLDOWN_MS
 }
 
-describe('tickDormancyPressure — linear ramp floor (precis #32)', () => {
+describe('tickDormancyPressure — linear ramp floor (RP-32)', () => {
   it('floor is 0 at the autumn equinox (seasonalPhase = 0.5)', () => {
     const state = createTestState()
     setRampReady(state)
@@ -82,7 +82,7 @@ describe('tickDormancyPressure — linear ramp floor (precis #32)', () => {
   })
 })
 
-describe('tickDormancyPressure — gates (precis #32)', () => {
+describe('tickDormancyPressure — gates (RP-32)', () => {
   it('skips when a Revery is already active', () => {
     const state = createTestState()
     setRampReady(state)
@@ -145,7 +145,7 @@ describe('tickDormancyPressure — gates (precis #32)', () => {
   })
 })
 
-describe('contributeDormancyPressure (precis #32)', () => {
+describe('contributeDormancyPressure (RP-32)', () => {
   it('adds the amount and clamps to 1', () => {
     const state = createTestState()
     state.dormancyPressure = 0.4
@@ -177,7 +177,7 @@ describe('contributeDormancyPressure (precis #32)', () => {
   })
 })
 
-describe('createGameState — dormancyPressure initialization (precis #32)', () => {
+describe('createGameState — dormancyPressure initialization (RP-32)', () => {
   it('initializes dormancyPressure to 0', () => {
     const state = createTestState()
     expect(state.dormancyPressure).toBe(0)

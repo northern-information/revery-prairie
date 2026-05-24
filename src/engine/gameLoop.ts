@@ -83,7 +83,7 @@ export interface GameLoopCallbacks {
   onRefreshUI?: () => void
   onBeeDeath?: (worldX: number, worldY: number) => void
   onAutoHidePanel?: () => void
-  // Precis #6 / #8a — fires from tick when a held [f] scan reaches 100% and
+  // RP-6 / #8a — fires from tick when a held [f] scan reaches 100% and
   // commits successfully. The React layer reads the discriminated
   // ScanCommitResult and routes to the right surface: flora opens the
   // ceremonial gel modal in gold, egregore in purple, oak opens the
@@ -428,7 +428,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       })(),
     },
     {
-      // Precis #9b — torchbearer state machine. Runs at MOAB_PACE_MS in
+      // RP-9b — torchbearer state machine. Runs at MOAB_PACE_MS in
       // the overworld zone only; pacing pauses while the player is in
       // the cave (matches bee/ghost suppression). Season transitions
       // are detected on every call via state.lastSeenSeason.
@@ -499,7 +499,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
-      // Precis #17 — wildflower autonomous spread (pollinator-gated).
+      // RP-17 — wildflower autonomous spread (pollinator-gated).
       // Same cadence as clover; the per-tick selectors differ.
       id: 'wildflower-spread',
       intervalMs: CLOVER_GROWTH_TICK_MS,
@@ -510,7 +510,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
-      // Precis #17 — tall grass autonomous spread (rhizome, slowest rate).
+      // RP-17 — tall grass autonomous spread (rhizome, slowest rate).
       id: 'tallgrass-spread',
       intervalMs: CLOVER_GROWTH_TICK_MS,
       zone: 'overworld',
@@ -520,7 +520,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
-      // Precis #17 — ceremony wave advance. Bee+clover combine
+      // RP-17 — ceremony wave advance. Bee+clover combine
       // (recipes.ts) enqueues a WaveEmission; this tick walks the wave
       // outward in CEREMONY_WAVE_TICK_MS steps until it completes.
       id: 'flora-waves',
@@ -532,7 +532,7 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
-      // Precis #17 — bee-mediated pollination. Reads bee/monarch
+      // RP-17 — bee-mediated pollination. Reads bee/monarch
       // positions after their movement tick has run; primes tiles for
       // cross-pollination on the next spread.
       id: 'bee-pollination',
@@ -745,7 +745,7 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
   let rafId = 0
   let running = false
   let paused = false
-  // Precis #32 — previous frame's season, used to detect Autumn → Winter
+  // RP-32 — previous frame's season, used to detect Autumn → Winter
   // transitions for the dormancy-pressure safety reset. Initialized from
   // state.weather.season at first tick to avoid a spurious reset on boot.
   let prevSeason: Season | null = null
@@ -819,7 +819,7 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
       }
     }
 
-    // Precis #6 — auto-commit a held [f] scan once it reaches full duration.
+    // RP-6 — auto-commit a held [f] scan once it reaches full duration.
     // Player doesn't have to time the release; releasing early aborts, but
     // holding past 100% commits immediately.
     if (state.scanInProgress && time - state.scanInProgress.startTime >= SCAN_DURATION_MS) {
@@ -831,7 +831,7 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
       }
     }
 
-    // Precis #32 — dormancy pressure + Revery state machine. Runs after
+    // RP-32 — dormancy pressure + Revery state machine. Runs after
     // the standard tick block so the pressure tick sees the latest season
     // and seasonalPhase, and BEFORE the next frame's input handlers fire
     // so the Omen → Observing transition is reflected by the time
@@ -839,7 +839,7 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
     tickDormancyPressure(state, time)
     // Threshold trigger: pressure crossing ceiling initiates the Revery.
     // The placeholder OmenKind is the legacy enum value preserved for
-    // ReveryState.omenKind shape compat; precis-36 (Revery Knot) will
+    // ReveryState.omenKind shape compat; RP-36 (Revery Knot) will
     // surface a real Knot-pickup kind when it ships. summons=true marks
     // this as a pressure-ceiling-path Revery for the summons sequence in
     // tickRevery.

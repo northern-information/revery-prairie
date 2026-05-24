@@ -24,7 +24,7 @@ tasks:
       phase 0 = spring equinox (March 20), 0.25 = summer solstice, 0.5 =
       autumn equinox, 0.75 = winter solstice. Do not add a Date type alias —
       the inline shape is fine and matches the rest of the file's idiom.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - hidden-annual-clock
       - current-date-from-phase
@@ -44,7 +44,7 @@ tasks:
       In src/engine/state.ts: initialize `currentDate: { month: 3, day: 20 }`
       in createGameState alongside `seasonalPhase: 0` (around line 252).
       The two fields are paired — both anchor to the spring equinox.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - current-date-from-phase
     context_files:
@@ -67,7 +67,7 @@ tasks:
       `'currentDate'` to EXPECTED_FIELDS. Place it adjacent to
       `'seasonalPhase'` (currently line 102) so the two anchored fields
       stay together. The schema test will fail until this is done.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - schema-allowlist-updated
     context_files:
@@ -98,7 +98,7 @@ tasks:
       anchor and reference the new mapping. Update the generateWeather
       block comment (currently says "seasonalPhase = 0 (deep winter)") to
       "seasonalPhase = 0 (spring equinox)".
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - weather-tempers-toward-seasonal-mean
       - weather-generation
@@ -123,7 +123,7 @@ tasks:
       [0.00, 0.25) → Season.Spring, [0.25, 0.50) → Season.Summer,
       [0.50, 0.75) → Season.Autumn, [0.75, 1.00) → Season.Winter. Update
       the block comment above the function to document the new mapping.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - season-derived-from-temperature
     context_files:
@@ -148,7 +148,7 @@ tasks:
       non-leap year (Jan 31, Feb 28, Mar 31, …). Export the helper so
       tests can call it directly. Exact astronomical alignment is not
       required — leap days are intentionally ignored.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - current-date-from-phase
     context_files:
@@ -174,7 +174,7 @@ tasks:
       tick — even in Cave/Ruin zones the date stays in sync with the
       (paused) seasonalPhase, so reading state.currentDate from any zone
       returns a consistent value.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - current-date-from-phase
     context_files:
@@ -242,7 +242,7 @@ tasks:
       ('Date'), Title Case month name. Do not touch the duplicate
       lowercase 'Season' row at lines 586-588 — pre-existing bug, out
       of scope.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - sidebar-date-row
     context_files:
@@ -267,7 +267,7 @@ tasks:
       = autumn equinox, 0.75 = winter solstice. Update the deriveSeason
       paragraph to describe the four-quadrant phase classifier instead of
       "rising toward or falling from summer". Sentence-case prose.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - hidden-annual-clock
       - season-derived-from-temperature
@@ -293,7 +293,7 @@ tasks:
       "warm/summer", use 0.25 (summer solstice). Add an inline comment
       naming the cardinal anchor the value corresponds to so the intent
       survives the next migration.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - existing-spring-only-tests
     context_files:
@@ -318,7 +318,7 @@ tasks:
       number. For deriveSeason tests in particular, update inputs to
       reflect the four-quadrant classifier. Add inline comments naming
       the cardinal anchor each pinned phase represents.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - weather-tempers-toward-seasonal-mean
       - season-derived-from-temperature
@@ -352,7 +352,7 @@ tasks:
       { month: 3, day: 20 }. Mock Math.random with `vi.spyOn(Math,
       'random')` + `vi.restoreAllMocks()` in finally per the testing
       doc.
-    spec_id: precis-2-phenological-seasons
+    spec_id: RP-2-phenological-seasons
     spec_sections:
       - current-date-from-phase
       - phase-zero-on-game-start

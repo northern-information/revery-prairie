@@ -1445,7 +1445,7 @@ const iceAge: GenesisEpoch = {
     }
 
     // Generate smooth noise for glacier edges (organic lobes, not sawtooth).
-    // Under the rotated cardinal frame (precis-thinktank-v5 round 1) glaciers
+    // Under the rotated cardinal frame (backlog-thinktank-v5 round 1) glaciers
     // advance along the u = x + y axis (diamond's vertical screen axis), so
     // the perpendicular coordinate is v = x - y. Noise arrays index by
     // (x - y + sim.height - 1), spanning [0, sim.width + sim.height - 2].
@@ -1464,7 +1464,7 @@ const iceAge: GenesisEpoch = {
     // measured along u = (x - SB) + (y - SB). The u span across the playable
     // region is 2 * (playable side - 1); glacialDepth at 0.25 advances each
     // front ~25% of the u-span in from its tip, restoring a recognisably
-    // "ice age" reach after the precis-30 rotation left 0.1 barely visible.
+    // "ice age" reach after the RP-30 rotation left 0.1 barely visible.
     const playableU = sim.width + sim.height - 2 * SPACE_BORDER
     const glacialDepth = Math.floor(playableU * 0.25)
 
@@ -1576,7 +1576,7 @@ const iceAge: GenesisEpoch = {
 
     if (isGlacial) {
       // Glaciers only advance during ice age — no recede until warm period.
-      // Rotated cardinal frame (precis-thinktank-v5 round 1): polar distance
+      // Rotated cardinal frame (backlog-thinktank-v5 round 1): polar distance
       // is u = (x - SB) + (y - SB), edge noise keyed by v = x - y + height - 1.
       const advanceProgress = clamp(progress, 0, 1)
 
@@ -2020,7 +2020,7 @@ const warmPeriod: GenesisEpoch = {
     if (space) return space
 
     // Glaciers melt from equator-facing side first — same animation as ice age
-    // advance, reversed. Rotated cardinal frame (precis-thinktank-v5 round 1):
+    // advance, reversed. Rotated cardinal frame (backlog-thinktank-v5 round 1):
     // polar distance is u = (x - SB) + (y - SB), edge noise keyed by
     // v = x - y + height - 1.
     if (sim.glacialPaths.has(key)) {
@@ -3403,7 +3403,7 @@ export const extractGenesisResult = (sim: GenesisSimState): GenesisResult => ({
 })
 
 // ---------------------------------------------------------------------------
-// Multi-species flora post-process (precis #1)
+// Multi-species flora post-process (RP-1)
 // ---------------------------------------------------------------------------
 
 /**
@@ -3417,7 +3417,7 @@ export const extractGenesisResult = (sim: GenesisSimState): GenesisResult => ({
  * is preserved because the post-process consumes only `sim.rng` (seeded
  * from the steward name).
  *
- * Per spec precis-1-multi-species-flora:
+ * Per spec RP-1-multi-species-flora:
  *   - clover keeps spreading via the growth-preview system (not here)
  *   - wildflower and tall grass start where genesis places them and do
  *     not self-propagate in this PR
@@ -3546,7 +3546,7 @@ export const postProcessMultiSpeciesFlora = (
 }
 
 /**
- * Genesis post-process for precis #8a — egregoric flora (thematic).
+ * Genesis post-process for RP-8a — egregoric flora (thematic).
  *
  * Places a small number (GENESIS_EGREGORE_TILE_COUNT_MIN/MAX) of inert
  * TileType.Egregore tiles on walkable dirt, biased toward positions near

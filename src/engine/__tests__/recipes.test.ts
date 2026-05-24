@@ -75,7 +75,7 @@ describe('combineIcon', () => {
 describe('prairie recipe execute', () => {
   const prairieRecipe = RECIPES[0]
 
-  // Precis #17 — bee+clover is a ceremonial radial wave, not a 3x3
+  // RP-17 — bee+clover is a ceremonial radial wave, not a 3x3
   // stamp. execute() places ONE clover at the player position and
   // enqueues a WaveEmission; the radial expansion happens over
   // subsequent tickFloraWaves calls.
@@ -169,7 +169,7 @@ describe('prairie recipe preview', () => {
   const preview = prairieRecipe?.preview
   if (!preview) throw new Error('prairie recipe must have a preview function')
 
-  // Precis #17 — preview shows the single seed tile at the player;
+  // RP-17 — preview shows the single seed tile at the player;
   // the radial wave isn't previewed because it unfolds over several
   // seconds.
 

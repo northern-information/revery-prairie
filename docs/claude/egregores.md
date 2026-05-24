@@ -2,9 +2,9 @@
 
 referenced from `CLAUDE.md`. read when touching egregoric flora, Voynich rendering, EVA tokens, or the cosmology vocabulary.
 
-precis #8a (shipped). the parallel ecology of "not-of-this-Earth" flora that share the prairie with the native species. thematic foreshadowing only in #8a; mechanical biome ships in #8b (parallel species set, invisible pollinator, winter-phased spread).
+RP-8a (shipped). the parallel ecology of "not-of-this-Earth" flora that share the prairie with the native species. thematic foreshadowing only in #8a; mechanical biome ships in #8b (parallel species set, invisible pollinator, winter-phased spread).
 
-vocabulary lock-ins from `docs/precis-thinktank-v3.md`:
+vocabulary lock-ins from `docs/backlog-thinktank-v3.md`:
 
 - working term in spec, code, and dev docs: **egregores** / **egregoric flora** / `TileType.Egregore`.
 - **player-facing term: none.** the word "invasive" never appears player-facing. an automated CI guard (`src/harness/__tests__/lint/invasive-guard.test.ts`) fails on any string literal in `src/**/*.{ts,tsx}` containing the word.
@@ -23,11 +23,11 @@ mechanical layout in this PR:
 - Egregore F-hold scan: `selectScanTarget` returns an `{ kind: 'egregore' }` variant with the same on-tile → facing → cardinal priority as flora and oaks. `commitScan` widens to a discriminated `ScanCommitResult` so the game loop can open `ScanResultModal` with `variant="egregore"` (purple palette, per-column hash-derived widths, amplified band jitter — see `GelBandView`). The scan also calls `recordDiscovery(state, 'egregore:x,y')` and sets `manualHighlightEntryId`, so the dynamic manual entry is unlocked and auto-highlighted.
 - Manual entries are dynamic per-tile via `getEgregoreManualEntries(state)` in `manual.ts`. `ManualPanel` merges them with the static `MANUAL_ENTRIES` at render time. Each entry's body is procedurally sampled EVA tokens (rendered in Voynich); ~1 tile in 5 carries a single ASCII pierce word from `LATIN_PIERCE_WORDS` (rendered in the default font).
 
-what 8b adds (precis #8b — egregoric flora, mechanical biome):
+what 8b adds (RP-8b — egregoric flora, mechanical biome):
 
 - `src/engine/egregore/species.ts` — `EGREGORE_SPECIES` registry with two species (`allelopath`, `spreader`). Trait-bag asymmetry per v3 doctrine: allelopath weights `allelopathy` high, spreader weights `spreadVelocity` high. Species selection per tile is deterministic via `getEgregoreSpeciesAtPosition(x, y)` using the existing 8a `tileHash` helper.
 - `src/engine/egregore/lifecycle.ts` — `tickEgregoreLifecycle` flips entries between `active` (Winter) and `dormant` (other seasons). Inverse-phased to native flora's `FloraStage.Dormant`.
-- `src/engine/egregore/spread.ts` — two entry points. `tickEgregoreSpread` performs stewardship-winter drift (1–2 tiles per in-game year, throttled by `state.lastEgregoreSpreadYear`, gated on `season === Winter && currentZone === Overworld && deepTime === null && revery === null`). `advanceEgregoreInRevery` replaces precis-4's `advanceEgregoreFirstRevery` and is always called during the Revery's Observing → Summary transition (count: 3 on first Revery, 6–9 on subsequent).
+- `src/engine/egregore/spread.ts` — two entry points. `tickEgregoreSpread` performs stewardship-winter drift (1–2 tiles per in-game year, throttled by `state.lastEgregoreSpreadYear`, gated on `season === Winter && currentZone === Overworld && deepTime === null && revery === null`). `advanceEgregoreInRevery` replaces RP-4's `advanceEgregoreFirstRevery` and is always called during the Revery's Observing → Summary transition (count: 3 on first Revery, 6–9 on subsequent).
 - `src/engine/egregore/positions.ts` — shared `candidateDirtNeighbors(state)` helper extracted from `revery.ts`. Used by both spread paths.
 - `src/engine/genetics/egregore.ts` — `EgregoreGenome` interface (`{ __kind: 'egregore'; identity; allelopathy; spreadVelocity }`) separate from `TraitBag`. `canCross(a, b)` predicate in `src/engine/genetics/index.ts` returns false for any (native, egregore) pair via the `__kind` discriminator.
 - Manual footnote on every egregore entry once the player has any `flora:*` discovery — `getEgregoreIncompatibilityFootnote(x, y)` returns deterministic EVA tokens whose engineering-only translation is "no compatible regions" (never rendered as English).

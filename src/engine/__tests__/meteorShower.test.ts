@@ -19,7 +19,7 @@ const createTestState = (): GameState => {
   for (const eid of state.world.query(ComponentType.ShootingStarData)) {
     state.world.destroyEntity(eid)
   }
-  // Precis #33 — the falling-star spawn ceremony was removed; no marker
+  // RP-33 — the falling-star spawn ceremony was removed; no marker
   // needed.
   return state
 }

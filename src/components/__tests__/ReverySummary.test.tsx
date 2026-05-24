@@ -27,7 +27,7 @@ const makeReverySummary = (overrides: Partial<ReveryState> = {}): ReveryState =>
   ...overrides,
 })
 
-describe('ReverySummary (precis #4)', () => {
+describe('ReverySummary (RP-4)', () => {
   it('renders nothing when revery is null', () => {
     const { container } = render(<ReverySummary revery={null} />)
     expect(container.firstChild).toBeNull()

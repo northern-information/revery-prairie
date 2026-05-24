@@ -1,0 +1,442 @@
+id: RP-8b-egregoric-mechanical
+name: 'RP-8b — Egregoric flora (mechanical biome)'
+priority: high
+layer: integration
+source_files:
+  - docs/backlog-thinktank-v3.md
+  - docs/backlog.yaml
+  - docs/claude/egregores.md
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/gameLoop.ts
+  - src/engine/revery.ts
+  - src/engine/manual.ts
+  - src/engine/egregore.ts
+  - src/engine/egregore/species.ts
+  - src/engine/egregore/lifecycle.ts
+  - src/engine/egregore/spread.ts
+  - src/engine/egregore/positions.ts
+  - src/engine/genetics/index.ts
+  - src/engine/genetics/egregore.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - RP-1-multi-species-flora
+  - RP-2-phenological-seasons
+  - RP-3-genetics-v1
+  - RP-4-the-revery
+  - RP-7-pollinator-routes
+
+# Doctrine reference: docs/backlog-thinktank-v3.md section "The egregores in
+# detail — 8b". v4 cosmology lock: heat death is the antagonist; the prairie's
+# grip is summer, the loosening is winter; coexistence is the long-run state;
+# full eradication is impossible by design.
+#
+# Intent gathered 2026-05-20:
+#   - Parallel species set under TileType.Egregore (NOT new FloraSpecies
+#     enum entries). Two egregoric species sharing the tile type, distinct
+#     trait axes (one allelopathy-weighted, one spreadVelocity-weighted).
+#   - Invisible pollinator: no PollenParticle is ever spawned for egregoric
+#     tiles. Spread is computed directly as a tile-conversion event. The
+#     player infers the pollinator from the outcome.
+#   - Inverse-phased lifecycle: parallel egregoreLifecycle Map, Active in
+#     Winter, Dormant otherwise. Mirrors floraLifecycle dormancy gate
+#     with the season check inverted.
+#   - Spread cadence asymmetric:
+#       * stewardship-winter slow drift: 1–2 tiles per in-game year,
+#         throttled by lastEgregoreSpreadYear.
+#       * Revery-winter large push: refactor advanceEgregoreFirstRevery
+#         → advanceEgregoreInRevery, always called, first-Revery places
+#         3 (preserves RP-4 contract), subsequent place 6–9 deterministically.
+#   - canCross(a, b) predicate in genetics returns false for any (native,
+#     egregore) pair via a __kind discriminator on EgregoreGenome. Manual
+#     entry footnote (Voynich EVA tokens whose deterministic translation
+#     is "no compatible regions") appears on every egregore entry once the
+#     player has discovered any native flora species.
+#
+# What this feature does NOT do:
+#   - No new tile type (TileType.Egregore already exists from 8a).
+#   - No FloraSpecies enum changes. Native flora call sites are unchanged.
+#   - No new pollinator entity, no new bee variant.
+#   - No RP-12 crossbreed UX. Only the canCross predicate + manual footnote.
+#   - No RP-10 failure-state biomes (ash, fungal, Far Garden conversion).
+#   - No multiplayer wire changes — egregoreLifecycle is local state.
+#   - No cosmologicalDrift writes — RP-4 owns that field.
+#   - No font changes — Voynich rendering already shipped in 8a.
+
+behaviors:
+  - id: egregore-species-registry
+    description: >
+      A new src/engine/egregore/species.ts module exports an EGREGORE_SPECIES
+      registry with exactly two entries. EgregoreSpecies enum values are
+      'allelopath' and 'spreader'. Each species def carries an id, a glyph
+      subset (drawn from EGREGORE_GLYPHS), a trait bias ({ allelopathy: number,
+      spreadVelocity: number } in [0, 1]), and a determinism note. The
+      'allelopath' species has trait bias { allelopathy: 0.8, spreadVelocity:
+      0.3 }; the 'spreader' species has { allelopathy: 0.3, spreadVelocity:
+      0.8 }. Species selection for a given (x, y) position is deterministic
+      via getEgregoreSpeciesAtPosition(x, y) which reuses the 8a tileHash
+      helper — even-bucket positions become allelopath, odd-bucket become
+      spreader. The selection is stable across reloads for the same steward
+      name.
+    inputs:
+      - 'codebase after RP-8b lands'
+      - 'an egregore tile at a specific position'
+    outputs:
+      - 'EGREGORE_SPECIES has two entries with the documented trait biases'
+      - 'getEgregoreSpeciesAtPosition returns a stable species for a given (x, y)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-genome-and-cross-predicate
+    description: >
+      A new src/engine/genetics/egregore.ts module exports EgregoreGenome,
+      a TypeScript interface with shape { __kind: 'egregore'; identity:
+      string; allelopathy: number; spreadVelocity: number }. The identity
+      is a SHA256 hash string derived from (x, y, stewardName) using the
+      same scheme as RP-3 native genetics. generateEgregoreGenome(x,
+      y, stewardName) returns a deterministic EgregoreGenome whose trait
+      values are derived from the identity hash, then biased by the
+      species def's trait bias (mean of derived-value and species-bias).
+      The canCross(a, b) predicate added to src/engine/genetics/index.ts
+      returns false whenever either argument has __kind === 'egregore'.
+      Native TraitBag is unchanged. canCross(native, native) and
+      canCross(egregore, egregore) both return true; canCross(native,
+      egregore) and canCross(egregore, native) both return false.
+    inputs:
+      - 'two genomes a and b'
+    outputs:
+      - 'canCross returns false when one or both arguments are EgregoreGenome'
+      - 'canCross returns true when both arguments are native TraitBag'
+      - 'canCross returns true when both arguments are EgregoreGenome'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-lifecycle-state-on-gamestate
+    description: >
+      GameState gains a new field `egregoreLifecycle: Map<string,
+      EgregoreActivityState>` keyed by posKey(x, y). EgregoreActivityState
+      shape `{ stage: EgregoreActivityStage; stageStartTime: number;
+      species: EgregoreSpecies; genome: EgregoreGenome }`. EgregoreActivityStage
+      is `'active' | 'dormant'`. GameState also gains
+      `lastEgregoreSpreadYear: number`, initialized to -1 so the first
+      spread tick can fire. createGameState initializes egregoreLifecycle
+      to an empty Map and lastEgregoreSpreadYear to -1; a post-process
+      step in createGameState seeds lifecycle entries for every position
+      already present in state.egregorePositions (those placed by 8a
+      genesis), assigning species + genome deterministically per position.
+      Both new fields appear in EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts.
+    inputs:
+      - 'createGameState invocation with genesis-placed egregore positions'
+    outputs:
+      - 'GameState.egregoreLifecycle has one entry per egregore position'
+      - 'GameState.lastEgregoreSpreadYear === -1'
+    state_changes:
+      - field: egregoreLifecycle
+        effect: 'initialized with one entry per state.egregorePositions, species + genome deterministic per position'
+      - field: lastEgregoreSpreadYear
+        effect: 'initialized to -1'
+    determinism: deterministic
+
+  - id: egregore-lifecycle-inverse-phased
+    description: >
+      A new tickEgregoreLifecycle(state, time) function in
+      src/engine/egregore/lifecycle.ts iterates every entry in
+      state.egregoreLifecycle. When state.weather.season === Season.Winter,
+      any Dormant entry transitions to Active and stageStartTime is updated.
+      When state.weather.season !== Season.Winter, any Active entry
+      transitions to Dormant. The transition is immediate (no debounce),
+      mirroring src/engine/floraLifecycle.ts:140-162 with the season check
+      inverted. The function is a registered game loop system in
+      src/engine/gameLoop.ts with id 'egregore-lifecycle', intervalMs
+      identical to flora-lifecycle, priority 52.
+    inputs:
+      - 'state.weather.season transitions to or from Winter'
+    outputs:
+      - 'all egregoreLifecycle entries reflect inverse-phased stage'
+    state_changes:
+      - field: egregoreLifecycle entries
+        effect: 'stage transitions Active ↔ Dormant on Winter boundaries'
+    determinism: deterministic
+
+  - id: egregore-stewardship-spread
+    description: >
+      A new tickEgregoreSpread(state, time) function in
+      src/engine/egregore/spread.ts performs the stewardship-winter drift.
+      Gating: returns early unless ALL of state.weather.season ===
+      Season.Winter, state.currentZone === Zone.Overworld, state.deepTime
+      === null, state.revery === null. Throttling: computes
+      currentYear = Math.floor(state.seasonalPhase + state.year). If
+      currentYear === state.lastEgregoreSpreadYear, returns early. Otherwise
+      sets state.lastEgregoreSpreadYear = currentYear and proceeds.
+      Placement: enumerates candidateDirtNeighbors of existing egregore
+      tiles (shared helper, see egregore-shared-helpers), picks 1–2
+      positions deterministically via a hash of (stewardName, currentYear,
+      candidate.x, candidate.y). For each placed position: writes
+      state.map[y][x] = { type: TileType.Egregore }, appends to
+      state.egregorePositions, and adds a new egregoreLifecycle entry
+      with stage=Active (since season is Winter), species + genome
+      derived from the position. Registered as game loop system
+      'egregore-spread' with intervalMs 30000 (~30s wall-clock); the
+      function's own year-throttle is the real gate.
+    inputs:
+      - 'tick fires while state.weather.season === Winter and player is in Overworld'
+    outputs:
+      - '1–2 new TileType.Egregore tiles placed adjacent to existing ones, once per in-game year'
+      - 'state.lastEgregoreSpreadYear is updated to the current year'
+    state_changes:
+      - field: map
+        effect: '1–2 dirt tiles adjacent to existing egregore tiles converted to TileType.Egregore'
+      - field: egregorePositions
+        effect: 'appended with placed positions'
+      - field: egregoreLifecycle
+        effect: 'appended with new entries (stage=Active, deterministic species + genome)'
+      - field: lastEgregoreSpreadYear
+        effect: 'updated to the in-game year of the tick'
+    determinism: deterministic
+
+  - id: egregore-revery-spread-refactor
+    description: >
+      Replaces the existing advanceEgregoreFirstRevery function in
+      src/engine/revery.ts with advanceEgregoreInRevery, exported from
+      src/engine/egregore/spread.ts. The new function is ALWAYS called
+      during the Observing → Summary transition in revery.ts (the
+      previous `state.reveryCount === 0` gate at revery.ts:138 is
+      removed). Placement count is deterministic based on
+      state.reveryCount: when reveryCount === 0, places exactly 3 tiles
+      (preserving the RP-4 first-Revery contract); when reveryCount
+      >= 1, places 6 + (reveryCount % 4) tiles (always in [6, 9]).
+      Same trail-centroid bias and Manhattan-distance sort as the
+      original first-Revery advance. Each placed position also adds an
+      egregoreLifecycle entry with stage=Active, species + genome
+      deterministic per position. The existing
+      `{ kind: 'egregore-grew', payload: { positions: Position[] } }`
+      ReveryChange record is reused unchanged.
+    inputs:
+      - 'state.revery transitions Observing → Summary'
+    outputs:
+      - '3 tiles placed on first Revery; 6–9 on subsequent Reveries'
+      - 'placed positions appended to state.egregorePositions and state.egregoreLifecycle'
+      - 'one egregore-grew ReveryChange appended to revery.scheduledChanges'
+    state_changes:
+      - field: map
+        effect: 'N dirt tiles adjacent to existing egregore tiles converted to TileType.Egregore (N = 3 first Revery, 6–9 subsequent)'
+      - field: egregorePositions
+        effect: 'appended with placed positions'
+      - field: egregoreLifecycle
+        effect: 'appended with new entries (stage=Active, deterministic species + genome)'
+      - field: revery.scheduledChanges
+        effect: 'one egregore-grew change appended'
+    determinism: deterministic
+
+  - id: egregore-shared-helpers
+    description: >
+      The candidateDirtNeighbors helper currently private to
+      src/engine/revery.ts is extracted to src/engine/egregore/positions.ts
+      and exported. revery.ts and src/engine/egregore/spread.ts both
+      import it. The trailCentroid and manhattan helpers stay where they
+      are (revery.ts) since they are revery-specific; advanceEgregoreInRevery
+      reads them from revery.ts via a small adapter, or they are also
+      lifted to positions.ts if it reduces coupling. The behavior of the
+      helper is byte-identical to the current implementation:
+      8-neighbor ordinal walk over existing egregore positions, dedupes
+      by posKey, filters out non-Dirt tiles.
+    inputs:
+      - 'state.egregorePositions array'
+    outputs:
+      - 'a Position[] of dirt tiles adjacent to existing egregores, deduped'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-manual-footnote
+    description: >
+      src/engine/manual.ts getEgregoreManualEntries gains a conditional
+      footnote line on every egregore manual entry body. The footnote
+      renders only when hasAnyNativeFloraDiscovery(state) returns true —
+      defined as state.manualDiscoveries contains at least one entry with
+      id matching the pattern `flora:<species>` for any native FloraSpecies
+      value. The footnote content is produced by a new
+      getEgregoreIncompatibilityFootnote(x, y) exported from
+      src/engine/egregore.ts. It returns a deterministic sequence of EVA
+      tokens (3–5 tokens, drawn from the existing EVA_TOKENS allowlist
+      via tileHash-derived selection). A comment in egregore.ts documents
+      the engineering-only translation as "no compatible regions"; the
+      Voynich tokens are rendered, the English translation is NEVER
+      rendered or returned. The footnote tokens render in the Voynich
+      typeface, like the rest of the egregore manual body. Footnote
+      content is stable per position across reloads; differs across
+      positions.
+    inputs:
+      - 'player has discovered any native flora species (manualDiscoveries contains flora:* entry)'
+      - 'manual UI renders an egregore entry'
+    outputs:
+      - 'every egregore manual entry body ends with a footnote line of 3–5 Voynich EVA tokens'
+      - 'the footnote does not appear before any native flora discovery'
+    state_changes: []
+    determinism: deterministic
+
+  - id: invisible-pollinator-zero-particles
+    description: >
+      No PollenParticle is ever spawned for TileType.Egregore tiles or
+      their lifecycle entries. The egregoric "pollinator" is purely a
+      consequence of tickEgregoreSpread placing tiles; there is no
+      particle, no entity, no carrier. tickPollenEmit in
+      src/engine/flora/actions/pollinate.ts continues to only iterate
+      TileType.Flora tiles — no egregore branch is added. A
+      reinforcing test asserts that after a stewardship-winter spread
+      tick, state.pollen does not gain any particles attributable to
+      the spread (count is unchanged or only changes due to native
+      flora ticks unrelated to the spread).
+    inputs:
+      - 'tickEgregoreSpread fires and places new tiles'
+    outputs:
+      - 'state.pollen.length is unchanged by tickEgregoreSpread alone'
+      - 'no entry in any pollen profile registry is added for egregore'
+    state_changes: []
+    determinism: deterministic
+
+  - id: doctrine-and-status-aligned
+    description: >
+      docs/backlog.yaml flips feature 8b to in-progress with
+      spec/plan paths populated (during PR) and to shipped with PR URL
+      after merge. docs/claude/egregores.md updates its "what's deferred"
+      section — removes the line about 8b parallel species, replaces
+      with a brief section pointing to src/engine/egregore/species.ts,
+      src/engine/egregore/lifecycle.ts, src/engine/egregore/spread.ts,
+      and the canCross predicate in src/engine/genetics/. docs/backlog-thinktank-v3.md is not modified (it's the locked doctrine).
+      CLAUDE.md is not modified — the existing rule "egregore content —
+      never author EVA tokens or pierce words as prose. expand the
+      allowlists in egregore.ts instead" already covers this PR's
+      footnote work.
+    inputs:
+      - 'codebase after RP-8b lands'
+    outputs:
+      - 'backlog.yaml feature 8b has spec/plan/pr fields populated'
+      - 'docs/claude/egregores.md notes the new module layout'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: no-egregore-positions-at-spread-tick
+    description: >
+      tickEgregoreSpread fires but state.egregorePositions is empty
+      (edge: a genesis run produced zero egregore tiles, or all tiles
+      were somehow removed).
+    expected: >
+      candidateDirtNeighbors returns an empty array. No tiles are
+      placed. lastEgregoreSpreadYear is still updated (so the throttle
+      consumes the year slot even when there's nothing to spread to —
+      this matches the design intent that spread is gated by year, not
+      by attempt count).
+
+  - id: spread-tick-in-cave
+    description: >
+      Player descends into the cave while season is Winter. The
+      egregore-spread system fires.
+    expected: >
+      tickEgregoreSpread returns early at the
+      state.currentZone === Zone.Overworld gate. No tiles are placed.
+      lastEgregoreSpreadYear is NOT updated (the function returns
+      before reaching the throttle update).
+
+  - id: spread-tick-during-revery
+    description: >
+      The egregore-spread tick fires while state.revery !== null
+      (a Revery is in progress).
+    expected: >
+      tickEgregoreSpread returns early at the state.revery === null
+      gate. No tiles are placed. lastEgregoreSpreadYear is not updated.
+      The Revery's own advance (advanceEgregoreInRevery) handles
+      growth during the Revery.
+
+  - id: spread-tick-during-deep-time
+    description: >
+      The egregore-spread tick fires while state.deepTime !== null.
+    expected: >
+      tickEgregoreSpread returns early at the state.deepTime === null
+      gate. No tiles are placed. lastEgregoreSpreadYear is not updated.
+
+  - id: lifecycle-with-zero-entries
+    description: >
+      tickEgregoreLifecycle fires while state.egregoreLifecycle is empty
+      (no egregore tiles placed yet — unusual but possible).
+    expected: >
+      The function iterates zero entries and returns. No state change.
+      No exception.
+
+  - id: revery-with-no-candidates
+    description: >
+      advanceEgregoreInRevery is called but candidateDirtNeighbors
+      returns an empty array (all adjacent tiles are non-Dirt — water,
+      sand, ruins, etc.).
+    expected: >
+      Zero tiles are placed. The function returns an empty Position[].
+      No egregore-grew ReveryChange is appended (revery.ts callsite
+      checks placed.length > 0 — this behavior is preserved from the
+      RP-4 implementation).
+
+  - id: cross-predicate-with-undefined-kind
+    description: >
+      canCross is called with a TraitBag that lacks the __kind field
+      (legacy TraitBag from before this PR, no migration).
+    expected: >
+      canCross treats a missing or undefined __kind as native (default
+      behavior). canCross(legacyTraitBag, legacyTraitBag) returns true.
+      canCross(legacyTraitBag, egregoreGenome) returns false.
+
+  - id: manual-footnote-before-any-discovery
+    description: >
+      Player opens the manual and views an egregore entry, but has
+      not yet discovered any native flora species via the
+      permacomputer scan.
+    expected: >
+      The entry body renders without the footnote line. Only the
+      existing 8a structure (binomial line, body, optional pierce)
+      is shown.
+
+  - id: deterministic-spread-same-name
+    description: >
+      Two saves with the same steward name and the same year of
+      stewardship-winter spread produce identical tile placements.
+    expected: >
+      Position list, species assignments, and genome identities all
+      match byte-for-byte.
+
+  - id: invisible-pollinator-no-particle-leak
+    description: >
+      A long-running game accumulates many egregore tiles. The
+      pollen particle array (state.pollen) is not affected by the
+      number of egregore tiles.
+    expected: >
+      state.pollen.length never grows due to egregore presence.
+      Existing native flora pollen emission is unchanged.
+
+failure_conditions:
+  - trigger: 'tickEgregoreSpread fires while state.currentZone === Zone.Cave and places any tile'
+    expected: 'Test fails — the cave gate is broken'
+
+  - trigger: 'canCross(nativeTraitBag, egregoreGenome) returns true'
+    expected: 'Test fails — the cross-boundary predicate is broken'
+
+  - trigger: 'tickEgregoreSpread fires and increments state.pollen.length'
+    expected: 'Test fails — the invisible-pollinator contract is broken'
+
+  - trigger: 'EXPECTED_FIELDS in schema.test.ts does not include egregoreLifecycle or lastEgregoreSpreadYear'
+    expected: 'Test fails — new GameState fields must be allowlisted'
+
+  - trigger: 'advanceEgregoreInRevery places more than 3 tiles when state.reveryCount === 0'
+    expected: 'Test fails — first-Revery contract from RP-4 is broken (the count must stay 3 to preserve the RP-4 doctrine)'
+
+  - trigger: 'Two egregore tiles at the same position resolve to different EgregoreSpecies values'
+    expected: 'Test fails — species assignment must be deterministic per position'
+
+  - trigger: 'getEgregoreIncompatibilityFootnote returns an English string instead of EVA tokens'
+    expected: 'Test fails — the footnote must be Voynich EVA tokens; the English translation is engineering-only'
+
+  - trigger: 'tickEgregoreSpread updates lastEgregoreSpreadYear when the function returns early at a gate'
+    expected: 'Test fails — the throttle must only consume a year slot when the function reaches the placement attempt'
+
+verification:
+  test_file: src/engine/__tests__/egregore-spread.test.ts
+  test_pattern: 'egregore'
+  command: 'npx vitest run src/engine/__tests__/egregore-spread.test.ts src/engine/__tests__/egregore-species.test.ts src/engine/__tests__/egregore-lifecycle.test.ts src/engine/__tests__/egregore-crossbreed.test.ts'

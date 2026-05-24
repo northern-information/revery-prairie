@@ -1,4 +1,4 @@
-// Tests for precis #8a egregoric flora — thematic allusions.
+// Tests for RP-8a egregoric flora — thematic allusions.
 //
 // Covers:
 //   - EGREGORE_GLYPHS determinism per tile position
@@ -174,7 +174,7 @@ describe('egregore manual body and binomial', () => {
   })
 })
 
-describe('egregore genesis placement (precis #8a)', () => {
+describe('egregore genesis placement (RP-8a)', () => {
   it('places at least 2 egregore tiles on a fresh game', () => {
     const state = createGameState('PrecisEightA', 20, 20)
     expect(state.egregorePositions.length).toBeGreaterThanOrEqual(2)

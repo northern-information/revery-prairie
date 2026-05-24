@@ -53,7 +53,7 @@ export const initiateDeepTime = (state: GameState, time: number): void => {
 
   // Spawn initial fire ignition points (3-5 random positions on Flora
   // tiles — any species; wildfire spreads through clover, wildflower,
-  // and tall grass uniformly per precis #1).
+  // and tall grass uniformly per RP-1).
   const floraPositions: Position[] = []
   for (let y = 0; y < state.mapHeight; y++) {
     for (let x = 0; x < state.mapWidth; x++) {

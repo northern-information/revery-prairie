@@ -32,7 +32,7 @@ const clearArea = (state: GameState, cx: number, cy: number, radius: number) => 
       if (x >= 0 && x < state.mapWidth && y >= 0 && y < state.mapHeight) {
         state.map[y][x] = { type: TileType.Dirt }
         // Also clear any pond/river the genesis terrain seeded here. The
-        // rotated cardinal frame (precis-30) reshapes lowland water placement
+        // rotated cardinal frame (RP-30) reshapes lowland water placement
         // on small test maps; clear explicitly so the tests stay deterministic.
         const k = posKey(x, y)
         state.ponds.delete(k)
@@ -455,8 +455,8 @@ describe('ghost crater avoidance', () => {
 })
 
 describe('satellite payload', () => {
-  // Seed items were deleted in precis #1 — the good-payload satellite
-  // scatter is a no-op until precis #11 rehydrates them.
+  // Seed items were deleted in RP-1 — the good-payload satellite
+  // scatter is a no-op until RP-11 rehydrates them.
   it('scatters no ground items for good payload after seed deletion', () => {
     const state = makeState()
     const target = { x: 20, y: 15 }

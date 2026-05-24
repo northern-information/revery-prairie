@@ -38,7 +38,7 @@ export const RECIPES: Recipe[] = [
     ingredients: ['bee', 'clover'],
     kind: RecipeKind.Macro,
     resultName: 'Prairie',
-    // Precis #17 — preview shows the single seed tile at the player.
+    // RP-17 — preview shows the single seed tile at the player.
     // The full radial wave isn't previewed; it unfolds over the next
     // several seconds via tickFloraWaves and is meant to surprise.
     preview: state => {
@@ -52,7 +52,7 @@ export const RECIPES: Recipe[] = [
       if (t !== TileType.Dirt && t !== TileType.Flora && t !== TileType.CaveFloor) return []
       return [{ pos: { x: tx, y: ty }, char: '#', color: ACTION_COLOR, isValid: true }]
     },
-    // Precis #17 — bee+clover is now a ceremonial radial wave, not a
+    // RP-17 — bee+clover is now a ceremonial radial wave, not a
     // 3x3 stamp. The combine places one clover seed at the player and
     // enqueues a WaveEmission that paints ~150 tiles over the next
     // several CEREMONY_WAVE_TICK_MS frames. The seedIdentity flows to

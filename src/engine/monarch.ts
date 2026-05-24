@@ -49,7 +49,7 @@ export const spawnMonarch = (state: GameState, x: number, y: number): Entity => 
     waypoint: null,
     lastPollinateTime: 0,
   })
-  // Precis #17 — empty PollenBag at creation. Bee-mediated pollination
+  // RP-17 — empty PollenBag at creation. Bee-mediated pollination
   // (src/engine/beePollination.ts) reads and writes this on movement
   // ticks.
   state.world.addComponent(e, ComponentType.PollenBag, { loads: [] })
@@ -63,7 +63,7 @@ export const spawnBee = (state: GameState, x: number, y: number, zone?: Zone): E
   state.world.addComponent(e, ComponentType.EntityTag, 'bee')
   state.world.addComponent(e, ComponentType.EntityZone, zone !== undefined ? { zone } : getCurrentEntityZone(state))
   state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
-  // Precis #17 — empty PollenBag at creation.
+  // RP-17 — empty PollenBag at creation.
   state.world.addComponent(e, ComponentType.PollenBag, { loads: [] })
   return e
 }
@@ -303,8 +303,8 @@ const tickSettled = (state: GameState, eid: Entity, now: number): void => {
     }
     if (candidates.length > 0) {
       // Prefer clover tiles. Wildflower and tall grass tiles share
-      // TileType.Flora but monarchs target only clover per precis #1 —
-      // broader pollinator routes are precis #7.
+      // TileType.Flora but monarchs target only clover per RP-1 —
+      // broader pollinator routes are RP-7.
       const clover = candidates.filter(
         c =>
           state.map[c.y][c.x].type === TileType.Flora &&
@@ -336,7 +336,7 @@ export const pollinate = (state: GameState, center: Position): boolean => {
       if (state.map[y][x].type !== TileType.Dirt) continue
 
       // Only spread to dirt tiles adjacent to existing clover. Wildflower
-      // and tall grass do not trigger monarch propagation per precis #1.
+      // and tall grass do not trigger monarch propagation per RP-1.
       let adjacentToClover = false
       for (const d of CARDINAL) {
         const nx = x + d.x
@@ -356,7 +356,7 @@ export const pollinate = (state: GameState, center: Position): boolean => {
   if (candidates.length === 0) return false
 
   // Monarchs grow clover specifically — wildflower and tall grass do not
-  // self-propagate in this PR. Pollinator routes are precis #7.
+  // self-propagate in this PR. Pollinator routes are RP-7.
   const tile = candidates[Math.floor(Math.random() * candidates.length)]
   setMapTile(state, tile.x, tile.y, { type: TileType.Flora })
   const tileKey = posKey(tile.x, tile.y)

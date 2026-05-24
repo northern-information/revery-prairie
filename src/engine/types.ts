@@ -25,14 +25,14 @@ export const TileType = {
   RuinDebris: 'ruinDebris',
   RuinDoorLocked: 'ruinDoorLocked',
   RuinDoorOpen: 'ruinDoorOpen',
-  // Egregoric flora tile — inert in precis #8a (no interaction, no
+  // Egregoric flora tile — inert in RP-8a (no interaction, no
   // lifecycle, walkable). The renderer draws it using a Voynich glyph
   // from EGREGORE_GLYPHS keyed by tile position. Per cosmology doctrine
   // egregores are "not-of-this-Earth" — no Latin binomial, no Flora
   // species id. Manual entries are procedurally-generated EVA token
   // pages with ~1-in-5 Latin pierces.
   Egregore: 'egregore',
-  // The little house (precis #33). HouseEntrance is the single overworld
+  // The little house (RP-33). HouseEntrance is the single overworld
   // door tile (`α` glyph, warm brown); HouseApron the 8-neighbor path.
   // HouseFloor / HouseWall make up the 30x18 interior. HouseBed sits on
   // the east wall (Revery destination); HouseChair on the west wall
@@ -196,7 +196,7 @@ export interface RemotePlayer {
   lastUpdateMs: number
 }
 
-// ─── precis #6 — naturalist's manual scan ────────────────────────────────────
+// ─── RP-6 — naturalist's manual scan ────────────────────────────────────
 
 // Discriminated by `kind`. Flora and oak scans share the same hold-to-scan
 // flow but resolve different identities on commit:
@@ -342,7 +342,7 @@ export interface GameState {
   caveHiddenPositions: Set<string>
   caveNpcSpot: Position
   caveBreakableWallPositions: Position[]
-  // Little house interior (precis #33). Deterministic 30x18 buffer
+  // Little house interior (RP-33). Deterministic 30x18 buffer
   // built by createHouseInterior(); enterHouse / exitHouse swap state.map
   // to/from this pointer just like the cave pair.
   houseMap: Tile[][]
@@ -371,7 +371,7 @@ export interface GameState {
   tenureOpened: boolean
   giftsReceived: Set<string>
   world: World
-  // Precis #17 — per-species growth-preview queues. Each species owns
+  // RP-17 — per-species growth-preview queues. Each species owns
   // its own pending-preview Set so wildflower previews don't commit as
   // clover tiles and vice versa. Use helpers in floraGrowthPreviews.ts
   // — addGrowthPreview, hasAnyGrowthPreview, clearAllGrowthPreviews,
@@ -379,19 +379,19 @@ export interface GameState {
   // call sites that don't care about species.
   floraGrowthPreviews: Map<FloraSpecies, Set<string>>
   floraLifecycle: Map<string, FloraLifecycleState>
-  // Precis #17 — active ceremony waves awaiting tickFloraWaves.
+  // RP-17 — active ceremony waves awaiting tickFloraWaves.
   // Plain JSON-serializable. No Entity refs — the wave is bound to a
   // seedIdentity (lineage source) rather than the bee that cast it.
   activeWaves: WaveEmission[]
-  // Precis #17 — current overlay rendering mode. Cycled by the [1]/[2]/[3]
+  // RP-17 — current overlay rendering mode. Cycled by the [1]/[2]/[3]
   // keybinds in useKeyboard.ts. Default at game start: OverlayMode.Default.
   overlayMode: OverlayMode
-  // Egregoric flora tile positions (precis #8a). Genesis places ~3
+  // Egregoric flora tile positions (RP-8a). Genesis places ~3
   // inert TileType.Egregore tiles biased near craters; this list lets
   // the manual entry generator and the sidebar identify them without
   // a full map scan. Stable across reloads for the same steward name.
   egregorePositions: Position[]
-  // Per-tile activity state for the egregoric biome (precis #8b). Keyed
+  // Per-tile activity state for the egregoric biome (RP-8b). Keyed
   // by posKey(x, y); one entry per position in egregorePositions. Stage
   // is inverse-phased to native flora — Active in Winter, Dormant
   // otherwise. Species and genome are deterministic per (steward,
@@ -431,7 +431,7 @@ export interface GameState {
   pendingSavedBees: boolean
   deepTime: DeepTimeState | null
   deepTimeTransition: TransitionFade | null
-  // Precis #4 — the Revery (long-form ceremonial phase).
+  // RP-4 — the Revery (long-form ceremonial phase).
   revery: ReveryState | null
   // Lifetime count of completed Reveries. Increments on Closing → null.
   reveryCount: number
@@ -447,23 +447,23 @@ export interface GameState {
   // (species, axis) pair via resolvePhenotypeLabel. Re-resolving the same
   // pair OVERWRITES — no duplicates per (species, axis).
   revealedPhenotypes: Map<FloraSpecies, RevealedPhenotype[]>
-  // Precis #32 — dormancy pressure (forcing function). Domain [0, 1].
+  // RP-32 — dormancy pressure (forcing function). Domain [0, 1].
   // Climbs across autumn via the linear ramp in tickDormancyPressure;
   // crossing 1.0 schedules the Revery via initiateRevery. Resets to 0 at
   // Revery Closing and on Autumn → Winter without a Revery.
   dormancyPressure: number
-  // Precis #32 — steward's tile at the moment a summons Revery began.
+  // RP-32 — steward's tile at the moment a summons Revery began.
   // Set at the Omen → Observing transition when state.revery.summons is
   // true; cleared at Closing. Downstream render passes may read this to
   // apply a dormant-flora wash to the collapsed tile.
   collapsedStewardTile: Position | null
   // Wall-clock time of the player's last successful movePlayer. Updated
-  // by movement.ts. Was used by the retired cloud-passing omen (precis-4
-  // / precis-32); retained for any future use.
+  // by movement.ts. Was used by the retired cloud-passing omen (RP-4
+  // / RP-32); retained for any future use.
   playerStationarySince: number
   // Previous frame's state.weather.sky value. Updated by gameLoop after
   // tickWeather. The cloud-passing omen that originally read this field
-  // was retired in precis-32; the field is retained for any future use.
+  // was retired in RP-32; the field is retained for any future use.
   lastSky: Sky
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
@@ -476,7 +476,7 @@ export interface GameState {
   // Gregorian month/day projection of seasonalPhase, anchored at the spring
   // equinox (day-of-year 79). Recomputed in tickWeather; single writer.
   currentDate: { month: number; day: number }
-  // Precis #9b — Torchbearer behavior pass.
+  // RP-9b — Torchbearer behavior pass.
   // lockedBurnLine: the line Moab walks this Spring. The authoring layer
   //   (burnDrawMode + burnLineDraft) was removed in the input-system-
   //   cleanup CR; this field is dormant pending the walk-with-Moab
@@ -505,7 +505,7 @@ export interface GameState {
   currentRuinIndex: number | null
   caveFogExplored: Set<string>
   caveFogDiscovered: Set<string>
-  // Precis #38 — overworld fog of war. Player-facing vocabulary is
+  // RP-38 — overworld fog of war. Player-facing vocabulary is
   // gaze / memory / unseen; engineering identifiers mirror caveFog*.
   // Both sets are initialized empty per tenure (createGameState).
   overworldFogExplored: Set<string>
@@ -517,7 +517,7 @@ export interface GameState {
   devEntityPreview: { x: number; y: number; char: string; color: string } | null
   multiplayerSession: MultiplayerSession | null
   remotePlayers: Map<string, RemotePlayer>
-  // Precis #6 — naturalist's manual scan-to-discover.
+  // RP-6 — naturalist's manual scan-to-discover.
   // scannedSpecimens maps each flora species to an ordered list of
   // specimens the player has scanned, oldest first. Duplicates (same
   // identity) are deduped at commit time. The manual entry renders a
@@ -526,7 +526,7 @@ export interface GameState {
   // Oak scans live in their own array (oaks aren't flora so they don't have
   // a FloraSpecies key). Same dedupe-by-identity rule applies.
   oakSpecimens: ScannedSpecimen[]
-  // Egregore tile scans (precis #8a). Egregores have no FloraSpecies key
+  // Egregore tile scans (RP-8a). Egregores have no FloraSpecies key
   // — they are not-of-this-Earth. One ScannedSpecimen per scanned tile,
   // deduped on identity (a tileHash-derived hex string).
   egregoreSpecimens: ScannedSpecimen[]
@@ -550,7 +550,7 @@ export const FloraStage = {
   Black: 'black',
   Decomposing: 'decomposing',
   BurntRecovering: 'burntRecovering',
-  // Winter pause stage (precis #2). Set when state.weather.season is Winter.
+  // Winter pause stage (RP-2). Set when state.weather.season is Winter.
   // Dormant tiles are not subject to drying/stress death and do not advance.
   // Cleared back to Healthy when the season is no longer Winter.
   Dormant: 'dormant',
@@ -571,25 +571,25 @@ export interface FloraLifecycleState {
   stageStartTime: number
   hasLight: boolean
   species: FloraSpecies
-  // Precis #3 — SHA256 identity + trait bag. Stable per plant across
+  // RP-3 — SHA256 identity + trait bag. Stable per plant across
   // its lifecycle (preserved through BurntRecovering, lost when the entry
   // is deleted after the dying chain). All construction sites route
   // through createFloraLifecycleEntry in floraLifecycle.ts.
   identity: string
   traits: TraitBag
-  // Precis #17 — bee-mediated pollination. When a bee/monarch with a
+  // RP-17 — bee-mediated pollination. When a bee/monarch with a
   // matching-species pollen load (different identity) enters this tile,
   // the tile is "primed" for a cross. On the next autonomous spread,
   // the child's traits are computed via crossTraitBags(this.traits,
   // primedPollen.traits, rng) and primedPollen is cleared. Father =
   // pollen load, mother = this tile. Most-recent matching load wins.
   primedPollen?: PollenLoad
-  // Precis #17 — set on flora tiles that sprouted from a primed cross.
+  // RP-17 — set on flora tiles that sprouted from a primed cross.
   // Records the first 8 hex chars of the donor (father) lineage at
   // cross time so the family-tree overlay can draw a second dashed
   // edge to the donor's lineage prefix index.
   crossDonorPrefix?: string
-  // Precis #17 — set on flora tiles that sprouted via the spread engine
+  // RP-17 — set on flora tiles that sprouted via the spread engine
   // (or the ceremony wave). Records the first 8 hex chars of the parent
   // (mother) lineage at sprout time so the family-tree overlay can
   // draw a solid edge to the parent without having to reverse the SHA
@@ -598,7 +598,7 @@ export interface FloraLifecycleState {
   parentPrefix?: string
 }
 
-// Precis #17 — bee-mediated pollination. A single load carried by a
+// RP-17 — bee-mediated pollination. A single load carried by a
 // bee/monarch in its PollenBag component (registered in ecs/types.ts).
 // Cross-species mixing is allowed in the bag; the cross-prime rule only
 // fires when a load's species matches the visited tile's species.
@@ -608,7 +608,7 @@ export interface PollenLoad {
   species: FloraSpecies
 }
 
-// Precis #17 — ceremony wave. Emitted by the bee+clover combine and
+// RP-17 — ceremony wave. Emitted by the bee+clover combine and
 // advanced by tickFloraWaves in src/engine/floraWaves.ts. The wave
 // paints valid Dirt tiles in a cellNoise-jittered annulus expanding
 // from (cx, cy) until currentRadius > maxRadius with zero new tiles
@@ -623,9 +623,9 @@ export interface WaveEmission {
   lastTickTime: number
 }
 
-// Precis #17 — overlay view mode cycled by the [1]/[2]/[3] keybinds.
+// RP-17 — overlay view mode cycled by the [1]/[2]/[3] keybinds.
 // Default: standard rendering. FamilyTree: lineage overlay (gated by
-// per-species sequencing). RootMycelium: reserved for a future precis;
+// per-species sequencing). RootMycelium: reserved for a future backlog item;
 // the [3] keybind currently shows a "not yet" toast and does not
 // change mode.
 export const OverlayMode = {
@@ -636,7 +636,7 @@ export const OverlayMode = {
 
 export type OverlayMode = (typeof OverlayMode)[keyof typeof OverlayMode]
 
-// --- Precis #8b — Egregoric flora (mechanical biome) ---
+// --- RP-8b — Egregoric flora (mechanical biome) ---
 
 // Parallel species set under TileType.Egregore. Distinct from
 // FloraSpecies (which is for native flora under TileType.Flora) — the
@@ -681,7 +681,7 @@ export const Sky = {
 export type Sky = (typeof Sky)[keyof typeof Sky]
 
 // Wind direction in the rotated cardinal frame. The diamond is the world
-// (precis-thinktank-v5 round 1) — iso is not a viewing layer applied to a
+// (backlog-thinktank-v5 round 1) — iso is not a viewing layer applied to a
 // flat grid; iso is the world's shape. Cardinals point at the diamond's
 // tips on screen; ordinals align with the storage axes.
 //
@@ -719,7 +719,7 @@ export const Season = {
 
 export type Season = (typeof Season)[keyof typeof Season]
 
-// Precis #9b — Moab the Torchbearer's lifecycle states. 'idle' is the
+// RP-9b — Moab the Torchbearer's lifecycle states. 'idle' is the
 // default (Moab in cave, not active). 'walking' is set during Spring
 // when he is pacing lockedBurnLine and igniting tiles. 'refusing' is
 // the one-tick window after a catastrophic-edge check fails. 'dismissed'
@@ -840,7 +840,7 @@ export interface DeepTimeState {
   shakeUntil: number
 }
 
-// Precis #4 — the Revery. See docs/claude/revery.md for the phase machine and
+// RP-4 — the Revery. See docs/claude/revery.md for the phase machine and
 // summary semantics. Reuses the deepTime pattern: one-frame staging, bulk
 // observation with time-compressed world ticks, summary phase, closing.
 export const ReveryPhase = {
@@ -905,7 +905,7 @@ export interface ReveryState {
   summaryReady: boolean
   // Which omen triggered this Revery. Used by the summary header.
   omenKind: OmenKind
-  // Precis #32 — summons-path fields. Present only when the Revery was
+  // RP-32 — summons-path fields. Present only when the Revery was
   // triggered by the pressure-ceiling path (state.dormancyPressure >= 1).
   // summons: true when this is a summons Revery (vs an invitation, future).
   // summonsAudioCue: flag read by future audio/render layers for the full-

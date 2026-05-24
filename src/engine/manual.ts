@@ -58,7 +58,7 @@ export interface ManualEntry {
 const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }>> = {
   // Items
   'item:bee': { lore: 'Apis mellifera.' },
-  // Seed items — reintroduced in precis #5 as ruin-recovery payloads.
+  // Seed items — reintroduced in RP-5 as ruin-recovery payloads.
   // Lore is TODO per repo policy (lore is human-authored only).
   'item:wildflowerSeeds': { lore: 'TODO' },
   'item:tallGrassSeeds': { lore: 'TODO' },
@@ -142,7 +142,7 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'event:wildfire': {
     lore: 'When lightning strikes dry flora, fire spreads to neighboring patches. The drier the plants, the farther it burns. Wet flora resists ignition. The fire enriches the soil as it passes.',
   },
-  // Events — Torchbearer (precis #9b). Lore is human-authored; both
+  // Events — Torchbearer (RP-9b). Lore is human-authored; both
   // entries land with TODO placeholders pending prose.
   'event:torchbearer-walk': { lore: 'TODO' },
   'event:torchbearer-refused': { lore: 'TODO' },
@@ -175,7 +175,7 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   // Events — endgame
   'event:rescue-coyote': { lore: 'TODO' },
   'event:steward-sealed': { lore: 'TODO' },
-  // Events — precis #17 (autonomous flora spread + ceremony + pollination)
+  // Events — RP-17 (autonomous flora spread + ceremony + pollination)
   // Lore is human-authored only; placeholders land here so recordDiscovery
   // surfaces the entries on first trigger.
   'event:flora-spread': { lore: 'TODO' },
@@ -367,7 +367,7 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     sourceKind: 'zone',
   },
   {
-    // Precis #33 — the little house. Discovery key is 'zone:house',
+    // RP-33 — the little house. Discovery key is 'zone:house',
     // recorded by enterHouse on first entry. Since the player spawns
     // inside the house at tenure start, this entry unlocks naturally
     // on the very first frame.
@@ -579,7 +579,7 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     sourceKind: 'event',
     crossRefs: ['character:gron', 'recipe:bee+clover'],
   },
-  // Precis #9b — Torchbearer controlled-burn events
+  // RP-9b — Torchbearer controlled-burn events
   {
     id: 'event:torchbearer-walk',
     name: 'The Line Was Walked',
@@ -600,7 +600,7 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     sourceKind: 'event',
     crossRefs: ['character:moab'],
   },
-  // Precis #17 — autonomous flora spread, bee+clover ceremony,
+  // RP-17 — autonomous flora spread, bee+clover ceremony,
   // bee-mediated cross-pollination, lineage overlay. recordDiscovery
   // fires for each of these in engine code; skeletons surface them in
   // the manual UI. Lore stubs already exist in MANUAL_LORE as TODO.
@@ -684,7 +684,7 @@ export const MANUAL_ENTRIES: Record<string, ManualEntry> = Object.fromEntries(
   ].map(entry => [entry.id, entry])
 )
 
-// --- Egregore manual entries (precis #8a) ---
+// --- Egregore manual entries (RP-8a) ---
 //
 // Egregore entries are per-tile and dynamic — they depend on
 // state.egregorePositions which is set during genesis. They cannot
@@ -717,7 +717,7 @@ export const getEgregoreLatinPierceForEntry = (entryId: string): string | null =
   return getEgregoreLatinPierce(x, y)
 }
 
-// Precis #8b — once the player has discovered any native flora species
+// RP-8b — once the player has discovered any native flora species
 // (via the permacomputer scan, etc.), every egregore manual entry gains
 // a Voynich footnote line. The cosmology refuses the question the
 // player has started asking; the doctrine reads it as "no compatible

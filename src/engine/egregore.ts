@@ -1,4 +1,4 @@
-// Egregoric flora — thematic substrate (precis #8a).
+// Egregoric flora — thematic substrate (RP-8a).
 //
 // The egregores are "not-of-this-Earth" per v3 cosmology doctrine. They
 // have no Latin binomial, no FloraSpecies id, no growth lifecycle. This
@@ -34,7 +34,7 @@ import { tileHash } from './position'
 // The four PUA slots U+F120, U+F1A0, U+F220, U+F2A0 are mapped in the
 // font cmap but render as zero-length glyphs. They live in
 // EMPTY_PUA_BLOCKLIST below and must never appear in EGREGORE_GLYPHS or
-// EVA_TOKENS. See harness/specs/precis-8a-egregoric-thematic.yaml
+// EVA_TOKENS. See harness/specs/RP-8a-egregoric-thematic.yaml
 // (behavior `egregore-glyph-registry`) for the locked-content contract.
 export const EGREGORE_GLYPHS = [
   '\u{F166}',
@@ -197,10 +197,10 @@ export const getEgregoreLatinPierce = (x: number, y: number): string | null => {
   return LATIN_PIERCE_WORDS[pick]
 }
 
-// --- Incompatibility footnote (precis #8b) ---------------------------------
+// --- Incompatibility footnote (RP-8b) ---------------------------------
 //
 // Appended to every egregore manual entry once the player has discovered
-// any native flora species (precis #8b doctrine: "the cosmology refuses
+// any native flora species (RP-8b doctrine: "the cosmology refuses
 // the question once the player has started asking it"). The tokens are
 // drawn from the same EVA_TOKENS allowlist as the body, with a separate
 // hash channel so the footnote is uncorrelated with the body.
@@ -209,7 +209,7 @@ export const getEgregoreLatinPierce = (x: number, y: number): string | null => {
 // sequence is meant to read as "no compatible regions" in the doctrinal
 // register. The English string is intentionally not surfaced anywhere
 // (no constant, no helper, no comment line that the renderer can read).
-// Players see only the Voynich glyphs; precis-12 will surface the
+// Players see only the Voynich glyphs; RP-12 will surface the
 // player-readable "no compatible regions" line in the crossbreed UX.
 
 const FOOTNOTE_LENGTH_BUCKET = 3 // 3..5 tokens

@@ -115,7 +115,7 @@ const countHivesOnPatch = (patch: CloverPatch, state: GameState): number => {
 
 // --- Main growth tick (thin wrapper) ---
 
-// Precis #17 — clover growth now routes through the species-agnostic
+// RP-17 — clover growth now routes through the species-agnostic
 // spread engine. The wrapper preserves the existing call signature
 // (tickCloverGrowth(state)) so gameLoop.ts and tests don't need to
 // change. Future call sites can call tickSpeciesSpread directly with
@@ -224,7 +224,7 @@ export const tickCloverHives = (state: GameState): void => {
   }
 }
 
-// --- Legacy spread surface (precis-17 thin-wrapper exports) ---
+// --- Legacy spread surface (RP-17 thin-wrapper exports) ---
 
 // The spread/spiral implementation moved to flora/type/clover/spread.ts.
 // These re-exports keep the legacy test imports working without

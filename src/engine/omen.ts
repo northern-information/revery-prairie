@@ -1,8 +1,8 @@
-// Precis #32 — dormancy pressure (forcing function).
+// RP-32 — dormancy pressure (forcing function).
 //
-// The three predicates from precis #4 (bee on shoulder, distant meteorite,
+// The three predicates from RP-4 (bee on shoulder, distant meteorite,
 // cloud passing the sun) are RETIRED. See v6 thinktank round 6 in
-// docs/precis-thinktank-v6.md for the doctrinal critique — the three were
+// docs/backlog-thinktank-v6.md for the doctrinal critique — the three were
 // rare, frame-stacked, and not aimed at the steward. They have been deleted.
 //
 // This module is now a pressure tick. Each frame in gameLoop:
@@ -11,7 +11,7 @@
 //     Autumn season, cooldown elapsed). The floor is a linear function of
 //     state.seasonalPhase between REVERY_PRESSURE_RAMP_START (0.5, autumn
 //     equinox) and REVERY_PRESSURE_RAMP_END (0.75, winter solstice).
-//   - contributeDormancyPressure(state, amount) is the entry point precis-36
+//   - contributeDormancyPressure(state, amount) is the entry point RP-36
 //     (The Revery Knot) will call on Knot pickup. Precis-32 itself never
 //     calls this — it exists so the contract is locked once.
 //
@@ -54,7 +54,7 @@ export const tickDormancyPressure = (state: GameState, time: number): void => {
 }
 
 // External contribution entry point. Precis-36 (The Revery Knot) calls this
-// on Knot pickup; precis-32 itself never calls it. Adds a non-negative
+// on Knot pickup; RP-32 itself never calls it. Adds a non-negative
 // amount to dormancyPressure, clamped to [0, 1]. Negative amounts are
 // clamped to 0 before addition (no-op).
 export const contributeDormancyPressure = (state: GameState, amount: number): void => {

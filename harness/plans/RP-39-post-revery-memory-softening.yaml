@@ -1,0 +1,56 @@
+plan:
+  id: RP-39-post-revery-memory-softening
+  title: 'RP-39: Post-Revery memory softening — drain overworldFogDiscovered on Revery exit'
+  created: 2026-05-23
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: implement-softening-hook
+    title: 'Add applyPostReveryMemorySoftening helper to revery.ts; call from Closing phase before state.revery = null'
+    spec_id: RP-39-post-revery-memory-softening
+    spec_sections:
+      - softening-fires-on-revery-exit
+      - explored-set-untouched-on-exit
+      - cave-memory-untouched-on-exit
+      - softening-fires-on-every-revery-exit
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: regression-tests
+    title: 'Author RP-39 tests: softening clears overworldFogDiscovered on Closing; overworldFogExplored and cave fog sets untouched; fires on every Revery exit; walking out re-promotes tiles via existing computeZoneVisibility'
+    spec_id: RP-39-post-revery-memory-softening
+    spec_sections:
+      - softening-fires-on-revery-exit
+      - explored-set-untouched-on-exit
+      - cave-memory-untouched-on-exit
+      - softening-fires-on-every-revery-exit
+      - walking-out-repromotes-tiles
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/visibility.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/revery.test.ts
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
+    output_files:
+      - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
+    depends_on:
+      - implement-softening-hook
+    verification:
+      - 'npx vitest run src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts'
+      - 'npm run test'
+    repair: retry
+    tags: [test, engine]

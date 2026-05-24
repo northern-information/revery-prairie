@@ -10,7 +10,7 @@ plan:
 tasks:
   - id: bump-ceremony-radius
     title: Set CEREMONY_WAVE_RADIUS from 8 to 13 in src/engine/constants.ts.
-    spec_id: precis-17-autonomous-flora-spread
+    spec_id: RP-17-autonomous-flora-spread
     spec_sections:
       - ceremony-wave-enqueues
       - ceremony-wave-tick
@@ -34,7 +34,7 @@ tasks:
       tiles whose Chebyshev distance from (cx, cy) exceeds maxRadius
       regardless of jitter pull-in. The wave is hard-bounded by
       maxRadius, not by paint count.
-    spec_id: precis-17-autonomous-flora-spread
+    spec_id: RP-17-autonomous-flora-spread
     spec_sections:
       - ceremony-wave-tick
     context_files:
@@ -53,7 +53,7 @@ tasks:
 
   - id: hard-cap-regression-test
     title: >
-      Add a regression test to src/engine/__tests__/precis-17-ceremony-wave.test.ts
+      Add a regression test to src/engine/__tests__/RP-17-ceremony-wave.test.ts
       (or the existing ceremony-wave test file) covering the
       ceremony-wave-hard-radius-cap edge case. The test casts a
       ceremony on a large open-dirt overworld with no obstructions,
@@ -62,19 +62,19 @@ tasks:
       parentPrefix matches the seedIdentity prefix) lies within
       Chebyshev radius CEREMONY_WAVE_RADIUS of the cast origin, and
       that state.activeWaves.length === 0 after termination.
-    spec_id: precis-17-autonomous-flora-spread
+    spec_id: RP-17-autonomous-flora-spread
     spec_sections:
       - ceremony-wave-tick
     context_files:
-      - src/engine/__tests__/precis-17-ceremony-wave.test.ts
+      - src/engine/__tests__/RP-17-ceremony-wave.test.ts
       - src/engine/floraWaves.ts
       - src/engine/constants.ts
     output_files:
-      - src/engine/__tests__/precis-17-ceremony-wave.test.ts
+      - src/engine/__tests__/RP-17-ceremony-wave.test.ts
     depends_on:
       - hard-cap-wave-termination
     verification:
-      - npx vitest run src/engine/__tests__/precis-17-ceremony-wave.test.ts
+      - npx vitest run src/engine/__tests__/RP-17-ceremony-wave.test.ts
     repair: retry
     tags:
       - engine
@@ -82,25 +82,25 @@ tasks:
 
   - id: refresh-existing-wave-tests
     title: >
-      Update any existing assertions in precis-17 wave tests
-      (precis-17-ceremony-wave.test.ts, precis-17-spread-perf.test.ts,
+      Update any existing assertions in RP-17 wave tests
+      (RP-17-ceremony-wave.test.ts, RP-17-spread-perf.test.ts,
       combine.test.ts, recipes.test.ts) that depend on the old radius
       of 8 or on the soft-cap "paints past maxRadius" behavior. Tile
       count expectations from radius 8 must be revised for the larger
       radius. Tests asserting wave persistence past maxRadius must be
       updated or removed because the wave now terminates on the tick
       currentRadius exceeds maxRadius.
-    spec_id: precis-17-autonomous-flora-spread
+    spec_id: RP-17-autonomous-flora-spread
     spec_sections:
       - ceremony-wave-tick
     context_files:
-      - src/engine/__tests__/precis-17-ceremony-wave.test.ts
-      - src/engine/__tests__/precis-17-spread-perf.test.ts
+      - src/engine/__tests__/RP-17-ceremony-wave.test.ts
+      - src/engine/__tests__/RP-17-spread-perf.test.ts
       - src/engine/__tests__/combine.test.ts
       - src/engine/__tests__/recipes.test.ts
     output_files:
-      - src/engine/__tests__/precis-17-ceremony-wave.test.ts
-      - src/engine/__tests__/precis-17-spread-perf.test.ts
+      - src/engine/__tests__/RP-17-ceremony-wave.test.ts
+      - src/engine/__tests__/RP-17-spread-perf.test.ts
       - src/engine/__tests__/combine.test.ts
       - src/engine/__tests__/recipes.test.ts
     depends_on:

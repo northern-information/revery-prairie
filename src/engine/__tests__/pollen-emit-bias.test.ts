@@ -52,7 +52,7 @@ afterEach(() => {
   unregisterFloraPollinate(TileType.Flora)
 })
 
-describe('pollen emit bias by pollinatorPreference trait (precis #7)', () => {
+describe('pollen emit bias by pollinatorPreference trait (RP-7)', () => {
   it('high-trait plant emits more pollen than low-trait plant over many ticks', () => {
     const state = windyState()
     clearAroundPlayer(state, 8)

@@ -14,7 +14,7 @@ behaviors:
       `state.mapWidth`, or `state.mapHeight`. Glint patches are an
       overworld concept — they live on the prairie regardless of where
       the steward currently stands. Depending on whatever `state.map`
-      happens to point at is fragile: precis-33 made
+      happens to point at is fragile: RP-33 made
       `enterHouseAtTenureStart` swap `state.map` to the 15x9 house
       interior before genesis runs, which is the proximate cause of the
       handoff crash this spec exists to prevent.
@@ -33,7 +33,7 @@ behaviors:
       to gameplay transition) and seeds the initial `GLINT_ZONE_COUNT`
       patches. It must succeed even when `state.map` is the house
       interior (the production tenure-start configuration after
-      precis-33). All patches it produces have centers within the
+      RP-33). All patches it produces have centers within the
       overworld map bounds.
     inputs:
       - 'state with state.map pointing at the house interior (post-enterHouseAtTenureStart)'
@@ -84,7 +84,7 @@ edge_cases:
     description: >
       `enterHouseAtTenureStart(state)` is called, then
       `seedGlintPatches(state, time)` runs. This is the production
-      tenure-start sequence post-precis-33. The spec requires no throw.
+      tenure-start sequence post-RP-33. The spec requires no throw.
     expected: 'seedGlintPatches returns without throwing; state.glintPatches contains valid patches centered on the overworld map; state.map remains pointing at the house interior (the seeding does NOT mutate state.map).'
   - id: skip-genesis-fast-path
     description: >

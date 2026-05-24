@@ -1,0 +1,573 @@
+id: RP-8a-egregoric-thematic
+name: 'RP-8a — Egregoric flora (thematic allusions)'
+priority: medium
+layer: integration
+source_files:
+  - docs/backlog-thinktank-v3.md
+  - docs/backlog.yaml
+  - CLAUDE.md
+  - package.json
+  - src/engine/types.ts
+  - src/engine/genesis.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/constants.ts
+  - src/engine/renderer.ts
+  - src/engine/tileBg.ts
+  - src/engine/manual.ts
+  - src/engine/egregore.ts
+  - src/engine/scan.ts
+  - src/engine/state.ts
+  - src/engine/characters.ts
+  - src/components/ManualPanel.tsx
+  - src/components/ManualPanel.constants.ts
+  - src/components/GelBandView.tsx
+  - src/hooks/useKeyboard.ts
+  - src/styles/index.css
+  - public/fonts/README.md
+  - tools/fetch-voynich-font.mjs
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - RP-0-reclaim-revery
+  - RP-6-naturalists-manual
+
+behaviors:
+  - id: egregore-tile-type-exists
+    description: >
+      A new TileType.Egregore is added to the TileType enum with
+      string value 'egregore'. The tile is inert in this PR — it
+      blocks no movement, triggers no interaction, and has no
+      lifecycle. It is visually distinct from all other tiles.
+      Player can walk onto it (per the player-name-drift / passive-
+      transmission spec note in v3 layer (a), though the drift
+      tracking itself is deferred to RP-4).
+    inputs:
+      - 'codebase after RP-8a lands'
+    outputs:
+      - "TileType.Egregore exists with string value 'egregore'"
+      - 'players can walk onto and off of egregore tiles'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-glyph-registry
+    description: >
+      src/engine/egregore.ts exports EGREGORE_GLYPHS as a locked
+      8-glyph allowlist drawn from the kreativekorp Voynich
+      Unicode font's Private Use Area. The exact code points are:
+      U+F166, U+F174, U+F182, U+F1B4, U+F12A, U+F1A1, U+F1B1,
+      U+F1FD — chosen via the visual specimen sheet at
+      docs/voynich-specimen.html and reproduced as a regression
+      asset there. This 8-glyph set is the shared visual alphabet
+      for all "not-of-this-Earth" content: egregore tiles in 8a,
+      egregoric flora species in 8b, and any future egregoric
+      entities. Glyph selection per tile/entity is deterministic
+      via tileHash (or equivalent identity hash). Stable across
+      reloads for the same steward name. The four cmap-mapped
+      but visually-empty PUA slots (U+F120, U+F1A0, U+F220,
+      U+F2A0) are listed in a blocklist constant and must never
+      be added to the allowlist. The comment block above
+      EGREGORE_GLYPHS documents the PUA source and the prior
+      Latin-Extended-E + visible-fallback design is retired.
+    inputs:
+      - 'an egregoric content site at a specific position/identity, Voynich font bundled in the build'
+    outputs:
+      - 'EGREGORE_GLYPHS contains exactly these 8 code points: U+F166, U+F174, U+F182, U+F1B4, U+F12A, U+F1A1, U+F1B1, U+F1FD'
+      - 'EGREGORE_GLYPHS contains no code point in the empty-PUA blocklist (U+F120, U+F1A0, U+F220, U+F2A0)'
+      - 'every EGREGORE_GLYPHS code point has a non-empty glyph in the bundled voynich.ttf (verified by reading the loca table)'
+      - 'the renderer draws the same Voynich glyph at the same identity across reloads'
+      - 'different identities draw different glyphs from the allowlist'
+    state_changes: []
+    determinism: deterministic
+
+  - id: voynich-font-bundled-load-required
+    description: >
+      The kreativekorp Voynich Unicode font is treated as a
+      load-required build asset. Either public/fonts/voynich.ttf
+      is committed to the repository, or `npm run fetch-font` is
+      wired as a prebuild hook so the file is present before
+      bundling. The @font-face declaration in src/styles/index.css
+      registers it under font-family 'Voynich'. Egregore tile
+      glyphs, egregore manual entry bodies, and the Egregore
+      manual category tab label all render in this typeface.
+      The prior doctrine ("empty-square fallback is acceptable
+      when the font fails to load") is retired — the font is
+      part of the critical asset graph and a load failure is a
+      bug to fix at the build/asset layer, not the renderer.
+    inputs:
+      - 'a fresh checkout, then npm install + npm run build (or npm run dev)'
+    outputs:
+      - 'public/fonts/voynich.ttf is present before any bundle step runs'
+      - '@font-face for font-family Voynich is declared in src/styles/index.css'
+      - 'egregore tiles, manual bodies, and the Egregore tab label all render in the Voynich typeface'
+    state_changes: []
+    determinism: deterministic
+
+  - id: eva-tokens-rendered-as-voynich
+    description: >
+      The EVA_TOKENS allowlist in src/engine/egregore.ts is
+      composed of strings made of code points drawn from the
+      kreativekorp Voynich PUA range (U+F121..U+F2FF, excluding
+      the empty-PUA blocklist U+F120, U+F1A0, U+F220, U+F2A0).
+      Bodies may use the broader font coverage, not just the 8
+      curated glyphs in EGREGORE_GLYPHS — EGREGORE_GLYPHS is the
+      tile-rendered alphabet; EVA_TOKENS body text can recruit
+      more of the font's range for visual variety. The body text
+      returned by getEgregoreManualBody therefore renders as
+      actual Voynich glyphs — the player never sees Latin letters
+      like "qokeey chedy" as the body. Word-spacing and length
+      distribution are preserved so the visual texture still
+      reads as a Voynich manuscript page. LATIN_PIERCE_WORDS
+      remains unchanged in content and placement: roughly 1 tile
+      in 5 still embeds one ASCII English pierce word that
+      renders in the default font. Pierce words are a deliberate
+      cosmology surface (v3 doctrine, late-game ritual) and are
+      preserved by this spec.
+    inputs:
+      - 'ManualPanel renders an egregore entry body'
+    outputs:
+      - 'every EVA_TOKENS character is in U+F121..U+F2FF and is not in the empty-PUA blocklist'
+      - 'every EVA_TOKENS character has a non-empty glyph in the bundled voynich.ttf'
+      - 'getEgregoreManualBody output renders as Voynich glyphs when the font is loaded'
+      - 'LATIN_PIERCE_WORDS is unchanged and still appears in roughly 1/5 of entries as ASCII'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-tile-voynich-font-on-player-tile
+    description: >
+      The renderer's on-player-tile draw branch (the path that
+      fires when mx === player.x && my === player.y in the non-
+      multilayer fallback) must apply the same Voynich font
+      swap that the off-player egregore branch applies. Today
+      only the off-player branch swaps to 'Voynich' before
+      drawing the resolved char; the on-player branch drops to
+      the default monospace font, which has no glyph for any
+      EGREGORE_GLYPHS PUA code point and falls back to '?' or
+      an empty box. When the player stands on an egregore
+      tile, the rendered glyph must be the same Voynich glyph
+      a non-player observer would see at that position. This
+      is a rendering correctness fix, not a gameplay change —
+      no state mutates, no movement rule changes.
+    inputs:
+      - 'player.x === mx, player.y === my, state.map[my][mx].type === TileType.Egregore'
+    outputs:
+      - 'the canvas draw call at the player tile uses ctx.font with the Voynich family'
+      - "no '?' or empty-box glyph appears at any egregore tile position regardless of player overlap"
+      - 'the glyph drawn is identical (same EGREGORE_GLYPHS entry) whether or not the player is on the tile'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-binomial-header-removed
+    description: >
+      The two-EVA-token "binomial" header line above each egregore
+      manual entry is removed. getEgregoreBinomial is deleted from
+      src/engine/egregore.ts. getEgregoreManualEntries sets the
+      egregore entry's name to an empty string (or ManualPanel
+      skips the name span for ManualCategory.Egregore entries).
+      The rendered manual entry header consists of the glyph only.
+      The category tab label remains derived from
+      EGREGORE_GLYPHS.slice(0, 4) so drift between tab label and
+      tile glyphs stays impossible.
+    inputs:
+      - 'ManualPanel renders an egregore entry header'
+    outputs:
+      - 'no two-token EVA name line appears above the entry body'
+      - 'the rendered entry header consists of the glyph only'
+      - 'getEgregoreBinomial is not exported from src/engine/egregore.ts'
+      - 'the Egregore category tab label is still derived from EGREGORE_GLYPHS'
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-places-egregore-tiles
+    description: >
+      Genesis post-processing places approximately 3 egregore
+      tiles. Placement is biased near meteorite-derived craters
+      (sim.craters set). Position selection uses the same nameToSeed-
+      derived RNG that drives the rest of genesis, so the layout
+      is deterministic per steward name. Tiles are placed on
+      walkable dirt only; never on space, sand, water, ruins, or
+      cave tiles. The exact count is governed by a constant
+      (EGREGORE_TILE_COUNT) that may vary slightly (e.g. 2–4) to
+      account for placement failures, with a target of 3.
+    inputs:
+      - 'genesis pipeline runs with a given steward name and meteorite spawns'
+    outputs:
+      - 'between 2 and 4 egregore tiles placed on walkable dirt'
+      - 'placement positions cluster near (within ~5 tiles of) crater positions'
+    state_changes:
+      - field: map
+        effect: 'tiles converted from Dirt to Egregore at deterministic positions'
+    determinism: deterministic
+
+  - id: egregore-manual-entries-voynich-page
+    description: >
+      Each egregore tile gets its own manual entry, generated
+      deterministically per tile position. The entry consists of
+      a glyph header (no name line — see
+      egregore-binomial-header-removed) followed by a body
+      paragraph and the RP-8b incompatibility footnote (when
+      gated on). The body is generated from the EVA token
+      allowlist sampled per-tile via the position hash. Each
+      tile's body is stable across reloads. The entry's manual
+      category is ManualCategory.Egregore. The body is auto-
+      generated (NOT a TODO) because it is not human-authored
+      prose — it is procedurally sampled from a curated token
+      table.
+    inputs:
+      - 'manual UI opens after RP-8a lands and egregore tiles are placed'
+    outputs:
+      - 'one manual entry per egregore tile'
+      - 'each entry renders in the Voynich typeface'
+      - 'entries are unique per position but stable across reloads'
+    state_changes:
+      - field: manualDiscoveries
+        effect: "egregore tile entries are unlocked when the player's vision overlaps the tile"
+    determinism: deterministic
+
+  - id: latin-pierces-in-egregore-entries
+    description: >
+      Approximately 1 tile in 5 has its manual entry seeded such
+      that exactly one readable English word from the cosmology
+      allowlist appears in the otherwise-Voynich body. The
+      allowlist is (verbatim from v3 doctrine):
+      threshold, between, garden, before, not, here, was, meteor,
+      Earth, line, thin, near, moved, past, us, them. The pierce
+      word renders in the standard ASCII font, adjacent to the
+      Voynich glyphs. Pierce selection is deterministic per tile
+      (same hash used for glyph + content selection).
+    inputs:
+      - 'an egregore tile whose position-hash falls in the pierce bucket (1-in-5 selection)'
+    outputs:
+      - 'the tile manual entry body contains exactly one ASCII English word from the allowlist'
+      - 'the rest of the body remains Voynich EVA tokens'
+    state_changes: []
+    determinism: deterministic
+
+  - id: moab-refusal-line
+    description: >
+      Moab Coldë's dialog gains at least one refusal line referring
+      to the egregores in folk register. The line never uses the
+      word 'invasive' or 'egregore'. Moab's folk name for them is
+      consistent across his lines. Example placeholder line
+      (replace with human-authored lore before merge):
+      'I don't grow that. Nobody grows that.' Or
+      'The other clover. Different from this one. We don't speak it.'
+      The line is gated on a condition that is observable today —
+      whether any egregore tile exists on the map (i.e. always,
+      since genesis places them).
+    inputs:
+      - 'player completes Moab dialog after RP-8a lands'
+    outputs:
+      - 'Moab has at least one dialog line about the egregores'
+      - 'the line does not contain the word "invasive" or "egregore"'
+    state_changes: []
+    determinism: deterministic
+
+  - id: ghost-refusal-line
+    description: >
+      At least one of the three ghosts gains a refusal line about
+      the egregores using a *different* folk name than Moab's.
+      Examples (placeholders — final lore is human-authored):
+      'The Far Garden. We don't go there.' or
+      'Something else grew here. Before us.' Same constraints:
+      no 'invasive', no 'egregore'.
+    inputs:
+      - 'player completes the targeted ghost dialog'
+    outputs:
+      - "at least one ghost has a dialog line about the egregores using a folk name distinct from Moab's"
+    state_changes: []
+    determinism: deterministic
+
+  - id: invasive-lint-guard
+    description: >
+      A CI lint check verifies that the word 'invasive' does not
+      appear in any player-facing string in the codebase. Implemented
+      as a grep-based test in the harness (src/harness/__tests__/) or
+      a simple npm script. Internal code comments and engineering
+      docs may use the word; only player-facing strings are guarded.
+    inputs:
+      - 'CI run'
+    outputs:
+      - "no occurrence of 'invasive' in player-facing string literals (dialog, manual lore, etc.)"
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-is-scan-target
+    description: >
+      selectScanTarget in src/engine/scan.ts gains an
+      `{ kind: "egregore"; position: Position; identity: string }`
+      variant. An egregore tile becomes a scan target under the
+      same priority order as flora and oaks: on-tile → playerFacing
+      cardinal neighbor → first cardinal in CARDINAL order. Flora
+      and egregore have equal priority at the same step. The
+      F-hold scan keybinding in useKeyboard.ts works against
+      egregore targets without any keybinding change. Identity is
+      derived from the tile position via a dedicated tileHash salt
+      channel (distinct from glyph/body/pierce channels) so identity
+      does not correlate with the chosen glyph.
+    inputs:
+      - 'player holds F while on or cardinally adjacent to a TileType.Egregore tile'
+    outputs:
+      - 'selectScanTarget returns an egregore variant for that tile'
+      - 'commitScan, after the SCAN_DURATION_MS hold, processes the egregore target'
+      - 'identity is stable across reloads for the same steward name'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-specimens-state-field
+    description: >
+      GameState gains an `egregoreSpecimens: ScannedSpecimen[]`
+      field that mirrors oakSpecimens. The existing ScannedSpecimen
+      type is reused (no new type). createGameState initializes
+      the field to []. commitScan, on a successful egregore scan,
+      dedupes on identity and appends an entry. The field is added
+      to EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts.
+    inputs:
+      - 'commitScan resolves an egregore target after a successful hold'
+    outputs:
+      - 'state.egregoreSpecimens contains one entry per distinct egregore tile the player has scanned'
+      - 'rescanning the same egregore tile does not append a duplicate'
+      - 'EXPECTED_FIELDS in schema.test.ts contains "egregoreSpecimens"'
+    state_changes:
+      - field: egregoreSpecimens
+        effect: 'append on the first successful scan of a given egregore tile (dedupe by identity)'
+    determinism: deterministic
+
+  - id: egregore-scan-opens-manual-entry
+    description: >
+      A completed egregore scan records discovery and routes the
+      player to the per-tile dynamic manual entry. The entry id
+      format matches the existing getEgregoreManualEntries scheme:
+      `egregore:${x},${y}`. recordDiscovery is called with that id,
+      state.manualHighlightEntryId is set to the same id, and a
+      pickup bloom is spawned at the tile. The commitScan return
+      type widens to a discriminated union so the caller can
+      distinguish flora and egregore results: egregore returns
+      `{ kind: "egregore"; identity; position }` (or equivalent
+      tagged shape).
+    inputs:
+      - 'commitScan completes for an egregore target'
+    outputs:
+      - 'recordDiscovery(state, `egregore:${x},${y}`) is called'
+      - 'state.manualHighlightEntryId is set to the same id'
+      - 'a pickup bloom is spawned at the scanned tile'
+      - 'commitScan returns an egregore-tagged result for the caller modal'
+    state_changes:
+      - field: manualHighlightEntryId
+        effect: 'set to `egregore:${x},${y}` so ManualPanel scrolls to and flashes the entry'
+      - field: manualDiscoveries
+        effect: 'add `egregore:${x},${y}` so the dynamic manual entry becomes unlocked'
+    determinism: deterministic
+
+  - id: purple-gel-band-view-variant
+    description: >
+      GelBandView accepts a `variant: "flora" | "egregore"` prop
+      that controls the gel band color and column geometry
+      without changing the underlying hashToHexGrid mapping. The
+      egregore variant:
+        - swaps ONLY the gel band color (the `band` palette
+          slot) from gold/bee to violet (#B080D0, the egregore
+          glyph color). The reticle/crop-mark border AND the
+          side-label text color remain on the gold/bee tokens
+          (border-bee, text-bee) so the viewfinder chrome reads
+          consistent across all scan kinds and only the bands
+          themselves carry the cosmology-specific color.
+        - replaces the uniform CELL_WIDTH with per-column widths
+          derived from the identity hash (each of the 8 columns
+          gets a width sampled from a deterministic range that
+          sums to the same TOTAL_SIZE so the bounding box stays
+          stable). Same identity → same widths.
+        - amplifies the cellNoise() jitter for the bands (band
+          horizontal scale and offset jitter exceeds the flora
+          variant amplitude) so the egregore gel reads as a
+          noisier, more analog printout.
+      Side label text format is unchanged. Rows still reveal in
+      the same column-major order.
+    inputs:
+      - 'GelBandView renders with variant="egregore" and a 64-hex identity'
+    outputs:
+      - 'the gel band cells (gel-band-cell-* elements) use the violet color (#B080D0)'
+      - 'the reticle/crop-mark borders (gel-crop-tl/tr/bl/br) use the gold/bee border token, same as the flora variant'
+      - 'the side label and edge code (gel-side-label-left, gel-edge-code) use the gold/bee text token, same as the flora variant'
+      - 'each of the 8 columns has a distinct width derived from the identity'
+      - 'overall component width remains TOTAL_SIZE'
+      - 'band horizontal scale and offset jitter amplitude exceeds the flora variant'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-scan-result-modal
+    description: >
+      When commitScan returns an egregore result, the game loop
+      opens the scan-result modal with `variant="egregore"` and
+      the tile identity. Cells reveal in the same column-major
+      order as the flora modal. Closing the modal opens the
+      manual to `egregore:${x},${y}` via manualHighlightEntryId.
+    inputs:
+      - 'a successful egregore scan completes'
+    outputs:
+      - 'the scan-result modal opens with the purple gel variant'
+      - 'closing the modal opens the manual to the matching egregore entry'
+    state_changes: []
+    determinism: deterministic
+
+  - id: doctrine-and-status-aligned
+    description: >
+      docs/backlog.yaml flips feature 8a to in-progress with
+      spec/plan links (during PR) and to shipped after merge.
+      CLAUDE.md gains a `## egregores` section briefly noting the
+      cosmology vocabulary (egregoric flora, Far Garden), the
+      no-'invasive' rule, the font installation, and the
+      EGREGORE_GLYPHS / EVA token registry locations. The doctrine
+      doc docs/backlog-thinktank-v3.md does not change.
+    inputs:
+      - 'codebase after RP-8a lands'
+    outputs:
+      - 'CLAUDE.md has an egregores section'
+      - 'backlog.yaml feature 8a has spec/plan/pr fields populated'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: no-meteorites-no-craters
+    description: >
+      Edge: a genesis run produces zero craters (unlikely but
+      possible if the meteorite generation skips all impacts).
+    expected: >
+      Egregore placement falls back to random walkable dirt across
+      the map (still biased toward soil-low regions or similar
+      genesis-derived signals if available, but never crashes).
+      At minimum, 2 tiles are placed.
+
+  - id: font-fails-to-load
+    description: >
+      Browser cannot fetch the Voynich font (offline first-load,
+      CSP blocked, etc.).
+    expected: >
+      Egregore tiles, manual bodies, and the Egregore tab label
+      degrade to the system font's PUA rendering — typically
+      empty boxes. This is acknowledged as a degraded state,
+      not the intended state. The prior "fallback is the
+      cosmology failing" doctrine is retired. Fixes belong at
+      the asset/build layer, not the renderer. No code path
+      attempts to detect or "patch around" the failure.
+
+  - id: walk-over-egregore-tile
+    description: >
+      Player walks across an egregore tile. The tile renders the
+      same per-position Voynich PUA glyph (from EGREGORE_GLYPHS)
+      it renders when the player is not standing on it — the
+      glyph must be drawn in the 'Voynich' font, never with the
+      default monospace font (which would fall back to '?' or
+      empty box for PUA code points). This applies in both the
+      playerSpawn.visible and !playerSpawn.visible branches of
+      the renderer's on-player-tile draw path. The passive-
+      transmission cosmologicalDrift tracking (v3 layer (a))
+      is deferred to RP-4; movePlayer still succeeds normally
+      and no gameplay side effect fires.
+    expected: >
+      The on-player-tile render path applies the same
+      `ctx.font = "${BASE_FONT_SIZE}px 'Voynich', monospace"`
+      swap that the off-player egregore branch already uses.
+      No '?' glyph appears at the player position on an
+      egregore tile.
+
+  - id: egregore-tile-during-wildfire-spread
+    description: >
+      Wildfire spread (via lightning + dry flora chain) reaches
+      a position containing an egregore tile.
+    expected: >
+      The wildfire does not propagate through the egregore tile —
+      it is not a Flora tile, so spreadWildfire's tile-type check
+      excludes it naturally. Egregore tiles are not affected by
+      wildfire.
+
+  - id: egregore-tile-on-tile-priority
+    description: >
+      Player stands on an egregore tile while also adjacent to a
+      flora tile. They hold F.
+    expected: >
+      On-tile takes priority (matches the existing flora rule).
+      Egregore wins over the adjacent flora. selectScanTarget
+      returns the egregore variant.
+
+  - id: egregore-and-flora-cardinal-tie
+    description: >
+      Player is adjacent to both a flora tile and an egregore
+      tile in different cardinal directions, neither in the
+      playerFacing direction.
+    expected: >
+      Priority follows CARDINAL order (N, S, W, E). The first hit
+      in that order wins, regardless of tile kind. Flora and
+      egregore have equal priority at the same step.
+
+  - id: rescanning-same-egregore-tile
+    description: >
+      Player completes a scan on an egregore tile they have
+      already scanned previously.
+    expected: >
+      No new ScannedSpecimen is appended (dedupe on identity,
+      matches flora behavior). The manual entry is still
+      highlighted again via manualHighlightEntryId. The pickup
+      bloom still spawns.
+
+  - id: gel-variant-with-flora-identity
+    description: >
+      GelBandView is rendered with variant="egregore" but a
+      flora-derived identity (or vice versa).
+    expected: >
+      The variant controls only palette and geometry, not the
+      hashToHexGrid mapping. The component renders correctly with
+      either identity. The mismatched combination is not used in
+      production but the component remains pure.
+
+  - id: save-from-before-egregore-specimens-existed
+    description: >
+      A player loads a save written before egregoreSpecimens
+      existed on GameState.
+    expected: >
+      Deserialization tolerates the missing field and
+      initializes egregoreSpecimens to []. The schema test passes
+      for both old and new saves (the field is treated as
+      optional during load, required during save).
+
+  - id: deterministic-same-name
+    description: >
+      Two calls to createGameState with the same steward name
+      produce identical egregore tile positions, glyphs, manual
+      entry content, and per-tile scan identities.
+    expected: >
+      Position list, per-tile glyph assignments, EVA token
+      sequences (now PUA-based), Latin pierce assignments, and
+      egregore-tile scan identities all match byte-for-byte.
+
+failure_conditions:
+  - trigger: "grep for 'invasive' in any player-facing string (dialog arrays, manual lore, item names) returns at least one match"
+    expected: 'CI fails — the no-invasive rule was violated'
+  - trigger: "TileType.Egregore is missing from the TileType enum"
+    expected: 'CI fails — egregore tile type was not added'
+  - trigger: "A new game produces zero egregore tiles after genesis"
+    expected: 'CI fails — genesis placement is broken'
+  - trigger: "An egregore manual entry uses a Latin binomial format like 'Egregora invasiva', or renders any EVA name line as the entry header"
+    expected: 'CI fails — egregores are not-of-this-Earth and have no name. The header is the glyph alone.'
+  - trigger: "The Voynich font file is missing from the bundled assets at the time `npm run build` runs, or the @font-face declaration is absent from src/styles/index.css"
+    expected: 'CI fails — the Voynich font is now a load-required asset; missing it is a build-time failure, not a runtime degraded mode.'
+  - trigger: "EGREGORE_GLYPHS deviates from the locked 8-code-point set (U+F166, U+F174, U+F182, U+F1B4, U+F12A, U+F1A1, U+F1B1, U+F1FD) without an explicit spec update"
+    expected: 'CI fails — the 8-glyph alphabet is locked across all egregoric content'
+  - trigger: "EGREGORE_GLYPHS contains any of U+F120, U+F1A0, U+F220, U+F2A0"
+    expected: 'CI fails — these PUA slots are mapped in the font cmap but render as empty glyphs'
+  - trigger: "EVA_TOKENS contains any code point outside U+F121..U+F2FF, or any code point in the empty-PUA blocklist"
+    expected: 'CI fails — EVA token bodies must render as Voynich glyphs, not Latin letters or empty boxes'
+  - trigger: "selectScanTarget does not return an egregore variant for an on-tile or cardinally-adjacent TileType.Egregore"
+    expected: 'CI fails — egregore F-hold scan plumbing is incomplete'
+  - trigger: "state.egregoreSpecimens is missing from EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts"
+    expected: 'CI fails — serialization schema test will not exercise the new field'
+  - trigger: "GelBandView renders the egregore variant with gold/bee gel bands (band slot not swapped to violet)"
+    expected: 'CI fails — only the band color must swap for the egregore variant; reticle and side labels must stay gold/bee'
+  - trigger: "GelBandView renders the egregore variant with violet reticle borders or violet side-label text"
+    expected: 'CI fails — reticle (gel-crop-*) and side labels (gel-side-label-left, gel-edge-code) must remain on the gold/bee tokens across both variants'
+  - trigger: "The renderer draws the player-tile branch glyph with the default monospace font when state.map[player.y][player.x].type === TileType.Egregore"
+    expected: 'CI fails — the on-player-tile path must apply the Voynich font swap; a PUA fallback glyph ("?" / empty box) at the player position is a regression'
+
+verification:
+  test_file: src/engine/__tests__/genesis.test.ts
+  test_pattern: 'egregore'
+  command: 'npx vitest run src/engine/__tests__/genesis.test.ts -t egregore'

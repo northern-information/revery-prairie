@@ -29,7 +29,7 @@ describe('moab character definition', () => {
     expect(def.glyphColor).toBe('#FFFFFF')
   })
 
-  it('has two dialog lines (precis #8a added an egregore refusal line)', () => {
+  it('has two dialog lines (RP-8a added an egregore refusal line)', () => {
     const def = getCharacterDefinition('moab')
     expect(def.dialog).toHaveLength(2)
     expect(def.dialog[0]).toBe('...')
@@ -40,7 +40,7 @@ describe('moab character definition', () => {
     expect(def.dialog[1].toLowerCase()).not.toContain('egregore')
   })
 
-  it('has no gift configured (re-anchored in precis #9)', () => {
+  it('has no gift configured (re-anchored in RP-9)', () => {
     const def = getCharacterDefinition('moab')
     expect(def.gift).toBeUndefined()
   })
@@ -112,7 +112,7 @@ describe('moab first interaction dialog', () => {
   it('two-line dialog advances through both lines before closing', () => {
     const state = makeCaveState()
     // Pin to Summer so getCharacterDialog returns the 2-line default
-    // register — precis #9a routes Moab through a season-dispatched
+    // register — RP-9a routes Moab through a season-dispatched
     // dialog and Winter/Spring would otherwise add a third line.
     state.weather.season = Season.Summer
     state.player = { x: state.caveNpcSpot.x - 1, y: state.caveNpcSpot.y }
@@ -137,7 +137,7 @@ describe('moab first interaction dialog', () => {
 })
 
 describe('moab gift delivery', () => {
-  it('grants nothing — Moab is re-anchored in precis #9', () => {
+  it('grants nothing — Moab is re-anchored in RP-9', () => {
     const state = makeCaveState()
     const result = giveCharacterGift(state, 'moab')
     expect(result).toBeNull()
@@ -151,7 +151,7 @@ describe('moab gift delivery', () => {
   })
 })
 
-describe('moab torchbearer voice (precis #9a)', () => {
+describe('moab torchbearer voice (RP-9a)', () => {
   describe('title field', () => {
     it('moab has title "drip torchbearer"', () => {
       const def = getCharacterDefinition('moab')
@@ -197,7 +197,7 @@ describe('moab torchbearer voice (precis #9a)', () => {
       expect(summer).toBe(autumn)
     })
 
-    it("every register's last line is the precis #8a egregore refusal", () => {
+    it("every register's last line is the RP-8a egregore refusal", () => {
       const seasons: Season[] = [Season.Winter, Season.Spring, Season.Summer, Season.Autumn]
       for (const season of seasons) {
         const lines = dialogForSeason(season)

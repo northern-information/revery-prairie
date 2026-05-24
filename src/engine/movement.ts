@@ -84,7 +84,7 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   // map swap fires at midpoint inside tickZoneTransition.
   if (isInputGated(state)) return false
 
-  // Precis #4 — hard input lock during the Revery. Movement is suppressed
+  // RP-4 — hard input lock during the Revery. Movement is suppressed
   // through Observing and Summary phases; releases on Closing → null.
   if (isReveryLocked(state)) return false
 
@@ -100,7 +100,7 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     updateFacingEntity(state)
     return false
   }
-  // Precis #33 — destination walkability check. The HouseBed is
+  // RP-33 — destination walkability check. The HouseBed is
   // intentionally not walkable in the general table; the player can
   // only land on it via the Revery scene transition.
   if (!isWalkableTile(state.map[ny][nx].type)) {
@@ -151,7 +151,7 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
   state.player.y = ny
   // Reset the stationary-since clock on every successful step. The
   // cloud-passing-sun omen that originally read this field was retired in
-  // precis-32; the field is retained for any future use.
+  // RP-32; the field is retained for any future use.
   state.playerStationarySince = performance.now()
 
   // Pollen trail: emit a footstep puff on every step off a clover tile,
@@ -209,7 +209,7 @@ export const tickPath = (state: GameState): boolean => {
   // Freeze any active path while a zone transition is in flight; do
   // not clear it. When the transition completes the path resumes.
   if (isInputGated(state)) return false
-  // Precis #4 — Revery clears state.path in initiateRevery, so this is
+  // RP-4 — Revery clears state.path in initiateRevery, so this is
   // defense in depth.
   if (isReveryLocked(state)) return false
 

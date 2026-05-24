@@ -9,7 +9,7 @@ source_files:
   - src/engine/types.ts
   - src/engine/__tests__/weather.test.ts
 dependencies:
-  - precis-2-phenological-seasons
+  - RP-2-phenological-seasons
 
 behaviors:
   - id: per-season-wash-table
@@ -133,7 +133,7 @@ behaviors:
       longer flickers the wash; only seasonalPhase drives the visual.
       Note: weather.season is still read for non-visual gates (flora
       dormancy, snow sky pick) — those keep their existing instant
-      semantics per precis #2 doctrine.
+      semantics per RP-2 doctrine.
     inputs:
       - 'two render frames at seasonalPhase = 0.249 and seasonalPhase = 0.251'
     outputs:

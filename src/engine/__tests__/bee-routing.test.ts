@@ -23,7 +23,7 @@ const placeFloraAt = (state: GameState, x: number, y: number, species: FloraSpec
   )
 }
 
-describe('bee routing — weighted preference (precis #7)', () => {
+describe('bee routing — weighted preference (RP-7)', () => {
   it('clover overwhelmingly preferred over bare ground when both are neighbors', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)
@@ -154,7 +154,7 @@ describe('bee routing — weighted preference (precis #7)', () => {
   })
 })
 
-describe('isBeeNearFood — multi-species (precis #7)', () => {
+describe('isBeeNearFood — multi-species (RP-7)', () => {
   it('wildflower neighbor counts as bee food', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)

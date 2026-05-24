@@ -7,7 +7,7 @@ import { registerPass } from '../passes'
 import type { CharMetrics, FloraSpecies as FloraSpeciesType, GameState } from '../../types'
 import type { RenderPass } from '../passes'
 
-// Precis #17 — family-tree lineage overlay.
+// RP-17 — family-tree lineage overlay.
 //
 // Renders only when state.overlayMode === FamilyTree (toggled via [2]
 // in src/hooks/useKeyboard.ts). Draws faint hot-pink edges from every
@@ -15,7 +15,7 @@ import type { RenderPass } from '../passes'
 // per-species reverse index of identity-prefix → posKey.
 //
 // "Fully sequenced" means the player has at least one ScannedSpecimen
-// of that species (state.scannedSpecimens) — the precis-#6 sequencing
+// of that species (state.scannedSpecimens) — the RP-6 sequencing
 // gate. Unsequenced species render no edges; the mode is set but
 // invisible in that case.
 //

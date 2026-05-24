@@ -25,7 +25,7 @@
     "harness:run": "tsx harness/src/plan-cli.ts run",
     "harness:status": "tsx harness/src/plan-cli.ts status",
     "harness:check": "tsx harness/src/harness-check.ts",
-    "backlog": "tsx --tsconfig tools/precis/tsconfig.json tools/precis/index.tsx",
+    "backlog": "tsx --tsconfig tools/backlog-tui/tsconfig.json tools/backlog-tui/index.tsx",
     "fetch-font": "node tools/fetch-voynich-font.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test"
   },

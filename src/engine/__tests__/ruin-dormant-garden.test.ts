@@ -459,7 +459,7 @@ describe('ruin dormant garden', () => {
     })
   })
 
-  describe('flora-species vault payload (precis #5)', () => {
+  describe('flora-species vault payload (RP-5)', () => {
     const installRuinWithRole = (role: RuinRole): { state: ReturnType<typeof createTestState>; ruinIndex: number } => {
       const state = createTestState()
       // createTestState seeds the world with genesis-derived ruins; clear them

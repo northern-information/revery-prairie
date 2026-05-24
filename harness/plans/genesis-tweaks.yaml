@@ -10,7 +10,7 @@ plan:
 tasks:
   - id: year-format-three-digit
     title: Rewrite formatYearsAgo for fixed-width 3-digit numeric portion
-    spec_id: precis-27-strip-genesis-commentary
+    spec_id: RP-27-strip-genesis-commentary
     spec_sections:
       - year-format-reverse-projection
     context_files:
@@ -28,7 +28,7 @@ tasks:
 
   - id: glacial-depth-and-mirrored-noise
     title: Bump glacial depth to 0.25 of u-span and mirror bottom noise from top
-    spec_id: precis-30-the-diamond-is-the-world
+    spec_id: RP-30-the-diamond-is-the-world
     spec_sections:
       - genesis-polar-distance-rotated
       - glacial-edge-noise-reindexed

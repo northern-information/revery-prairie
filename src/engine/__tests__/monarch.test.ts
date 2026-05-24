@@ -34,7 +34,7 @@ const getMonarchEntities = (state: ReturnType<typeof createTestState>): Entity[]
     .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'monarch')
 
 // Mark a tile as clover-species Flora — monarch behaviors filter by
-// species post precis #1, so a bare TileType.Flora write isn't enough.
+// species post RP-1, so a bare TileType.Flora write isn't enough.
 const placeCloverTile = (state: ReturnType<typeof createTestState>, x: number, y: number): void => {
   state.map[y][x] = { type: TileType.Flora }
   const key = posKey(x, y)

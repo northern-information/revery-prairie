@@ -1,0 +1,302 @@
+plan:
+  id: RP-8a-egregoric-thematic
+  title: Egregoric flora — thematic allusions (Voynich tile + manual entries, NPC refusal lines, Latin pierces)
+  created: 2026-05-18
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + dashboard status ---
+
+  - id: doctrine-status-update
+    title: Flip backlog.yaml feature 8a to in-progress with spec/plan links
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - doctrine-and-status-aligned
+    context_files:
+      - docs/backlog.yaml
+    output_files:
+      - docs/backlog.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Type system + new module ---
+
+  - id: add-egregore-tile-type
+    title: Add TileType.Egregore to the TileType enum; add ManualCategory.Egregore
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - egregore-tile-type-exists
+      - egregore-manual-entries-voynich-page
+    context_files:
+      - src/engine/types.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/manual.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - types
+
+  - id: create-egregore-module
+    title: Create src/engine/egregore.ts with EGREGORE_GLYPHS (3-5 Voynich chars), EVA_TOKENS allowlist, LATIN_PIERCE_WORDS allowlist, and per-tile content generators (glyph, manual body, pierce decision) seeded by position hash
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - egregore-glyph-registry
+      - egregore-manual-entries-voynich-page
+      - latin-pierces-in-egregore-entries
+    context_files:
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/egregore.ts
+    depends_on:
+      - add-egregore-tile-type
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 2: Font installation + renderer integration ---
+
+  - id: install-voynich-font
+    title: Add Voynich font as an npm dependency, register @font-face in src/styles/index.css under font-family 'Voynich'. If the named package is unavailable, bundle a .ttf directly from a permissive source and document the choice.
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - voynich-font-installed
+    context_files:
+      - package.json
+      - src/styles/index.css
+    output_files:
+      - package.json
+      - package-lock.json
+      - src/styles/index.css
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npm install --no-audit --no-fund
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - infra
+
+  - id: renderer-egregore-glyph-and-font
+    title: Renderer draws TileType.Egregore tiles using the per-position glyph from egregore.ts and applies the Voynich font family for those tiles only. All other tiles continue using the existing font stack.
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - egregore-glyph-registry
+      - voynich-font-installed
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/egregore.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/constants.ts
+    depends_on:
+      - create-egregore-module
+      - install-voynich-font
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - render
+
+  # --- Tier 3: Genesis placement ---
+
+  - id: genesis-egregore-placement
+    title: Add a post-process step to genesis that places ~3 egregore tiles biased near sim.craters. Deterministic via sim.rng; falls back to soil-low candidates if no craters exist.
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - genesis-places-egregore-tiles
+      - no-meteorites-no-craters
+      - deterministic-same-name
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/egregore.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/genesis.ts
+      - src/engine/constants.ts
+    depends_on:
+      - create-egregore-module
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+      - genesis
+
+  # --- Tier 4: Manual entries ---
+
+  - id: manual-egregore-entries
+    title: Generate one manual entry per egregore tile from src/engine/manual.ts buildEgregoreEntries() helper. Each entry pulls glyph + EVA-token body + optional Latin pierce from egregore.ts. Entries are unlocked when the tile is first seen by player vision.
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - egregore-manual-entries-voynich-page
+      - latin-pierces-in-egregore-entries
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/egregore.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/manual.ts
+      - src/engine/state.ts
+    depends_on:
+      - genesis-egregore-placement
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/manual.test.ts
+    repair: retry
+    tags:
+      - engine
+      - manual
+
+  # --- Tier 5: NPC refusal lines ---
+
+  - id: moab-and-ghost-refusal-lines
+    title: Add at least one refusal-line to Moab's dialog and at least one ghost's dialog. Use folk register; no 'invasive', no 'egregore'. Different NPCs use different folk names. Placeholder lines per spec; final lore stays human-authored.
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - moab-refusal-line
+      - ghost-refusal-line
+    context_files:
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - add-egregore-tile-type
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 6: Sidebar cursor info ---
+
+  - id: sidebar-egregore-label
+    title: Sidebar cursor-info contents row labels egregore tiles. Label must not contain the word 'invasive'.
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - cursor-info-shows-egregore-as-tile-type
+    context_files:
+      - src/components/Sidebar.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/Sidebar.tsx
+    depends_on:
+      - add-egregore-tile-type
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  # --- Tier 7: Lint guard + tests ---
+
+  - id: invasive-lint-guard-test
+    title: Add a harness test that greps the source tree for the word 'invasive' in player-facing string literals and fails CI on any match. Engineering docs and code comments are exempt; only dialog arrays, manual lore, sidebar labels, item names, and similar player-facing strings are checked.
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - invasive-lint-guard
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/harness/__tests__/lint/invasive-guard.test.ts
+    depends_on:
+      - add-egregore-tile-type
+      - moab-and-ghost-refusal-lines
+    verification:
+      - npx vitest run src/harness/__tests__/lint/invasive-guard.test.ts
+    repair: retry
+    tags:
+      - test
+      - harness
+
+  - id: add-egregore-tests
+    title: Add tests covering EGREGORE_GLYPHS determinism, genesis placement count and bias, Latin pierce 1-in-5 distribution, manual entry generation, and the no-effect-from-walk-over case.
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - egregore-glyph-registry
+      - genesis-places-egregore-tiles
+      - latin-pierces-in-egregore-entries
+      - walk-over-egregore-tile
+      - deterministic-same-name
+    context_files:
+      - src/engine/egregore.ts
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/egregore.test.ts
+      - src/engine/__tests__/genesis.test.ts
+    depends_on:
+      - genesis-egregore-placement
+      - manual-egregore-entries
+      - renderer-egregore-glyph-and-font
+    verification:
+      - npx vitest run src/engine/__tests__/egregore.test.ts src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - test
+      - engine
+
+  # --- Tier 8: Docs ---
+
+  - id: claude-md-egregore-section
+    title: Add a `## egregores` section to CLAUDE.md briefly noting vocabulary (egregoric flora, Far Garden), the no-invasive rule, the EGREGORE_GLYPHS / EVA token registry locations, and the font installation. Reference the lint guard.
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - doctrine-and-status-aligned
+    context_files:
+      - CLAUDE.md
+    output_files:
+      - CLAUDE.md
+    depends_on:
+      - genesis-egregore-placement
+      - moab-and-ghost-refusal-lines
+      - invasive-lint-guard-test
+    verification: []
+    repair: retry
+    tags:
+      - docs
+
+  # --- Tier 9: Final sweep ---
+
+  - id: dead-symbol-sweep
+    title: Grep for any stray 'invasive' refs in player-facing strings; ensure no stale TODO references in dialog or manual code; run the full quad.
+    spec_id: RP-8a-egregoric-thematic
+    spec_sections:
+      - invasive-lint-guard
+    context_files:
+      - src/
+    output_files: []
+    depends_on:
+      - add-egregore-tests
+      - sidebar-egregore-label
+      - claude-md-egregore-section
+    verification:
+      - npm run typecheck
+      - npm run lint
+      - npm run test
+      - npm run spec:validate
+    repair: retry
+    tags:
+      - sweep

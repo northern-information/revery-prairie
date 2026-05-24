@@ -46,8 +46,8 @@ const countCloverNeighbors = (state: GameState, tx: number, ty: number): number 
 
 // Gate pollen emission: only healthy clover emits, and interior tiles in large
 // blooms emit far less often so big fields read as drifting edges rather than
-// uniform glittering. Pollen drift is clover-specific per precis #1; the
-// broader pollinator routes are deferred to precis #7.
+// uniform glittering. Pollen drift is clover-specific per RP-1; the
+// broader pollinator routes are deferred to RP-7.
 const cloverEmitGate = (state: GameState, tx: number, ty: number): boolean => {
   const lc = state.floraLifecycle.get(posKey(tx, ty))
   if (lc?.species !== FloraSpecies.Clover) return false

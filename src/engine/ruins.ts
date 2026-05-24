@@ -1058,9 +1058,9 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
     return
   }
 
-  // Flora-species ruins (precis #5): vault spawns a single seed item
+  // Flora-species ruins (RP-5): vault spawns a single seed item
   // matching the role. No collapseBarrier, no trapped entity — the vault
-  // is the destination. Precis #11: each seed carries a deterministic
+  // is the destination. RP-11: each seed carries a deterministic
   // FloraGenome derived from (stewardName, ruinIndex, vault slot index 0).
   if (role === RuinRole.Wildflower || role === RuinRole.TallGrass) {
     const slot = vaultSlots[0]
@@ -1118,10 +1118,10 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
   }
 
   // Default (no role match) is intentionally empty. The starter roles —
-  // Clover, Bee, Coyote (precis #0/#1) plus Wildflower, TallGrass (precis
+  // Clover, Bee, Coyote (RP-0/#1) plus Wildflower, TallGrass (backlog
   // #5) — handle every fresh game allocation. Complex-mode ruins
   // (future spec) will spawn additional seed scatter when the broader
-  // taxonomy lands in precis #11. The decay-timer slots stay registered
+  // taxonomy lands in RP-11. The decay-timer slots stay registered
   // so #11 can repopulate them without re-deriving the layout.
 }
 

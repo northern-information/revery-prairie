@@ -42,6 +42,6 @@ export const KEYBINDINGS: KeyBinding[] = [
   { key: 'tab', action: 'Toggle Manual' },
   { key: 'c', action: 'Toggle Divination', context: 'Overworld only, requires 3 glinting coins' },
   { key: 'esc', action: 'Close Screen / Open System' },
-  { key: '1', action: 'Overlay — Default', context: 'Precis #17 overlay modes' },
-  { key: '2', action: 'Overlay — Family Tree', context: 'Precis #17 overlay modes' },
+  { key: '1', action: 'Overlay — Default', context: 'RP-17 overlay modes' },
+  { key: '2', action: 'Overlay — Family Tree', context: 'RP-17 overlay modes' },
 ]

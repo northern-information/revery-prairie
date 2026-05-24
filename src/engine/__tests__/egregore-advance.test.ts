@@ -13,7 +13,7 @@ const seedEgregoreAt = (state: GameState, x: number, y: number): void => {
   state.egregorePositions.push({ x, y })
 }
 
-describe('advanceEgregoreInRevery — first Revery (precis #4 contract preserved)', () => {
+describe('advanceEgregoreInRevery — first Revery (RP-4 contract preserved)', () => {
   it('returns empty array when no existing egregore tiles', () => {
     const state = createTestState()
     state.egregorePositions = []
@@ -93,7 +93,7 @@ describe('advanceEgregoreInRevery — first Revery (precis #4 contract preserved
   })
 })
 
-describe('advanceEgregoreInRevery — subsequent Reveries (precis #8b)', () => {
+describe('advanceEgregoreInRevery — subsequent Reveries (RP-8b)', () => {
   it('places 6 tiles when reveryCount === 4 (6 + 4 % 4 = 6)', () => {
     const state = createTestState()
     state.egregorePositions = []

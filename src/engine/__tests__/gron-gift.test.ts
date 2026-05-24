@@ -55,7 +55,7 @@ describe('gron gift delivery', () => {
 })
 
 describe('moab gift delivery', () => {
-  it('moab no longer gifts — re-anchored in precis #9', () => {
+  it('moab no longer gifts — re-anchored in RP-9', () => {
     const state = makeState()
     const result = giveCharacterGift(state, 'moab')
     expect(result).toBeNull()

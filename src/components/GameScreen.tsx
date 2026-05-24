@@ -55,7 +55,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
     }
   }, [fontScale])
 
-  // Precis #4 — dismiss the Revery summary on any keypress. The Revery's
+  // RP-4 — dismiss the Revery summary on any keypress. The Revery's
   // input lock means useKeyboard early-returns during Observing+Summary, so
   // we attach a separate listener that only fires on Summary phase. After
   // the keypress the Revery transitions to Closing → null on the next tick.
@@ -86,7 +86,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
     isDraggingRef,
   })
 
-  // Precis #6/#8a — scan-result modal. Populated when the game loop
+  // RP-6/#8a — scan-result modal. Populated when the game loop
   // fires onScanComplete; cleared when the player dismisses the modal.
   // Holds the full discriminated result so the modal can render the
   // right heading + gel variant. Doctrine: every scan kind opens this

@@ -32,7 +32,7 @@ Wait for answers before proceeding.
 
 Derive a short kebab-case label for this session:
 
-- If the input names a precis id (rare for fixes, but possible if routed from `/churn`), use `precis-{id}-{2-4-word-slug}`.
+- If the input names a backlog item id (rare for fixes, but possible if routed from `/churn`), use `RP-{id}-{2-4-word-slug}`.
 - Otherwise, prefix with `fix-` and slug from the bug description: lowercase, hyphen-separated, 2–4 words. Examples: "cursor color wrong on dialog" → `fix-cursor-dialog-color`; "inventory close button overlap" → `fix-inventory-close-overlap`.
 
 Emit one line to the user, verbatim formatting:

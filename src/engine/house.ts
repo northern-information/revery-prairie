@@ -106,7 +106,7 @@ export const enterHouse = (state: GameState): void => {
   state.heldDirection = null
   state.previewFn = null
   state.facingEntityPos = null
-  // Precis #33 cancel guard: if Emily had armed the invitation, reverting
+  // RP-33 cancel guard: if Emily had armed the invitation, reverting
   // the active dialog without confirm cancels and re-arms 'unoffered'.
   if (state.activeDialog?.characterId === 'emily' && state.emilyInvitation === 'offered') {
     state.emilyInvitation = 'unoffered'
@@ -131,7 +131,7 @@ export const exitHouse = (state: GameState): void => {
   state.heldDirection = null
   state.previewFn = null
   state.facingEntityPos = null
-  // Precis #33 cancel guard: if Emily had armed the invitation, reverting
+  // RP-33 cancel guard: if Emily had armed the invitation, reverting
   // the active dialog without confirm cancels and re-arms 'unoffered'.
   if (state.activeDialog?.characterId === 'emily' && state.emilyInvitation === 'offered') {
     state.emilyInvitation = 'unoffered'

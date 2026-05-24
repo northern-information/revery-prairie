@@ -1,4 +1,4 @@
-// Precis #8b — Egregoric flora (mechanical biome).
+// RP-8b — Egregoric flora (mechanical biome).
 //
 // Two spread paths. Both convert dirt tiles adjacent to existing egregore
 // tiles into TileType.Egregore, using the same `candidateDirtNeighbors`
@@ -9,7 +9,7 @@
 //   season, zone, deepTime, revery.
 // - advanceEgregoreInRevery (Revery-time): large push during the
 //   Observing → Summary transition. 3 tiles on the first Revery
-//   (preserves the precis-4 contract); 6–9 on subsequent Reveries.
+//   (preserves the RP-4 contract); 6–9 on subsequent Reveries.
 //
 // **Invisible pollinator (v3 doctrine):** neither path spawns a
 // PollenParticle. The carrier "refuses to be named" by virtue of
@@ -24,7 +24,7 @@ import { EgregoreActivityStage, Season, TileType, Zone } from '@/engine/types'
 
 import type { GameState, Position } from '@/engine/types'
 
-// Stewardship-time spread tick (precis #8b).
+// Stewardship-time spread tick (RP-8b).
 //
 // Throttle: one spread per in-game year. The year proxy is derived from
 // wall-clock time (Math.floor(time / SEASONAL_PHASE_PERIOD_MS)), which is
@@ -77,7 +77,7 @@ export const tickEgregoreSpread = (state: GameState, time: number): void => {
 
 // Trail centroid used by advanceEgregoreInRevery — biases placement
 // toward the player's recent movement so the advance lands somewhere the
-// player will plausibly notice. Identical math to the precis-4 helper.
+// player will plausibly notice. Identical math to the RP-4 helper.
 const trailCentroid = (state: GameState): Position => {
   if (state.trail.length === 0) {
     return { x: Math.floor(state.mapWidth / 2), y: Math.floor(state.mapHeight / 2) }
@@ -93,11 +93,11 @@ const trailCentroid = (state: GameState): Position => {
 
 const manhattan = (a: Position, b: Position): number => Math.abs(a.x - b.x) + Math.abs(a.y - b.y)
 
-// Revery-time advance (precis #8b refactor of #4's
+// Revery-time advance (RP-8b refactor of #4's
 // advanceEgregoreFirstRevery). Always callable — the count depends on
 // state.reveryCount internally:
 //   - reveryCount === 0 → FIRST_REVERY_EGREGORE_COUNT (= 3). Preserves
-//     the precis-4 first-Revery contract.
+//     the RP-4 first-Revery contract.
 //   - reveryCount >= 1 → 6 + (reveryCount % 4) → values in [6, 9].
 // Returns the positions placed (possibly fewer if not enough dirt
 // neighbors exist).
@@ -121,7 +121,7 @@ export const advanceEgregoreInRevery = (state: GameState, time = 0): Position[] 
 
 // Shared commit step. Converts the tile, appends to egregorePositions,
 // and creates the lifecycle entry with deterministic species + genome.
-// Exported for precis-32's Closing-phase egregoric commit (the steward's
+// Exported for RP-32's Closing-phase egregoric commit (the steward's
 // collapse tile becomes egregoric when a summons Revery closes).
 export const commitEgregoreTiles = (state: GameState, positions: Position[], time: number): void => {
   for (const pos of positions) {

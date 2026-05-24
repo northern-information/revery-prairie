@@ -29,7 +29,7 @@ Wait for answers before proceeding.
 
 Derive a short kebab-case label for this session:
 
-- If the input description names a precis id (matches `precis-(\d+[a-z]?)` and an item name), use `precis-{id}-{2-4-word-slug-of-name}`. Example: `precis-23-time-lapse-camera`.
+- If the input description names a backlog item id (matches `RP-(\d+[a-z]?)` and an item name), use `RP-{id}-{2-4-word-slug-of-name}`. Example: `RP-23-time-lapse-camera`.
 - Otherwise, slug from the feature description: lowercase, hyphen-separated, 2–4 words, drop articles and short prepositions. Example: a "shooting-star meteor shower" description → `shooting-star-shower`.
 
 Emit one line to the user, verbatim formatting:

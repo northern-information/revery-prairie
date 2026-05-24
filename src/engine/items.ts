@@ -41,9 +41,9 @@ const ITEMS = {
     glyphColor: COIN_GLINTING_COLOR,
     category: ItemCategory.Tool,
   },
-  // Seed items reintroduced in precis #5 as DormantGarden vault
+  // Seed items reintroduced in RP-5 as DormantGarden vault
   // payloads. Recategorized to ItemCategory.Seed and made
-  // genetics-bearing in precis #11 — each seed carries a FloraGenome
+  // genetics-bearing in RP-11 — each seed carries a FloraGenome
   // via state.seedGenomes (uid-keyed side-table, mirrors
   // glintingCoins). Dropping a seed onto an adjacent Dirt tile
   // plants a stage-Healthy flora plant with the seed's genome.

@@ -3,12 +3,12 @@ plan:
   title: 'Remove the Sidebar component, its tests, layout reservation, and docs/rule references'
   created: 2026-05-23
   # Sidebar.tsx was already unmounted from GameScreen (orphaned dead code per
-  # precis #17 notes), but its file lived on, and the canvas still reserved
+  # RP-17 notes), but its file lived on, and the canvas still reserved
   # 192px of right-edge space via state.rightInsetTiles + DialogBox right-48.
   # This change finishes the removal: deletes the file + tests + dependent
   # cursorTileInfo test, drops the layout reservation so the canvas occupies
   # the full viewport, and strips sidebar references from CLAUDE.md, docs,
-  # precis-status, and 27 spec files. getTileEffects stays — its tests
+  # backlog, and 27 spec files. getTileEffects stays — its tests
   # (torchbearer, satelliteImpacts, effects) verify engine mechanics
   # independent of the sidebar.
   global_verification:
@@ -128,9 +128,9 @@ tasks:
     tags:
       - docs
 
-  - id: update-precis-status
+  - id: update-backlog
     title: >
-      In docs/precis-status.yaml, update the precis #1 "Sidebar surfaces
+      In docs/backlog.yaml, update the RP-1 "Sidebar surfaces
       dropped" note to reflect the full deletion (file + tests +
       docs/claude/sidebar.md + CLAUDE.md rule, 2026-05-23). Remove
       'sidebar' from the existing-surfaces list in the inscription/voice
@@ -139,9 +139,9 @@ tasks:
     spec_sections:
       - sidebar-deleted
     context_files:
-      - docs/precis-status.yaml
+      - docs/backlog.yaml
     output_files:
-      - docs/precis-status.yaml
+      - docs/backlog.yaml
     depends_on: []
     verification: []
     repair: retry

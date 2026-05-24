@@ -1,0 +1,228 @@
+plan:
+  id: RP-3-genetics-v1
+  title: Genetics v1 — SHA256 identity, trait bag, crossing math, hex grid derivation
+  created: 2026-05-19
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + dashboard status ---
+
+  - id: doctrine-status-update
+    title: Flip docs/backlog.yaml feature 3 to in-progress, override hex-grid timing in v3 doctrine, add CLAUDE.md genetics section
+    spec_id: RP-3-genetics-v1
+    spec_sections:
+      - doctrine-and-status-aligned
+    context_files:
+      - docs/backlog.yaml
+      - docs/backlog-thinktank-v3.md
+      - CLAUDE.md
+    output_files:
+      - docs/backlog.yaml
+      - docs/backlog-thinktank-v3.md
+      - CLAUDE.md
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Shared crypto module + angel preservation ---
+
+  - id: lift-sha256-to-crypto
+    title: Create src/engine/crypto.ts with sha256Sync + sha256Async (byte-identical to existing angels.ts impl). Update angels.ts to import both. Add snapshot test pinning angel hash output before and after the lift.
+    spec_id: RP-3-genetics-v1
+    spec_sections:
+      - shared-crypto-module
+    context_files:
+      - src/engine/angels.ts
+      - src/engine/__tests__/angels.test.ts
+    output_files:
+      - src/engine/crypto.ts
+      - src/engine/angels.ts
+      - src/engine/__tests__/angels.test.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/angels.test.ts
+    repair: retry
+    tags:
+      - engine
+      - refactor
+
+  # --- Tier 2: Genetics module — pure functions ---
+
+  - id: create-genetics-module
+    title: Create src/engine/genetics/index.ts with TraitBag, HexGrid, FloraGenome types and four pure functions — generateGenesisIdentity, generateTraitBag, crossTraitBags, hashToHexGrid. Use mulberry32 seeded from first 8 hex of identity for trait generation. crossTraitBags takes an injected rng. No state mutation.
+    spec_id: RP-3-genetics-v1
+    spec_sections:
+      - trait-bag-shape
+      - genesis-identity-generation
+      - trait-bag-generation
+      - cross-trait-bags-pure-function
+      - hash-to-hex-grid-derivation
+    context_files:
+      - src/engine/crypto.ts
+      - src/engine/genesis.ts
+      - src/engine/flora/species.ts
+    output_files:
+      - src/engine/genetics/index.ts
+    depends_on:
+      - lift-sha256-to-crypto
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - genetics
+
+  - id: genetics-tests
+    title: Create src/engine/genetics/__tests__/genetics.test.ts with full coverage — determinism (same identity → same trait bag), crossTraitBags math (no NaN, in [0,1], recessives capped at 2), hashToHexGrid snapshot pin, identity collision-resistance properties, novelty roll distribution sanity check.
+    spec_id: RP-3-genetics-v1
+    spec_sections:
+      - trait-bag-shape
+      - genesis-identity-generation
+      - trait-bag-generation
+      - cross-trait-bags-pure-function
+      - hash-to-hex-grid-derivation
+    context_files:
+      - src/engine/genetics/index.ts
+    output_files:
+      - src/engine/genetics/__tests__/genetics.test.ts
+    depends_on:
+      - create-genetics-module
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/genetics/__tests__/genetics.test.ts
+    repair: retry
+    tags:
+      - engine
+      - genetics
+      - test
+
+  # --- Tier 3: FloraLifecycleState widening + helper exported ---
+
+  - id: widen-flora-lifecycle-state
+    title: Add identity (string) and traits (TraitBag) as required fields to FloraLifecycleState in src/engine/types.ts. Rename local createHealthyEntry in floraLifecycle.ts to createFloraLifecycleEntry, export it, accept identity + traits as parameters. Update the helper's existing callers within floraLifecycle.ts.
+    spec_id: RP-3-genetics-v1
+    spec_sections:
+      - flora-lifecycle-state-widened
+    context_files:
+      - src/engine/types.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/genetics/index.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/floraLifecycle.ts
+    depends_on:
+      - create-genetics-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 4: Wire all flora construction sites through the helper ---
+
+  - id: wire-genesis-flora
+    title: Refactor src/engine/genesis.ts lines 3383 and 3463 to call createFloraLifecycleEntry with generateGenesisIdentity(binomial, genesisSeed, posKey) and generateTraitBag(identity). Thread genesisSeed into the genesis runner so the seeding sites have access. Worlds remain deterministic per steward name.
+    spec_id: RP-3-genetics-v1
+    spec_sections:
+      - genesis-wires-identity-and-traits
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/genetics/index.ts
+      - src/engine/flora/species.ts
+    output_files:
+      - src/engine/genesis.ts
+    depends_on:
+      - widen-flora-lifecycle-state
+      - genetics-tests
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-runtime-flora-sites
+    title: Refactor the 5 post-genesis flora construction sites — clover.ts, monarch.ts, lightning.ts, recipes.ts, angels.ts — to call createFloraLifecycleEntry with a runtime-tagged identity sha256Sync(`runtime:${binomial}:${posKey}:${String(state.time)}`) and generateTraitBag(identity). Each site reads binomial from FLORA_SPECIES for the species it spawns.
+    spec_id: RP-3-genetics-v1
+    spec_sections:
+      - post-genesis-flora-sites-also-wired
+    context_files:
+      - src/engine/clover.ts
+      - src/engine/monarch.ts
+      - src/engine/lightning.ts
+      - src/engine/recipes.ts
+      - src/engine/angels.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/genetics/index.ts
+      - src/engine/flora/species.ts
+      - src/engine/crypto.ts
+    output_files:
+      - src/engine/clover.ts
+      - src/engine/monarch.ts
+      - src/engine/lightning.ts
+      - src/engine/recipes.ts
+      - src/engine/angels.ts
+    depends_on:
+      - widen-flora-lifecycle-state
+      - genetics-tests
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 5: Determinism + recycling tests ---
+
+  - id: genesis-determinism-test
+    title: Add tests proving that two genesis runs with the same steward name produce identical flora identities and trait bags across every tile. Add tests proving that lifecycle entry recycling (Brown → Decomposing → Dirt → new flora) grants a fresh identity and that BurntRecovering preserves identity.
+    spec_id: RP-3-genetics-v1
+    spec_sections:
+      - genesis-wires-identity-and-traits
+      - lifecycle-recycling-grants-fresh-identity
+    context_files:
+      - src/engine/genesis.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/genetics/index.ts
+      - src/engine/__tests__/cloverLifecycle.test.ts
+      - src/engine/__tests__/genesis.test.ts
+    output_files:
+      - src/engine/__tests__/genesis.test.ts
+      - src/engine/__tests__/cloverLifecycle.test.ts
+    depends_on:
+      - wire-genesis-flora
+      - wire-runtime-flora-sites
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/genesis.test.ts src/engine/__tests__/cloverLifecycle.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
+
+  # --- Tier 6: Final full-suite verification ---
+
+  - id: full-verify
+    title: Run the full verification suite — typecheck, all tests, lint. This is the cross-cutting gate before opening the PR.
+    spec_id: RP-3-genetics-v1
+    spec_sections:
+      - flora-lifecycle-state-widened
+      - genesis-wires-identity-and-traits
+      - post-genesis-flora-sites-also-wired
+    context_files: []
+    output_files: []
+    depends_on:
+      - genesis-determinism-test
+    verification:
+      - npm run typecheck
+      - npm run test
+      - npm run lint
+    repair: retry
+    tags:
+      - verification

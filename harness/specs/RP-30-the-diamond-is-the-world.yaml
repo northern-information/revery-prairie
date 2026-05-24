@@ -1,0 +1,538 @@
+id: RP-30-the-diamond-is-the-world
+name: 'RP-30 — The diamond is the world'
+priority: high
+layer: engine
+source_files:
+  - docs/backlog.yaml
+  - docs/claude/weather.md
+  - docs/claude/genesis.md
+  - docs/claude/rendering.md
+  - src/engine/types.ts
+  - src/engine/weather/wind.ts
+  - src/engine/tileWater.ts
+  - src/engine/effects.ts
+  - src/engine/genesis.ts
+  - src/engine/__tests__/wind.test.ts
+  - src/engine/__tests__/tileWater.test.ts
+dependencies: []
+
+behaviors:
+  - id: wind-screen-vectors-rotated
+    description: >
+      The WIND_SCREEN_VECTORS table in src/engine/weather/wind.ts
+      rotates 45° so each WindDirection key denotes a diamond-tip or
+      diamond-edge direction in screen space, not a world-cardinal
+      direction. Enum keys (N, NE, E, SE, S, SW, W, NW) are
+      unchanged; only the (sx, sy) values rotate. The new mapping
+      derives from the iso projection (sx, sy) = (dwx - dwy, dwx +
+      dwy) applied to each cardinal's blow-toward direction in
+      world space, where the diamond's top tip is world (-x, -y) and
+      its bottom tip is world (+x, +y). To preserve the existing
+      magnitude convention (cardinals magnitude √2, ordinals
+      magnitude 1) so that downstream consumers that multiply by
+      windSpeed continue producing the same effective drift, the
+      new table is — N: { sx: 0, sy: √2 } (wind from top tip blows
+      straight down screen); E: { sx: -√2, sy: 0 } (wind from right
+      tip blows leftward); S: { sx: 0, sy: -√2 } (wind from bottom
+      tip blows straight up); W: { sx: √2, sy: 0 } (wind from left
+      tip blows rightward); NE: { sx: -1, sy: -1 } (wind from upper-
+      right diamond edge / storage -x direction blows toward the
+      lower-left edge); SE: { sx: 1, sy: -1 } (from lower-right /
+      storage -y blows upper-left); SW: { sx: 1, sy: 1 } (from
+      lower-left / storage +x blows upper-right); NW: { sx: -1, sy:
+      1 } (from upper-left / storage +y blows lower-right). The
+      magnitude rule flips relative to the old frame — new
+      cardinals are axis-aligned in screen space (magnitude √2 in
+      the table to match windSpeed scaling), and new ordinals are
+      diagonal in screen space (magnitude √2 worth of motion split
+      across both axes at magnitude 1 each in the table).
+    inputs:
+      - 'codebase after RP-30 lands'
+    outputs:
+      - 'WIND_SCREEN_VECTORS[N] equals { sx: 0, sy: Math.SQRT2 }'
+      - 'WIND_SCREEN_VECTORS[S] equals { sx: 0, sy: -Math.SQRT2 }'
+      - 'WIND_SCREEN_VECTORS[E] equals { sx: -Math.SQRT2, sy: 0 }'
+      - 'WIND_SCREEN_VECTORS[W] equals { sx: Math.SQRT2, sy: 0 }'
+      - 'WIND_SCREEN_VECTORS[NE] equals { sx: -1, sy: -1 }'
+      - 'WIND_SCREEN_VECTORS[SE] equals { sx: 1, sy: -1 }'
+      - 'WIND_SCREEN_VECTORS[SW] equals { sx: 1, sy: 1 }'
+      - 'WIND_SCREEN_VECTORS[NW] equals { sx: -1, sy: 1 }'
+      - 'cardinal magnitudes equal √2 in the new table (was √2 in old, same)'
+      - 'ordinal magnitudes equal √2 in the new table (was 1 in old — flipped)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: wind-screen-vectors-comments-rewritten
+    description: >
+      Inline comments in src/engine/weather/wind.ts that document the
+      old frame are rewritten to describe the new frame. The "blows
+      south" / "blows north" / "blows west" / "blows east" / "blows
+      SW" / "blows NE" / "blows SE" / "blows NW" comments at lines
+      33-40 are replaced with comments that name the diamond tip /
+      diamond edge each cardinal points at. The "Cardinals map to
+      diagonal screen vectors (magnitude √2); ordinals map to
+      axis-aligned (magnitude 1)" comment at line 31 inverts to "New
+      cardinals point at the diamond's tips and project to axis-
+      aligned screen vectors; new ordinals point at the diamond's
+      edges (the storage axes) and project to diagonal screen
+      vectors. All eight values have magnitude √2 to preserve the
+      old wind-speed scaling."
+    inputs:
+      - 'codebase after RP-30 lands'
+    outputs:
+      - "no comment in wind.ts says 'blows south' / 'blows north' / 'blows west' / 'blows east'"
+      - "comment block above WIND_SCREEN_VECTORS describes the diamond-tip / diamond-edge mapping"
+    state_changes: []
+    determinism: deterministic
+
+  - id: wind-to-front-axis-supports-diagonals
+    description: >
+      windToFrontAxis in src/engine/tileWater.ts widens its return
+      type from { axis: 'x' | 'y', sign: 1 | -1 } to { axis: 'x' |
+      'y' | 'u' | 'v', sign: 1 | -1 } where 'u' denotes the (x + y)
+      diagonal (the diamond's vertical screen axis) and 'v' denotes
+      the (x - y) diagonal (the diamond's horizontal screen axis).
+      The mapping under the new frame — N: { axis: 'u', sign: -1 }
+      (front sweeps from u=max toward u=0, i.e. bottom tip toward
+      top tip; sign -1 because wind FROM the top means the front
+      enters from the top and the offset reads "distance behind the
+      leading edge"); S: { axis: 'u', sign: 1 }; E: { axis: 'v',
+      sign: -1 } (wind FROM the right tip means the front enters at
+      v=max and advances toward v=min); W: { axis: 'v', sign: 1 };
+      NE: { axis: 'x', sign: -1 }
+      (wind from storage-+x direction means front enters from
+      storage-+x edge); NW: { axis: 'y', sign: 1 } (wind from
+      storage-+y edge); SE: { axis: 'y', sign: -1 }; SW: { axis:
+      'x', sign: 1 }. Sign convention preserved from the old
+      function — sign indicates the direction the front advances
+      along the axis (positive sign means coord increases over
+      time). The calling sites in tileWater.ts:71-104
+      (isInRainFront) compute coord and mapSize based on the new
+      axis variants — for 'u' axis coord = x + y and mapSize =
+      overworldMapWidth + overworldMapHeight (the diamond's vertical
+      screen extent in tile units); for 'v' axis coord = x - y and
+      mapSize = overworldMapWidth + overworldMapHeight (the
+      diamond's horizontal screen extent, offset so coord is non-
+      negative — see the v-axis-wrap edge case below).
+    inputs:
+      - 'codebase after RP-30 lands'
+    outputs:
+      - "windToFrontAxis(N) returns { axis: 'u', sign: -1 }"
+      - "windToFrontAxis(S) returns { axis: 'u', sign: 1 }"
+      - "windToFrontAxis(E) returns { axis: 'v', sign: -1 }"
+      - "windToFrontAxis(W) returns { axis: 'v', sign: 1 }"
+      - "windToFrontAxis(NE) returns { axis: 'x', sign: -1 }"
+      - "windToFrontAxis(SE) returns { axis: 'y', sign: -1 }"
+      - "windToFrontAxis(SW) returns { axis: 'x', sign: 1 }"
+      - "windToFrontAxis(NW) returns { axis: 'y', sign: 1 }"
+      - "the function's return type literal in tileWater.ts includes 'u' and 'v' variants"
+    state_changes: []
+    determinism: deterministic
+
+  - id: is-in-rain-front-handles-diagonals
+    description: >
+      isInRainFront in tileWater.ts:71-104 rewrites its coord and
+      mapSize derivation to handle the new 'u' and 'v' axis variants
+      returned by windToFrontAxis. For 'x' and 'y' the existing math
+      is unchanged. For 'u' (axis = x + y), coord = x + y and
+      mapSize = state.overworldMapWidth + state.overworldMapHeight.
+      For 'v' (axis = x - y), coord = x - y + state.overworldMapHeight
+      (offset so coord is non-negative in [0, width + height - 1])
+      and mapSize = state.overworldMapWidth + state.overworldMapHeight.
+      The front position wrap math (frontPos = (offset * sign +
+      mapSize) % mapSize) and the dist computation are otherwise
+      unchanged — they operate on the coord and mapSize the new
+      switch supplies. The leading and trailing fringe noise lookups
+      (tileHash(x * 7, y * 13)) continue to use raw x and y, so the
+      fringe texture remains anchored to world tiles and does not
+      shimmer when the front axis changes.
+    inputs:
+      - 'wind direction is cardinal (N/S/E/W) and tile is in the rain front'
+      - 'wind direction is ordinal (NE/SE/SW/NW) and tile is in the rain front'
+    outputs:
+      - 'tile reports hit=true with appropriate edgeAlpha for both diagonal and axis-aligned sweeps'
+      - 'fringe noise pattern is identical between old and new frames for the same wind direction (tileHash unchanged)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: effects-rain-aura-handles-diagonals
+    description: >
+      The rain-aura check in src/engine/effects.ts:46-63 (the
+      duplicate of the rain-front math used by isInRainAura) is
+      rewritten to delegate to windToFrontAxis and the same coord /
+      mapSize derivation as isInRainFront, eliminating the duplicate
+      switch on windDir. The inline frontAxis / frontSign /
+      frontMapSize derivation (lines 47-55) is replaced with a call
+      to windToFrontAxis(windDir) and a switch on the returned axis
+      to compute coord and mapSize using the same rules as
+      isInRainFront. The behaviour is unchanged for axis-aligned
+      sweeps; diagonal sweeps now report the rain aura on the
+      correct tile set. Optionally — and preferred — extract a
+      pure helper (e.g. rainFrontCoord(axis, x, y, mapW, mapH))
+      shared by both call sites so the math lives in one place.
+    inputs:
+      - 'state.weather.sky === Sky.Rain in the overworld'
+      - 'tile position (x, y) is within the rain front under the new wind direction'
+    outputs:
+      - 'isInRainAura returns the same set of tiles as isInRainFront for that wind direction'
+      - 'effects.ts no longer duplicates the windDir → axis/sign switch from tileWater.ts'
+    state_changes: []
+    determinism: deterministic
+
+  - id: pollen-bias-comment-rewritten
+    description: >
+      The pollen-bias logic at src/engine/effects.ts:46-63 uses the
+      windDir directly to bias pollen flow. The actual bias math is
+      not changed by RP-30 — pollen continues to drift along the
+      same world-space directions because pollen emission is a
+      world-space simulation. What changes is the semantic
+      interpretation of which WindDirection key corresponds to which
+      diamond-tip / diamond-edge. Comments in effects.ts that
+      describe the bias direction in terms of compass cardinals are
+      updated to reference the diamond-tip framing — e.g. "wind from
+      the north means pollen drifts south" becomes "wind from the
+      diamond's top tip means pollen drifts toward the diamond's
+      bottom tip in screen space, which in storage coords is the
+      (+x, +y) diagonal." No runtime behaviour change beyond what
+      the rotated WIND_SCREEN_VECTORS table induces.
+    inputs:
+      - 'codebase after RP-30 lands'
+    outputs:
+      - "comments in effects.ts that describe pollen-bias direction reference 'diamond tip' / 'diamond edge', not raw compass cardinals"
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-polar-distance-rotated
+    description: >
+      The four topDist / bottomDist sites in src/engine/genesis.ts
+      (lines 1451, 1563, 1594, 1983) rewrite their distance metric
+      from storage-y to the rotated polar coordinate u = (x − SPACE_BORDER)
+      + (y − SPACE_BORDER). Under the rotated frame, the top pole
+      is at storage (SPACE_BORDER, SPACE_BORDER) — the diamond's
+      top tip in the playable region — and the bottom pole is at
+      (sim.width − SPACE_BORDER − 1, sim.height − SPACE_BORDER − 1)
+      — the diamond's bottom tip. Per-site rewrite — `topDist = (x
+      − SPACE_BORDER) + (y − SPACE_BORDER)` replaces the existing
+      `topDist = y − SPACE_BORDER`; `bottomDist = (sim.width +
+      sim.height − 2*SPACE_BORDER − 2) − topDist` replaces
+      `bottomDist = sim.height − SPACE_BORDER − y`. The downstream
+      logic (`inGlacial`, `coverThreshold`, `effectiveDepth`) is
+      otherwise unchanged — same variables, same comparisons, same
+      noise lookups, just operating on the rotated metric. The
+      glacial-depth budget (`glacialDepth = Math.floor(sim.height
+      * 0.2)`) is rescaled to the new metric — `glacialDepth =
+      Math.floor((sim.width + sim.height − 2*SPACE_BORDER) * 0.25)`
+      — pushing each glacier ~25% of the u-axis span in from its
+      tip. The original 0.1 fraction left the southern front barely
+      visible on the playable diamond (it advanced ~27 tiles into a
+      ~272-tile u-span); 0.25 advances ~68 tiles from each tip,
+      restoring a recognisably "ice age" advance from both diamond
+      tips while still leaving a wide temperate band between the
+      fronts.
+    inputs:
+      - 'codebase after RP-30 lands'
+      - 'genesis simulation runs to the IceAge epoch'
+    outputs:
+      - "the four topDist computations in genesis.ts (lines around 1451, 1563, 1594, 1983) use (x − SPACE_BORDER) + (y − SPACE_BORDER), not y − SPACE_BORDER"
+      - 'glacialDepth is computed from (sim.width + sim.height − 2*SPACE_BORDER) * 0.25'
+      - 'after the IceAge epoch, sim.glacialPaths contains tiles whose top-tip distance is < effectiveTopDepth or bottom-tip distance is < effectiveBottomDepth'
+      - 'visual rendering of the glacial zone has its long axis perpendicular to the u axis (i.e. lobes along v = x − y)'
+    state_changes:
+      - field: sim.glacialPaths
+        effect: 'populated from the rotated polar distance metric — tiles near the diamond top tip and diamond bottom tip rather than near world-y=0 and world-y=max'
+    determinism: deterministic
+
+  - id: glacial-edge-noise-reindexed
+    description: >
+      The glacial edge noise generated at src/engine/genesis.ts:1438-1442
+      currently uses two arrays of length `sim.width` (top and
+      bottom), indexed by storage x — one noise value per storage
+      column, producing organic lobes along the storage-y front.
+      Under the rotated frame the front sweeps along the u axis (x
+      + y diagonal), so the perpendicular coordinate is v = x − y.
+      The noise arrays reindex to length `sim.width + sim.height −
+      1` (the span of v across the playable region, biased so v=0
+      maps to array index 0 by adding `sim.height − 1`). Lookup
+      sites that read `sim.glacialEdgeNoise.top[x]` and
+      `sim.glacialEdgeNoise.bottom[x]` (genesis.ts:1459-1460,
+      1559-1560, 1979-1980) rewrite to read `top[x − y +
+      sim.height − 1]` and `bottom[x − y + sim.height − 1]`. The
+      lattice cell size (currently 7 — the second arg to
+      smoothNoiseSeeded) doubles to 14 to preserve the same
+      perceptual lobe coarseness on the now-roughly-2x-longer
+      index. Amplitude (third arg, currently 12) is unchanged.
+      The `bottom` array is generated by reusing the same noise as
+      `top` rather than drawing a fresh seeded sample — i.e.
+      `sim.glacialEdgeNoise.bottom` shares values with
+      `sim.glacialEdgeNoise.top` (a shallow copy with identical
+      values is fine; the two arrays must satisfy
+      `bottom[i] === top[i]` at every index). The previous
+      independent-draw arrangement let one front visibly outpace the
+      other (in practice the bottom front read as a laggard against
+      the top front); the shared noise pairs the two ice ages
+      visually without removing the organic lobing along v.
+    inputs:
+      - 'codebase after RP-30 lands'
+      - 'IceAge epoch runs'
+    outputs:
+      - "sim.glacialEdgeNoise.top is an array of length sim.width + sim.height - 1"
+      - "sim.glacialEdgeNoise.bottom is an array of length sim.width + sim.height - 1"
+      - "smoothNoiseSeeded is called with cell size 14 (was 7) and amplitude 12 (unchanged)"
+      - "glacial edge lookups index by (x - y + sim.height - 1), not by x"
+      - "sim.glacialEdgeNoise.bottom[i] === sim.glacialEdgeNoise.top[i] for every i in [0, length)"
+      - "only one smoothNoiseSeeded call is issued for glacial edge noise per IceAge mutate (the bottom array is not drawn from sim.rng separately)"
+    state_changes:
+      - field: sim.glacialEdgeNoise.top
+        effect: 'length and lattice cell size rescaled for the rotated index'
+      - field: sim.glacialEdgeNoise.bottom
+        effect: 'shares the same values as sim.glacialEdgeNoise.top — no separate seeded draw'
+    determinism: deterministic
+
+  - id: wind-direction-comment-block-added
+    description: >
+      A doctrine block comment is added at the top of the
+      WindDirection enum declaration in src/engine/types.ts (just
+      above the `export const WindDirection = { ... } as const` at
+      ~line 625). The comment states the v5 round 1 doctrine —
+      cardinals (N/E/S/W) point at the diamond's tips on screen;
+      ordinals (NE/SE/SW/NW) align with the storage axes (NE = down
+      storage-+x, SE = down storage-+y, SW = up storage-+x, NW = up
+      storage-+y). The comment also names the file as the canonical
+      source of truth for the rotated frame so future authors do
+      not re-import the old semantics from elsewhere.
+    inputs:
+      - 'codebase after RP-30 lands'
+    outputs:
+      - "src/engine/types.ts contains a block comment above WindDirection that names 'diamond tip' and 'storage axis' for each cardinal"
+      - "the comment references backlog-thinktank-v5 round 1 as the doctrine source"
+    state_changes: []
+    determinism: deterministic
+
+  - id: golden-frame-tests-added
+    description: >
+      Three new describe blocks are added to existing test files
+      to fixture the rotated frame against regression. (1) In
+      src/engine/__tests__/wind.test.ts, a new describe block
+      'WIND_SCREEN_VECTORS rotated frame' asserts the eight (sx,
+      sy) values exactly as listed in the wind-screen-vectors-
+      rotated behaviour. (2) In src/engine/__tests__/tileWater.test.ts,
+      a new describe block 'windToFrontAxis rotated frame' asserts
+      the eight (axis, sign) returns exactly as listed in the
+      wind-to-front-axis-supports-diagonals behaviour. (3) In
+      src/engine/__tests__/wind.test.ts (alongside the
+      WIND_SCREEN_VECTORS block), a new describe block 'genesis
+      polar metric — rotated frame' asserts that for a synthetic
+      100x100 sim with SPACE_BORDER = 5, the topDist value at the
+      diamond's top tip (SPACE_BORDER, SPACE_BORDER) is 0, the
+      topDist at the diamond's bottom tip (94, 94) is 178, and
+      the topDist at the diamond's left tip (5, 94) equals the
+      topDist at the diamond's right tip (94, 5) which equals 89.
+      The polar metric assertion is computed inline (no helper
+      exported from genesis.ts is required) so the test pins the
+      formula independent of internal helpers. All three describe
+      titles contain the substring 'rotated frame' so the
+      verification pattern matches them.
+    inputs:
+      - 'npx vitest run src/engine/__tests__/wind.test.ts -t "rotated frame"'
+      - 'npx vitest run src/engine/__tests__/tileWater.test.ts -t "rotated frame"'
+    outputs:
+      - 'all three describe blocks pass'
+      - "wind.test.ts contains a describe block 'WIND_SCREEN_VECTORS rotated frame' with eight assertions, one per cardinal"
+      - "tileWater.test.ts contains a describe block 'windToFrontAxis rotated frame' with eight assertions"
+      - "wind.test.ts contains a describe block 'genesis polar metric — rotated frame' with the four pole-distance assertions"
+    state_changes: []
+    determinism: deterministic
+
+  - id: existing-tests-updated
+    description: >
+      Three existing test files update their assertions to the
+      rotated frame. (1) src/engine/__tests__/wind.test.ts at the
+      'WIND_SCREEN_VECTORS' describe (lines 31-54) — the cardinal /
+      ordinal magnitude assertions update to reflect that under the
+      new frame all eight directions have magnitude √2 in the
+      table (cardinals are pure axis-aligned vectors of magnitude
+      √2; ordinals are diagonal vectors of magnitude √2 split
+      across both axes). The 'has entries for all 8 compass
+      directions' test is unchanged. Direction-specific assertions
+      elsewhere in the file that reference WindDirection.W's
+      smoothSx/Sy values update to use the new (sx, sy) = (√2, 0)
+      table value. (2) src/engine/__tests__/tileWater.test.ts —
+      any test that asserts windToFrontAxis returns 'x' or 'y' for
+      a cardinal direction updates to assert 'u' or 'v' for the
+      new cardinals; assertions for ordinals (NE/SE/SW/NW) update
+      to the new axis/sign returns. Any test that asserts
+      isInRainFront's hit set for a cardinal direction updates its
+      expected tile coordinates to match the rotated sweep.
+    inputs:
+      - 'npm run test:engine after RP-30 lands'
+    outputs:
+      - 'all three test files pass under the rotated frame'
+      - "no test asserts cardinals have magnitude √2 and ordinals have magnitude 1 (the old frame's assertion)"
+      - "no test asserts windToFrontAxis returns 'x' or 'y' for N/S/E/W"
+    state_changes: []
+    determinism: deterministic
+
+  - id: audit-cardinal-references-in-src-and-docs
+    description: >
+      An audit pass enumerates all user-facing text strings and
+      docs that name a cardinal direction (N, S, E, W, north, south,
+      east, west, NE, SE, SW, NW, northeast, etc.) under semantics
+      that would change meaning under the rotated frame. Scope —
+      src/components/**, src/engine/manual.ts, all docs/claude/*.md
+      files (skip
+      docs/backlog-thinktank-v*.md as historical). For each hit,
+      classify — (a) literal compass string in user-facing copy
+      (update to the new semantics or rewrite to avoid the
+      ambiguity); (b) developer comment describing world axes
+      (update to reference the diamond-tip framing); (c) variable
+      name or identifier (leave unchanged — these are storage-layer
+      identifiers, not exposed to the player); (d) doc prose
+      describing engine semantics (update to the new framing).
+      docs/claude/weather.md is rewritten to describe wind
+      direction in the rotated frame. docs/claude/genesis.md is
+      updated to note that glaciers advance from the diamond's top
+      and bottom tips. docs/claude/rendering.md is updated to note
+      that the (x − y, x + y) iso projection is the canonical
+      coordinate frame the game exposes; storage (x, y) is internal.
+      The audit produces no new file — its outputs are scattered
+      across the files it touches.
+    inputs:
+      - 'codebase after RP-30 lands'
+    outputs:
+      - "grep -inE 'magnitude √2|axis-aligned.*magnitude 1' src/engine/weather/wind.ts returns the rewritten comment (not the old text)"
+      - "docs/claude/weather.md mentions 'diamond tip' in its wind-direction explanation"
+      - "docs/claude/genesis.md mentions glaciers advancing from the diamond's top and bottom tips"
+      - "docs/claude/rendering.md mentions (x − y, x + y) iso projection as the canonical exposed frame"
+      - "no user-facing string in src/components/** or src/engine/manual.ts asserts a cardinal direction under the old frame's semantics (audit-confirmed)"
+    state_changes: []
+    determinism: deterministic
+
+  - id: status-yaml-flipped
+    description: >
+      docs/backlog.yaml flips RP-30 to in-progress with
+      spec and plan populated during the PR cycle, and to shipped
+      after merge. RP-28's depends_on remains ['30'] (set in
+      the v5 thinktank round 1 staging).
+    inputs:
+      - 'docs/backlog.yaml after RP-30 lands'
+    outputs:
+      - "feature id '30' has status 'in-progress' or 'shipped' with spec and plan fields populated"
+      - "feature id '28' has depends_on ['30']"
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: v-axis-coord-wrap
+    description: >
+      The v = x − y coordinate is naturally signed (range
+      [-(height-1), +(width-1)] over the playable region). isInRainFront
+      and the rain-aura path normalise v to a non-negative coord by
+      adding state.overworldMapHeight (or a configured offset),
+      ensuring the modulo wrap math (frontPos = (offset * sign +
+      mapSize) % mapSize) operates on non-negative values.
+    expected: >
+      For any tile (x, y) in the playable region, coord = x - y +
+      state.overworldMapHeight is in [1, overworldMapWidth +
+      overworldMapHeight - 1] and the modulo wrap math produces a
+      stable frontPos.
+
+  - id: diamond-tip-vs-storage-tip-precision
+    description: >
+      The "diamond top tip" in storage coordinates is (SPACE_BORDER,
+      SPACE_BORDER) — the smallest (x, y) inside the playable
+      border — and the diamond bottom tip is (sim.width −
+      SPACE_BORDER − 1, sim.height − SPACE_BORDER − 1). The polar
+      metric u = (x − SPACE_BORDER) + (y − SPACE_BORDER) is 0 at
+      the top tip and 2*(playable side − 1) at the bottom tip
+      assuming sim.width == sim.height (the prairie is 147x147,
+      so this assumption holds in production). If a future map
+      becomes non-square, the bottom-tip distance formula becomes
+      (sim.width + sim.height − 2*SPACE_BORDER − 2); the spec uses
+      this form so it generalises correctly.
+    expected: >
+      For sim.width == sim.height == 147 and SPACE_BORDER == 5,
+      topDist at (5, 5) == 0 and topDist at (141, 141) == 272.
+
+  - id: rain-front-axis-non-uniformity
+    description: >
+      Under the new frame, cardinal winds sweep along the u or v
+      diagonal axes which span ~2x the tile count of the storage x
+      or y axes. At the existing RAIN_FRONT_SPEED, the front takes
+      ~2x as long to cross the diamond on a cardinal sweep as it
+      did on an ordinal sweep (which still uses storage x or y).
+      This is a small behavioural change — players who notice will
+      perceive cardinal-wind rain fronts as "slower" than ordinal-
+      wind ones. The spec does not rescale RAIN_FRONT_SPEED; it
+      flags the non-uniformity as an accepted behavioural change
+      and defers any tuning to a follow-up if playtesting argues
+      for it.
+    expected: >
+      Rain fronts under cardinal winds take ~2x as long to cross
+      the playable region as fronts under ordinal winds. No new
+      constants introduced.
+
+  - id: glacial-band-shape-rotates
+    description: >
+      The glacial band shape changes from "horizontal stripes
+      across the top and bottom of the world grid" to "wedge-
+      shaped bands at the diamond's top and bottom tips on
+      screen." The visual impression is a glacier sliding down
+      from the top point and another sliding up from the bottom
+      point, with lobes along the v = x − y axis (the diamond's
+      horizontal screen extent) from the reindexed edge noise.
+      This matches the design intent stated in the genesis.ts
+      comment "Glaciers advance from top and bottom" — under the
+      rotated frame the comment is finally true.
+    expected: >
+      sim.glacialPaths populated by the IceAge epoch forms two
+      wedge-shaped regions anchored at storage (SPACE_BORDER,
+      SPACE_BORDER) and (max, max), advancing inward along the u
+      axis to a depth of ~25% of the u-span from each tip. Edge
+      lobes vary along v and the two fronts mirror each other (top
+      and bottom advance to the same u distance, modulo identical
+      lobe noise applied to both).
+
+  - id: no-runtime-translation-layer
+    description: >
+      No file in src/ contains a function or helper named
+      "rotateCardinal" / "isoToWorldCardinal" / "compassToScreen"
+      or similar — i.e., no translation function exists at the
+      display layer. The rotated frame is the only frame; there is
+      nothing to translate to or from. This pins the v5 round 1
+      doctrine "no coordinate translation lives anywhere in the
+      game" against accidental reintroduction.
+    expected: >
+      grep -inE 'rotateCardinal|isoToWorldCardinal|compassToScreen|worldCardinalToScreen|screenCardinalToWorld' src/ returns zero hits.
+
+failure_conditions:
+  - trigger: "WIND_SCREEN_VECTORS[N] is not { sx: 0, sy: Math.SQRT2 }"
+    expected: 'CI fails — the cardinal rotation is missing or incorrect at the table'
+  - trigger: "WIND_SCREEN_VECTORS[NE] is not { sx: -1, sy: -1 }"
+    expected: 'CI fails — the ordinal rotation is missing or incorrect at the table'
+  - trigger: "any WIND_SCREEN_VECTORS value's magnitude is not Math.SQRT2 (within 1e-5)"
+    expected: 'CI fails — wind-speed scaling is broken; downstream drift will be wrong'
+  - trigger: "windToFrontAxis(WindDirection.N) returns axis 'x' or 'y' (i.e., the old frame)"
+    expected: 'CI fails — cardinal winds still sweep along storage axes'
+  - trigger: "windToFrontAxis return type literal in tileWater.ts does not include 'u' and 'v' variants"
+    expected: 'CI fails — type widening missing'
+  - trigger: "isInRainFront returns hit=true for a tile that is not on the rotated front for the given wind direction"
+    expected: 'CI fails — rain-front math did not migrate to the new axis semantics'
+  - trigger: "sim.glacialEdgeNoise.top is not of length (sim.width + sim.height - 1)"
+    expected: 'CI fails — glacial edge noise was not reindexed to the rotated v coordinate'
+  - trigger: "sim.glacialPaths after the IceAge epoch contains a tile whose top-tip distance and bottom-tip distance both exceed effectiveDepth"
+    expected: 'CI fails — the polar metric did not migrate'
+  - trigger: "glacialDepth is not Math.floor((sim.width + sim.height - 2 * SPACE_BORDER) * 0.25)"
+    expected: 'CI fails — glacial-depth budget was not retuned to 25% of the rotated u-span'
+  - trigger: "sim.glacialEdgeNoise.top and sim.glacialEdgeNoise.bottom contain a differing value at any index"
+    expected: 'CI fails — bottom glacial noise was drawn independently instead of mirroring top'
+  - trigger: "grep -inE 'rotateCardinal|isoToWorldCardinal|compassToScreen|worldCardinalToScreen|screenCardinalToWorld' src/ returns any hits"
+    expected: 'CI fails — a translation layer was introduced, violating the v5 round 1 doctrine'
+  - trigger: "grep -i 'diamond tip' docs/claude/weather.md returns zero hits"
+    expected: 'CI fails — the doctrine doc was not updated to the rotated frame'
+  - trigger: 'npm run spec:validate exits non-zero'
+    expected: 'CI fails — spec or plan files reference deleted or moved symbols'
+
+verification:
+  test_file: src/engine/__tests__/wind.test.ts
+  test_pattern: 'rotated frame'
+  command: 'npx vitest run src/engine/__tests__/wind.test.ts -t "rotated frame"'

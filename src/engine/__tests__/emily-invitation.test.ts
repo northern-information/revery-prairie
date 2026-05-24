@@ -48,7 +48,7 @@ describe('Emily dialog dispatch', () => {
   })
 })
 
-describe('precis #33 — emilyInvitation initialization', () => {
+describe('RP-33 — emilyInvitation initialization', () => {
   it('createGameState (via createTestState) initializes emilyInvitation to "unoffered"', () => {
     const state = createTestState()
     expect(state.emilyInvitation).toBe('unoffered')
@@ -56,7 +56,7 @@ describe('precis #33 — emilyInvitation initialization', () => {
   })
 })
 
-describe('precis #33 — invitation arm (autumn-only)', () => {
+describe('RP-33 — invitation arm (autumn-only)', () => {
   it('arms awaitingConfirmation when the last line completes typing in autumn', () => {
     const state = createTestState()
     setSeason(state, Season.Autumn)
@@ -107,7 +107,7 @@ describe('precis #33 — invitation arm (autumn-only)', () => {
   })
 })
 
-describe('precis #33 — confirm path', () => {
+describe('RP-33 — confirm path', () => {
   it('[f] press while armed contributes pressure to threshold and closes the dialog', () => {
     const state = createTestState()
     setSeason(state, Season.Autumn)
@@ -139,7 +139,7 @@ describe('Emily dialog content lock', () => {
   })
 })
 
-describe('precis #34 — manual [f] skips the spring-equinox greeting', () => {
+describe('RP-34 — manual [f] skips the spring-equinox greeting', () => {
   it('opens Emily at lineIndex 1 regardless of season', () => {
     // Construct a real state so Emily's ECS entity is present (createTestState
     // destroys character entities).

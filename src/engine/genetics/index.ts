@@ -1,4 +1,4 @@
-// Precis #3 — Genetics v1.
+// RP-3 — Genetics v1.
 //
 // SHA256 identity (via sha256Sync from crypto.ts) + trait bag inheritance.
 // All functions in this module are pure. No callers exist in #3 itself
@@ -145,7 +145,7 @@ export const crossTraitBags = (parentA: TraitBag, parentB: TraitBag, rng: () => 
   }
 }
 
-// --- Cross-genome compatibility (precis #8b) ---
+// --- Cross-genome compatibility (RP-8b) ---
 //
 // The v3 doctrine: native × egregore crossbreeding is impossible — the
 // trait bags do not align (egregores have axes natives lack). Modeled as

@@ -10,7 +10,7 @@ import { clearAroundPlayer, createTestState } from './helpers'
 
 import type { GameState } from '../types'
 
-// Precis #32 — summons-sequence + Closing-egregoric-commit tests.
+// RP-32 — summons-sequence + Closing-egregoric-commit tests.
 //
 // The summons path: pressure crosses ceiling → initiateRevery + summons=true
 // → tickRevery's Omen branch teleports Gron adjacent, opens his dialog,
@@ -27,12 +27,12 @@ const placeGron = (state: GameState, x: number, y: number) => {
   return createCharacterEntity(state, 'gron', { x, y })
 }
 
-describe('summons sequence — Omen → Observing (precis #32)', () => {
+describe('summons sequence — Omen → Observing (RP-32)', () => {
   it('captures summonsCollapseTile at the steward position', () => {
     const state = createTestState()
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
-    // Precis #33 — capture the collapse tile expectation BEFORE
+    // RP-33 — capture the collapse tile expectation BEFORE
     // tickRevery, since the Omen → Observing scene transition moves the
     // steward to the house bed.
     const expectedCollapse = { x: state.player.x, y: state.player.y }
@@ -67,7 +67,7 @@ describe('summons sequence — Omen → Observing (precis #32)', () => {
     const state = createTestState()
     setupSummonsState(state)
     const gron = placeGron(state, state.player.x + 5, state.player.y + 5)
-    // Precis #33 — Gron is teleported to a tile adjacent to the steward's
+    // RP-33 — Gron is teleported to a tile adjacent to the steward's
     // PRE-scene-transition position (his current overworld spot at the
     // moment of summons). Capture that before tickRevery.
     const stewardAtSummons = { x: state.player.x, y: state.player.y }
@@ -153,7 +153,7 @@ describe('summons sequence — Omen → Observing (precis #32)', () => {
   })
 })
 
-describe('Closing-phase egregoric commit + reset (precis #32)', () => {
+describe('Closing-phase egregoric commit + reset (RP-32)', () => {
   const advanceToClosing = (state: GameState, time: number): void => {
     if (state.revery) state.revery.phase = ReveryPhase.Closing
     tickRevery(state, 0, time)
@@ -164,7 +164,7 @@ describe('Closing-phase egregoric commit + reset (precis #32)', () => {
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
     // Ensure the collapse tile is Dirt so the commit eligibility check passes.
-    // Precis #33 — write to overworldMap explicitly; state.map swaps to the
+    // RP-33 — write to overworldMap explicitly; state.map swaps to the
     // house interior at Omen → Observing.
     const px = state.player.x
     const py = state.player.y
@@ -238,7 +238,7 @@ describe('Closing-phase egregoric commit + reset (precis #32)', () => {
   })
 })
 
-describe('getGronDialog — solstice summons branch (precis #32)', () => {
+describe('getGronDialog — solstice summons branch (RP-32)', () => {
   // Need to import the dialog dispatcher; characters.ts does not export
   // getGronDialog directly. Inspect via the activeDialog content path:
   // the summons sequence opens activeDialog with characterId=gron, and a

@@ -22,7 +22,7 @@ recipes combine two items via drag-and-drop. defined in `src/engine/recipes.ts`.
 
 any code that re-creates `ItemInstance` objects (autoSort, merge, stack, split) must preserve the original `uid`. `state.glintingCoins` and `state.seedGenomes` are keyed by item uid — generating a new uid orphans the side-table entry.
 
-## seeds and planting (precis #11)
+## seeds and planting (RP-11)
 
 `wildflowerSeeds` and `tallGrassSeeds` are genetics-bearing — each item carries a `FloraGenome` (identity + `TraitBag`) via the `state.seedGenomes: Map<itemUid, FloraGenome>` side-table. `ItemInstance` stays flat; the genome lives outside the inventory layer alongside the coin-glint pattern.
 

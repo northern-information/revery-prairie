@@ -95,14 +95,14 @@ export const createTestState = (opts?: {
   state.weather.sky = Sky.Sun
   // Default to a benign spring day so flora lifecycle tests don't accidentally
   // run into winter dormancy. Tests that exercise winter behavior override this.
-  // (precis #2)
+  // (RP-2)
   state.weather.season = Season.Spring
   state.weather.temperatureF = 65
   // Phase 0.125 = mid-spring (halfway between spring equinox at 0.0 and
   // summer solstice at 0.25). With mid-range temp, deriveSeason returns
   // Spring. Don't use 0.25 here — that's now the summer-solstice anchor.
   state.seasonalPhase = 0.125
-  // Precis #33 — createGameState now defaults to overworld start;
+  // RP-33 — createGameState now defaults to overworld start;
   // production paths opt into the house spawn via enterHouseAtTenureStart.
   // The keepHouseSpawn option lets a test exercise the production house
   // start.
@@ -113,7 +113,7 @@ export const createTestState = (opts?: {
 }
 
 /**
- * Precis #33 — production createGameState now spawns the player inside
+ * RP-33 — production createGameState now spawns the player inside
  * the little house. Tests that use createGameState directly (not via
  * createTestState) and assume the legacy overworld context should call
  * this helper to swap state.map back to the overworld and place the
@@ -183,7 +183,7 @@ export const createBeeEntity = (state: GameState, x: number, y: number, zone?: Z
   state.world.addComponent(e, ComponentType.EntityTag, 'bee')
   state.world.addComponent(e, ComponentType.EntityZone, { zone: zone ?? state.currentZone })
   state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
-  // Precis #17 — bees carry an empty PollenBag at creation. Tests that
+  // RP-17 — bees carry an empty PollenBag at creation. Tests that
   // exercise bee-mediated pollination read this component directly.
   state.world.addComponent(e, ComponentType.PollenBag, { loads: [] })
   return e

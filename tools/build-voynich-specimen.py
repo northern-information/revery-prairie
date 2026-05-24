@@ -9,7 +9,7 @@ EMPTY = {0xF120, 0xF1A0, 0xF220, 0xF2A0}
 
 # The shared 8-glyph alphabet for all not-of-this-Earth content
 # (egregore tiles, egregoric flora 8b, future egregoric entities).
-# These are EGREGORE_GLYPHS as locked in harness/specs/precis-8a-egregoric-thematic.yaml.
+# These are EGREGORE_GLYPHS as locked in harness/specs/RP-8a-egregoric-thematic.yaml.
 # Order preserved — index into the array is what tileHash mod 8 selects.
 LOCKED = [0xF166, 0xF174, 0xF182, 0xF1B4, 0xF12A, 0xF1A1, 0xF1B1, 0xF1FD]
 assert not set(LOCKED) & EMPTY, 'empty glyph in the locked set'
@@ -186,7 +186,7 @@ html_template = '''<!doctype html>
 <footer>
   Font: <code>voynich.ttf</code> — kreativekorp/voynich-unicode (CC0).
   Source of truth for <code>EGREGORE_GLYPHS</code>:
-  <code>harness/specs/precis-8a-egregoric-thematic.yaml</code>
+  <code>harness/specs/RP-8a-egregoric-thematic.yaml</code>
   (behavior <code>egregore-glyph-registry</code>).
   Regenerate this page from <code>tools/build-voynich-specimen.mjs</code>.
 </footer>

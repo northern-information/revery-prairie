@@ -31,7 +31,7 @@ describe('ManualPanel', () => {
   })
 
   it('renders entry names from the registry', () => {
-    // Discover clover so the flora entry appears (precis #6 — undiscovered
+    // Discover clover so the flora entry appears (RP-6 — undiscovered
     // flora are hidden until scanned).
     const state = createTestState()
     state.manualDiscoveries.add('flora:clover')
@@ -168,7 +168,7 @@ describe('ManualPanel', () => {
     expect(foundEgregoreHeader).toBe(true)
   })
 
-  describe('flora entries — scan-to-discover (precis #6)', () => {
+  describe('flora entries — scan-to-discover (RP-6)', () => {
     it('hides undiscovered flora species entirely', () => {
       renderManual()
       // No flora:* species has been scanned, so none of their entries
@@ -242,7 +242,7 @@ describe('ManualPanel', () => {
     })
   })
 
-  describe('phenotype labels (precis #4)', () => {
+  describe('phenotype labels (RP-4)', () => {
     it('omits the Observations section when no phenotypes are revealed for the species', () => {
       const state = createTestState()
       state.manualDiscoveries.add('flora:clover')

@@ -45,7 +45,7 @@ export const TILE_CHARS: Record<TileType, string> = {
   // here is shown if the renderer can't resolve a per-position glyph
   // for any reason.
   [TileType.Egregore]: '?',
-  // Little house (precis #33). HouseEntrance uses Greek lowercase
+  // Little house (RP-33). HouseEntrance uses Greek lowercase
   // alpha — complements the cave's omega-shaped entrance glyph.
   // Fireplace is sampled from FIREPLACE_CHARS at FIRE_TICK_MS cadence
   // in the renderer; this fallback is rarely shown.
@@ -92,7 +92,7 @@ export const TILE_COLORS: Record<TileType, string> = {
   // Sits between the magenta wildflower (#D85FB7) and the cooler
   // ruin-aqueduct (#6688AA) without colliding with either.
   [TileType.Egregore]: '#B080D0',
-  // Little house (precis #33). Warm browns through the structure; the
+  // Little house (RP-33). Warm browns through the structure; the
   // exit reuses the existing pink-door idiom (CaveExit / RuinExit also
   // use `#ff69b4` — reserved user-action color per CLAUDE.md).
   [TileType.HouseEntrance]: '#7A5A38',
@@ -273,7 +273,7 @@ export const KEYBOARD_MOVE_TICK_MS = 100
 export const SPRINT_MOVE_TICK_MS = 50
 export const WEATHER_TICK_MS = 5000
 
-// phenological seasons (precis #2): full year cycles every SEASONAL_PHASE_PERIOD_MS
+// phenological seasons (RP-2): full year cycles every SEASONAL_PHASE_PERIOD_MS
 // of wall-clock overworld time. each of the four seasons gets a quarter of that
 // (~5 minutes per season at the default 20-minute year). state.seasonalPhase is a
 // fractional position in [0, 1) that advances only when the player is in the
@@ -333,7 +333,7 @@ export const CLOVER_DYING_OSCILLATION_SPEED = 0.002
 export const CLOVER_BLACK_COLOR = '#222222'
 export const CLOVER_DECOMPOSE_COLOR = '#4A3728'
 
-// Genesis post-process flora patch seeding (precis #1). After the
+// Genesis post-process flora patch seeding (RP-1). After the
 // epoch chain runs and stamps clover, genesis scatters a handful of
 // wildflower (Echinacea purpurea) and tall grass (Andropogon gerardii)
 // patches across walkable dirt tiles. Determinism is preserved because
@@ -345,7 +345,7 @@ export const GENESIS_TALL_GRASS_PATCH_COUNT_MAX = 10
 export const GENESIS_FLORA_PATCH_TILES_MIN = 2
 export const GENESIS_FLORA_PATCH_TILES_MAX = 4
 
-// Egregore tile placement (precis #8a). The post-process places a small
+// Egregore tile placement (RP-8a). The post-process places a small
 // fixed number of inert egregore tiles biased near crater positions. The
 // total target stays in the [MIN, MAX] range — placement failures (no
 // reachable dirt within bias radius) reduce the count but do not crash.
@@ -451,7 +451,7 @@ export const RAIN_AURA_COLORS = ['#4466aa', '#335588', '#556699', '#445577']
 export const RAIN_AURA_DENSITY = 3 // ~1 in 3 tiles has a visible raindrop
 export const RAIN_AURA_SPEED = 0.008 // cycles per millisecond
 
-// Snow render constants (precis #2). Snow falls slower than rain and
+// Snow render constants (RP-2). Snow falls slower than rain and
 // uses round / dot glyphs in white-grey. Density is sparser so the
 // scene reads as snowfall, not a blizzard whiteout.
 export const SNOW_AURA_CHARS = ['*', '.', '·', '✦']
@@ -466,7 +466,7 @@ export const DEEP_TIME_LIGHTNING_COUNT = 13
 export const DEEP_TIME_SHAKE_AMPLITUDE = 3 // pixels
 export const DEEP_TIME_SHAKE_DURATION_MS = 200 // per-strike shake
 
-// precis #4 — the Revery. Compressed-time observation phase. See
+// RP-4 — the Revery. Compressed-time observation phase. See
 // docs/claude/revery.md for the full phase machine and rationale.
 // Smaller than DEEP_TIME_YEARS_PER_FRAME (1) — the Revery passes through
 // a single winter, not a millennium. ~60 frames/sec * ~0.005 years/frame
@@ -478,7 +478,7 @@ export const REVERY_COOLDOWN_MS = SEASONAL_PHASE_PERIOD_MS
 // How often the camera shifts during Observing. Stable cadence keeps the
 // drift feeling ceremonial rather than chaotic.
 export const REVERY_CAMERA_DRIFT_INTERVAL_MS = 800
-// Precis #32 — dormancy pressure linear ramp endpoints in seasonalPhase
+// RP-32 — dormancy pressure linear ramp endpoints in seasonalPhase
 // space. Pressure floor = clamp01((seasonalPhase - START) / (END - START))
 // when state.weather.season === Season.Autumn. Ramp reaches ceiling at
 // the winter solstice, guaranteeing the Revery within a year.
@@ -524,7 +524,7 @@ export const ZONE_TRANSITION_DURATION_MS =
 // fog of war
 export const CAVE_VISION_RADIUS = 6
 export const RUIN_VISION_RADIUS = 6
-// Precis #38 — vision radius is unchanged across zones (same eyes,
+// RP-38 — vision radius is unchanged across zones (same eyes,
 // indoors or out). Keep all three in lockstep.
 export const OVERWORLD_VISION_RADIUS = 6
 export const FOG_EXPLORED_BRIGHTNESS = 0.4 // dimmed brightness for partiallyDiscovered tiles
@@ -552,24 +552,24 @@ export const MONARCH_SETTLE_RADIUS = 3 // wander radius when settled
 
 export const INVENTORY_CELL_SIZE = 28
 
-// Precis #6 — hold-to-scan duration (ms). Releasing [v] before this elapses
+// RP-6 — hold-to-scan duration (ms). Releasing [v] before this elapses
 // aborts the scan; releasing at or after commits.
 export const SCAN_DURATION_MS = 1500
 
-// Precis #17 — wildflower spread. Pollinator-gated rhizome-style growth via
+// RP-17 — wildflower spread. Pollinator-gated rhizome-style growth via
 // the species-agnostic spread engine. Rates are derived from clover: ~0.6x
 // CLOVER_BASE_GROWTH_CHANCE so wildflower expands slower than clover even
 // when pollinators are abundant. Playtest-tunable.
 export const WILDFLOWER_BASE_GROWTH_CHANCE = 0.03
 export const WILDFLOWER_MAX_GROWTH_PER_TICK = 2
 
-// Precis #17 — tall grass spread. Pollinator-independent rhizome growth.
+// RP-17 — tall grass spread. Pollinator-independent rhizome growth.
 // Slowest of the three species — ~0.3x CLOVER_BASE_GROWTH_CHANCE — because
 // it spreads in any conditions and would otherwise dominate the prairie.
 export const TALLGRASS_BASE_GROWTH_CHANCE = 0.015
 export const TALLGRASS_MAX_GROWTH_PER_TICK = 2
 
-// Precis #17 — bee+clover ceremony wave. The combine produces a slow
+// RP-17 — bee+clover ceremony wave. The combine produces a slow
 // ceremonial radial wave that paints clover with jittered boundaries
 // via cellNoise. Single-cast; the wave is hard-bounded at radius 13
 // and is removed from state.activeWaves on the tick currentRadius
@@ -577,16 +577,16 @@ export const TALLGRASS_MAX_GROWTH_PER_TICK = 2
 export const CEREMONY_WAVE_RADIUS = 13
 export const CEREMONY_WAVE_TICK_MS = 250
 
-// Precis #17 — bee pollen bag (PollenBag ECS component). LIFO eviction
+// RP-17 — bee pollen bag (PollenBag ECS component). LIFO eviction
 // when full; cross-species mixing allowed. Bees empty their bag when
 // within Chebyshev-1 of a beehive.
 export const POLLEN_BAG_CAPACITY = 4
 
-// Precis #17 — pollen burst TimedEffect. Spawned 2-4 per tick on the
+// RP-17 — pollen burst TimedEffect. Spawned 2-4 per tick on the
 // leading annulus of an active ceremony wave. Fades over this duration.
 export const POLLEN_BURST_DURATION_MS = 600
 
-// Little house (precis #33). 30 x 18 deterministic interior. Fireplace
+// Little house (RP-33). 30 x 18 deterministic interior. Fireplace
 // glyph cycles through FIREPLACE_CHARS at FIRE_TICK_MS; color alternates
 // between FIREPLACE_COLOR_A (orange) and FIREPLACE_COLOR_B (yellow) on
 // the same cadence.

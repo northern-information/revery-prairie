@@ -33,7 +33,7 @@ const findPatchAt = (patches: CloverPatch[], x: number, y: number): CloverPatch 
 }
 
 // Place clover tiles and register them in floraLifecycle with
-// species=clover so floodFillCloverPatches counts them (post precis #1
+// species=clover so floodFillCloverPatches counts them (post RP-1
 // the patch detector filters by species).
 const placeCloverTile = (state: ReturnType<typeof createTestState>, x: number, y: number): void => {
   state.map[y][x] = { type: TileType.Flora }

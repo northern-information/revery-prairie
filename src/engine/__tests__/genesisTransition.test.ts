@@ -118,7 +118,7 @@ describe('boot title card', () => {
       }
     })
 
-    it('precis #33 — no playerSpawn field exists on the state shape', () => {
+    it('RP-33 — no playerSpawn field exists on the state shape', () => {
       const state = withSeededRandom(SEED, () => createGameState('test', 20, 20))
       expect((state as unknown as { playerSpawn?: unknown }).playerSpawn).toBeUndefined()
     })

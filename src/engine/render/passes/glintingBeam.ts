@@ -22,7 +22,7 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   const { charWidth, charHeight } = metrics
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
   const savedAlpha = ctx.globalAlpha
-  // Precis #38 — gate beam segments on the prairie's visible / fully-discovered
+  // RP-38 — gate beam segments on the prairie's visible / fully-discovered
   // sets so glint beams do not leak onto unseen or dim-memory tiles. The
   // fog-mask pass runs in world-overlay (before `effect`), so effect-slot
   // glyphs are not covered by it. Check explicitly here.

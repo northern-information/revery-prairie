@@ -23,7 +23,7 @@ const seedLifecycleAt = (state: GameState, x: number, y: number, stage: Egregore
   state.egregoreLifecycle.set(posKey(x, y), entry)
 }
 
-describe('tickEgregoreLifecycle — inverse-phased dormancy (precis #8b)', () => {
+describe('tickEgregoreLifecycle — inverse-phased dormancy (RP-8b)', () => {
   it('flips Dormant entries to Active when season is Winter', () => {
     const state = createTestState()
     state.egregoreLifecycle = new Map()

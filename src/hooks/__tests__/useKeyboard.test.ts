@@ -504,7 +504,7 @@ describe('useKeyboard', () => {
     })
   })
 
-  describe('[f] hold-to-scan (precis #6)', () => {
+  describe('[f] hold-to-scan (RP-6)', () => {
     const stubTarget = {
       kind: 'flora' as const,
       position: { x: 10, y: 10 },
@@ -598,7 +598,7 @@ describe('useKeyboard', () => {
     })
   })
 
-  describe('[f] shares with interact (precis #6 + remap)', () => {
+  describe('[f] shares with interact (RP-6 + remap)', () => {
     const stubTarget = {
       kind: 'flora' as const,
       position: { x: 10, y: 10 },

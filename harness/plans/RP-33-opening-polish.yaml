@@ -1,0 +1,172 @@
+plan:
+  id: RP-33-opening-polish
+  title: 'RP-33 follow-up: opening tableau and audio handoff polish'
+  created: 2026-05-23
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: audio-first-gesture-primer
+    title: 'Register a module-load pointerdown + keydown primer in audio.ts that resumes the AudioContext on the first user gesture and fires any queued pendingResume callback'
+    spec_id: audio-system
+    spec_sections:
+      - first-gesture-primer
+    context_files:
+      - src/engine/audio.ts
+    output_files:
+      - src/engine/audio.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, audio]
+
+  - id: splash-skippable-on-click-or-key
+    title: 'Make NorthernInformationSplash skippable: add cursor-pointer + onClick on the backdrop and a document-level keydown listener that short-circuit the triangle-wave timer; preserve completedRef idempotency'
+    spec_id: northern-information-splash
+    spec_sections:
+      - click-or-key-skips-splash
+    context_files:
+      - src/components/NorthernInformationSplash.tsx
+    output_files:
+      - src/components/NorthernInformationSplash.tsx
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: proximity-suppression-during-genesis
+    title: 'In tickProximityMusic, short-circuit with an empty sample array while state.genesis is non-null so Gron does not bleed his proximity track over the cinematic ambient'
+    spec_id: proximity-music-crossfade
+    spec_sections:
+      - proximity-suppressed-during-genesis
+    context_files:
+      - src/engine/proximityMusic.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/proximityMusic.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, audio]
+
+  - id: usemusic-genesis-aware-ambient
+    title: 'Pick ZONE_MUSIC[Zone.Overworld] while state.genesis is non-null regardless of currentZone; add prevGenesisRef so the genesis-to-gameplay handoff crossfades the ambient even when the zone did not change'
+    spec_id: overworld-music-init
+    spec_sections:
+      - genesis-aware-ambient
+    context_files:
+      - src/hooks/useMusic.ts
+      - src/engine/types.ts
+    output_files:
+      - src/hooks/useMusic.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [hook, audio]
+
+  - id: gameloop-midpoint-refresh
+    title: 'In the zoneTransition tick system in gameLoop, fire onRefreshUI when swapApplied flips false → true (midpoint swap), in addition to the existing fire when state.zoneTransition clears'
+    spec_id: zone-transition-effect
+    spec_sections:
+      - tick-and-swap-at-midpoint
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/zoneTransition.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: oaks-read-overworld-map
+    title: 'Update seedOaks and isValidOakPosition to read state.overworldMap / overworldMapWidth / overworldMapHeight directly; rename tooCloseToSpawnOrGron to tooCloseToHouseOrGron and center the clearance ring on state.houseEntranceOverworld'
+    spec_id: oak-sequencing
+    spec_sections:
+      - oak-seeding-reads-overworld-map
+    context_files:
+      - src/engine/oaks.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/oaks.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, bugfix]
+
+  - id: house-spawn-and-facing
+    title: 'Update HOUSE_SPAWN to {x: 9, y: 2}; in enterHouseAtTenureStart set state.playerFacing to "left" so the steward mirrors Emily across the hearth row at first frame'
+    spec_id: RP-33-little-house-and-emily
+    spec_sections:
+      - house-zone-and-interior
+      - player-starts-inside-house
+    context_files:
+      - src/engine/house.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/house.ts
+      - src/engine/state.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: usegameengine-cleanup-comment
+    title: 'Update the useGameEngine comment around enterHouseAtTenureStart to reflect that the call always fires (production and tests alike)'
+    spec_id: RP-33-little-house-and-emily
+    spec_sections:
+      - player-starts-inside-house
+    context_files:
+      - src/hooks/useGameEngine.ts
+    output_files:
+      - src/hooks/useGameEngine.ts
+    depends_on:
+      - house-spawn-and-facing
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [hook]
+
+  - id: fireplace-glow-attenuated
+    title: 'Reduce fireplaceGlow radial-gradient alpha from center=1.0 / mid=0.4 to center=0.2 / mid=0.08 so the hearth reads as ambient light, not a flashbang'
+    spec_id: RP-33-little-house-and-emily
+    spec_sections:
+      - fireplace-glow-attenuated
+    context_files:
+      - src/engine/render/passes/fireplaceGlow.ts
+    output_files:
+      - src/engine/render/passes/fireplaceGlow.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [render]
+
+  - id: update-RP-33-tests-for-new-spawn
+    title: 'Update house-interior.test.ts and RP-33-little-house-and-emily.test.ts to assert the new spawnInterior {x: 9, y: 2} and the new playerFacing "left"'
+    spec_id: RP-33-little-house-and-emily
+    spec_sections:
+      - house-zone-and-interior
+      - player-starts-inside-house
+    context_files:
+      - src/engine/__tests__/house-interior.test.ts
+      - src/engine/__tests__/RP-33-little-house-and-emily.test.ts
+    output_files:
+      - src/engine/__tests__/house-interior.test.ts
+      - src/engine/__tests__/RP-33-little-house-and-emily.test.ts
+    depends_on:
+      - house-spawn-and-facing
+    verification:
+      - 'npx vitest run src/engine/__tests__/house-interior.test.ts'
+      - 'npx vitest run src/engine/__tests__/RP-33-little-house-and-emily.test.ts'
+    repair: retry
+    tags: [test]

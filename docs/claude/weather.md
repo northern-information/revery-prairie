@@ -4,7 +4,7 @@ referenced from `CLAUDE.md`. read when touching weather drift, seasons, precipit
 
 midwest illinois prairie. weather drifts every 5 seconds. operational ranges expand seasonally: temperature -5–95°F, humidity 30–95%, wind 1–30 mph. imperial/metric toggle in sidebar.
 
-## phenological seasons (precis #2)
+## phenological seasons (RP-2)
 
 `state.seasonalPhase` is a continuous `[0, 1)` clock that advances on overworld ticks only (cave and ruin zones do not advance it). a full cycle takes `SEASONAL_PHASE_PERIOD_MS` (20 minutes real-time; ~5 min per season). cardinal anchors: `0.00` = spring equinox (March 20, game start), `0.25` = summer solstice, `0.50` = autumn equinox, `0.75` = winter solstice.
 
@@ -29,13 +29,13 @@ midwest illinois prairie. weather drifts every 5 seconds. operational ranges exp
 when `weather.season === Winter` on the overworld, the renderer applies two coordinated wash effects:
 
 1. **bg-cache layer**: a translucent grey rect (`#B8BCC0` at 35% alpha) drawn over the freshly-composited tile-bg layer in `renderer.ts`.
-2. **per-glyph wash**: every tile glyph color passes through `applyWinterWash(color)` in `tileBg.ts` (40% blend toward the same grey) before being assigned to `ctx.fillStyle`. egregore tiles (precis #8a) short-circuit the wash so the violet Voynich script pops against the grey.
+2. **per-glyph wash**: every tile glyph color passes through `applyWinterWash(color)` in `tileBg.ts` (40% blend toward the same grey) before being assigned to `ctx.fillStyle`. egregore tiles (RP-8a) short-circuit the wash so the violet Voynich script pops against the grey.
 
 cave and ruin zones are exempt from the wash entirely (player is underground).
 
-## wind direction — the rotated cardinal frame (precis #30)
+## wind direction — the rotated cardinal frame (RP-30)
 
-the diamond is the world (precis-thinktank-v5 round 1). iso is not a viewing layer applied to a flat grid; iso is the world's shape. cardinals (N/E/S/W) point at one diamond tip each on screen — N is the top tip, E the right tip, S the bottom tip, W the left tip. ordinals (NE/SE/SW/NW) align with the storage axes themselves: NE runs down the storage-+x edge (upper-right edge of the diamond on screen), SE runs down storage-+y, SW runs up storage-+x, NW runs up storage-+y.
+the diamond is the world (backlog-thinktank-v5 round 1). iso is not a viewing layer applied to a flat grid; iso is the world's shape. cardinals (N/E/S/W) point at one diamond tip each on screen — N is the top tip, E the right tip, S the bottom tip, W the left tip. ordinals (NE/SE/SW/NW) align with the storage axes themselves: NE runs down the storage-+x edge (upper-right edge of the diamond on screen), SE runs down storage-+y, SW runs up storage-+x, NW runs up storage-+y.
 
 `state.weather.windDirection` stores the cardinal the wind blows **from**. the `WIND_SCREEN_VECTORS` table in `src/engine/weather/wind.ts` maps each cardinal to the screen-space drift vector. all eight values have magnitude √2 so `windSpeed × (sx, sy)` produces equivalent drift across all directions. the canonical doctrine block lives above the `WindDirection` enum in `src/engine/types.ts`; downstream code reads it.
 

@@ -1,0 +1,425 @@
+id: RP-2-phenological-seasons
+name: 'RP-2 — Phenological seasons'
+priority: medium
+layer: integration
+source_files:
+  - docs/backlog-thinktank-v3.md
+  - docs/backlog.yaml
+  - docs/claude/weather.md
+  - CLAUDE.md
+  - src/engine/weather/index.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/constants.ts
+  - src/engine/floraLifecycle.ts
+  - src/engine/clover.ts
+  - src/engine/renderer.ts
+  - src/engine/tileBg.ts
+  - src/engine/flora/species.ts
+  - src/engine/render/passes/index.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - RP-1-multi-species-flora
+
+behaviors:
+  - id: hidden-annual-clock
+    description: >
+      A GameState field state.seasonalPhase tracks a continuous
+      [0, 1) progress value representing the position within a yearly
+      cycle. **Phase 0 is anchored to the spring equinox** — game
+      start sits on the equinox and the year advances forward from
+      there. Cardinal anchors: 0.0 = spring equinox, 0.25 = summer
+      solstice, 0.5 = autumn equinox, 0.75 = winter solstice. The
+      cycle period is SEASONAL_PHASE_PERIOD_MS (a long real-time
+      interval, target ~20 minutes total = ~5 minutes per season).
+      Tick advances the phase by dt / period each frame while the
+      player is on the overworld. Cave and ruin zones do not advance
+      the clock (the player is underground; weather doesn't apply).
+      The phase wraps at 1.0 → 0.0 (the next spring equinox) and is
+      bounded by modulo at every increment.
+    inputs:
+      - 'state.currentZone === Zone.Overworld'
+      - 'tickWeather called with dt milliseconds'
+    outputs:
+      - 'state.seasonalPhase advances by dt / SEASONAL_PHASE_PERIOD_MS'
+      - 'phase wraps modulo 1.0'
+    state_changes:
+      - field: seasonalPhase
+        effect: 'initialized to 0 in createGameState (spring equinox), monotonically increases per overworld tick, wraps at 1.0'
+    determinism: deterministic
+
+  - id: weather-tempers-toward-seasonal-mean
+    description: >
+      tickWeather biases the temperature drift toward a seasonal mean
+      derived from state.seasonalPhase. With phase 0 = spring equinox,
+      seasonalLerp produces a sinusoid through (winterValue,
+      summerValue): phase 0 → midpoint (~47.5°F), phase 0.25 → summer
+      peak (~75°F), phase 0.5 → midpoint (~47.5°F), phase 0.75 →
+      winter trough (~20°F). Implementation uses `sin(2π·phase)`
+      (peaks +1 at 0.25, troughs −1 at 0.75); summerWeight =
+      (sin + 1) / 2 blends [winterValue, summerValue]. The
+      temperature still drifts by a small random delta per tick, but
+      the drift is biased toward the current mean. The full
+      operational range stays [-5°F, 95°F] so winter cold and summer
+      heat are reachable. Humidity and wind get analogous seasonal
+      biases (winter dry+low-wind, summer humid+breezy, etc.) — minor
+      effects, not full overhaul.
+    inputs:
+      - 'tickWeather called with current state.seasonalPhase'
+    outputs:
+      - 'state.weather.temperatureF drifts toward the seasonal mean'
+      - 'seasonalMeanTemperature(0) ≈ 47.5°F (spring equinox crossing — midpoint of winter/summer means)'
+      - 'seasonalMeanTemperature(0.25) ≈ 75°F (summer solstice)'
+      - 'seasonalMeanTemperature(0.75) ≈ 20°F (winter solstice)'
+    state_changes:
+      - field: weather.temperatureF
+        effect: 'biased random walk toward season mean, clamped to [-5, 95]'
+    determinism: probabilistic
+
+  - id: season-derived-from-temperature
+    description: >
+      Season is **derived from temperature + phase**, not stored as
+      independent state — the doctrine says "derived from weather."
+      A pure function deriveSeason(temperatureF, seasonalPhase)
+      returns the current Season enum value. Temperature extremes
+      always win: <38°F = Winter, >78°F = Summer. In the mid-range
+      (38–78°F), the phase quadrant disambiguates by calendar
+      position relative to the spring-equinox anchor:
+      [0.00, 0.25) → Spring (post-equinox, warming toward summer),
+      [0.25, 0.50) → Summer (post-solstice, cooling toward autumn),
+      [0.50, 0.75) → Autumn (post-equinox, cooling toward winter),
+      [0.75, 1.00) → Winter (post-solstice, warming toward spring).
+      weather.season is set by deriveSeason at every tickWeather so
+      consumers can read state.weather.season directly.
+    inputs:
+      - 'temperatureF and seasonalPhase'
+    outputs:
+      - 'state.weather.season set to the derived Season value'
+      - 'deriveSeason(60, 0.0) returns Spring'
+      - 'deriveSeason(60, 0.25) returns Summer'
+      - 'deriveSeason(60, 0.5) returns Autumn'
+      - 'deriveSeason(60, 0.75) returns Winter'
+    state_changes:
+      - field: weather.season
+        effect: 'set to deriveSeason(temperatureF, seasonalPhase)'
+    determinism: deterministic
+
+  - id: flora-stage-dormant-added
+    description: >
+      A new FloraStage.Dormant is added to the lifecycle. Dormant is
+      visually muted (palette-shifted toward dim brown-green) and
+      represents flora that is alive but paused — no stage advancement,
+      no pollen emission, no contribution to wildfire-spread density.
+      Dormancy is a reversible state, unlike the death stages
+      (Brown → BlinkingRed → Black → Decomposing). The Dormant entry
+      retains its species field so when the flora reawakens it
+      resumes as the same species.
+    inputs:
+      - 'codebase after RP-2 lands'
+    outputs:
+      - 'FloraStage.Dormant exists alongside the existing six stages'
+    state_changes: []
+    determinism: deterministic
+
+  - id: winter-puts-flora-dormant
+    description: >
+      When state.weather.season === Winter (read instantaneously per
+      tick — no debounce; the flora follows the weather literally),
+      the flora lifecycle tick transitions every Healthy flora tile
+      to Dormant. The tile remains TileType.Flora (does not become
+      Dirt). Existing dying stages (Brown, BlinkingRed, Black,
+      Decomposing, BurntRecovering) continue their normal progression
+      — winter does not freeze death. Clover growth previews and
+      pollen emission are suppressed during Winter regardless of stage.
+      A single-tick warm spike during deep winter that flips the
+      derived season briefly will revive the flora for that tick;
+      this is intended and realistic — plants respond to the weather
+      they get, not a debounced abstraction of it.
+    inputs:
+      - 'state.weather.season === Winter on a given tick'
+      - 'a Flora tile in stage Healthy is ticked'
+    outputs:
+      - 'Healthy flora tiles → Dormant'
+      - 'clover growth previews are suppressed'
+    state_changes:
+      - field: floraLifecycle entry stage
+        effect: 'Healthy → Dormant when season is Winter'
+      - field: floraGrowthPreviews
+        effect: 'cleared and not repopulated during Winter'
+    determinism: deterministic
+
+  - id: thaw-revives-dormant-flora
+    description: >
+      When state.weather.season is anything except Winter on a given
+      tick, every Dormant flora tile transitions back to Healthy.
+      The tile's stageStartTime is reset to the thaw time so
+      derivative lifecycle calculations start fresh. Pollen emission
+      and clover growth previews resume normally. No debounce —
+      plants follow the weather instantly. If temperature dips back
+      into winter the next tick they Dormant again.
+    inputs:
+      - 'state.weather.season !== Winter on a given tick'
+      - 'a Flora tile in stage Dormant is ticked'
+    outputs:
+      - 'Dormant flora tiles → Healthy'
+    state_changes:
+      - field: floraLifecycle entry stage
+        effect: 'Dormant → Healthy when season is not Winter'
+      - field: floraLifecycle entry stageStartTime
+        effect: 'reset to thaw time'
+    determinism: deterministic
+
+  - id: dormant-flora-render
+    description: >
+      Dormant flora renders with a muted palette — the species' base
+      color desaturated toward a winter brown-green. The renderer
+      branch is identical to the existing Healthy branch except for
+      the color lookup. Glyphs are unchanged. Egregore tiles
+      (RP-8a) are unaffected — they remain inert + visible per
+      their existing render path.
+    inputs:
+      - 'a Dormant flora tile in the visible viewport'
+    outputs:
+      - 'tile renders with the species glyph in a muted color (e.g. #4A5040 for clover)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: snow-sky-during-winter
+    description: >
+      The Sky enum gains a new value 'snow'. The pickSky function in
+      weather/index.ts returns Sky.Snow when state.weather.season is
+      Winter (replacing what would otherwise be Sky.Rain at high
+      humidity). Snow is the precipitation form of cold humid weather.
+      Sky.Sun and Sky.Cloudy still occur in winter at lower humidities.
+    inputs:
+      - 'tickWeather called while season === Winter and humidity >= 75'
+    outputs:
+      - 'state.weather.sky may transition to Sky.Snow'
+    state_changes:
+      - field: weather.sky
+        effect: 'set to Sky.Snow during winter humid conditions'
+    determinism: probabilistic
+
+  - id: precipitation-intensity-rename
+    description: >
+      state.rainIntensity is renamed to state.precipitationIntensity
+      to reflect that the same field smooths fade-in/out for both
+      rain and snow. tickRainIntensity is renamed to
+      tickPrecipitationIntensity. Both Sky.Rain and Sky.Snow drive
+      the intensity toward 1; Sky.Sun and Sky.Cloudy drive it toward
+      0. All call sites across the codebase are updated. The serialization
+      schema allowlist is updated to use the new name. Existing
+      tileWater logic that reads rainIntensity (water accumulation
+      during precipitation) now reads precipitationIntensity — same
+      behavior, since both rain and snow contribute water to tiles in
+      a simulated way.
+    inputs:
+      - 'codebase after RP-2 lands'
+    outputs:
+      - "state.rainIntensity no longer exists; state.precipitationIntensity does"
+      - "tickRainIntensity no longer exists; tickPrecipitationIntensity does"
+    state_changes:
+      - field: rainIntensity
+        effect: 'removed from GameState'
+      - field: precipitationIntensity
+        effect: 'added to GameState; same [0, 1] semantics, fades between 0 and 1 based on sky state'
+    determinism: deterministic
+
+  - id: snow-render-pass
+    description: >
+      A new render pass at src/engine/render/passes/weatherSnowOverlay.ts
+      mirrors weatherRainOverlay but draws falling snowflakes ('*' or
+      '.') in white/light-grey across the viewport when
+      state.weather.sky === Sky.Snow. The pass slot is 'effect'
+      (same as the rain overlay). The flakes drift more slowly than
+      raindrops, with a slight horizontal sway driven by
+      state.weather.windDirection. Pass registration follows the
+      same module-side-effect pattern as the existing weather rain
+      pass.
+    inputs:
+      - 'state.weather.sky === Sky.Snow during a render frame'
+    outputs:
+      - 'animated snowflake glyphs drift across the viewport'
+    state_changes: []
+    determinism: probabilistic
+
+  - id: winter-palette-shift
+    description: >
+      When state.weather.season === Winter, the renderer applies a
+      whole-prairie palette shift toward whites and grays. The shift
+      is implemented as a per-tile color multiplier applied during
+      the central tile-glyph draw — each computed tile color is
+      blended toward a target winter color (warm-cool grey, around
+      #B8BCC0) by a fixed winter intensity factor (e.g. 0.4 — 40%
+      blend toward grey). Flora dormant tiles already render in muted
+      tones; the palette shift adds the global wash on top of that.
+      Egregore tiles are exempt — the v3 doctrine specifies "winter
+      palette makes the egregoric script pop" so they must NOT be
+      desaturated by the winter wash. Cave and ruin zones are exempt
+      (player is underground). The wash is binary on/off keyed to
+      season; no gradient transition in this PR.
+    inputs:
+      - 'state.weather.season === Winter during a render frame on the overworld'
+    outputs:
+      - 'all overworld tile glyphs render blended toward the winter grey'
+      - 'egregore tiles continue to render at full saturation in their iridescent violet'
+    state_changes: []
+    determinism: deterministic
+
+  - id: current-date-from-phase
+    description: >
+      A GameState field state.currentDate of shape { month: number,
+      day: number } (month 1-12, day 1-31) tracks the in-game
+      Gregorian calendar date derived from state.seasonalPhase. It
+      is initialized in createGameState to { month: 3, day: 20 }
+      (spring equinox) and recomputed in tickWeather after the phase
+      advance, before deriveSeason runs. Mapping uses a fixed
+      non-leap 365-day year with the spring equinox anchored at day-
+      of-year 79 (March 20): `dayOfYear = (floor(phase * 365) + 79)
+      mod 365`, then a fixed month-cumulative-days table converts
+      dayOfYear → { month, day }. The mapping is deterministic and
+      pure; state.currentDate is a cached projection of
+      state.seasonalPhase (single writer: tickWeather). "Things may
+      have drifted" — exact astronomical alignment is not required,
+      and leap days are ignored.
+    inputs:
+      - 'tickWeather called with current state.seasonalPhase'
+    outputs:
+      - 'state.currentDate.month and state.currentDate.day reflect the seasonalPhase position on a 365-day Gregorian calendar anchored at March 20'
+      - 'phaseToDate(0.0) returns { month: 3, day: 20 }'
+      - 'phaseToDate(0.25) returns { month: 6, day: 21 } (approximate, within ±1 day acceptable due to integer rounding)'
+      - 'phaseToDate(0.5) returns { month: 9, day: 22 } (approximate, within ±1 day)'
+      - 'phaseToDate(0.75) returns { month: 12, day: 21 } (approximate, within ±1 day)'
+    state_changes:
+      - field: currentDate
+        effect: 'initialized to { month: 3, day: 20 } in createGameState; recomputed each tickWeather from state.seasonalPhase'
+    determinism: deterministic
+
+  - id: schema-allowlist-updated
+    description: >
+      src/harness/__tests__/serialization/schema.test.ts contains
+      'seasonalPhase' and 'precipitationIntensity' in EXPECTED_FIELDS
+      (from the original RP-2 ship). The phase-anchor change
+      also adds 'currentDate' to EXPECTED_FIELDS for the new date
+      projection field.
+    inputs:
+      - 'serialization schema test run'
+    outputs:
+      - 'test passes with currentDate in EXPECTED_FIELDS'
+    state_changes: []
+    determinism: deterministic
+
+  - id: doctrine-and-status-aligned
+    description: >
+      docs/backlog.yaml flips feature 2 to in-progress with
+      spec/plan links (during PR) and to shipped after merge.
+      CLAUDE.md updates the `## weather` section to note phenological
+      seasons (the existing "season hardcoded to spring" line gets
+      replaced). docs/backlog-thinktank-v3.md is unchanged — row 2
+      already describes phenological seasons accurately.
+    inputs:
+      - 'codebase after RP-2 lands'
+    outputs:
+      - 'CLAUDE.md weather section describes the phenological cycle'
+      - 'backlog.yaml feature 2 has spec/plan/pr fields populated'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: winter-during-cave-visit
+    description: >
+      Player enters the cave during summer, stays for ~5 game-minutes
+      while the overworld clock would normally advance to autumn.
+    expected: >
+      The clock does NOT advance while in cave/ruin zones — only
+      overworld ticks bump state.seasonalPhase. When the player exits
+      the cave the phase resumes from where it stopped. This matches
+      the existing weather-tick gating (weather doesn't drift in cave).
+
+  - id: temperature-spike-mid-winter
+    description: >
+      A random temperature drift spikes the temperature to 50°F for
+      a single tick during deep winter (phase ≈ 0.75).
+    expected: >
+      deriveSeason returns Winter for that single frame because the
+      phase quadrant [0.75, 1.0) is the winter quadrant and 50°F is
+      in the mid-range (38–78°F). The snow continues and Dormant
+      tiles stay dormant. Mid-range temperatures no longer override
+      the phase quadrant — phase classifies the calendar season,
+      temperature only overrides at the extremes (<38°F always
+      Winter, >78°F always Summer). A genuine extreme winter heat
+      wave above 78°F would still flip to Summer for that tick.
+
+  - id: burnt-flora-during-winter
+    description: >
+      A BurntRecovering tile exists when winter arrives.
+    expected: >
+      BurntRecovering continues its recovery clock normally — fire
+      recovery is not gated by season. (Doctrine doesn't say
+      otherwise; the recovery represents soil rebound, not active
+      growth.)
+
+  - id: deterministic-phase-across-zones
+    description: >
+      Player makes two playthroughs with the same steward name. In
+      run A they stay on the overworld the whole time. In run B
+      they spend equal real-time in cave zones.
+    expected: >
+      Both runs have identical seasonalPhase at the same total
+      overworld-ticked time. Cave/ruin time is excluded from the
+      clock.
+
+  - id: existing-spring-only-tests
+    description: >
+      Tests that assume weather.season === Season.Spring or that
+      assume the temperature range is [35, 72] need updating.
+    expected: >
+      Affected tests either pin state.seasonalPhase to a spring value
+      explicitly or accept any season. The expanded temperature
+      range [-5, 95] doesn't break existing weather assertions if
+      they only check bounds.
+
+  - id: phase-zero-on-game-start
+    description: >
+      Fresh game state (createGameState) has state.seasonalPhase === 0.
+    expected: >
+      With phase 0 = spring equinox, deriveSeason returns Season.Spring
+      on the first tick (mid-range temp seeded by generateWeather()
+      lands in the spring quadrant). state.currentDate is
+      { month: 3, day: 20 }. The "firmly in spring" start is
+      observable in state.weather.season and state.currentDate
+      immediately on game start.
+
+  - id: phase-wraps-to-equinox
+    description: >
+      seasonalPhase advances past 1.0 and wraps back to 0.0.
+    expected: >
+      Modulo wrap lands the player back on the spring equinox, not
+      deep winter. state.currentDate cycles back to { month: 3,
+      day: 20 } and Season returns to Spring (modulo temperature
+      extremes).
+
+failure_conditions:
+  - trigger: "state.seasonalPhase never advances during overworld play"
+    expected: 'CI fails — the clock is broken'
+  - trigger: "Fresh game starts in any season other than Spring"
+    expected: 'CI fails — phase 0 must be the spring-equinox anchor'
+  - trigger: "state.currentDate is missing from GameState or not in EXPECTED_FIELDS"
+    expected: 'CI fails — schema allowlist must include currentDate'
+  - trigger: "state.currentDate is not { month: 3, day: 20 } at game start"
+    expected: 'CI fails — initial date must be the spring equinox'
+  - trigger: "state.currentDate drifts out of sync with state.seasonalPhase"
+    expected: 'CI fails — tickWeather must recompute currentDate from seasonalPhase'
+  - trigger: "winter season does not transition Healthy flora to Dormant"
+    expected: 'CI fails — lifecycle is not reading season'
+  - trigger: "leaving Winter does not revive Dormant flora to Healthy"
+    expected: 'CI fails — thaw transition is broken'
+  - trigger: "snow render pass does not draw flakes when state.weather.sky === Sky.Snow"
+    expected: 'CI fails — snow overlay is not registered or not gated on Sky.Snow'
+  - trigger: "winter palette shift desaturates egregore tiles toward grey"
+    expected: 'CI fails — per v3 doctrine the winter palette must make egregoric script pop, not blend in'
+
+verification:
+  test_file: src/engine/__tests__/weather.test.ts
+  test_pattern: 'season'
+  command: 'npx vitest run src/engine/__tests__/weather.test.ts -t season'

@@ -1,4 +1,4 @@
-// Snow overlay (precis #2). Mirrors weatherRainOverlay but draws slow-
+// Snow overlay (RP-2). Mirrors weatherRainOverlay but draws slow-
 // drifting white/grey flakes when state.weather.sky === Sky.Snow. Snow
 // falls over the whole viewport rather than along a rain front — the
 // front-sweep visual is rain-specific (humid air mass moving across the
