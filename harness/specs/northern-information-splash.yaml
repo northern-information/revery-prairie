@@ -6,7 +6,7 @@ source_files:
   - src/components/NorthernInformationSplash.tsx
   - src/App.tsx
   - public/applied-sciences-and-phantasms-working-division-flourescent.png
-  - public/sfx/northern-information.mp3
+  - public/sfx/MANIFEST.md
 dependencies:
   - film-grain-overlay
   - audio-system
