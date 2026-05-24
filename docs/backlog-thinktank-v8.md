@@ -1,6 +1,6 @@
 # Backlog thinktank — v8
 
-A continuation of v7. v7 ran rounds 1–3, locking lineage-as-record (not result), two-layer overworld fog, and the prairie's bones (verticality, thermogenic egregores, winter geology, lightning fire). v8 picks up after v7 with a question Tyler brought to the room on 2026-05-23: _what if there is a 'shadow steward' or 'umbral steward' who is an NPC and in service of egregoric flora?_ He brought it openly — as a "what if," not a conviction — and asked the room to weigh it against the cosmology. He noted alongside it the recently shipped collapse-spawn-egregore mechanic (RP-32` / `#33`) and asked the room to read both together.
+A continuation of v7. v7 ran rounds 1–3, locking lineage-as-record (not result), two-layer overworld fog, and the prairie's bones (verticality, thermogenic egregores, winter geology, lightning fire). v8 picks up after v7 with a question Tyler brought to the room on 2026-05-23: _what if there is a 'shadow steward' or 'umbral steward' who is an NPC and in service of egregoric flora?_ He brought it openly — as a "what if," not a conviction — and asked the room to weigh it against the cosmology. He noted alongside it the recently shipped collapse-spawn-egregore mechanic (RP-32`/`#33`) and asked the room to read both together.
 
 What follows is the rounds. Decisions are stated as decisions. Open questions are flagged. v8 is _additive_ to v7 — it does not invalidate v7 unless a round here explicitly amends it. Items that should propagate back to earlier versions are tagged `**Amendment to v{N}:**`.
 

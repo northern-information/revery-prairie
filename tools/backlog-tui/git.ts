@@ -1,7 +1,9 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
-import { setStatusInYamlText, type Status } from './data.js'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { setStatusInYamlText } from './data.js'
+
+import type { Status } from './data.js'
 
 export interface MoveResult {
   ok: boolean

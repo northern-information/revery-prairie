@@ -87,7 +87,7 @@ behaviors:
       - 'GameState with a placed meteorite at tile T'
       - 'player attempts to move onto T'
     outputs:
-      - 'movement succeeds if T''s underlying TileType is walkable'
+      - "movement succeeds if T's underlying TileType is walkable"
     state_changes: []
     determinism: deterministic
 
@@ -200,7 +200,7 @@ behaviors:
       - 'spread tiles committed only to candidates whose containment set matches at least one egregoric neighbor'
     state_changes:
       - field: egregorePositions / map
-        effect: 'tile committed only where its containingPolygons set equals an egregoric neighbor''s containingPolygons set'
+        effect: "tile committed only where its containingPolygons set equals an egregoric neighbor's containingPolygons set"
       - field: lastEgregoreSpreadYear
         effect: 'still advanced for the year even if filtered candidates are empty (consistent with current no-candidates branch)'
     determinism: deterministic

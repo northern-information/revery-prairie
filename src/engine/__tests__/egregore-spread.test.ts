@@ -1,11 +1,9 @@
-import { describe, expect, it } from 'vitest'
-
 import { SEASONAL_PHASE_PERIOD_MS } from '../constants'
 import { tickEgregoreSpread } from '../egregore/spread'
 import { posKey } from '../position'
 import { OmenKind, ReveryPhase, Season, TileType, Zone } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 

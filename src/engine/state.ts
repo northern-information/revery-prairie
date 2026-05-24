@@ -1,11 +1,12 @@
 import { generateCave } from './cave'
 import { getCharacterDefinition, registerGhostDefinitions } from './characters'
 import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, WATER_MAX } from './constants'
-import { createHouseInterior } from './house'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
+import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from './egregore/species'
 import { createCharacterEntity } from './entities'
+import { createEmptyFloraGrowthPreviews } from './floraGrowthPreviews'
 import {
   createGenesisState,
   GENESIS_EPOCHS,
@@ -15,24 +16,14 @@ import {
   precomputeGenesis,
 } from './genesis'
 import { RuinGenerationMode } from './genesisTypes'
+import { generateEgregoreGenome } from './genetics/egregore'
+import { createHouseInterior } from './house'
 import { autoSort } from './inventory'
 import { createBackpack } from './items'
-import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from './egregore/species'
-import { generateEgregoreGenome } from './genetics/egregore'
 import { isWalkableTile, posKey } from './position'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { buildWaterProximity } from './tileWater'
-import { createEmptyFloraGrowthPreviews } from './floraGrowthPreviews'
-import {
-  EgregoreActivityStage,
-  MainQuestPhase,
-  MoabState,
-  OverlayMode,
-  Season,
-  Sky,
-  TileType,
-  Zone,
-} from './types'
+import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, Sky, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 
@@ -421,7 +412,8 @@ export const createGameState = (
   // lifecycle starts identical across reloads. Initial stage is Active
   // when the game starts in Winter (rare at genesis); otherwise Dormant.
   // The lifecycle ticker will flip them as soon as the season changes.
-  const initialEgregoreStage = state.weather.season === Season.Winter ? EgregoreActivityStage.Active : EgregoreActivityStage.Dormant
+  const initialEgregoreStage =
+    state.weather.season === Season.Winter ? EgregoreActivityStage.Active : EgregoreActivityStage.Dormant
   for (const pos of initialEgregorePositions) {
     const species = getEgregoreSpeciesAtPosition(pos.x, pos.y)
     const genome = generateEgregoreGenome(pos.x, pos.y, stewardName, EGREGORE_SPECIES[species].traitBias)

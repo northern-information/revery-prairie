@@ -1,5 +1,3 @@
-import type { MockInstance } from 'vitest'
-
 import {
   _getState,
   _reset,
@@ -18,6 +16,7 @@ import {
 } from '../audio'
 
 import type { Track } from '../audio'
+import type { MockInstance } from 'vitest'
 
 // --- Web Audio API mocks ---
 

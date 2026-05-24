@@ -15,14 +15,14 @@ A sequencing plan for 13 features (#0–#12, with #8 split). Not a code change. 
 
 ### Vocabulary
 
-- **Revery** means *only* the long-form phase of surrender (item #4). The four player-cast "reveries" (fire, water, earth, lightning, deep-time) are deleted — not renamed.
+- **Revery** means _only_ the long-form phase of surrender (item #4). The four player-cast "reveries" (fire, water, earth, lightning, deep-time) are deleted — not renamed.
 - Player actions are **stewardship practices**, never spells. #0 deletes the action bar entirely; a future feature reintroduces a surface for tools/seeds/practices when there is actually something to hold there.
 - Working term in spec, code, and dev docs for the parallel ecology: **egregores** / **egregoric flora** / `TileType.Egregore`.
-- **Player-facing term for the egregores: none.** The word *invasive* does not appear anywhere a player will read it. NPCs use folk register ("the Far Garden," "the other clover," "we don't grow that"). **No two NPCs ever agree** on a folk name. Specs that introduce *invasive* in player-facing text fail review. Recommended: CI lint guard.
+- **Player-facing term for the egregores: none.** The word _invasive_ does not appear anywhere a player will read it. NPCs use folk register ("the Far Garden," "the other clover," "we don't grow that"). **No two NPCs ever agree** on a folk name. Specs that introduce _invasive_ in player-facing text fail review. Recommended: CI lint guard.
 
 ### Cosmology
 
-- **The prairie is a fragment of Earth.** Native flora carry real Latin binomials (*Trifolium repens*, *Asclepias syriaca*).
+- **The prairie is a fragment of Earth.** Native flora carry real Latin binomials (_Trifolium repens_, _Asclepias syriaca_).
 - **The egregores are not-of-this-Earth.** Layered framing:
   - Deep truth (never confirmed by the game): the veil between Earths thins during the Revery.
   - In-fiction folk explanation (NPCs say it): the Far Garden.
@@ -33,7 +33,7 @@ A sequencing plan for 13 features (#0–#12, with #8 split). Not a code change. 
 
 - **Egregores grow in winter.** Inverse-phased to natives. Peak spread in deep winter, near-zero in summer.
 - Stewardship-winter produces a tile or two of slow drift — observable, not actionable.
-- Revery-winters are the real push. The end-of-Revery summary reads as a sequence of seasons (*the line moved north in the third winter; held through summer; moved further in the fifth*).
+- Revery-winters are the real push. The end-of-Revery summary reads as a sequence of seasons (_the line moved north in the third winter; held through summer; moved further in the fifth_).
 - The native and egregoric are never on the field at the same time. They take turns. The prairie's grip is summer; the loosening is winter.
 - Winter palette (muted browns, dark greens, snow) makes the egregoric script pop. They are most visible exactly when they are most active.
 
@@ -42,15 +42,15 @@ A sequencing plan for 13 features (#0–#12, with #8 split). Not a code change. 
 - Triggered by an **omen**, not a button. Threshold logic stays internal. Player sees a small visible sign — bee on shoulder, cloud passing the sun, distant meteorite. Three or four omen variants.
 - The Revery can be **deferred**. The omen is necessary, not sufficient. Sometimes the prairie waits.
 - **Winter omens are heavier** — meteorite on frozen ground, sound carrying. Winter omens trigger longer Reveries.
-- Player does nothing during the Revery. Camera drifts. Year counter. End-of-Revery summary tells what changed and *what arrived*.
+- Player does nothing during the Revery. Camera drifts. Year counter. End-of-Revery summary tells what changed and _what arrived_.
 
 ### The controlled burn
 
-- **Torchbearer NPC** ignites burns at thaw. Their arrival *is* the seasonal signal — no clock, no banner.
+- **Torchbearer NPC** ignites burns at thaw. Their arrival _is_ the seasonal signal — no clock, no banner.
 - **Player walks the line with them.** Stewardship is accompaniment. The Torchbearer waits if the player isn't moving. The burn happens because you both went.
 - **Calibrated Dark Souls bumper:** advise, mostly obey, refuse only at catastrophic edge (would consume the village; extreme drought + wind). Botched burns produce ash prairie — informative failure, not game-over.
 - **Player may dismiss the Torchbearer at the line.** No argument. They look at the line, look at the player, turn back. Player watches them walk to the horizon. The line stays where the winter put it.
-- Wildfire (drought + lightning during the Revery) is separate and *not* player-triggered.
+- Wildfire (drought + lightning during the Revery) is separate and _not_ player-triggered.
 
 ### Genetics (decided in v3 — overrides v2)
 
@@ -79,7 +79,7 @@ A sequencing plan for 13 features (#0–#12, with #8 split). Not a code change. 
 
 **Vocabulary:** see lock-in above.
 
-**Pollinator:** invisible. Pollen drift with no carrier — *the wind that isn't wind*. Particles cross tiles, no entity behind them. The manual has no entry for the agent. Two refusals reinforcing each other: the species refuses to be named; the agent refuses to be named.
+**Pollinator:** invisible. Pollen drift with no carrier — _the wind that isn't wind_. Particles cross tiles, no entity behind them. The manual has no entry for the agent. Two refusals reinforcing each other: the species refuses to be named; the agent refuses to be named.
 
 **Crossbreeding native × egregore:** impossible. Genomes share the SHA256 identity layer but the trait bags do not align (the egregores have axes natives lack, e.g. allelopathy). Manual returns "no compatible regions." The cosmological boundary rendered as data shape.
 
@@ -91,7 +91,7 @@ A sequencing plan for 13 features (#0–#12, with #8 split). Not a code change. 
 - **Latin pierces:** ~1 tile in 5 has one readable English word from a tight allowlist (`threshold`, `between`, `garden`, `before`, `not`, `here`, `was`, `meteor`, `Earth`, `line`, `thin`, `near`, `moved`, `past`, `us`, `them`). Vocabulary of cosmology and presence.
 - NPC refusal lines (Moab, at least one ghost). They never name it. Different NPCs use different folk names.
 - Meteorite (`items.ts:26`) recontextualized as visible carrier.
-- During the first Revery, hardcoded growth from 3 → ~6 tiles. Summary phrases this as *the line moved*.
+- During the first Revery, hardcoded growth from 3 → ~6 tiles. Summary phrases this as _the line moved_.
 
 **8b — mechanical biome (ships after #4 + #7 + #9):**
 
@@ -105,7 +105,7 @@ A sequencing plan for 13 features (#0–#12, with #8 split). Not a code change. 
 ### The character set is the ontology
 
 - ASCII = Earth's encoding. Voynich = the real human script that no Earth alphabet maps to.
-- The medium *is* the cosmology, not a window onto it.
+- The medium _is_ the cosmology, not a window onto it.
 - Surface expansions beyond tiles and manual entries:
   - **End-of-Revery summary** is bilingual. ASCII for native changes; Voynich (with EVA in source) for what arrived.
   - **Player-name rendering** drifts character by character as `cosmologicalDrift` accumulates (see steward help, below). Per-character font switching in the renderer.
@@ -119,7 +119,7 @@ The player can quietly help the egregores. **The game never confirms this has ha
 
 - **(a) Passive transmission.** Walking through egregoric tiles attaches drift particles to the player's footstep trail. Some NPCs glance differently over many Reveries. Player's manual entry slowly drifts.
 - **(b) Refusal.** Dismiss the Torchbearer at the line. Pure withholding. The line stays where the winter put it.
-- **(c) Meteorite-carrying.** Pick up a meteorite and *place* it elsewhere. The next Revery seeds egregoric tiles nearby.
+- **(c) Meteorite-carrying.** Pick up a meteorite and _place_ it elsewhere. The next Revery seeds egregoric tiles nearby.
 - **(d) Late-game ritual.** Discoverable only when accumulated Latin pierces across egregoric manual entries constitute a phrase. Performed at a specific seasonal-and-lunar window. Single act, irrevocable. (Angels may foreshadow this.)
 
 **No UI surface for any of this.** A spec that adds a progress bar, allegiance meter, or end-screen tally fails review.
@@ -128,39 +128,39 @@ The player can quietly help the egregores. **The game never confirms this has ha
 
 - **Ash prairie** — botched controlled burn (#9) or destructive Revery.
 - **Fungal prairie** — emerges from particular Revery conditions; substrate-dependent.
-- **The prairie became the Far Garden** — multi-Revery succession where the summer rebound fails to undo the winter advance. Player-facing narrative: *the prairie didn't survive the winter*. Carries a remembered date — *the winter the line crossed the village*. NPCs reference it for the rest of the run.
-- The Far Garden conversion has three readings: passive (*the prairie didn't survive*), dated (*the winter the line crossed*), chosen (*what the steward did*). The game never surfaces which is true.
+- **The prairie became the Far Garden** — multi-Revery succession where the summer rebound fails to undo the winter advance. Player-facing narrative: _the prairie didn't survive the winter_. Carries a remembered date — _the winter the line crossed the village_. NPCs reference it for the rest of the run.
+- The Far Garden conversion has three readings: passive (_the prairie didn't survive_), dated (_the winter the line crossed_), chosen (_what the steward did_). The game never surfaces which is true.
 
 ## Sequence
 
 Ordered by player-experience priority. Build dependencies in the second column.
 
-| #   | feature                                                                                                                    | depends on    | size |
-| --- | -------------------------------------------------------------------------------------------------------------------------- | ------------- | ---- |
-| 0   | Reclaim *Revery* — delete the four player-cast spells *and* the action bar (state, UI, keybinds, drag targets)             | —             | M    |
-| 1   | Multi-species Flora (clover → Flora; +wildflower, +tall grass)                                                             | 0             | M    |
-| 8a  | Egregoric flora — thematic allusions (one tile type, Voynich manual entries, NPC refusal lines, folk-name divergence)      | 0             | XS   |
-| 2   | Phenological seasons (derived from weather; plant lifecycle reads from it)                                                 | 1             | S/M  |
-| 3   | Genetics v1 — SHA256 identity layer + trait-bag inheritance (option C; **not** a breed-spike port)                          | 1, 2          | M    |
-| 4   | The Revery as long-form phase — omen-triggered entry, observation UX, end-of-Revery summary                                | 1, 2, 3, 8a   | L    |
-| 5   | Ruin recovery delivers first non-clover species (DormantGarden payload)                                                    | 1             | S    |
-| 6   | Naturalist's manual — traits as discovered phenotypes                                                                      | 3             | S    |
-| 7   | Pollinator routes & species preference                                                                                     | 1, 3          | S    |
-| 8b  | Egregoric flora — parallel species set, invisible pollinator, winter-phased spread, "no compatible regions" crossbreeding  | 1, 2, 3, 4, 7 | M/L  |
-| 9   | Controlled burn — Torchbearer NPC, player walks the line, voice pass before behavior pass                                  | 1, 2, 3       | M    |
-| 10  | Failure-state biomes — ash, fungal, Far Garden conversion as Revery outcomes                                               | 4, 8b, 9      | M    |
-| 11  | Seed / genetic-fragment item taxonomy                                                                                      | 3, 5          | S    |
-| 12  | Crossbreeding UX — adjacent → pollinator-mediated                                                                          | 3, 7          | M    |
+| #   | feature                                                                                                                   | depends on    | size |
+| --- | ------------------------------------------------------------------------------------------------------------------------- | ------------- | ---- |
+| 0   | Reclaim _Revery_ — delete the four player-cast spells _and_ the action bar (state, UI, keybinds, drag targets)            | —             | M    |
+| 1   | Multi-species Flora (clover → Flora; +wildflower, +tall grass)                                                            | 0             | M    |
+| 8a  | Egregoric flora — thematic allusions (one tile type, Voynich manual entries, NPC refusal lines, folk-name divergence)     | 0             | XS   |
+| 2   | Phenological seasons (derived from weather; plant lifecycle reads from it)                                                | 1             | S/M  |
+| 3   | Genetics v1 — SHA256 identity layer + trait-bag inheritance (option C; **not** a breed-spike port)                        | 1, 2          | M    |
+| 4   | The Revery as long-form phase — omen-triggered entry, observation UX, end-of-Revery summary                               | 1, 2, 3, 8a   | L    |
+| 5   | Ruin recovery delivers first non-clover species (DormantGarden payload)                                                   | 1             | S    |
+| 6   | Naturalist's manual — traits as discovered phenotypes                                                                     | 3             | S    |
+| 7   | Pollinator routes & species preference                                                                                    | 1, 3          | S    |
+| 8b  | Egregoric flora — parallel species set, invisible pollinator, winter-phased spread, "no compatible regions" crossbreeding | 1, 2, 3, 4, 7 | M/L  |
+| 9   | Controlled burn — Torchbearer NPC, player walks the line, voice pass before behavior pass                                 | 1, 2, 3       | M    |
+| 10  | Failure-state biomes — ash, fungal, Far Garden conversion as Revery outcomes                                              | 4, 8b, 9      | M    |
+| 11  | Seed / genetic-fragment item taxonomy                                                                                     | 3, 5          | S    |
+| 12  | Crossbreeding UX — adjacent → pollinator-mediated                                                                         | 3, 7          | M    |
 
 ### Loop-headline symmetry
 
 Each loop has one defining ceremonial moment:
 
-| loop                          | headline player act                                  |
-| ----------------------------- | ---------------------------------------------------- |
-| small — ruin expedition       | recovering a seed or genetic fragment                |
+| loop                            | headline player act                                |
+| ------------------------------- | -------------------------------------------------- |
+| small — ruin expedition         | recovering a seed or genetic fragment              |
 | medium — ecological stewardship | walking the burn line with the Torchbearer at thaw |
-| big — the Revery              | surrender + observe                                  |
+| big — the Revery                | surrender + observe                                |
 
 ## Critical files
 

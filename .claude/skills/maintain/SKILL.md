@@ -94,14 +94,14 @@ Do not prompt to apply fixes from the macro. The user runs the individual child 
 
 ## Anti-rationalizations
 
-| Excuse the agent will tell itself | Rebuttal |
-| --- | --- |
-| "I'll run the children sequentially — easier to reason about." | Parallel is the point. The user picked this shape. Run them in one message of four `Agent` calls. |
-| "Sub-agent N is slow, I'll just summarize from the skill description instead of waiting." | Wait for the agent. A skipped child is a lie in the combined report. |
-| "I'll start applying obvious fixes from the report while the user reads." | Macro is read-only. Stop at the report. |
-| "Three child skills are clean — I'll skip them in the report." | Include every section, even the empty ones. The user is checking that all four ran. A missing section reads as a missing run. |
-| "I'll merge the four sub-agent reports into prose for readability." | Keep child sections verbatim. The user knows the child report format; rewriting it loses cited evidence and breaks trust between this skill and its children. |
-| "Test coverage isn't installed — I'll install it before spawning /maintain-tests." | The child skill handles that decision (report-only). Don't pre-empt it. |
+| Excuse the agent will tell itself                                                         | Rebuttal                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "I'll run the children sequentially — easier to reason about."                            | Parallel is the point. The user picked this shape. Run them in one message of four `Agent` calls.                                                             |
+| "Sub-agent N is slow, I'll just summarize from the skill description instead of waiting." | Wait for the agent. A skipped child is a lie in the combined report.                                                                                          |
+| "I'll start applying obvious fixes from the report while the user reads."                 | Macro is read-only. Stop at the report.                                                                                                                       |
+| "Three child skills are clean — I'll skip them in the report."                            | Include every section, even the empty ones. The user is checking that all four ran. A missing section reads as a missing run.                                 |
+| "I'll merge the four sub-agent reports into prose for readability."                       | Keep child sections verbatim. The user knows the child report format; rewriting it loses cited evidence and breaks trust between this skill and its children. |
+| "Test coverage isn't installed — I'll install it before spawning /maintain-tests."        | The child skill handles that decision (report-only). Don't pre-empt it.                                                                                       |
 
 ## Exit criterion
 

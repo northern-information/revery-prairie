@@ -3,10 +3,9 @@ import { computeIsoLayout, getPlayerCenter, MINIMAP_CSS_SIZE, projectIso } from 
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { createGameState } from '@/engine/state'
 import { posKey } from '@/engine/position'
+import { createGameState } from '@/engine/state'
 import { Zone } from '@/engine/types'
-
 import type { CivilizationRuin } from '@/engine/genesisTypes'
 
 describe('minimap', () => {
@@ -57,7 +56,13 @@ describe('getVisibleRuinFootprints', () => {
     const state = createGameState('Test', 80, 40)
     state.overworldFogExplored = new Set()
     state.overworldFogDiscovered = new Set()
-    state.civilizationRuins = [makeRuin([{ x: 40, y: 40 }, { x: 41, y: 40 }, { x: 40, y: 41 }])]
+    state.civilizationRuins = [
+      makeRuin([
+        { x: 40, y: 40 },
+        { x: 41, y: 40 },
+        { x: 40, y: 41 },
+      ]),
+    ]
 
     const result = getVisibleRuinFootprints(state, null)
     expect(result).toEqual([])
@@ -85,7 +90,12 @@ describe('getVisibleRuinFootprints', () => {
     const state = createGameState('Test', 80, 40)
     state.currentZone = Zone.Cave
     state.overworldFogExplored = new Set([posKey(40, 40), posKey(41, 40)])
-    state.civilizationRuins = [makeRuin([{ x: 40, y: 40 }, { x: 41, y: 40 }])]
+    state.civilizationRuins = [
+      makeRuin([
+        { x: 40, y: 40 },
+        { x: 41, y: 40 },
+      ]),
+    ]
 
     const result = getVisibleRuinFootprints(state, null)
     expect(result).toEqual([])
@@ -102,7 +112,12 @@ describe('getVisibleRuinFootprints', () => {
     const state = createGameState('Test', 80, 40)
     state.overworldFogExplored = new Set()
     state.overworldFogDiscovered = new Set()
-    state.civilizationRuins = [makeRuin([{ x: 40, y: 40 }, { x: 41, y: 40 }])]
+    state.civilizationRuins = [
+      makeRuin([
+        { x: 40, y: 40 },
+        { x: 41, y: 40 },
+      ]),
+    ]
 
     const visibleSet = new Set([posKey(40, 40)])
     const result = getVisibleRuinFootprints(state, visibleSet)

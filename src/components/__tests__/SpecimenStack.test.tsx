@@ -33,7 +33,9 @@ describe('SpecimenStack', () => {
   it('opens to the last card by default (just-scanned card)', () => {
     const now = performance.now()
     render(
-      <SpecimenStack specimens={[makeSpecimen('a', now - 5000), makeSpecimen('b', now - 1000), makeSpecimen('c', now)]} />,
+      <SpecimenStack
+        specimens={[makeSpecimen('a', now - 5000), makeSpecimen('b', now - 1000), makeSpecimen('c', now)]}
+      />
     )
     expect(screen.getByTestId('specimen-stack-counter')).toHaveTextContent('Specimen 3 of 3')
   })
@@ -44,7 +46,7 @@ describe('SpecimenStack', () => {
       <SpecimenStack
         specimens={[makeSpecimen('a', now), makeSpecimen('b', now), makeSpecimen('c', now)]}
         initialIndex={0}
-      />,
+      />
     )
     expect(screen.getByTestId('specimen-stack-counter')).toHaveTextContent('Specimen 1 of 3')
   })
@@ -56,7 +58,7 @@ describe('SpecimenStack', () => {
       <SpecimenStack
         specimens={[makeSpecimen('a', now), makeSpecimen('b', now), makeSpecimen('c', now)]}
         initialIndex={0}
-      />,
+      />
     )
     await user.click(screen.getByLabelText('Next specimen'))
     expect(screen.getByTestId('specimen-stack-counter')).toHaveTextContent('Specimen 2 of 3')
@@ -69,7 +71,7 @@ describe('SpecimenStack', () => {
       <SpecimenStack
         specimens={[makeSpecimen('a', now), makeSpecimen('b', now), makeSpecimen('c', now)]}
         initialIndex={0}
-      />,
+      />
     )
     await user.click(screen.getByLabelText('Previous specimen'))
     expect(screen.getByTestId('specimen-stack-counter')).toHaveTextContent('Specimen 3 of 3')

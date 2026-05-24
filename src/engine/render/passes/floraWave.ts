@@ -51,7 +51,7 @@ const drawWaveRing = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   metrics: CharMetrics,
-  wave: WaveEmission,
+  wave: WaveEmission
 ): void => {
   const { camera, viewportWidth, viewportHeight, mapWidth, mapHeight } = state
   const { charWidth, charHeight } = metrics
@@ -105,7 +105,7 @@ const drawPollenBursts = (
   ctx: CanvasRenderingContext2D,
   state: GameState,
   metrics: CharMetrics,
-  time: number,
+  time: number
 ): void => {
   const { camera, viewportWidth, viewportHeight, mapWidth, mapHeight } = state
   const { charWidth, charHeight } = metrics

@@ -241,7 +241,7 @@ behaviors:
     inputs:
       - 'manualDiscoveries contains entity:oak'
     outputs:
-      - "ManualPanel renders the White Oak entry with a SpecimenStack pulled from state.oakSpecimens"
+      - 'ManualPanel renders the White Oak entry with a SpecimenStack pulled from state.oakSpecimens'
     state_changes: []
     determinism: deterministic
 
@@ -284,7 +284,7 @@ edge_cases:
     expected: 'Scan flow gated by isInputGated and the deepTime suppression in the [f] handler; no scan starts'
 
   - id: oak-scan-drift-to-flora
-    description: "Player begins an oak scan, walks one tile away so selectScanTarget now points at a flora tile, holds past SCAN_DURATION_MS"
+    description: 'Player begins an oak scan, walks one tile away so selectScanTarget now points at a flora tile, holds past SCAN_DURATION_MS'
     expected: "commitScan sees progress.kind === 'oak' but target.kind === 'flora'; commit aborts; nothing recorded"
 
   - id: oak-scan-repeat-same-tree

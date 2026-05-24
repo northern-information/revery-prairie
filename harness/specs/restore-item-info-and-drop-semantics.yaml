@@ -90,9 +90,9 @@ behaviors:
       - 'after the exemption clears, the entity is eligible for normal 3x3 pickup on any subsequent tick'
     state_changes:
       - field: 'dropped entity'
-        effect: 'tagged at creation with a pickup-exemption marker (a flag — no per-entity coordinates required since the check uses the entity''s own Position vs the player''s)'
+        effect: "tagged at creation with a pickup-exemption marker (a flag — no per-entity coordinates required since the check uses the entity's own Position vs the player's)"
       - field: 'exemption marker'
-        effect: 'removed from the entity the first time the entity sits outside the player''s 3x3 footprint during pickUpGroundItems'
+        effect: "removed from the entity the first time the entity sits outside the player's 3x3 footprint during pickUpGroundItems"
     determinism: deterministic
 
   - id: drag-drop-on-player-tile-still-exempt
@@ -110,7 +110,7 @@ behaviors:
       - 'player releases a drag with cursor over their own tile'
     outputs:
       - 'entity is created at the player tile with the pickup-exemption marker'
-      - 'pickup is suppressed until the entity is outside the player''s 3x3 footprint'
+      - "pickup is suppressed until the entity is outside the player's 3x3 footprint"
     state_changes: []
     determinism: deterministic
 
@@ -173,7 +173,7 @@ edge_cases:
       the player's 3x3 footprint — so dropping at two different
       tiles and then walking can clear one exemption before the
       other.
-    expected: 'each item''s exemption clears independently based on its own tile vs the player''s position'
+    expected: "each item's exemption clears independently based on its own tile vs the player's position"
 
   - id: coyote-not-affected
     description: >
@@ -187,14 +187,14 @@ failure_conditions:
   - trigger: 'ItemInfo not mounted anywhere in the gameplay scene (state.genesis is null)'
     expected: 'itemInfoRef.current is null; hover display, X-key drop, and drag-start hover all silently fail. spec violated.'
 
-  - trigger: 'Player drops; the item is picked back up on any tick where the entity is still inside the player''s 3x3 footprint (including the full perimeter walk)'
+  - trigger: "Player drops; the item is picked back up on any tick where the entity is still inside the player's 3x3 footprint (including the full perimeter walk)"
     expected: 'pickup must be suppressed for as long as the entity sits within the 3x3 footprint of the player; spec violated otherwise'
 
   - trigger: 'Player drops, walks two or more tiles away (entity outside 3x3), walks back, and the item is NOT picked up'
     expected: 'exemption must clear the first tick the entity is outside the 3x3; spec violated if it persists across that boundary'
 
-  - trigger: 'Exemption clears based on the drop tile rather than the entity''s actual tile vs the player (e.g. comparing player to a stored marker position)'
-    expected: 'the perimeter-walk case requires the check to compare the entity''s current tile to the player''s current tile, not a frozen drop marker'
+  - trigger: "Exemption clears based on the drop tile rather than the entity's actual tile vs the player (e.g. comparing player to a stored marker position)"
+    expected: "the perimeter-walk case requires the check to compare the entity's current tile to the player's current tile, not a frozen drop marker"
 
   - trigger: 'X key drops an item that was not hovered'
     expected: 'X must read the current hovered id; dropping a different (or arbitrary) item is a regression'

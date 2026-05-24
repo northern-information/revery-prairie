@@ -3,9 +3,9 @@ import { CATEGORY_LABELS } from '../ManualPanel.constants'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { EGREGORE_GLYPHS } from '@/engine/egregore'
 import { createTestState } from '@/engine/__tests__/helpers'
-import { ManualCategory, MANUAL_ENTRIES } from '@/engine/manual'
+import { EGREGORE_GLYPHS } from '@/engine/egregore'
+import { MANUAL_ENTRIES, ManualCategory } from '@/engine/manual'
 import { recipeKey, RECIPES } from '@/engine/recipes'
 
 const renderManual = (overrides?: Partial<ReturnType<typeof createTestState>>) => {
@@ -253,9 +253,7 @@ describe('ManualPanel', () => {
     it('renders a single Suspected line when one phenotype is revealed', () => {
       const state = createTestState()
       state.manualDiscoveries.add('flora:clover')
-      state.revealedPhenotypes.set('clover', [
-        { axis: 'bloomTiming', verdict: 'late-blooming', reveryNumber: 0 },
-      ])
+      state.revealedPhenotypes.set('clover', [{ axis: 'bloomTiming', verdict: 'late-blooming', reveryNumber: 0 }])
       render(<ManualPanel state={state} />)
       expect(screen.getByTestId('phenotype-list-clover')).toBeInTheDocument()
       expect(screen.getByText('Suspected: late-blooming')).toBeInTheDocument()

@@ -86,7 +86,7 @@ export const rainFrontCoord = (
   x: number,
   y: number,
   mapWidth: number,
-  mapHeight: number,
+  mapHeight: number
 ): { coord: number; mapSize: number } => {
   switch (axis) {
     case 'x':

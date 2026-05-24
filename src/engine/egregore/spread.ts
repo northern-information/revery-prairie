@@ -22,7 +22,6 @@ import { generateEgregoreGenome } from '@/engine/genetics/egregore'
 import { posKey } from '@/engine/position'
 import { recordCameraSubjectEvent } from '@/engine/timeLapse'
 import { CameraSubject, EgregoreActivityStage, Season, TileType, Zone } from '@/engine/types'
-
 import type { GameState, Position } from '@/engine/types'
 
 // Stewardship-time spread tick (RP-8b).
@@ -66,9 +65,7 @@ export const tickEgregoreSpread = (state: GameState, time: number): void => {
     return h >>> 0
   }
 
-  const sorted = [...candidates]
-    .map(c => ({ pos: c, h: hashCandidate(c) }))
-    .sort((a, b) => a.h - b.h)
+  const sorted = [...candidates].map(c => ({ pos: c, h: hashCandidate(c) })).sort((a, b) => a.h - b.h)
 
   // 1 or 2 tiles, with the parity of the leading hash deciding.
   const count = sorted.length >= 2 && sorted[0].h % 3 !== 0 ? 2 : 1

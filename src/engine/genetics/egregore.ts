@@ -7,7 +7,6 @@
 // is the v3 doctrine "the cosmological boundary rendered as data shape."
 
 import { sha256Sync } from '@/engine/crypto'
-
 import type { TraitBag } from './index'
 
 export interface EgregoreGenome {

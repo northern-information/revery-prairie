@@ -231,9 +231,7 @@ describe('angel drifting', () => {
     spawnAngel(state, 1000)
 
     const eid = getAngelEntities(state)[0]
-    vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0)
-      .mockReturnValueOnce(0)
+    vi.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValueOnce(0)
     try {
       tickAngelDrift(state)
       expect(state.world.getComponent(eid, ComponentType.MovementTween)).toBeTruthy()

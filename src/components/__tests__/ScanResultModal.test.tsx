@@ -3,8 +3,8 @@ import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { playSfx } from '@/engine/audio'
-import type { ScanCommitResult } from '@/engine/scan'
 import { FloraSpecies } from '@/engine/types'
+import type { ScanCommitResult } from '@/engine/scan'
 
 vi.mock('@/engine/audio', () => ({
   playSfx: vi.fn(),

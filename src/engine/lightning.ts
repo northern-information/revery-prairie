@@ -1,9 +1,4 @@
 import { generateBoltPath } from './boltPath'
-import { FLORA_SPECIES } from './flora/species'
-import { deleteGrowthPreviewKey } from './floraGrowthPreviews'
-import { addSoilHealth } from './floraLifecycle'
-import { createFloraLifecycleEntry } from './floraLifecycleEntry'
-import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import {
   LIGHTNING_BASE_CHANCE,
   LIGHTNING_BOLT_MAX_LENGTH,
@@ -27,6 +22,11 @@ import {
   WILDFIRE_MAX_SPREAD,
 } from './constants'
 import { ComponentType } from './ecs/types'
+import { FLORA_SPECIES } from './flora/species'
+import { deleteGrowthPreviewKey } from './floraGrowthPreviews'
+import { addSoilHealth } from './floraLifecycle'
+import { createFloraLifecycleEntry } from './floraLifecycleEntry'
+import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { CARDINAL, isInBounds, posKey } from './position'
@@ -220,7 +220,7 @@ export const spreadWildfire = (
         identity,
         traits,
         stage: FloraStage.BurntRecovering,
-      }),
+      })
     )
     deleteGrowthPreviewKey(state, key)
     addSoilHealth(state, key, SOIL_HEALTH_BURN_BONUS)

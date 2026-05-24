@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-
 import { GelBandView } from './GelBandView'
 
 import type { ScannedSpecimen } from '@/engine/types'
@@ -32,7 +31,7 @@ const formatRelativeTime = (scannedAt: number, now: number): string => {
 // updates the displayed index when `initialIndex` changes (used to jump to
 // the just-scanned card on manual auto-open).
 export const SpecimenStack = ({ specimens, initialIndex }: SpecimenStackProps) => {
-  const safeInitial = Math.max(0, Math.min((initialIndex ?? specimens.length - 1), specimens.length - 1))
+  const safeInitial = Math.max(0, Math.min(initialIndex ?? specimens.length - 1, specimens.length - 1))
   const [index, setIndex] = useState(safeInitial)
   const [now, setNow] = useState(performance.now())
 

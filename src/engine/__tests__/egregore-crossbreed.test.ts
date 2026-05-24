@@ -1,10 +1,8 @@
-import { describe, expect, it } from 'vitest'
-
 import { canCross, generateEgregoreGenome, generateTraitBag } from '../genetics'
 import { getEgregoreManualEntries } from '../manual'
 import { FloraSpecies } from '../types'
-
 import { createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { EgregoreGenome, TraitBag } from '../genetics'
 

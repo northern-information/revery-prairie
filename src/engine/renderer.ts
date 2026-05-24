@@ -88,13 +88,7 @@ import { renderGenesis } from './genesisRenderer'
 import { getDefinition } from './items'
 import { getTweenLerp } from './movementTween'
 import { isInBounds, posKey, tileHash } from './position'
-import {
-  drawCellBackground,
-  drawCellHighlight,
-  viewportToScreen,
-  worldDeltaToIsoPx,
-  worldToScreen,
-} from './projection'
+import { drawCellBackground, drawCellHighlight, viewportToScreen, worldDeltaToIsoPx, worldToScreen } from './projection'
 import { runPassesInSlot } from './render/passes'
 import { getRuinTileLayers, shouldRenderRuinMultilayer } from './ruins'
 import {
@@ -109,7 +103,7 @@ import {
 import './render/passes/index'
 
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
-import { FloraStage, DeepTimePhase, TileType, Zone } from './types'
+import { DeepTimePhase, FloraStage, TileType, Zone } from './types'
 import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar } from './visibility'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
@@ -119,9 +113,9 @@ import './flora'
 import { getEgregoreGlyph } from './egregore'
 import { FLORA_SPECIES, getFloraMovement, getFloraSwayOffset } from './flora'
 import { getOakRenderTile, getOakTileLayers, isOakDormant, OAK_BODY_SIZE } from './oaks'
-import type { OakTileLayer } from './oaks'
 
 import type { VelocityKey } from './constants'
+import type { OakTileLayer } from './oaks'
 import type { CharMetrics, GameState } from './types'
 
 const STAR_CHARS = ['.', '+', '*']
@@ -305,7 +299,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (state.rivers.has(key) || state.ponds.has(key)) return WATER_SINK_PX
     return 0
   }
-
 
   const pxWidth = viewportWidth * charWidth
   const pxHeight = viewportHeight * charHeight
@@ -1552,7 +1545,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           Boolean(state.facingEntityPos && oakGroup.has(posKey(state.facingEntityPos.x, state.facingEntityPos.y))) ||
           Boolean(
             state.pendingInteractionTarget &&
-              oakGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))
+            oakGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))
           ))
 
       // Resolve highlight state without ctx side effects so the deferred
@@ -1561,8 +1554,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // entity/target inversion.
       const highlightSuppressed = previewTile !== undefined && !previewTile.isValid
       const highlight =
-        !highlightSuppressed &&
-        (isAngelGroupHighlighted || isOakGroupHighlighted || isFacingEntity || isPendingTarget)
+        !highlightSuppressed && (isAngelGroupHighlighted || isOakGroupHighlighted || isFacingEntity || isPendingTarget)
 
       // Defer entity glyphs (and the local player on its own tile) to a
       // post-tile-loop flush so neighboring high-elevation tiles drawn
@@ -1649,12 +1641,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // into NaN; without this guard the trail rendered as an invalid
       // color and disappeared.
       const tileForWash = map[my]?.[mx]
-      if (
-        washForFrame &&
-        tileForWash?.type !== TileType.Egregore &&
-        color !== ACTION_COLOR &&
-        color.startsWith('#')
-      ) {
+      if (washForFrame && tileForWash?.type !== TileType.Egregore && color !== ACTION_COLOR && color.startsWith('#')) {
         color = applySeasonalWash(color, washForFrame.target, washForFrame.intensity)
       }
 

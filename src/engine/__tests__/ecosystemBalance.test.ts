@@ -1,11 +1,11 @@
 import { tickCloverHives } from '../clover'
-import { tickFloraLifecycle } from '../floraLifecycle'
 import { BURNT_CLOVER_RAIN_MULTIPLIER, BURNT_CLOVER_RECOVERY_MS, WATER_MAX } from '../constants'
+import { tickFloraLifecycle } from '../floraLifecycle'
 import { spreadWildfire } from '../lightning'
 import { posKey } from '../position'
 import { FloraSpecies, FloraStage, Sky, TileType, Zone } from '../types'
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createBeeEntity, createBeehiveEntity, createTestState, getBeehiveEntities } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
@@ -31,7 +31,7 @@ const placeBurntClover = (x: number, y: number, stageStartTime: number) => {
       species: FloraSpecies.Clover,
       stage: FloraStage.BurntRecovering,
       time: stageStartTime,
-    }),
+    })
   )
   if (!state.tileWater.has(posKey(x, y))) {
     state.tileWater.set(posKey(x, y), 0)

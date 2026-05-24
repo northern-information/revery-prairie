@@ -4,8 +4,8 @@ import { resetGameState } from '@/hooks/useGameEngine'
 import { GameScreen } from '@/components/GameScreen'
 import { NamePrompt } from '@/components/NamePrompt'
 import { NetworkConnect } from '@/components/NetworkConnect'
-import type { NetworkConnectResult } from '@/components/NetworkConnect'
 import { NorthernInformationSplash } from '@/components/NorthernInformationSplash'
+import type { NetworkConnectResult } from '@/components/NetworkConnect'
 
 const generateDevName = (): string => crypto.randomUUID().slice(0, 8)
 
@@ -16,8 +16,7 @@ const shouldSkipGenesis = (): boolean =>
 // NamePrompt) even in DEV, where the steward name would otherwise
 // auto-generate. Lets us preview what a fresh visitor sees without
 // rebuilding for production.
-const shouldSimulateNewPlayer = (): boolean =>
-  new URLSearchParams(window.location.search).has('newPlayer')
+const shouldSimulateNewPlayer = (): boolean => new URLSearchParams(window.location.search).has('newPlayer')
 
 const PRAIRIE_PATH = /^\/p\/([^/]+)\/?$/
 
@@ -120,10 +119,7 @@ const App = () => {
     <>
       {screenRevealed && screen}
       {!splashComplete && (
-        <NorthernInformationSplash
-          onFadeOutStart={handleSplashFadeOutStart}
-          onComplete={handleSplashComplete}
-        />
+        <NorthernInformationSplash onFadeOutStart={handleSplashFadeOutStart} onComplete={handleSplashComplete} />
       )}
     </>
   )

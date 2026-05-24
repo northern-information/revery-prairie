@@ -1,11 +1,9 @@
-import { describe, expect, it } from 'vitest'
-
 import { SPACE_BORDER } from '../constants'
 import { seedGlintPatches, spawnGlintPatch, tickGlintZones } from '../glintZones'
 import { enterHouseAtTenureStart } from '../state'
 import { Zone } from '../types'
-
 import { clearArea, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 describe('glint patches use overworld map regardless of state.map pointer', () => {
   it('seedGlintPatches does not throw when state.map is the house interior', () => {

@@ -1,6 +1,6 @@
 import type { World } from './ecs/world'
-import type { EgregoreGenome, FloraGenome, TraitBag } from './genetics'
 import type { CivilizationRuin, GenesisSimState, RuinGenerationMode } from './genesisTypes'
+import type { EgregoreGenome, FloraGenome, TraitBag } from './genetics'
 import type { ColorId } from '@revery-prairie/shared'
 
 export const TileType = {
@@ -1030,4 +1030,3 @@ export interface CharMetrics {
   charHeight: number
   font: string
 }
-

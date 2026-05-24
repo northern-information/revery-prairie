@@ -12,11 +12,7 @@ import { findMeteoriteDropTarget } from '../../entities'
 import { findPickupableMeteorite } from '../../interaction'
 import { findItemByDefinition } from '../../inventory'
 import { drawCellHighlight, getCellDiamondCorners, worldToScreen } from '../../projection'
-import {
-  containingPolygonsKey,
-  getHallowedPolygons,
-  getStoneCircleGraph,
-} from '../../stoneCircles'
+import { containingPolygonsKey, getHallowedPolygons, getStoneCircleGraph } from '../../stoneCircles'
 import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
 
@@ -33,8 +29,7 @@ const CHAIN_EDGE_ALPHA = 0.35
 const PREVIEW_CLOSURE_ALPHA = 0.95
 const PREVIEW_CHAIN_ALPHA = 0.75
 
-const isActive = (state: GameState): boolean =>
-  state.placedMeteorites.length > 0 || state.stoneCirclePreview
+const isActive = (state: GameState): boolean => state.placedMeteorites.length > 0 || state.stoneCirclePreview
 
 const cellCenter = (
   pos: Position,
@@ -66,8 +61,7 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   // same DROP_DELTAS search dropItem() uses, so the preview shows the
   // actual tile a drop would land on.
   const hasMeteorite = findItemByDefinition(state.backpack, 'meteorite') !== undefined
-  const preview: Position | null =
-    state.stoneCirclePreview && hasMeteorite ? findMeteoriteDropTarget(state) : null
+  const preview: Position | null = state.stoneCirclePreview && hasMeteorite ? findMeteoriteDropTarget(state) : null
   if (placed.length === 0 && preview === null) return
 
   const { charWidth, charHeight } = metrics

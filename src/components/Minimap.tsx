@@ -103,10 +103,7 @@ const isTileExplored = (state: GameState, x: number, y: number, visibleSet: Set<
 // fog-gating predicate is testable in isolation; drawStructures
 // delegates here so future structure-layer additions cannot bypass the
 // gate by copy-paste.
-export const getVisibleRuinFootprints = (
-  state: GameState,
-  visibleSet: Set<string> | null
-): Position[] => {
+export const getVisibleRuinFootprints = (state: GameState, visibleSet: Set<string> | null): Position[] => {
   if (state.currentZone !== Zone.Overworld) return []
   const out: Position[] = []
   for (const ruin of state.civilizationRuins) {

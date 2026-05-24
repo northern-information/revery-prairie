@@ -11,7 +11,6 @@
 
 import { tileHash } from '@/engine/position'
 import { EgregoreSpecies } from '@/engine/types'
-
 import type { EgregoreSpeciesBias } from '@/engine/genetics/egregore'
 
 export interface EgregoreSpeciesDef {

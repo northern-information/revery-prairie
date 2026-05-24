@@ -1,7 +1,8 @@
-import { updateProximityMusic, type ProximityEmitterSample } from './audio'
+import { updateProximityMusic } from './audio'
 import { ComponentType } from './ecs/types'
 import { isEntityInCurrentZone } from './zone'
 
+import type { ProximityEmitterSample } from './audio'
 import type { GameState } from './types'
 
 // Bridge between the ECS and the audio module's proximity API. Queries

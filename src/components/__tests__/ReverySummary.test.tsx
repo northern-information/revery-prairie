@@ -1,9 +1,8 @@
+import { ReverySummary } from '../ReverySummary'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { FloraSpecies, OmenKind, ReveryPhase, Season } from '@/engine/types'
-import { ReverySummary } from '../ReverySummary'
-import { render, screen } from '@testing-library/react'
-
 import type { ReveryChange, ReveryState } from '@/engine/types'
 
 const makeReverySummary = (overrides: Partial<ReveryState> = {}): ReveryState => ({
@@ -65,7 +64,16 @@ describe('ReverySummary (RP-4)', () => {
 
   it('renders the Voynich line when an egregore-grew change exists', () => {
     const changes: ReveryChange[] = [
-      { kind: 'egregore-grew', payload: { positions: [{ x: 1, y: 1 }, { x: 2, y: 2 }, { x: 3, y: 3 }] } },
+      {
+        kind: 'egregore-grew',
+        payload: {
+          positions: [
+            { x: 1, y: 1 },
+            { x: 2, y: 2 },
+            { x: 3, y: 3 },
+          ],
+        },
+      },
     ]
     const revery = makeReverySummary({ scheduledChanges: changes })
     render(<ReverySummary revery={revery} />)
@@ -73,9 +81,7 @@ describe('ReverySummary (RP-4)', () => {
   })
 
   it('omits the Voynich line when egregore-grew has zero positions', () => {
-    const changes: ReveryChange[] = [
-      { kind: 'egregore-grew', payload: { positions: [] } },
-    ]
+    const changes: ReveryChange[] = [{ kind: 'egregore-grew', payload: { positions: [] } }]
     const revery = makeReverySummary({ scheduledChanges: changes })
     render(<ReverySummary revery={revery} />)
     expect(screen.queryByTestId('revery-voynich-line')).toBeNull()

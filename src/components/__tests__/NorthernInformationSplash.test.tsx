@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { MockInstance } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
-
 import { NorthernInformationSplash } from '../NorthernInformationSplash'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { MockInstance } from 'vitest'
 
 // The audio module registers a document-level first-gesture primer
 // that constructs an AudioContext when triggered. Stub it so the test

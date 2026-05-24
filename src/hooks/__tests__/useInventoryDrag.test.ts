@@ -2,14 +2,13 @@ import { useInventoryDrag } from '../useInventoryDrag'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { MockedFunction } from 'vitest'
-
 import { createTestState } from '@/engine/__tests__/helpers'
 import { computePlacementPreview, executeCombine } from '@/engine/drag'
 import { moveItem, transferItem } from '@/engine/inventory'
 import type { CombineResult, PlacementPreview } from '@/engine/drag'
 import type { Recipe } from '@/engine/recipes'
 import type { Container, GameState, ItemInstance } from '@/engine/types'
+import type { MockedFunction } from 'vitest'
 
 // --- mocks ---
 

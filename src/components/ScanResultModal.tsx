@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react'
-
 import { GelBandView } from './GelBandView'
 
 import { playSfx } from '@/engine/audio'
 import { FLORA_SPECIES } from '@/engine/flora/species'
 import { HEX_GRID_SIZE } from '@/engine/genetics'
 import { OAK_SPECIES } from '@/engine/oaks'
-
 import type { ScanCommitResult } from '@/engine/scan'
 
 const SEQUENCE_SFX_URL = '/sfx/sequence.mp3'
@@ -86,7 +84,7 @@ export const ScanResultModal = ({ result, onDismiss }: ScanResultModalProps) => 
     timers.push(
       setTimeout(() => {
         setBinomialVisible(true)
-      }, 50),
+      }, 50)
     )
 
     timers.push(
@@ -96,16 +94,16 @@ export const ScanResultModal = ({ result, onDismiss }: ScanResultModalProps) => 
             setTimeout(() => {
               setRevealedCells(i)
               playSfx(SEQUENCE_SFX_URL)
-            }, CELL_REVEAL_MS * i),
+            }, CELL_REVEAL_MS * i)
           )
         }
-      }, BINOMIAL_FADE_MS),
+      }, BINOMIAL_FADE_MS)
     )
 
     timers.push(
       setTimeout(() => {
         setFullyRevealed(true)
-      }, BINOMIAL_FADE_MS + TOTAL_CELL_REVEAL_MS),
+      }, BINOMIAL_FADE_MS + TOTAL_CELL_REVEAL_MS)
     )
 
     return () => {
@@ -173,15 +171,10 @@ export const ScanResultModal = ({ result, onDismiss }: ScanResultModalProps) => 
         >
           <GelBandView identity={identity} variant={variant} revealedCells={revealedCells} />
         </div>
-        <p
-          data-testid="scan-result-hint"
-          className="text-dim text-xs"
-          style={{ opacity: fullyRevealed ? 0.7 : 0 }}
-        >
+        <p data-testid="scan-result-hint" className="text-dim text-xs" style={{ opacity: fullyRevealed ? 0.7 : 0 }}>
           Press any key to continue
         </p>
       </div>
     </div>
   )
 }
-

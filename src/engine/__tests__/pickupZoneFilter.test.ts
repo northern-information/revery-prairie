@@ -81,14 +81,7 @@ describe('pickup zone filter', () => {
     clearAroundPlayer(state)
     expect(state.currentZone).toBe(Zone.Overworld)
 
-    const entity = createGroundItemInZone(
-      state,
-      'aqueductKey',
-      state.player.x,
-      state.player.y,
-      Zone.Ruin,
-      0
-    )
+    const entity = createGroundItemInZone(state, 'aqueductKey', state.player.x, state.player.y, Zone.Ruin, 0)
 
     const result = pickUpGroundItems(state, 5000)
 
@@ -160,14 +153,7 @@ describe('pickup zone filter', () => {
     enterRuinWithInterior(state, interior)
     state.player = { x: 10, y: 10 }
 
-    const entity = createGroundItemInZone(
-      state,
-      'aqueductKey',
-      state.player.x,
-      state.player.y,
-      Zone.Ruin,
-      0
-    )
+    const entity = createGroundItemInZone(state, 'aqueductKey', state.player.x, state.player.y, Zone.Ruin, 0)
 
     const result = pickUpGroundItems(state, 5000)
 

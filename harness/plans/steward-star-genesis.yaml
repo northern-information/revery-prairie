@@ -25,7 +25,7 @@ tasks:
     tags: [engine]
 
   - id: steward-fixed-direction-and-shake
-    title: 'triggerPlayerSpawnShower: pass fixed { dx: 1, dy: 1 } to the forPlayerSpawn star (decoupled from shower radiant). tickShootingStars: on steward-star impact set state.screenShakeUntil = time + SATELLITE_SHAKE_DURATION_MS and create the explosion TimedEffect with kind ''stewardImpact'' instead of ''explosion'''
+    title: "triggerPlayerSpawnShower: pass fixed { dx: 1, dy: 1 } to the forPlayerSpawn star (decoupled from shower radiant). tickShootingStars: on steward-star impact set state.screenShakeUntil = time + SATELLITE_SHAKE_DURATION_MS and create the explosion TimedEffect with kind 'stewardImpact' instead of 'explosion'"
     spec_id: player-spawn
     spec_sections:
       - steward-star-fixed-direction
@@ -63,7 +63,7 @@ tasks:
     tags: [engine]
 
   - id: steward-impact-render-pink
-    title: 'Renderer: explosion render pass branches on TimedEffect.kind — kind ''stewardImpact'' reads STEWARD_EXPLOSION_COLORS, all other kinds keep EXPLOSION_COLORS. Reuse EXPLOSION_CHARS, EXPLOSION_RADIUS, EXPLOSION_DURATION_MS unchanged.'
+    title: "Renderer: explosion render pass branches on TimedEffect.kind — kind 'stewardImpact' reads STEWARD_EXPLOSION_COLORS, all other kinds keep EXPLOSION_COLORS. Reuse EXPLOSION_CHARS, EXPLOSION_RADIUS, EXPLOSION_DURATION_MS unchanged."
     spec_id: player-spawn
     spec_sections:
       - steward-impact-color
@@ -100,7 +100,7 @@ tasks:
     tags: [engine]
 
   - id: tests-steward-star-genesis
-    title: 'Extend src/engine/__tests__/playerSpawn.test.ts with regression coverage: steward star velocity is { 1, 1 } regardless of pickRadiantDirection result; non-steward shower stars use the shower radiant unchanged; screenShakeUntil set on steward-star impact; explosion TimedEffect on the impact tile has kind ''stewardImpact''; camera follows star Position while playerSpawn.visible is false and falls back to state.player tracking when the entity is destroyed.'
+    title: "Extend src/engine/__tests__/playerSpawn.test.ts with regression coverage: steward star velocity is { 1, 1 } regardless of pickRadiantDirection result; non-steward shower stars use the shower radiant unchanged; screenShakeUntil set on steward-star impact; explosion TimedEffect on the impact tile has kind 'stewardImpact'; camera follows star Position while playerSpawn.visible is false and falls back to state.player tracking when the entity is destroyed."
     spec_id: player-spawn
     spec_sections:
       - steward-star-fixed-direction

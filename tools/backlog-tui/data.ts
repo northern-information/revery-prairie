@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
+import { isPromotedByEvidence } from './scan.js'
 import { parse } from 'yaml'
-import { isPromotedByEvidence, type InFlightScan } from './scan.js'
+
+import type { InFlightScan } from './scan.js'
 
 export type Status = 'todo' | 'in-progress' | 'shipped'
 export type DerivedStatus = Status | 'next'
@@ -45,18 +47,14 @@ export const loadFeatures = (path: string): Feature[] => {
 export const deriveStatus = (feature: Feature, all: Feature[]): DerivedStatus => {
   if (feature.status !== 'todo') return feature.status
   if (feature.depends_on.length === 0) return 'next'
-  const byId = new Map(all.map((f) => [f.id, f]))
-  const allShipped = feature.depends_on.every((depId) => byId.get(depId)?.status === 'shipped')
+  const byId = new Map(all.map(f => [f.id, f]))
+  const allShipped = feature.depends_on.every(depId => byId.get(depId)?.status === 'shipped')
   return allShipped ? 'next' : 'todo'
 }
 
 // Mirrors /churn step 1b: a YAML `todo` item with any in-flight evidence
 // is shown in IN PROGRESS. Other statuses are unchanged.
-export const effectiveStatus = (
-  feature: Feature,
-  all: Feature[],
-  scan: InFlightScan | null,
-): DerivedStatus => {
+export const effectiveStatus = (feature: Feature, all: Feature[], scan: InFlightScan | null): DerivedStatus => {
   const base = deriveStatus(feature, all)
   if (scan && isPromotedByEvidence(feature, scan)) return 'in-progress'
   return base
@@ -64,7 +62,7 @@ export const effectiveStatus = (
 
 export const groupByColumn = (
   features: Feature[],
-  scan: InFlightScan | null = null,
+  scan: InFlightScan | null = null
 ): Record<DerivedStatus, Feature[]> => {
   const groups: Record<DerivedStatus, Feature[]> = {
     todo: [],
@@ -126,8 +124,8 @@ export const setStatusInYamlText = (raw: string, id: string, newStatus: Status):
 const escapeRegex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 export const depSummary = (feature: Feature, all: Feature[]): { id: string; status: Status }[] => {
-  const byId = new Map(all.map((f) => [f.id, f]))
-  return feature.depends_on.map((id) => ({
+  const byId = new Map(all.map(f => [f.id, f]))
+  return feature.depends_on.map(id => ({
     id,
     status: byId.get(id)?.status ?? 'todo',
   }))

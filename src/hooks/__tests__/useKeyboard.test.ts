@@ -2,12 +2,8 @@ import { useKeyboard } from '../useKeyboard'
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { MockedFunction } from 'vitest'
-
 import { createTestState } from '@/engine/__tests__/helpers'
 import { dropItem } from '@/engine/entities'
-import { commitScan, selectScanTarget } from '@/engine/scan'
-import { FloraSpecies } from '@/engine/types'
 import {
   advanceDialog,
   breakWall,
@@ -16,9 +12,11 @@ import {
   updateFacingEntity,
 } from '@/engine/interaction'
 import { movePlayer } from '@/engine/movement'
-import { Zone } from '@/engine/types'
+import { commitScan, selectScanTarget } from '@/engine/scan'
+import { FloraSpecies, Zone } from '@/engine/types'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
 import type { GameState } from '@/engine/types'
+import type { MockedFunction } from 'vitest'
 
 // --- mocks ---
 

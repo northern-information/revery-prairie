@@ -87,7 +87,7 @@ describe('WIND_SCREEN_VECTORS rotated frame', () => {
 describe('genesis polar metric — rotated frame', () => {
   // Synthetic 100x100 sim with SPACE_BORDER = 5, playable side = 90.
   const SB = 5
-  const topDist = (x: number, y: number): number => (x - SB) + (y - SB)
+  const topDist = (x: number, y: number): number => x - SB + (y - SB)
 
   it('topDist at the diamond top tip is 0', () => {
     expect(topDist(5, 5)).toBe(0)

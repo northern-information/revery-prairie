@@ -93,10 +93,7 @@ const signedArea = (vertices: readonly Position[]): number => {
 // equivalent rings (rotations + reverses) dedupe to one entry. Zero-area
 // (collinear) rings are filtered out — they cannot enclose any tile.
 // Output is sorted by (length, lex order of indices) for determinism.
-export const getHallowedPolygons = (
-  placed: readonly Position[],
-  edges: readonly StoneCircleEdge[]
-): number[][] => {
+export const getHallowedPolygons = (placed: readonly Position[], edges: readonly StoneCircleEdge[]): number[][] => {
   if (placed.length < 3) return []
   const adj = buildAdjacency(placed.length, edges)
   const cycles = new Map<string, number[]>()

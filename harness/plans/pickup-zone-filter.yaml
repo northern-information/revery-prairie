@@ -100,4 +100,3 @@ tasks:
 
       Update the comment block above scanTagged3x3 to note the
       zone-filtered behavior and point at the pickup-zone-filter spec.
-

@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { parse } from 'yaml'
+
 import type { Feature, FeaturesFile, Status } from './data.js'
 
 // Mirror of `/churn` step 1b. Three external name-based signals plus a
@@ -105,8 +106,8 @@ const listRemoteBranches = (mainCheckout: string): string[] => {
   if (!r.ok) return []
   return r.stdout
     .split('\n')
-    .map((s) => s.replace(/^origin\//, ''))
-    .filter((s) => s && s !== 'HEAD')
+    .map(s => s.replace(/^origin\//, ''))
+    .filter(s => s && s !== 'HEAD')
 }
 
 interface OpenPr {
@@ -124,7 +125,7 @@ const listOpenPrs = (mainCheckout: string, warnings: string[]): OpenPr[] => {
   const r = run(
     'gh',
     ['pr', 'list', '--state', 'open', '--json', 'number,headRefName,title', '--limit', '100'],
-    mainCheckout,
+    mainCheckout
   )
   if (!r.ok) {
     warnings.push(`gh pr list failed: ${r.stderr || r.stdout}`)
@@ -225,7 +226,7 @@ const scanWorktreeFiles = (worktreePath: string, warnings: string[]): WorktreeSc
         }
       } catch (err) {
         warnings.push(
-          `read ${worktreePath}/docs/backlog.yaml failed: ${err instanceof Error ? err.message : String(err)}`,
+          `read ${worktreePath}/docs/backlog.yaml failed: ${err instanceof Error ? err.message : String(err)}`
         )
       }
     }
@@ -263,7 +264,7 @@ export const scanInFlight = (startDir: string, features: Feature[]): InFlightSca
   const byId = new Map<string, IdEvidence>()
   const unmappedThinktank: ThinktankActivity[] = []
   const branchOnly = new Set<string>()
-  const knownIds = new Set(features.map((f) => f.id))
+  const knownIds = new Set(features.map(f => f.id))
 
   let mainCheckout: string
   try {
@@ -345,7 +346,7 @@ export const scanInFlight = (startDir: string, features: Feature[]): InFlightSca
 
   // Stale: YAML `shipped` + any evidence.
   const stale: string[] = []
-  const statusById = new Map(features.map((f) => [f.id, f.status]))
+  const statusById = new Map(features.map(f => [f.id, f.status]))
   for (const [id, ev] of byId) {
     if (statusById.get(id) === 'shipped' && hasAnyEvidence(ev)) {
       stale.push(id)
@@ -358,10 +359,7 @@ export const scanInFlight = (startDir: string, features: Feature[]): InFlightSca
 
 // True iff the id should be displayed in IN PROGRESS even though the YAML
 // still says todo. Used by data.ts effectiveStatus.
-export const isPromotedByEvidence = (
-  feature: Feature,
-  scan: InFlightScan | null,
-): boolean => {
+export const isPromotedByEvidence = (feature: Feature, scan: InFlightScan | null): boolean => {
   if (!scan) return false
   if (feature.status !== 'todo') return false
   const ev = scan.byId.get(feature.id)

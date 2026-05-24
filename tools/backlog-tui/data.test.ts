@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
 import { setStatusInYamlText } from './data.js'
+import { describe, expect, it } from 'vitest'
 
 const SAMPLE = `# header comment
 # another comment
@@ -58,19 +58,15 @@ describe('setStatusInYamlText', () => {
     expect(out).toContain("notes: 'has a # hash and quotes'\n\n  - id: 'RP-3'")
     // field order under id RP-3 unchanged
     expect(out).toMatch(
-      /- id: 'RP-3'\n {4}name: Genetics\n {4}summary: [^\n]+\n {4}depends_on: \['RP-0'\]\n {4}status: in-progress\n {4}spec: null/,
+      /- id: 'RP-3'\n {4}name: Genetics\n {4}summary: [^\n]+\n {4}depends_on: \['RP-0'\]\n {4}status: in-progress\n {4}spec: null/
     )
   })
 
   it('does not modify other features when only one changes', () => {
     const out = setStatusInYamlText(SAMPLE, 'RP-3', 'shipped')
     // Count occurrences of `status:` — should still be three lines.
-    const statusLines = out.split('\n').filter((l) => /^    status:/.test(l))
-    expect(statusLines).toEqual([
-      '    status: shipped',
-      '    status: shipped',
-      '    status: in-progress',
-    ])
+    const statusLines = out.split('\n').filter(l => /^    status:/.test(l))
+    expect(statusLines).toEqual(['    status: shipped', '    status: shipped', '    status: in-progress'])
   })
 
   it('handles ids with letters (e.g. RP-8a) without matching the wrong block', () => {

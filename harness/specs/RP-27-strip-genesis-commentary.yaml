@@ -72,8 +72,8 @@ behaviors:
       - "grep for 'onGenesisEpochStart' in src/ returns zero hits"
       - "grep for 'onEpochStart' in src/ returns zero hits"
       - "grep for 'narratedEpochCount' in src/ returns zero hits"
-      - "tickGenesis signature is (sim, epochs, time) — three args, no callback"
-      - "completeGenesis contains no while loop iterating narratedEpochCount"
+      - 'tickGenesis signature is (sim, epochs, time) — three args, no callback'
+      - 'completeGenesis contains no while loop iterating narratedEpochCount'
     state_changes:
       - field: GameState.onGenesisEpochStart
         effect: 'removed from the GameState type and from createGameState'
@@ -148,7 +148,7 @@ behaviors:
       - 'manual is browsed after RP-27 lands'
     outputs:
       - "grep for 'event:genesis' in src/engine/manual.ts returns zero hits"
-      - "buildGenesisEntry does not exist as an export or local"
+      - 'buildGenesisEntry does not exist as an export or local'
       - "MANUAL_LORE['event:genesis'] is undefined"
       - 'the manual UI shows no entry titled Genesis'
     state_changes: []

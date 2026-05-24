@@ -6,17 +6,17 @@ import { CoyoteScreen } from './CoyoteScreen'
 import { DialogBox } from './DialogBox'
 import { DragCursor } from './DragCursor'
 import { GameCanvas } from './GameCanvas'
-import { MeteoritePickupPrompt } from './MeteoritePickupPrompt'
-import { ScanProgressBar } from './ScanProgressBar'
 import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
 import { ItemInfo } from './ItemInfo'
 import { ManualPanel } from './ManualPanel'
-import { PhotographAlbumPanel } from './PhotographAlbumPanel'
 import { Menu } from './Menu'
+import { MeteoritePickupPrompt } from './MeteoritePickupPrompt'
 import { Minimap } from './Minimap'
 import { PermacomputerShell } from './PermacomputerShell'
+import { PhotographAlbumPanel } from './PhotographAlbumPanel'
 import { ReverySummary } from './ReverySummary'
+import { ScanProgressBar } from './ScanProgressBar'
 import { ScanResultModal } from './ScanResultModal'
 import { TimeLapsePlayback } from './TimeLapsePlayback'
 
@@ -25,13 +25,13 @@ import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
 import { canCast } from '@/engine/hexagram'
 import { advanceDialog } from '@/engine/interaction'
 import { advanceReveryToClosing } from '@/engine/revery'
-import type { ScanCommitResult } from '@/engine/scan'
 import { ReveryPhase } from '@/engine/types'
 import { useGameEngine } from '@/hooks/useGameEngine'
 import { useKeyboard } from '@/hooks/useKeyboard'
 import { useMusic } from '@/hooks/useMusic'
 import type { DragOverlayData } from './InventoryPanel'
 import type { ItemInfoHandle } from './ItemInfo'
+import type { ScanCommitResult } from '@/engine/scan'
 import type { CharMetrics } from '@/engine/types'
 import type { MultiplayerHookArgs } from '@/hooks/useGameEngine'
 
@@ -105,7 +105,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
       setScanResult(result)
       setActiveScreen('scan-result')
     },
-    [setActiveScreen],
+    [setActiveScreen]
   )
 
   return (

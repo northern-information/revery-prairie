@@ -18,11 +18,7 @@
 // state.dormancyPressure crossing 1.0 schedules the Revery; the threshold
 // check and initiateRevery call live in gameLoop, not here.
 
-import {
-  REVERY_COOLDOWN_MS,
-  REVERY_PRESSURE_RAMP_END,
-  REVERY_PRESSURE_RAMP_START,
-} from './constants'
+import { REVERY_COOLDOWN_MS, REVERY_PRESSURE_RAMP_END, REVERY_PRESSURE_RAMP_START } from './constants'
 import { Season, Zone } from './types'
 
 import type { GameState } from './types'

@@ -1,10 +1,8 @@
-import { describe, expect, it } from 'vitest'
-
 import { initiateRevery, tickRevery } from '../revery'
-import { computeZoneVisibility } from '../visibility'
 import { OmenKind, ReveryPhase, Zone } from '../types'
-
+import { computeZoneVisibility } from '../visibility'
 import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 const driveReveryToClosingAndTick = (state: ReturnType<typeof createTestState>, time: number): void => {
   initiateRevery(state, time, OmenKind.BeeOnShoulder)

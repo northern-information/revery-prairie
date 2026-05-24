@@ -216,8 +216,8 @@ behaviors:
     inputs:
       - 'codebase after RP-2 lands'
     outputs:
-      - "state.rainIntensity no longer exists; state.precipitationIntensity does"
-      - "tickRainIntensity no longer exists; tickPrecipitationIntensity does"
+      - 'state.rainIntensity no longer exists; state.precipitationIntensity does'
+      - 'tickRainIntensity no longer exists; tickPrecipitationIntensity does'
     state_changes:
       - field: rainIntensity
         effect: 'removed from GameState'
@@ -400,23 +400,23 @@ edge_cases:
       extremes).
 
 failure_conditions:
-  - trigger: "state.seasonalPhase never advances during overworld play"
+  - trigger: 'state.seasonalPhase never advances during overworld play'
     expected: 'CI fails — the clock is broken'
-  - trigger: "Fresh game starts in any season other than Spring"
+  - trigger: 'Fresh game starts in any season other than Spring'
     expected: 'CI fails — phase 0 must be the spring-equinox anchor'
-  - trigger: "state.currentDate is missing from GameState or not in EXPECTED_FIELDS"
+  - trigger: 'state.currentDate is missing from GameState or not in EXPECTED_FIELDS'
     expected: 'CI fails — schema allowlist must include currentDate'
-  - trigger: "state.currentDate is not { month: 3, day: 20 } at game start"
+  - trigger: 'state.currentDate is not { month: 3, day: 20 } at game start'
     expected: 'CI fails — initial date must be the spring equinox'
-  - trigger: "state.currentDate drifts out of sync with state.seasonalPhase"
+  - trigger: 'state.currentDate drifts out of sync with state.seasonalPhase'
     expected: 'CI fails — tickWeather must recompute currentDate from seasonalPhase'
-  - trigger: "winter season does not transition Healthy flora to Dormant"
+  - trigger: 'winter season does not transition Healthy flora to Dormant'
     expected: 'CI fails — lifecycle is not reading season'
-  - trigger: "leaving Winter does not revive Dormant flora to Healthy"
+  - trigger: 'leaving Winter does not revive Dormant flora to Healthy'
     expected: 'CI fails — thaw transition is broken'
-  - trigger: "snow render pass does not draw flakes when state.weather.sky === Sky.Snow"
+  - trigger: 'snow render pass does not draw flakes when state.weather.sky === Sky.Snow'
     expected: 'CI fails — snow overlay is not registered or not gated on Sky.Snow'
-  - trigger: "winter palette shift desaturates egregore tiles toward grey"
+  - trigger: 'winter palette shift desaturates egregore tiles toward grey'
     expected: 'CI fails — per v3 doctrine the winter palette must make egregoric script pop, not blend in'
 
 verification:

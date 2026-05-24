@@ -176,25 +176,73 @@ const paintFullCanvasStarfield = (
       ...COSMIC_LAYER_BASE,
       wavefrontProgress: epochId === GenesisEpochId.CosmicFormation ? progress : null,
     }
-    paintStarLayer(ctx, cfg, charWidth, charHeight, viewportWidth, viewportHeight, cameraX, cameraY, simWidth, simHeight, time)
+    paintStarLayer(
+      ctx,
+      cfg,
+      charWidth,
+      charHeight,
+      viewportWidth,
+      viewportHeight,
+      cameraX,
+      cameraY,
+      simWidth,
+      simHeight,
+      time
+    )
     return
   }
 
   if (epochId === GenesisEpochId.LavaEra) {
     // Standard dim layer underneath, full alpha.
-    paintStarLayer(ctx, STANDARD_LAYER, charWidth, charHeight, viewportWidth, viewportHeight, cameraX, cameraY, simWidth, simHeight, time)
+    paintStarLayer(
+      ctx,
+      STANDARD_LAYER,
+      charWidth,
+      charHeight,
+      viewportWidth,
+      viewportHeight,
+      cameraX,
+      cameraY,
+      simWidth,
+      simHeight,
+      time
+    )
     // Cosmic layer fading out across the epoch.
     const cosmicAlpha = Math.max(0, 1 - progress)
     if (cosmicAlpha > 0) {
       const savedAlpha = ctx.globalAlpha
       ctx.globalAlpha = savedAlpha * cosmicAlpha
-      paintStarLayer(ctx, COSMIC_LAYER_BASE, charWidth, charHeight, viewportWidth, viewportHeight, cameraX, cameraY, simWidth, simHeight, time)
+      paintStarLayer(
+        ctx,
+        COSMIC_LAYER_BASE,
+        charWidth,
+        charHeight,
+        viewportWidth,
+        viewportHeight,
+        cameraX,
+        cameraY,
+        simWidth,
+        simHeight,
+        time
+      )
       ctx.globalAlpha = savedAlpha
     }
     return
   }
 
-  paintStarLayer(ctx, STANDARD_LAYER, charWidth, charHeight, viewportWidth, viewportHeight, cameraX, cameraY, simWidth, simHeight, time)
+  paintStarLayer(
+    ctx,
+    STANDARD_LAYER,
+    charWidth,
+    charHeight,
+    viewportWidth,
+    viewportHeight,
+    cameraX,
+    cameraY,
+    simWidth,
+    simHeight,
+    time
+  )
 }
 
 // Cosmetic terrain elevation. Reads sim.elevation (mutated live by

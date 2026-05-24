@@ -10,8 +10,8 @@ import { ComponentType } from '../ecs/types'
 import { selectStrikeTarget, spawnLightningStrike, spreadWildfire, tickLightning } from '../lightning'
 import { posKey } from '../position'
 import { FloraSpecies, FloraStage, Sky, TileType, Zone } from '../types'
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createMeteoriteEntity, createTestState } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const seededRng = (seed: number) => {
@@ -213,7 +213,7 @@ describe('lightning', () => {
       state.map[y][x] = { type: TileType.Flora }
       state.floraLifecycle.set(
         posKey(x, y),
-        createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+        createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover })
       )
       state.tileWater.set(posKey(x, y), WATER_MAX)
       const burned = spreadWildfire(state, 0, x, y)
@@ -238,7 +238,7 @@ describe('lightning', () => {
           state.map[y][x] = { type: TileType.Flora }
           state.floraLifecycle.set(
             posKey(x, y),
-            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover })
           )
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -260,7 +260,7 @@ describe('lightning', () => {
           state.map[y][x] = { type: TileType.Flora }
           state.floraLifecycle.set(
             posKey(x, y),
-            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover })
           )
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -281,7 +281,7 @@ describe('lightning', () => {
       state.map[cy][cx] = { type: TileType.Flora }
       state.floraLifecycle.set(
         posKey(cx, cy),
-        createTestFloraEntry({ posKey: posKey(cx, cy), species: FloraSpecies.Clover }),
+        createTestFloraEntry({ posKey: posKey(cx, cy), species: FloraSpecies.Clover })
       )
       state.tileWater.set(posKey(cx, cy), 0)
 
@@ -299,7 +299,7 @@ describe('lightning', () => {
       state.map[cy][cx] = { type: TileType.Flora }
       state.floraLifecycle.set(
         posKey(cx, cy),
-        createTestFloraEntry({ posKey: posKey(cx, cy), species: FloraSpecies.Clover }),
+        createTestFloraEntry({ posKey: posKey(cx, cy), species: FloraSpecies.Clover })
       )
       state.tileWater.set(posKey(cx, cy), 0)
 
@@ -317,7 +317,7 @@ describe('lightning', () => {
           state.map[y][x] = { type: TileType.Flora }
           state.floraLifecycle.set(
             posKey(x, y),
-            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover })
           )
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -339,7 +339,7 @@ describe('lightning', () => {
         state.map[cy][cx + dx] = { type: TileType.Flora }
         state.floraLifecycle.set(
           posKey(cx + dx, cy),
-          createTestFloraEntry({ posKey: posKey(cx + dx, cy), species: FloraSpecies.Clover }),
+          createTestFloraEntry({ posKey: posKey(cx + dx, cy), species: FloraSpecies.Clover })
         )
         state.tileWater.set(posKey(cx + dx, cy), 0)
       }

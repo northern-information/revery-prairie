@@ -4,8 +4,8 @@
 // the selection box. The draft overlay was removed alongside the
 // authoring layer in the input-system-cleanup CR.
 
-import { Zone } from '../../types'
 import { drawCellHighlight, worldToScreen } from '../../projection'
+import { Zone } from '../../types'
 import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
 

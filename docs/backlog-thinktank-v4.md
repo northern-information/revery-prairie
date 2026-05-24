@@ -272,7 +272,7 @@ _(And earlier in the round: "gron teleports over and lets more bees out. there i
 
 ### The bees-plural correction
 
-> **Calla:** I overconstrained the previous round. Bees are not the bonded singular partner of a patch. They are a colony that scales with the patch. The substrate is already in `src/engine/clover.ts:42-43` — `CloverPatch` has `hiveCount` and `maxHives` scaled by tile count via `CLOVER_HIVE_RATIO`. The bee+clover ceremony rewrites the *casting verb*; the patch/hive/bee economy that already exists does the rest. Bees recruit themselves.
+> **Calla:** I overconstrained the previous round. Bees are not the bonded singular partner of a patch. They are a colony that scales with the patch. The substrate is already in `src/engine/clover.ts:42-43` — `CloverPatch` has `hiveCount` and `maxHives` scaled by tile count via `CLOVER_HIVE_RATIO`. The bee+clover ceremony rewrites the _casting verb_; the patch/hive/bee economy that already exists does the rest. Bees recruit themselves.
 
 > **Astrid:** And Gron is the bee-keeper between stewards. The code has been waiting for us to name this. `interaction.ts:204-205` — Gron releases `pendingSavedBees` when his sealed dialog closes. `interaction.ts:515-537` — Gron teleports adjacent to the player at sealing. The system is partially built. Gron has been collecting bees through the long dormancy while the prairie waited for its next steward. The first bee from the ruin is _one bee_; Gron has the rest, in his cloud, sheltered. He releases them when the moment is right.
 
@@ -295,7 +295,7 @@ _(And earlier in the round: "gron teleports over and lets more bees out. there i
 3. **No opinion of the player.** Pragmatic, not kind. **No `gronAffection` / `gronTrust` / `gronReputation` field on `GameState`.** No hidden counter. If Gron's later visits depend on player behavior, that dependency must be expressed through **state the player can already see** — patches established, bees alive, tiles tended — with **multiple overlapping and contradictory triggers** so the player cannot back-derive the rule.
 4. **Oblique dialog.** Short lines that can be read multiple ways. Statements, not questions or commands. No editorial words. No direct address by title. No contractions — Gron's speech predates American English casual. Indefinite articles where possible (_a steward_, not _the steward_, because the lineage is plural).
 5. **Music precedes arrival.** His theme bleeds into the ambient before he appears. The player's head turns. _Then_ Gron is there. **The cloud is heard before it is seen.**
-6. **The manual entry says the manual does not know.** Most-glitched entry in the manual. Half-Voynich. The naturalist's authoritative reference *fails* on Gron, which is the single strongest signal we can send that he is not classifiable. Implementation requires a `glitched: true` flag on lore entries + extending `ManualPanel.tsx:218` to route to the `EgregoreLore` renderer when set.
+6. **The manual entry says the manual does not know.** Most-glitched entry in the manual. Half-Voynich. The naturalist's authoritative reference _fails_ on Gron, which is the single strongest signal we can send that he is not classifiable. Implementation requires a `glitched: true` flag on lore entries + extending `ManualPanel.tsx:218` to route to the `EgregoreLore` renderer when set.
 
 ### The dialog audit
 
@@ -306,7 +306,7 @@ Current Gron text (`src/engine/characters.ts:98-110`):
 - "_new_" implies a series — too much information at first contact. Cut.
 - "_Oh,_" implies surprise — Gron was already aware. Cut.
 - "_Worrisome_" is editorial affect. Cut.
-- The rhetorical question is a *prompt*; Gron doesn't prompt.
+- The rhetorical question is a _prompt_; Gron doesn't prompt.
 
 **Proposed (3 lines):** `...` / `Ah. A steward.` / `Your coyote is still in the ruin.`
 

@@ -1,5 +1,5 @@
-import { initiateRevery, tickRevery } from '../revery'
 import { ComponentType } from '../ecs/types'
+import { initiateRevery, tickRevery } from '../revery'
 import { OmenKind, ReveryPhase, TileType, Zone } from '../types'
 import { createCharacterTestEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'

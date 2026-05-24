@@ -20,7 +20,6 @@ describe('gron has no gift chain', () => {
     expect(state.postGiftActionsCompleted.has('gron')).toBe(false)
   })
 
-
   it('giveCharacterGift returns null for gron', () => {
     const state = makeState()
     const result = giveCharacterGift(state, 'gron')

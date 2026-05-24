@@ -1,5 +1,4 @@
 import { tickCloverGrowth } from './clover'
-import { tickFloraLifecycle } from './floraLifecycle'
 import {
   DEEP_TIME_BURN_DURATION_MS,
   DEEP_TIME_LIGHTNING_COUNT,
@@ -10,6 +9,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { tickBees } from './entities'
+import { tickFloraLifecycle } from './floraLifecycle'
 import { forceSpawnLightningStrike, spreadWildfire } from './lightning'
 import { tickTileWater } from './tileWater'
 import { DeepTimePhase, TileType, Zone } from './types'

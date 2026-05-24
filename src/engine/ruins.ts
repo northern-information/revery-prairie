@@ -4,9 +4,9 @@ import { ComponentType } from './ecs/types'
 import { createCharacterEntity } from './entities'
 import { FLORA_SPECIES } from './flora/species'
 import { clearAllGrowthPreviews } from './floraGrowthPreviews'
-import { generateGenesisIdentity, generateTraitBag } from './genetics'
 import { nameToSeed } from './genesis'
 import { RuinGenerationMode, RuinRole } from './genesisTypes'
+import { generateGenesisIdentity, generateTraitBag } from './genetics'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { clearMovementTweens } from './movementTween'
@@ -15,8 +15,8 @@ import { STRUCTURE_REGISTRY } from './structures'
 import { FloraSpecies, RuinArchetype, TileType, Zone } from './types'
 import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
-import type { FloraGenome } from './genetics'
 import type { CivilizationRuin } from './genesisTypes'
+import type { FloraGenome } from './genetics'
 import type { DormantGardenData, GameState, Position, RuinInterior, Tile } from './types'
 
 // ---------------------------------------------------------------------------
@@ -832,7 +832,6 @@ export const enterRuin = (state: GameState, ruinIndex: number): void => {
   if (discoveryKey) {
     recordDiscovery(state, discoveryKey)
   }
-
 }
 
 export const exitRuin = (state: GameState): void => {
@@ -1130,7 +1129,7 @@ const spawnRuinGroundItem = (
   ruinIndex: number,
   pos: Position,
   definitionId: string,
-  genome?: FloraGenome,
+  genome?: FloraGenome
 ): void => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
@@ -1173,7 +1172,7 @@ export const spawnDormantGardenItems = (state: GameState, ruinIndex: number): vo
 // suitable tiles exist.
 const findTimeLapseSpawnTiles = (
   interior: RuinInterior,
-  garden: DormantGardenData,
+  garden: DormantGardenData
 ): { camera: Position; filmRoll: Position } | null => {
   const reserved = new Set<string>()
   reserved.add(posKey(interior.entranceInterior.x, interior.entranceInterior.y))

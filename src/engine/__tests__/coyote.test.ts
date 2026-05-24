@@ -1,10 +1,4 @@
-import {
-  findCoyoteEntity,
-  getCoyotePosition,
-  summonCoyote,
-  tickCoyote,
-  transitionCoyoteToZone,
-} from '../coyote'
+import { findCoyoteEntity, getCoyotePosition, summonCoyote, tickCoyote, transitionCoyoteToZone } from '../coyote'
 import { ComponentType } from '../ecs/types'
 import { interactWithCharacter } from '../interaction'
 import { getBlockedPositions, getPathfindingBlockers, movePlayer } from '../movement'
@@ -451,7 +445,6 @@ describe('coyote companion', () => {
       const state = createTestState()
       expect(summonCoyote(state)).toBe(false)
     })
-
   })
 
   describe('cave transition', () => {

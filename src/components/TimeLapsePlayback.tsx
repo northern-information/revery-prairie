@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
-
 import { GelBandView } from './GelBandView'
 
 import { HEX_GRID_SIZE } from '@/engine/genetics'
 import { identityForFrame } from '@/engine/timeLapse'
 import { CameraSubject } from '@/engine/types'
-
 import type { TimeLapseFrame } from '@/engine/types'
 
 // Per-photograph reveal pacing — column-major cell reveal across the
@@ -88,7 +86,7 @@ export const TimeLapsePlayback = ({ cameraUid: _cameraUid, frames, onDismiss }: 
     timers.push(
       setTimeout(() => {
         setHeadingVisible(true)
-      }, 50),
+      }, 50)
     )
     timers.push(
       setTimeout(() => {
@@ -96,15 +94,15 @@ export const TimeLapsePlayback = ({ cameraUid: _cameraUid, frames, onDismiss }: 
           timers.push(
             setTimeout(() => {
               setRevealedCells(i)
-            }, CELL_REVEAL_MS * i),
+            }, CELL_REVEAL_MS * i)
           )
         }
-      }, HEADING_FADE_MS),
+      }, HEADING_FADE_MS)
     )
     timers.push(
       setTimeout(() => {
         setFullyRevealed(true)
-      }, HEADING_FADE_MS + TOTAL_CELL_REVEAL_MS),
+      }, HEADING_FADE_MS + TOTAL_CELL_REVEAL_MS)
     )
 
     return () => {
@@ -169,11 +167,7 @@ export const TimeLapsePlayback = ({ cameraUid: _cameraUid, frames, onDismiss }: 
         >
           <GelBandView identity={identity} variant="flora" revealedCells={revealedCells} />
         </div>
-        <p
-          data-testid="time-lapse-hint"
-          className="text-dim text-xs"
-          style={{ opacity: fullyRevealed ? 0.7 : 0 }}
-        >
+        <p data-testid="time-lapse-hint" className="text-dim text-xs" style={{ opacity: fullyRevealed ? 0.7 : 0 }}>
           {isLastFrame
             ? 'Press any key to close'
             : `Press any key to advance (${String(frameIndex + 1)} / ${String(frames.length)})`}

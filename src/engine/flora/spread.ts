@@ -23,10 +23,9 @@ import { setMapTile } from '@/engine/map'
 import { CARDINAL, isInBounds, posKey } from '@/engine/position'
 import { getStoneCircleGraph, segmentCrossesAnyMeteoriteEdge } from '@/engine/stoneCircles'
 import { FloraSpecies, Season, TileType } from '@/engine/types'
-
+import type { FloraPatch, SpeciesSpreadConfig } from './spreadConfig'
 import type { TraitBag } from '@/engine/genetics'
 import type { FloraLifecycleState, GameState, Position } from '@/engine/types'
-import type { FloraPatch, SpeciesSpreadConfig } from './spreadConfig'
 
 // Mulberry32 PRNG keyed off the first 8 hex chars of a SHA identity.
 // Same shape as the helper in genetics/index.ts (kept private there);
@@ -119,7 +118,7 @@ export const applyParentLineage = (
   parentIdentity: string | undefined,
   binomial: string,
   childKey: string,
-  time: number,
+  time: number
 ): { identity: string; traits: TraitBag } => {
   const parentPrefix = parentIdentity?.slice(0, 8) ?? 'genesis'
   const lineageBinomial = `${binomial}:spread:${parentPrefix}`
@@ -132,12 +131,7 @@ export const applyParentLineage = (
 // the parent posKey of lowest lexicographic order so the choice is
 // deterministic across runs. Returns undefined for orphaned previews
 // (parent died and decomposed in the same tick the preview committed).
-const findParentKey = (
-  state: GameState,
-  x: number,
-  y: number,
-  species: FloraSpecies,
-): string | undefined => {
+const findParentKey = (state: GameState, x: number, y: number, species: FloraSpecies): string | undefined => {
   let parent: string | undefined
   for (const d of CARDINAL) {
     const nx = x + d.x
@@ -156,11 +150,7 @@ const findParentKey = (
 // a Flora tile of the target species, and assigns identity + traits
 // per the lineage rules. Returns true if any preview committed.
 // Clears the preview Set on exit.
-export const commitFloraPreviews = (
-  state: GameState,
-  species: FloraSpecies,
-  time: number,
-): boolean => {
+export const commitFloraPreviews = (state: GameState, species: FloraSpecies, time: number): boolean => {
   const previews = getGrowthPreviewSet(state, species)
   if (previews.size === 0) return false
 

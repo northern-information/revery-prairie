@@ -81,7 +81,7 @@ behaviors:
       - 'codebase after RP-30 lands'
     outputs:
       - "no comment in wind.ts says 'blows south' / 'blows north' / 'blows west' / 'blows east'"
-      - "comment block above WIND_SCREEN_VECTORS describes the diamond-tip / diamond-edge mapping"
+      - 'comment block above WIND_SCREEN_VECTORS describes the diamond-tip / diamond-edge mapping'
     state_changes: []
     determinism: deterministic
 
@@ -233,7 +233,7 @@ behaviors:
       - 'codebase after RP-30 lands'
       - 'genesis simulation runs to the IceAge epoch'
     outputs:
-      - "the four topDist computations in genesis.ts (lines around 1451, 1563, 1594, 1983) use (x − SPACE_BORDER) + (y − SPACE_BORDER), not y − SPACE_BORDER"
+      - 'the four topDist computations in genesis.ts (lines around 1451, 1563, 1594, 1983) use (x − SPACE_BORDER) + (y − SPACE_BORDER), not y − SPACE_BORDER'
       - 'glacialDepth is computed from (sim.width + sim.height − 2*SPACE_BORDER) * 0.25'
       - 'after the IceAge epoch, sim.glacialPaths contains tiles whose top-tip distance is < effectiveTopDepth or bottom-tip distance is < effectiveBottomDepth'
       - 'visual rendering of the glacial zone has its long axis perpendicular to the u axis (i.e. lobes along v = x − y)'
@@ -275,12 +275,12 @@ behaviors:
       - 'codebase after RP-30 lands'
       - 'IceAge epoch runs'
     outputs:
-      - "sim.glacialEdgeNoise.top is an array of length sim.width + sim.height - 1"
-      - "sim.glacialEdgeNoise.bottom is an array of length sim.width + sim.height - 1"
-      - "smoothNoiseSeeded is called with cell size 14 (was 7) and amplitude 12 (unchanged)"
-      - "glacial edge lookups index by (x - y + sim.height - 1), not by x"
-      - "sim.glacialEdgeNoise.bottom[i] === sim.glacialEdgeNoise.top[i] for every i in [0, length)"
-      - "only one smoothNoiseSeeded call is issued for glacial edge noise per IceAge mutate (the bottom array is not drawn from sim.rng separately)"
+      - 'sim.glacialEdgeNoise.top is an array of length sim.width + sim.height - 1'
+      - 'sim.glacialEdgeNoise.bottom is an array of length sim.width + sim.height - 1'
+      - 'smoothNoiseSeeded is called with cell size 14 (was 7) and amplitude 12 (unchanged)'
+      - 'glacial edge lookups index by (x - y + sim.height - 1), not by x'
+      - 'sim.glacialEdgeNoise.bottom[i] === sim.glacialEdgeNoise.top[i] for every i in [0, length)'
+      - 'only one smoothNoiseSeeded call is issued for glacial edge noise per IceAge mutate (the bottom array is not drawn from sim.rng separately)'
     state_changes:
       - field: sim.glacialEdgeNoise.top
         effect: 'length and lattice cell size rescaled for the rotated index'
@@ -304,7 +304,7 @@ behaviors:
       - 'codebase after RP-30 lands'
     outputs:
       - "src/engine/types.ts contains a block comment above WindDirection that names 'diamond tip' and 'storage axis' for each cardinal"
-      - "the comment references backlog-thinktank-v5 round 1 as the doctrine source"
+      - 'the comment references backlog-thinktank-v5 round 1 as the doctrine source'
     state_changes: []
     determinism: deterministic
 
@@ -402,7 +402,7 @@ behaviors:
       - "grep -inE 'magnitude √2|axis-aligned.*magnitude 1' src/engine/weather/wind.ts returns the rewritten comment (not the old text)"
       - "docs/claude/weather.md mentions 'diamond tip' in its wind-direction explanation"
       - "docs/claude/genesis.md mentions glaciers advancing from the diamond's top and bottom tips"
-      - "docs/claude/rendering.md mentions (x − y, x + y) iso projection as the canonical exposed frame"
+      - 'docs/claude/rendering.md mentions (x − y, x + y) iso projection as the canonical exposed frame'
       - "no user-facing string in src/components/** or src/engine/manual.ts asserts a cardinal direction under the old frame's semantics (audit-confirmed)"
     state_changes: []
     determinism: deterministic
@@ -505,9 +505,9 @@ edge_cases:
       grep -inE 'rotateCardinal|isoToWorldCardinal|compassToScreen|worldCardinalToScreen|screenCardinalToWorld' src/ returns zero hits.
 
 failure_conditions:
-  - trigger: "WIND_SCREEN_VECTORS[N] is not { sx: 0, sy: Math.SQRT2 }"
+  - trigger: 'WIND_SCREEN_VECTORS[N] is not { sx: 0, sy: Math.SQRT2 }'
     expected: 'CI fails — the cardinal rotation is missing or incorrect at the table'
-  - trigger: "WIND_SCREEN_VECTORS[NE] is not { sx: -1, sy: -1 }"
+  - trigger: 'WIND_SCREEN_VECTORS[NE] is not { sx: -1, sy: -1 }'
     expected: 'CI fails — the ordinal rotation is missing or incorrect at the table'
   - trigger: "any WIND_SCREEN_VECTORS value's magnitude is not Math.SQRT2 (within 1e-5)"
     expected: 'CI fails — wind-speed scaling is broken; downstream drift will be wrong'
@@ -515,15 +515,15 @@ failure_conditions:
     expected: 'CI fails — cardinal winds still sweep along storage axes'
   - trigger: "windToFrontAxis return type literal in tileWater.ts does not include 'u' and 'v' variants"
     expected: 'CI fails — type widening missing'
-  - trigger: "isInRainFront returns hit=true for a tile that is not on the rotated front for the given wind direction"
+  - trigger: 'isInRainFront returns hit=true for a tile that is not on the rotated front for the given wind direction'
     expected: 'CI fails — rain-front math did not migrate to the new axis semantics'
-  - trigger: "sim.glacialEdgeNoise.top is not of length (sim.width + sim.height - 1)"
+  - trigger: 'sim.glacialEdgeNoise.top is not of length (sim.width + sim.height - 1)'
     expected: 'CI fails — glacial edge noise was not reindexed to the rotated v coordinate'
-  - trigger: "sim.glacialPaths after the IceAge epoch contains a tile whose top-tip distance and bottom-tip distance both exceed effectiveDepth"
+  - trigger: 'sim.glacialPaths after the IceAge epoch contains a tile whose top-tip distance and bottom-tip distance both exceed effectiveDepth'
     expected: 'CI fails — the polar metric did not migrate'
-  - trigger: "glacialDepth is not Math.floor((sim.width + sim.height - 2 * SPACE_BORDER) * 0.25)"
+  - trigger: 'glacialDepth is not Math.floor((sim.width + sim.height - 2 * SPACE_BORDER) * 0.25)'
     expected: 'CI fails — glacial-depth budget was not retuned to 25% of the rotated u-span'
-  - trigger: "sim.glacialEdgeNoise.top and sim.glacialEdgeNoise.bottom contain a differing value at any index"
+  - trigger: 'sim.glacialEdgeNoise.top and sim.glacialEdgeNoise.bottom contain a differing value at any index'
     expected: 'CI fails — bottom glacial noise was drawn independently instead of mirroring top'
   - trigger: "grep -inE 'rotateCardinal|isoToWorldCardinal|compassToScreen|worldCardinalToScreen|screenCardinalToWorld' src/ returns any hits"
     expected: 'CI fails — a translation layer was introduced, violating the v5 round 1 doctrine'

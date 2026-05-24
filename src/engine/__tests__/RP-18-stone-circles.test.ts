@@ -1,3 +1,4 @@
+import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { candidateDirtNeighborsContained } from '@/engine/egregore/positions'
@@ -12,9 +13,6 @@ import {
   isInsideHallowedGround,
 } from '@/engine/stoneCircles'
 import { TileType } from '@/engine/types'
-
-import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
-
 import type { GameState, Position } from '@/engine/types'
 
 const buildState = (placed: Position[]): GameState => {

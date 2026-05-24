@@ -179,7 +179,6 @@ describe('tileWater', () => {
 
       expect(state.tileWater.get(key)).toBe(50 - WATER_DRAIN_RATE)
     })
-
   })
 
   describe('isInRainFront', () => {

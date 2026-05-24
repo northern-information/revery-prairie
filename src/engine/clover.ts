@@ -1,14 +1,16 @@
-import {
-  BEEHIVE_MIN_DISTANCE,
-  CLOVER_HIVE_RATIO,
-  CLOVER_HONEY_BASE_CHANCE,
-  CLOVER_HONEY_BEE_BONUS,
-} from './constants'
+import { BEEHIVE_MIN_DISTANCE, CLOVER_HIVE_RATIO, CLOVER_HONEY_BASE_CHANCE, CLOVER_HONEY_BEE_BONUS } from './constants'
 import { ComponentType } from './ecs/types'
-import { CLOVER_SPREAD_CONFIG } from './flora/type/clover/spread'
 import { tickSpeciesSpread } from './flora/spread'
+import { CLOVER_SPREAD_CONFIG } from './flora/type/clover/spread'
 import { recordDiscovery } from './manual'
-import { CARDINAL, isInBounds, posKey } from './position'
+// --- Legacy spread surface (RP-17 thin-wrapper exports) ---
+
+// The spread/spiral implementation moved to flora/type/clover/spread.ts.
+// These re-exports keep the legacy test imports working without
+// updating every site. computeGrowthFront is reimplemented here over
+// the local CloverPatch shape because the spread module's helper is
+// internal (selectGrowthTargets handles the same job behind the engine).
+import { CARDINAL as _CARDINAL, CARDINAL, isInBounds, posKey } from './position'
 import { FloraSpecies, TileType, Zone } from './types'
 import { spatialAtInCurrentZone } from './zone'
 
@@ -223,15 +225,6 @@ export const tickCloverHives = (state: GameState): void => {
     }
   }
 }
-
-// --- Legacy spread surface (RP-17 thin-wrapper exports) ---
-
-// The spread/spiral implementation moved to flora/type/clover/spread.ts.
-// These re-exports keep the legacy test imports working without
-// updating every site. computeGrowthFront is reimplemented here over
-// the local CloverPatch shape because the spread module's helper is
-// internal (selectGrowthTargets handles the same job behind the engine).
-import { CARDINAL as _CARDINAL } from './position'
 
 export const computeGrowthFront = (patch: CloverPatch, state: GameState): Position[] => {
   const candidates = new Set<string>()

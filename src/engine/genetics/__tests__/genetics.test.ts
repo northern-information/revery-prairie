@@ -5,10 +5,10 @@ import {
   generateGenesisIdentity,
   generateRuntimeIdentity,
   generateTraitBag,
-  HEX_GRID_SIZE,
   hashToHexGrid,
-  type TraitBag,
+  HEX_GRID_SIZE,
 } from '@/engine/genetics'
+import type { TraitBag } from '@/engine/genetics'
 
 // mulberry32 — local copy used as the rng argument to crossTraitBags so the
 // test controls determinism without coupling to the genetics module's PRNG.

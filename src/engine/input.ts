@@ -37,7 +37,11 @@ export const KEYBINDINGS: KeyBinding[] = [
   { key: 'wasd', action: 'Move', context: 'Single keys move diagonally; combine for cardinals' },
   { key: 'shift', action: 'Toggle Sprint', context: 'Double movement speed' },
   { key: 'shift+click', action: 'Queue Waypoints' },
-  { key: 'f', action: 'Interact / Scan', context: 'Tap to talk, open, break wall, clear debris; hold to scan flora / egregore / oak' },
+  {
+    key: 'f',
+    action: 'Interact / Scan',
+    context: 'Tap to talk, open, break wall, clear debris; hold to scan flora / egregore / oak',
+  },
   { key: 'x', action: 'Drop Item', context: 'Hovering item in backpack' },
   { key: 'tab', action: 'Toggle Manual' },
   { key: 'c', action: 'Toggle Divination', context: 'Overworld only, requires 3 glinting coins' },

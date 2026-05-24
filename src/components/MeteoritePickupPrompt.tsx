@@ -12,7 +12,6 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { findPickupableMeteorite } from '@/engine/interaction'
-
 import type { GameState } from '@/engine/types'
 
 interface Props {

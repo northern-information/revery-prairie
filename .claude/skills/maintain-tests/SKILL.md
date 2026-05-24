@@ -23,6 +23,7 @@ npm test -- --reporter=verbose 2>&1 | tail -200
 ```
 
 Record:
+
 - Total wall-clock time
 - Per-project (`engine`, `harness`, `tools`, `ui`) wall-clock and test counts
 - Top 20 slowest individual tests (vitest prints slow tests by default; if not, rerun with `--reporter=verbose`)
@@ -87,6 +88,7 @@ npm test -- --coverage --coverage.reporter=text --coverage.reporter=json-summary
 ```
 
 Parse the summary. Report:
+
 - Overall % lines / branches / functions
 - Per-directory % for `src/engine`, `src/components`, `src/hooks`, `src/network`, `harness/src`, `tools`
 - Top 10 files with the lowest line coverage (excluding the zero-coverage files from step 4 — those are already flagged)
@@ -141,14 +143,14 @@ End with a one-line summary: total tests, total time, overall coverage %, count 
 
 ## Anti-rationalizations
 
-| Excuse the agent will tell itself | Rebuttal |
-| --- | --- |
-| "Bumping `maxWorkers` to 4 is the obvious win." | The config comment in `vitest.config.ts:8-22` documents specific RPC heartbeat failures at higher concurrency. Do not propose worker bumps without reading and citing that comment. |
-| "I'll skip the static cross-ref and trust coverage output." | Coverage output only covers files that get imported by tests. A source file with no test file at all may not appear in coverage at all. The static pass catches what coverage misses. |
-| "Installing `@vitest/coverage-v8` is a one-line change — I'll just do it." | Skill is report-only. Report the missing dep; let the user install it. |
-| "The slowest test is slow but it's testing something complex — leave it alone." | Cite the duration anyway. The user decides whether complexity justifies the cost. |
-| "I'll bundle parallelization risks and coverage gaps into one finding." | Separate sections. They have different fixes and different urgencies. |
-| "Coverage % is low but the file is mostly types — that's fine." | Report the number. Annotation belongs in the recommendation section, not in suppressing the data. |
+| Excuse the agent will tell itself                                               | Rebuttal                                                                                                                                                                              |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Bumping `maxWorkers` to 4 is the obvious win."                                 | The config comment in `vitest.config.ts:8-22` documents specific RPC heartbeat failures at higher concurrency. Do not propose worker bumps without reading and citing that comment.   |
+| "I'll skip the static cross-ref and trust coverage output."                     | Coverage output only covers files that get imported by tests. A source file with no test file at all may not appear in coverage at all. The static pass catches what coverage misses. |
+| "Installing `@vitest/coverage-v8` is a one-line change — I'll just do it."      | Skill is report-only. Report the missing dep; let the user install it.                                                                                                                |
+| "The slowest test is slow but it's testing something complex — leave it alone." | Cite the duration anyway. The user decides whether complexity justifies the cost.                                                                                                     |
+| "I'll bundle parallelization risks and coverage gaps into one finding."         | Separate sections. They have different fixes and different urgencies.                                                                                                                 |
+| "Coverage % is low but the file is mostly types — that's fine."                 | Report the number. Annotation belongs in the recommendation section, not in suppressing the data.                                                                                     |
 
 ## Exit criterion
 

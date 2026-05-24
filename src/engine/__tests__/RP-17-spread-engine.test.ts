@@ -12,25 +12,24 @@
 // (ceremony wave, lineage overlay, family-tree gating) reads them
 // downstream.
 
-import { posKey } from '../position'
-import { setMapTile } from '../map'
+import { FLORA_SPECIES } from '../flora/species'
+import { applyParentLineage, commitFloraPreviews, floodFillFloraPatches, tickSpeciesSpread } from '../flora/spread'
 import { CLOVER_SPREAD_CONFIG } from '../flora/type/clover/spread'
 import { WILDFLOWER_SPREAD_CONFIG } from '../flora/type/wildflower/spread'
-import { applyParentLineage, commitFloraPreviews, floodFillFloraPatches, tickSpeciesSpread } from '../flora/spread'
 import { getGrowthPreviewSet } from '../floraGrowthPreviews'
-import { FLORA_SPECIES } from '../flora/species'
 import { generateGenesisIdentity, generateTraitBag } from '../genetics'
+import { setMapTile } from '../map'
+import { posKey } from '../position'
 import { FloraSpecies, Season, TileType } from '../types'
-
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearArea, createBeeEntity, createTestState } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const placeFloraTile = (
   state: ReturnType<typeof createTestState>,
   x: number,
   y: number,
-  species: FloraSpecies = FloraSpecies.Clover,
+  species: FloraSpecies = FloraSpecies.Clover
 ): void => {
   setMapTile(state, x, y, { type: TileType.Flora })
   state.floraLifecycle.set(posKey(x, y), createTestFloraEntry({ posKey: posKey(x, y), species }))
@@ -191,11 +190,7 @@ describe('commitFloraPreviews', () => {
     if (!parent) throw new Error('parent not placed')
 
     // Synthesize a donor PollenLoad of a different identity.
-    const donorIdentity = generateGenesisIdentity(
-      FLORA_SPECIES[FloraSpecies.Clover].latinBinomial,
-      77,
-      posKey(99, 99),
-    )
+    const donorIdentity = generateGenesisIdentity(FLORA_SPECIES[FloraSpecies.Clover].latinBinomial, 77, posKey(99, 99))
     parent.primedPollen = {
       identity: donorIdentity,
       traits: generateTraitBag(donorIdentity),
@@ -277,4 +272,3 @@ describe('species isolation', () => {
     expect(wildflowerSet.has(posKey(10, 10))).toBe(false)
   })
 })
-

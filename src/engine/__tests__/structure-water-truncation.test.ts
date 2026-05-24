@@ -1,9 +1,8 @@
-import { describe, expect, it } from 'vitest'
-
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { posKey } from '../position'
 import { createGameState } from '../state'
 import { TileType } from '../types'
+import { describe, expect, it } from 'vitest'
 
 // Regression: a ruin or cave whose 3x3 footprint (entrance + 8 neighbors)
 // intersects a pond, river, or Space tile rendered as a "truncated" structure
@@ -25,11 +24,7 @@ const FOOTPRINT_OFFSETS: readonly (readonly [number, number])[] = [
 
 type GameMap = { type: TileType }[][]
 
-const tileTypeAt = (
-  map: GameMap,
-  x: number,
-  y: number,
-): TileType | undefined => map[y]?.[x]?.type
+const tileTypeAt = (map: GameMap, x: number, y: number): TileType | undefined => map[y]?.[x]?.type
 
 // Probe several deterministic seeds — the bug is seed-dependent because
 // candidate scoring biases ruins toward water, so the truncation only
@@ -50,38 +45,34 @@ describe('structure water truncation', () => {
           const key = posKey(fx, fy)
           expect(
             state.ponds.has(key),
-            `ruin ${interior.name} at (${String(x)},${String(y)}) — footprint (${String(fx)},${String(fy)}) is in a pond`,
+            `ruin ${interior.name} at (${String(x)},${String(y)}) — footprint (${String(fx)},${String(fy)}) is in a pond`
           ).toBe(false)
           expect(
             state.rivers.has(key),
-            `ruin ${interior.name} at (${String(x)},${String(y)}) — footprint (${String(fx)},${String(fy)}) is in a river`,
+            `ruin ${interior.name} at (${String(x)},${String(y)}) — footprint (${String(fx)},${String(fy)}) is in a river`
           ).toBe(false)
           expect(
             tileTypeAt(state.overworldMap, fx, fy),
-            `ruin ${interior.name} at (${String(x)},${String(y)}) — footprint (${String(fx)},${String(fy)}) is Space`,
+            `ruin ${interior.name} at (${String(x)},${String(y)}) — footprint (${String(fx)},${String(fy)}) is Space`
           ).not.toBe(TileType.Space)
         }
       }
-    },
+    }
   )
 
-  it.each(STEWARD_NAMES)(
-    'cave entrance footprint is clear of ponds, rivers, and Space (steward: %s)',
-    stewardName => {
-      const state = createGameState(stewardName, 40, 30)
-      const { x, y } = state.caveEntranceOverworld
-      for (const [dx, dy] of FOOTPRINT_OFFSETS) {
-        const fx = x + dx
-        const fy = y + dy
-        if (fx < 0 || fx >= MAP_WIDTH || fy < 0 || fy >= MAP_HEIGHT) continue
-        const key = posKey(fx, fy)
-        expect(state.ponds.has(key), `cave footprint (${String(fx)},${String(fy)}) is in a pond`).toBe(false)
-        expect(state.rivers.has(key), `cave footprint (${String(fx)},${String(fy)}) is in a river`).toBe(false)
-        expect(
-          tileTypeAt(state.overworldMap, fx, fy),
-          `cave footprint (${String(fx)},${String(fy)}) is Space`,
-        ).not.toBe(TileType.Space)
-      }
-    },
-  )
+  it.each(STEWARD_NAMES)('cave entrance footprint is clear of ponds, rivers, and Space (steward: %s)', stewardName => {
+    const state = createGameState(stewardName, 40, 30)
+    const { x, y } = state.caveEntranceOverworld
+    for (const [dx, dy] of FOOTPRINT_OFFSETS) {
+      const fx = x + dx
+      const fy = y + dy
+      if (fx < 0 || fx >= MAP_WIDTH || fy < 0 || fy >= MAP_HEIGHT) continue
+      const key = posKey(fx, fy)
+      expect(state.ponds.has(key), `cave footprint (${String(fx)},${String(fy)}) is in a pond`).toBe(false)
+      expect(state.rivers.has(key), `cave footprint (${String(fx)},${String(fy)}) is in a river`).toBe(false)
+      expect(tileTypeAt(state.overworldMap, fx, fy), `cave footprint (${String(fx)},${String(fy)}) is Space`).not.toBe(
+        TileType.Space
+      )
+    }
+  })
 })

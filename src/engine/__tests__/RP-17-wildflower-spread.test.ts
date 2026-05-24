@@ -5,26 +5,21 @@
 // pollinator in range, the per-candidate roll fires. Winter halts
 // growth like clover and tall grass.
 
+import { tickSpeciesSpread } from '../flora/spread'
+import { WILDFLOWER_SPREAD_CONFIG } from '../flora/type/wildflower/spread'
+import { getGrowthPreviewSet } from '../floraGrowthPreviews'
 import { setMapTile } from '../map'
 import { posKey } from '../position'
-import { WILDFLOWER_SPREAD_CONFIG } from '../flora/type/wildflower/spread'
-import { tickSpeciesSpread } from '../flora/spread'
-import { getGrowthPreviewSet } from '../floraGrowthPreviews'
 import { FloraSpecies, Season, TileType } from '../types'
-
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearArea, createBeeEntity, createTestState } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const placeWildflower = (
-  state: ReturnType<typeof createTestState>,
-  x: number,
-  y: number,
-): void => {
+const placeWildflower = (state: ReturnType<typeof createTestState>, x: number, y: number): void => {
   setMapTile(state, x, y, { type: TileType.Flora })
   state.floraLifecycle.set(
     posKey(x, y),
-    createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Wildflower }),
+    createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Wildflower })
   )
 }
 

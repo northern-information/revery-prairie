@@ -1,6 +1,9 @@
+import { depSummary } from './data.js'
+import { evidenceSourceLines } from './scan.js'
 import { Box, Text } from 'ink'
-import { depSummary, type Feature } from './data.js'
-import { evidenceSourceLines, type InFlightScan } from './scan.js'
+
+import type { Feature } from './data.js'
+import type { InFlightScan } from './scan.js'
 
 interface DetailPaneProps {
   feature: Feature | null
@@ -51,9 +54,9 @@ export const DetailPane = ({ feature, all, expanded, scan }: DetailPaneProps) =>
       <Box>
         <Text dimColor>spec: </Text>
         <Text>{feature.spec ?? '—'}</Text>
-        <Text dimColor>   plan: </Text>
+        <Text dimColor> plan: </Text>
         <Text>{feature.plan ?? '—'}</Text>
-        <Text dimColor>   pr: </Text>
+        <Text dimColor> pr: </Text>
         <Text>{feature.pr ?? '—'}</Text>
       </Box>
       {evidenceLines.length > 0 ? (
@@ -61,13 +64,19 @@ export const DetailPane = ({ feature, all, expanded, scan }: DetailPaneProps) =>
           <Box>
             <Text dimColor>in-flight evidence</Text>
             {feature.status === 'todo' && !isBranchOnly ? (
-              <Text color="magenta" bold>{' * promoted (YAML still says todo)'}</Text>
+              <Text color="magenta" bold>
+                {' * promoted (YAML still says todo)'}
+              </Text>
             ) : null}
             {isBranchOnly ? (
-              <Text color="gray" bold>{' ~ branch exists, no harness work yet'}</Text>
+              <Text color="gray" bold>
+                {' ~ branch exists, no harness work yet'}
+              </Text>
             ) : null}
             {isStale ? (
-              <Text color="red" bold>{' ! stale — YAML says shipped, evidence persists'}</Text>
+              <Text color="red" bold>
+                {' ! stale — YAML says shipped, evidence persists'}
+              </Text>
             ) : null}
           </Box>
           {evidenceLines.map((line, i) => (

@@ -1,17 +1,17 @@
-import { tickFloraLifecycle } from '../floraLifecycle'
 import {
   CLOVER_BLACK_DURATION_MS,
   CLOVER_BLINK_RED_DURATION_MS,
   CLOVER_BROWN_DURATION_MS,
   CLOVER_DECOMPOSE_DURATION_MS,
-  SOIL_HEALTH_FLORA_DEATH_BONUS,
   SOIL_HEALTH_DEFAULT,
+  SOIL_HEALTH_FLORA_DEATH_BONUS,
   WATER_MAX,
 } from '../constants'
+import { tickFloraLifecycle } from '../floraLifecycle'
 import { posKey } from '../position'
 import { FloraSpecies, FloraStage, Season, Sky, TileType, Zone } from '../types'
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createTestState } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
@@ -242,10 +242,7 @@ describe('seasonal dormancy', () => {
     state.weather.season = Season.Spring
     placeClover(px(), py() + 1)
     const key = posKey(px(), py() + 1)
-    state.floraLifecycle.set(
-      key,
-      createTestFloraEntry({ posKey: key, species: FloraSpecies.Clover, time: 500 }),
-    )
+    state.floraLifecycle.set(key, createTestFloraEntry({ posKey: key, species: FloraSpecies.Clover, time: 500 }))
     tickFloraLifecycle(state, Zone.Overworld, 1000)
     expect(state.floraLifecycle.get(key)?.stage).toBe(FloraStage.Healthy)
   })

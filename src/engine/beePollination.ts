@@ -26,8 +26,7 @@ import { posKey } from './position'
 import { recordCameraSubjectEvent } from './timeLapse'
 import { CameraSubject, FloraSpecies, TileType, Zone } from './types'
 
-import type { PollenLoad } from './types'
-import type { GameState } from './types'
+import type { GameState, PollenLoad } from './types'
 
 const HIVE_ADJACENCY = 1
 

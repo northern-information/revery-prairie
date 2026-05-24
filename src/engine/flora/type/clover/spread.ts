@@ -15,16 +15,11 @@
 // continue to exercise this path through tickCloverGrowth (now a thin
 // wrapper over tickSpeciesSpread).
 
-import {
-  CLOVER_BASE_GROWTH_CHANCE,
-  CLOVER_BEE_GROWTH_BONUS,
-  CLOVER_MAX_GROWTH_PER_TICK,
-} from '@/engine/constants'
+import { CLOVER_BASE_GROWTH_CHANCE, CLOVER_BEE_GROWTH_BONUS, CLOVER_MAX_GROWTH_PER_TICK } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
-import type { SelectGrowthTargets, SpeciesSpreadConfig, FloraPatch } from '@/engine/flora/spreadConfig'
 import { CARDINAL, isInBounds, posKey, tileHash } from '@/engine/position'
 import { FloraSpecies, TileType, Zone } from '@/engine/types'
-
+import type { FloraPatch, SelectGrowthTargets, SpeciesSpreadConfig } from '@/engine/flora/spreadConfig'
 import type { GameState, Position } from '@/engine/types'
 
 // --- Spiral front state ---

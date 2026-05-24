@@ -1,3 +1,9 @@
+import { __testing, filmGrainOverlayPass } from '../render/passes/filmGrainOverlay'
+import { createTestState } from './helpers'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import type { CharMetrics } from '../types'
+
 // Stub OffscreenCanvas before importing the pass module so the tile-bake
 // path has a working canvas factory in the node test environment.
 class FakeOffscreenCanvas {
@@ -29,12 +35,6 @@ class FakeOffscreenCanvas {
   }
 }
 ;(globalThis as unknown as { OffscreenCanvas: unknown }).OffscreenCanvas = FakeOffscreenCanvas
-
-import { __testing, filmGrainOverlayPass } from '../render/passes/filmGrainOverlay'
-import { createTestState } from './helpers'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-import type { CharMetrics } from '../types'
 
 const CHAR_WIDTH = 10
 const CHAR_HEIGHT = 16

@@ -4,26 +4,21 @@
 // dependency. The rate is the slowest of the three so it doesn't
 // dominate the prairie. Winter dormancy still applies.
 
+import { tickSpeciesSpread } from '../flora/spread'
+import { TALLGRASS_SPREAD_CONFIG } from '../flora/type/tallGrass/spread'
+import { getGrowthPreviewSet } from '../floraGrowthPreviews'
 import { setMapTile } from '../map'
 import { posKey } from '../position'
-import { TALLGRASS_SPREAD_CONFIG } from '../flora/type/tallGrass/spread'
-import { tickSpeciesSpread } from '../flora/spread'
-import { getGrowthPreviewSet } from '../floraGrowthPreviews'
 import { FloraSpecies, Season, TileType } from '../types'
-
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearArea, createTestState } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const placeTallGrass = (
-  state: ReturnType<typeof createTestState>,
-  x: number,
-  y: number,
-): void => {
+const placeTallGrass = (state: ReturnType<typeof createTestState>, x: number, y: number): void => {
   setMapTile(state, x, y, { type: TileType.Flora })
   state.floraLifecycle.set(
     posKey(x, y),
-    createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.TallGrass }),
+    createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.TallGrass })
   )
 }
 

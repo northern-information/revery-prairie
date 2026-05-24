@@ -18,13 +18,7 @@ import { movePlayer } from '../movement'
 import { clearMovementTweens, getTweenLerp } from '../movementTween'
 import { worldDeltaToIsoPx, worldToScreen } from '../projection'
 import { TileType, Zone } from '../types'
-import {
-  clearArea,
-  clearAroundPlayer,
-  createBeeEntity,
-  createCharacterTestEntity,
-  createTestState,
-} from './helpers'
+import { clearArea, clearAroundPlayer, createBeeEntity, createCharacterTestEntity, createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const requireComponent = <T>(val: T | undefined): T => {

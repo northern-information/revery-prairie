@@ -73,9 +73,7 @@ describe('lint: invasive word guard (RP-8a)', () => {
     }
 
     if (offenders.length > 0) {
-      const message = offenders
-        .map(o => `  ${o.file}:${String(o.line)} — "${o.text}"`)
-        .join('\n')
+      const message = offenders.map(o => `  ${o.file}:${String(o.line)} — "${o.text}"`).join('\n')
       throw new Error(
         `Found "invasive" in player-facing string literals:\n${message}\n` +
           'Per v3 doctrine the player-facing term for the egregores is none. ' +

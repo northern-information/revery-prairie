@@ -1,10 +1,8 @@
-import { describe, expect, it } from 'vitest'
-
 import { tickEgregoreLifecycle } from '../egregore/lifecycle'
 import { posKey } from '../position'
 import { EgregoreActivityStage, EgregoreSpecies, Season } from '../types'
-
 import { createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { EgregoreActivityState, GameState } from '../types'
 

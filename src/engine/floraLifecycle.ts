@@ -5,8 +5,8 @@ import {
   CLOVER_BLINK_RED_DURATION_MS,
   CLOVER_BROWN_DURATION_MS,
   CLOVER_DECOMPOSE_DURATION_MS,
-  SOIL_HEALTH_FLORA_DEATH_BONUS,
   SOIL_HEALTH_DEFAULT,
+  SOIL_HEALTH_FLORA_DEATH_BONUS,
   SOIL_HEALTH_MAX,
   WATER_MAX,
 } from './constants'
@@ -26,7 +26,6 @@ export const addSoilHealth = (state: GameState, key: string, bonus: number): voi
   const current = getSoilHealth(state, key)
   state.soilHealth.set(key, Math.min(current + bonus, SOIL_HEALTH_MAX))
 }
-
 
 const stageDuration = (stage: FloraStage): number => {
   switch (stage) {

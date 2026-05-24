@@ -5,12 +5,11 @@ import { FLORA_SPECIES, getTileBeePreference } from './flora/species'
 import { createFloraLifecycleEntry } from './floraLifecycleEntry'
 import { tickCreatureHunger } from './hunger'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
-import { setMapTile } from './map'
 import { recordDiscovery } from './manual'
+import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
-import { createPlacedCamera } from './timeLapse'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
-import { recordCameraSubjectEvent } from './timeLapse'
+import { createPlacedCamera, recordCameraSubjectEvent } from './timeLapse'
 import { CameraSubject, FloraSpecies, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
@@ -412,7 +411,7 @@ export const dropItem = (state: GameState, definitionId: string, time?: number):
             species: plantingSpecies,
             identity: genome.identity,
             traits: genome.traits,
-          }),
+          })
         )
         if (time !== undefined) {
           spawnPickupBloom(state, tx, ty, time)

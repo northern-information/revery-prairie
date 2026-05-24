@@ -108,26 +108,26 @@ after `/new-feature`, `/bug-report`, or `/change-request` completes, prompt the 
 
 deeper docs live in `docs/claude/`. read on demand for the system you're touching:
 
-| file | covers |
-|---|---|
-| `rendering.md` | pass registry, cache contract, render slot order |
-| `multiplayer.md` | Cloudflare Worker + Durable Objects, wire protocol, deploy, local dev |
-| `map.md` | 147x147 grid layout, tile types, walkability |
-| `egregores.md` | RP-8a — Voynich-rendered "not-of-this-Earth" flora, EVA tokens, pierce words |
-| `input.md` | mouse, click-to-move, cursor, keybindings |
-| `inventory.md` | spatial inventory, item types, recipes |
-| `manual.md` | in-game encyclopedia, discovery tracking, `MANUAL_LORE` |
-| `entities.md` | bees, ghosts, angels, coyote, shooting stars, ground items, pickup bloom, character gifts |
-| `movement.md` | `getBlockedPositions`, walkability, `pendingAction` |
-| `zones.md` | cave map context swap, breakable walls |
-| `state.md` | GameState field ownership conventions, EXPECTED_FIELDS |
-| `weather.md` | seasons, snow, dormancy, winter palette wash |
-| `flora.md` | clover / wildflower / tall grass species, six-stage lifecycle |
-| `genetics.md` | RP-3 — SHA256 identity, trait bag, crossing math, hex grid derivation |
-| `revery.md` | RP-4 — phase machine, omen detection, summary, phenotype labels, first-Revery egregoric advance |
-| `genesis.md` | 15 epochs, steward-name seeding, soil health |
-| `audio.md` | ambient + dialog music layers |
-| `testing.md` | terrain prep, random mocking, schema allowlist, rain test setup |
-| `harness.md` | spec/plan format, harness commands, CI gate, Skip-Harness override |
-| `backlog.md` | backlog kanban TUI, status YAML, v3 doctrine |
-| `deprecated.md` | systems intentionally removed (reveries) |
+| file             | covers                                                                                          |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| `rendering.md`   | pass registry, cache contract, render slot order                                                |
+| `multiplayer.md` | Cloudflare Worker + Durable Objects, wire protocol, deploy, local dev                           |
+| `map.md`         | 147x147 grid layout, tile types, walkability                                                    |
+| `egregores.md`   | RP-8a — Voynich-rendered "not-of-this-Earth" flora, EVA tokens, pierce words                    |
+| `input.md`       | mouse, click-to-move, cursor, keybindings                                                       |
+| `inventory.md`   | spatial inventory, item types, recipes                                                          |
+| `manual.md`      | in-game encyclopedia, discovery tracking, `MANUAL_LORE`                                         |
+| `entities.md`    | bees, ghosts, angels, coyote, shooting stars, ground items, pickup bloom, character gifts       |
+| `movement.md`    | `getBlockedPositions`, walkability, `pendingAction`                                             |
+| `zones.md`       | cave map context swap, breakable walls                                                          |
+| `state.md`       | GameState field ownership conventions, EXPECTED_FIELDS                                          |
+| `weather.md`     | seasons, snow, dormancy, winter palette wash                                                    |
+| `flora.md`       | clover / wildflower / tall grass species, six-stage lifecycle                                   |
+| `genetics.md`    | RP-3 — SHA256 identity, trait bag, crossing math, hex grid derivation                           |
+| `revery.md`      | RP-4 — phase machine, omen detection, summary, phenotype labels, first-Revery egregoric advance |
+| `genesis.md`     | 15 epochs, steward-name seeding, soil health                                                    |
+| `audio.md`       | ambient + dialog music layers                                                                   |
+| `testing.md`     | terrain prep, random mocking, schema allowlist, rain test setup                                 |
+| `harness.md`     | spec/plan format, harness commands, CI gate, Skip-Harness override                              |
+| `backlog.md`     | backlog kanban TUI, status YAML, v3 doctrine                                                    |
+| `deprecated.md`  | systems intentionally removed (reveries)                                                        |

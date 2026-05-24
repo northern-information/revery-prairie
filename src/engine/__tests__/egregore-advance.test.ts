@@ -1,10 +1,8 @@
-import { describe, expect, it } from 'vitest'
-
 import { FIRST_REVERY_EGREGORE_COUNT } from '../constants'
 import { advanceEgregoreInRevery } from '../egregore/spread'
 import { TileType } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState, Position } from '../types'
 

@@ -7,13 +7,13 @@
 //   - Genesis placement count + walkability + walk-over no-op
 
 import {
+  EGREGORE_GLYPHS,
   EMPTY_PUA_BLOCKLIST,
   EVA_TOKEN_COUNT,
-  EGREGORE_GLYPHS,
-  LATIN_PIERCE_WORD_COUNT,
   getEgregoreGlyph,
   getEgregoreLatinPierce,
   getEgregoreManualBody,
+  LATIN_PIERCE_WORD_COUNT,
 } from '../egregore'
 import { createGameState } from '../state'
 import { TileType } from '../types'
@@ -77,9 +77,7 @@ describe('PUA alphabet contract', () => {
   })
 
   it('EMPTY_PUA_BLOCKLIST contains exactly U+F120, U+F1A0, U+F220, U+F2A0', () => {
-    expect(new Set<string>(EMPTY_PUA_BLOCKLIST)).toEqual(
-      new Set(['\u{F120}', '\u{F1A0}', '\u{F220}', '\u{F2A0}']),
-    )
+    expect(new Set<string>(EMPTY_PUA_BLOCKLIST)).toEqual(new Set(['\u{F120}', '\u{F1A0}', '\u{F220}', '\u{F2A0}']))
   })
 })
 

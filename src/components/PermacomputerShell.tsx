@@ -50,11 +50,7 @@ export const PermacomputerShell = ({
       {/* Backdrop — bottom-52 mirrors the bottom bar's h-48 + bottom-2 in
           GameScreen so the minimap, event log, and backpack stay clickable
           while a tab is open. */}
-      <div
-        data-testid="permacomputer-backdrop"
-        className="fixed inset-x-0 top-0 bottom-52 z-10"
-        onClick={onClose}
-      />
+      <div data-testid="permacomputer-backdrop" className="fixed inset-x-0 top-0 bottom-52 z-10" onClick={onClose} />
 
       {/* Terminal frame — flush against the right edge.
           bottom-52 mirrors the bottom bar's h-48 + bottom-2 in GameScreen. */}

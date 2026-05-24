@@ -8,7 +8,6 @@
 import { isInBounds, ORDINAL, posKey } from '@/engine/position'
 import { getStoneCircleGraph, segmentCrossesAnyMeteoriteEdge } from '@/engine/stoneCircles'
 import { TileType } from '@/engine/types'
-
 import type { GameState, Position } from '@/engine/types'
 
 // 8-neighbor (ordinal) walk over every existing egregore tile. Returns
