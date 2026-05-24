@@ -527,8 +527,8 @@ features:
       is deleted in the same spec.
     depends_on: []
     status: in-progress
-    spec: null
-    plan: null
+    spec: harness/specs/RP-18-stone-circles.yaml
+    plan: harness/plans/RP-18-stone-circles.yaml
     pr: null
     notes: >
       v4 thinktank round 4 (2026-05-19). Meteorites started as a universal
@@ -538,9 +538,24 @@ features:
       commitment to the prairie's native life; stone circles are commitment
       to the prairie's otherness. Two hands of stewardship. Folds in the v2
       round 5 "meteorite-carrying" help-the-egregores layer (was sketch;
-      now mechanics). Open: hallowed-ground cosmological consequence — what
-      does it bias and how. Standalone — does not block anything else on the
-      board.
+      now mechanics).
+
+
+      Hallowed-ground cosmological consequence locked (2026-05-24,
+      /churn → /new-feature session "hallowed"): **wall-crossing
+      containment**. A connecting line between two placed meteorites
+      is a barrier — egregoric and native flora alike cannot spread
+      across it. Two-meteorite walls and full polygons block crossings
+      identically. When no edges exist, spread is unconstrained
+      (legacy). Placement model is pick-up plus drop-to-place;
+      meteorites can also be drag-dropped onto any reachable tile
+      (path-then-place mirrors right-click-walk). Pickup is [F] while
+      standing on or facing a placed meteorite — a pink cell highlight
+      and a "[F] Pickup Meteorite" prompt cue the affordance.
+      STONE_CIRCLE_RADIUS = 8 tiles (Euclidean), flagged for playtest
+      tuning. The 1-in-7 unstable-meteorite explode mechanic mentioned
+      in the original summary was already deleted in PR #378 (commit
+      14bfcbc); this entry does not re-do that work.
 
   - id: 'RP-19'
     name: Soil depletion

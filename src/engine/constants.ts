@@ -492,6 +492,11 @@ export const REVERY_PRESSURE_RAMP_START = 0.5 // autumn equinox
 export const REVERY_PRESSURE_RAMP_END = 0.75 // winter solstice
 // First-Revery hardcoded egregoric advance per v3 doctrine 8a section.
 export const FIRST_REVERY_EGREGORE_COUNT = 3
+
+// RP-18 — proximity threshold for the stone-circle graph.
+// Euclidean tile distance; pairs within STONE_CIRCLE_RADIUS connect with
+// a faint golden line. Flagged for playtest tuning.
+export const STONE_CIRCLE_RADIUS = 8
 // Ordered axes the phenotype label rotates through, by reveryCount %
 // PHENOTYPE_AXES.length. Order is the trait-bag insertion order in #3.
 export const PHENOTYPE_AXES = [

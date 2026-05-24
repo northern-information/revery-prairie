@@ -14,6 +14,7 @@ import {
   tryPlacedCameraInteraction,
   isFacingLockedDoor,
   openLockedGateDialog,
+  pickUpFacingOrStandingPlacedMeteorite,
   unlockRuinDoor,
   updateFacingEntity,
 } from '@/engine/interaction'
@@ -186,6 +187,14 @@ export const useKeyboard = ({
             if (result.opened) {
               refreshUI()
             }
+            return
+          }
+          // RP-18 — pick up a placed meteorite under foot or in the
+          // facing tile. Runs after character interact so it never
+          // preempts existing affordances; runs before the scan fallback
+          // so [f] on a stone is "take it back" rather than "scan it".
+          if (pickUpFacingOrStandingPlacedMeteorite(state, performance.now())) {
+            refreshUI()
             return
           }
           // Nothing to interact with — fall through to the scan handler below.

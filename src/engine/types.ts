@@ -452,6 +452,23 @@ export interface GameState {
   // Initialized to -1 so the first eligible tick can fire. Independent
   // of Revery-time advances, which are not throttled by this field.
   lastEgregoreSpreadYear: number
+  // RP-18 — placed meteorites (stone circles). Multi-spawner,
+  // single lifecycle: dropItem appends when a meteorite is dropped from
+  // inventory; pickUpFacingOrStandingPlacedMeteorite splices on F-tap.
+  // The stoneCircles render pass, egregore spread containment filter,
+  // and the stone-circle manual discovery hook all read this array.
+  placedMeteorites: Position[]
+  // RP-18 — transient inventory-hover preview flag. Owner + clearers:
+  // InventoryGrid's onMouseEnter sets it true when a meteorite cell is
+  // hovered; onMouseLeave (or hover of a non-meteorite) clears it. The
+  // stoneCircles render pass reads state.player on every draw when the
+  // flag is true, so preview lines follow the steward as they move.
+  stoneCirclePreview: boolean
+  // RP-18 — tile the cursor is hovering on while an inventory drag
+  // is over the canvas. The stoneCircles render pass draws a pink cell
+  // highlight on this tile so the steward sees where the drop will
+  // land. Owner: useCanvasDrop (mousemove writes, cancel/drop clears).
+  dragHoverTile: Position | null
   soilHealth: Map<string, number>
   elevation: Map<string, number>
   ponds: Set<string>

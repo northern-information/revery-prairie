@@ -1,0 +1,357 @@
+id: RP-18-stone-circles
+name: 'RP-18 — Stone circles and hallowed ground'
+priority: high
+layer: integration
+source_files:
+  - src/engine/stoneCircles.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/entities.ts
+  - src/engine/interaction.ts
+  - src/engine/egregore/spread.ts
+  - src/engine/constants.ts
+  - src/engine/render/passes/stoneCircles.ts
+  - src/engine/render/passes/index.ts
+  - src/engine/manual.ts
+  - src/components/InventoryGrid.tsx
+  - src/hooks/useKeyboard.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies: []
+
+# RP-18 reframes meteorites as the player's vocabulary for marking
+# cosmological intent. The complementary ceremony to bee+clover seeding —
+# bee+clover commits to native life; stone circles commit to the prairie's
+# otherness, by containing it.
+#
+# Hallowed bias direction is **per-source containment** (locked with the user):
+# closed polygons act as fences for the egregoric flora already inside them.
+# An egregoric tile that lies inside a polygon can only spread to candidate
+# tiles also inside the same polygon. An egregoric tile outside all polygons
+# spreads freely (legacy behavior, unaffected by the polygon's existence).
+# When no closed polygons exist, spread is fully unconstrained.
+#
+# Note: the precis description mentions deleting "the 1-in-7 unstable-
+# meteorite explode mechanic in entities.ts:113". That work already shipped
+# in PR #378 (commit 14bfcbc) — meteorites are already stable and pickupable.
+# This spec does not re-do that deletion.
+
+behaviors:
+  - id: meteorite-drop-places
+    description: >
+      dropItem on a meteorite item creates a placed-meteorite at the first
+      valid adjacent tile (using DROP_DELTAS), instead of falling through
+      to the generic ground-item branch. A valid tile is in-bounds, of
+      tile type Dirt or Flora, not water, and not already occupied by
+      another placed meteorite. On success, the meteorite uid is removed
+      from its source container and the position is appended to
+      state.placedMeteorites. Returns true. Reuses existing dropItem entry
+      point in src/engine/entities.ts so the call site (the inventory
+      drop pipeline) is unchanged.
+    inputs:
+      - 'GameState with a meteorite item in the backpack'
+      - "definitionId: 'meteorite'"
+    outputs:
+      - 'boolean: true on success'
+    state_changes:
+      - field: placedMeteorites
+        effect: 'position { x, y } of the chosen adjacent tile appended to the array'
+      - field: backpack / open container
+        effect: 'meteorite item with that uid removed from its source container'
+    determinism: deterministic
+
+  - id: placed-meteorite-not-walk-pickup
+    description: >
+      Placed meteorites are not picked back up by walk-over proximity.
+      pickUpGroundItems in entities.ts scans for groundItem-tagged
+      entities; placed meteorites live in the state.placedMeteorites
+      array (not as ECS ground-item entities), so they are inert to the
+      proximity-pickup loop. Removal goes through the explicit F-key
+      interaction (see pick-up-placed-meteorite-with-f).
+    inputs:
+      - 'player walks across or adjacent to a tile in state.placedMeteorites'
+    outputs:
+      - 'no inventory mutation, no removal from placedMeteorites'
+    state_changes: []
+    determinism: deterministic
+
+  - id: placed-meteorite-walkable
+    description: >
+      Placed meteorites do not block walking. movePlayer's isWalkableTile
+      check is unaffected by state.placedMeteorites — a tile holding a
+      placed meteorite is walkable iff its underlying TileType is
+      walkable. This matches the steward's experience of marking ground
+      with a stone you can also stand on. Egregoric and other entities
+      can also occupy a placed-meteorite tile (the placement is a
+      cosmological mark, not a physical barrier).
+    inputs:
+      - 'GameState with a placed meteorite at tile T'
+      - 'player attempts to move onto T'
+    outputs:
+      - 'movement succeeds if T''s underlying TileType is walkable'
+    state_changes: []
+    determinism: deterministic
+
+  - id: pick-up-placed-meteorite-with-f
+    description: >
+      Pressing F (tap, not hold) checks for a placed meteorite at the
+      player's standing tile first, then at the facing tile (state.player
+      + DIRECTIONS[playerFacing]). The first hit is picked up: the
+      position is removed from state.placedMeteorites (preserving relative
+      order of remaining entries), and a 'meteorite' item is added to the
+      backpack via findFitPosition + placeItem. If the backpack has no
+      fit, the pickup fails silently — the placed meteorite stays. A
+      pickupBloom fires on success at the picked-up tile (using
+      spawnPickupBloom per the new-item-acquisition-path rule in CLAUDE.md).
+      This handler is wired into useKeyboard.ts's existing F-tap chain,
+      placed AFTER ruin-debris/locked-door/break-wall/character-interact
+      and BEFORE the hold-to-scan fallback — so it does not preempt
+      dialog or door interactions but does win against the scan target
+      selector when the standing/facing tile holds a placed meteorite.
+    inputs:
+      - 'GameState'
+      - 'F keydown (not repeat, not held)'
+    outputs:
+      - 'boolean from the interaction helper: true if a meteorite was picked up'
+    state_changes:
+      - field: placedMeteorites
+        effect: 'entry at the matched tile spliced out (relative order of others preserved)'
+      - field: backpack / open container
+        effect: 'meteorite ItemInstance added at findFitPosition'
+      - field: world (TimedEffect)
+        effect: 'pickupBloom entity spawned at the picked-up tile'
+      - field: manualDiscoveries
+        effect: 'item:meteorite re-recorded (no-op if already present)'
+    determinism: deterministic
+
+  - id: proximity-graph
+    description: >
+      getStoneCircleGraph(placedMeteorites) is a pure function returning
+      a list of undirected edges between every pair of placed meteorites
+      whose Euclidean distance is <= STONE_CIRCLE_RADIUS (= 8 tiles).
+      Edges are returned as { aIndex, bIndex } with aIndex < bIndex,
+      sorted by (aIndex, bIndex) ascending so output is stable. Pure —
+      no state mutation, no RNG.
+    inputs:
+      - 'placedMeteorites: ReadonlyArray<Position>'
+    outputs:
+      - 'edges: Array<{ aIndex: number; bIndex: number }>, sorted'
+    state_changes: []
+    determinism: deterministic
+
+  - id: polygon-detection
+    description: >
+      getHallowedPolygons(placedMeteorites, edges) is a pure function
+      returning all simple cycles in the proximity graph as polygons
+      (ordered lists of meteorite indices). A cycle is the meteorite
+      vertices of the smallest enclosing loop reachable along edges,
+      length >= 3. The function uses a deterministic chordless-cycle
+      enumeration so output order is stable across runs. Each polygon
+      vertex list is rotated so the smallest index is first, ordered
+      so the second index is the smaller of the two adjacent neighbors;
+      this canonical form is what dedupes mirror traversals.
+    inputs:
+      - 'placedMeteorites: ReadonlyArray<Position>'
+      - 'edges from getStoneCircleGraph'
+    outputs:
+      - 'polygons: Array<number[]> — each inner array is a vertex-index ring, length >= 3'
+    state_changes: []
+    determinism: deterministic
+
+  - id: hallowed-containment-check
+    description: >
+      isInsideHallowedGround(state, x, y) returns true iff at least one
+      polygon's interior contains the point (x + 0.5, y + 0.5) under
+      standard ray-casting point-in-polygon test against the polygon's
+      meteorite-vertex positions. Returns false when state has zero
+      polygons. Tile-center offset (+0.5) avoids edge-case ambiguity at
+      polygon boundaries. Pure with respect to state — derives only
+      from state.placedMeteorites.
+    inputs:
+      - 'GameState'
+      - 'x, y: tile coordinates'
+    outputs:
+      - 'boolean: true if inside any polygon interior'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-spread-containment
+    description: >
+      Per-source containment. The polygon is a fence for egregoric flora
+      already inside it — flora outside the polygon is unaffected. New
+      function candidateDirtNeighborsContained(state) replaces the call
+      to candidateDirtNeighbors inside tickEgregoreSpread and
+      advanceEgregoreInRevery. For each candidate dirt tile C adjacent
+      to one or more existing egregore tiles, the new function checks:
+      C is included iff there exists an egregoric neighbor N such that
+      containingPolygons(N) == containingPolygons(C). containingPolygons(p)
+      is the set of polygons whose interior contains tile p (under the
+      isInsideHallowedGround per-polygon check). When no polygons exist,
+      every tile maps to the empty set and the equality is trivially
+      true for all (N, C) pairs — behavior is identical to pre-RP-18.
+      All other gating (season, zone, deepTime, revery, year throttle)
+      is preserved. When the filtered candidate set is empty in
+      tickEgregoreSpread, the year slot is still consumed
+      (state.lastEgregoreSpreadYear updated) — same as the existing
+      "no candidates" path.
+    inputs:
+      - 'GameState'
+      - 'tickEgregoreSpread or advanceEgregoreInRevery invocation'
+    outputs:
+      - 'spread tiles committed only to candidates whose containment set matches at least one egregoric neighbor'
+    state_changes:
+      - field: egregorePositions / map
+        effect: 'tile committed only where its containingPolygons set equals an egregoric neighbor''s containingPolygons set'
+      - field: lastEgregoreSpreadYear
+        effect: 'still advanced for the year even if filtered candidates are empty (consistent with current no-candidates branch)'
+    determinism: deterministic
+
+  - id: placed-meteorite-rendering
+    description: >
+      A new render pass src/engine/render/passes/stoneCircles.ts in slot
+      'world-overlay' draws each placed meteorite's glyph (✦) in the
+      meteorite glyphColor (#FFE4B5), faint golden line segments between
+      every connected pair (edges from getStoneCircleGraph), and a
+      subtle background tint on tiles whose center is inside any
+      hallowed polygon. Tile tint is rgba(255, 215, 0, 0.06) — a barely
+      visible dim-gold wash on the existing background. Edge lines are
+      drawn at 0.18 alpha for non-cycle edges and 0.45 alpha for edges
+      that participate in at least one cycle. This is the "favor
+      polygons" visual cue: closed shapes read brighter than open
+      chains.
+    inputs:
+      - 'GameState with non-empty placedMeteorites'
+    outputs:
+      - 'canvas draws on every frame the pass is active'
+    state_changes: []
+    determinism: deterministic
+
+  - id: inventory-hover-preview
+    description: >
+      When the player hovers a meteorite item in their inventory grid,
+      state.stoneCirclePreview is set to { x: state.player.x, y:
+      state.player.y } — the tile the player is standing on, which is
+      where dropItem would land the meteorite (under the
+      DROP_DELTAS-first-fit rule, the player's standing tile is the
+      first delta). On hover-out (or hovering a different item) the
+      field is cleared to null. The stoneCircles render pass adds the
+      preview tile to the proximity graph as a transient vertex when
+      stoneCirclePreview is non-null and draws the resulting "would-be"
+      edges in a distinct preview color (#FF69B4 — the user-action
+      pink, per CLAUDE.md color conventions) so the player can see
+      which connections would form. Preview-closure edges (those that
+      would create a new cycle) draw at higher alpha than non-closure
+      preview edges. The preview is rendered only; it does not commit
+      anything to placedMeteorites.
+    inputs:
+      - 'GameState'
+      - 'InventoryView hover event over an item of definitionId "meteorite"'
+    outputs:
+      - 'preview lines drawn from preview tile to placed meteorites within radius'
+    state_changes:
+      - field: stoneCirclePreview
+        effect: 'set to { x: player.x, y: player.y } on hover-in over a meteorite item; cleared to null on hover-out or hover of a non-meteorite item'
+    determinism: deterministic
+
+  - id: manual-entries
+    description: >
+      Update the existing meteorite manual entry to reflect the new
+      placement vocabulary, and add a new manual entry "Stone Circle"
+      that unlocks when the player has formed at least one closed
+      hallowed polygon. Both entries use { lore: 'TODO' } placeholders
+      in MANUAL_LORE — lore is human-authored. Discovery hooks:
+      `item:meteorite` (existing, on pickup) and `event:stone-circle`
+      (new, recorded when getHallowedPolygons first returns a non-empty
+      array). The discovery check runs once per frame in the same place
+      other event:* discoveries are recorded.
+    inputs:
+      - 'GameState'
+    outputs:
+      - 'manual unlocks tracked via recordDiscovery'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'event:stone-circle recorded the first time getHallowedPolygons(state) is non-empty'
+    determinism: deterministic
+
+edge_cases:
+  - id: empty-placed-array
+    description: 'state.placedMeteorites is empty'
+    expected: 'no lines rendered, no hallowed tint, no spread containment effect; egregore spread behaves identically to pre-RP-18'
+  - id: single-placed-meteorite
+    description: 'exactly one meteorite placed'
+    expected: 'glyph rendered, zero edges, zero polygons, zero containment effect'
+  - id: two-meteorites-in-range
+    description: 'two placed meteorites within STONE_CIRCLE_RADIUS'
+    expected: 'one edge rendered at non-cycle alpha (0.18), zero polygons, zero containment effect'
+  - id: two-meteorites-out-of-range
+    description: 'two placed meteorites with Euclidean distance > STONE_CIRCLE_RADIUS'
+    expected: 'no edge, no polygon, no containment'
+  - id: triangle-closure
+    description: 'three meteorites pairwise within radius'
+    expected: 'three edges all rendered at cycle alpha (0.45); one polygon; interior tiles tinted; egregoric flora inside the polygon spreads only to other interior tiles, while flora outside the polygon continues to spread freely'
+  - id: drop-no-valid-adjacent
+    description: 'meteorite drop attempted with no adjacent Dirt or Flora tile (e.g. surrounded by water or already-placed meteorites)'
+    expected: 'dropItem returns false; placedMeteorites unchanged; backpack unchanged'
+  - id: drop-collision-with-existing-placed
+    description: 'meteorite drop attempted where DROP_DELTAS first-fit tile already holds a placed meteorite'
+    expected: 'that delta is skipped; next valid delta used; if none, returns false'
+  - id: hover-non-meteorite
+    description: 'player hovers a clover, coin, or other non-meteorite item in inventory'
+    expected: 'stoneCirclePreview remains null; no preview lines drawn'
+  - id: hover-with-no-placed-meteorites
+    description: 'player hovers a meteorite item while placedMeteorites is empty'
+    expected: 'stoneCirclePreview set to player position; no preview lines drawn (no targets within radius)'
+  - id: degenerate-collinear-three
+    description: 'three meteorites placed on a single row, all pairwise in range'
+    expected: 'three edges drawn, zero polygons (collinear triple does not form a closed loop with non-zero area); no containment effect'
+  - id: nested-polygon
+    description: 'a triangle of meteorites with one additional meteorite placed inside the triangle'
+    expected: 'the interior meteorite participates in any additional polygons it forms; the outer triangle remains a polygon; containment uses the union of polygon interiors'
+  - id: spread-source-outside-polygon
+    description: 'an egregore tile sits outside all polygons; its dirt neighbors are also outside all polygons'
+    expected: 'tile passes the containment filter (matching empty containment sets); spread proceeds normally — outside flora is unaffected by polygons'
+  - id: spread-source-inside-polygon-with-outside-candidate
+    description: 'an egregore tile sits inside polygon P; one of its dirt neighbors falls outside P (the polygon edge cuts between them)'
+    expected: 'that outside neighbor is rejected by the per-source filter (containingPolygons sets differ {P} vs {}); the source can still spread to other neighbors inside P; flora inside the polygon stays inside'
+  - id: spread-source-inside-polygon-with-inside-candidate
+    description: 'an egregore tile inside polygon P has a dirt neighbor also inside P'
+    expected: 'candidate accepted; spread proceeds to the inside-P neighbor'
+  - id: outside-source-cannot-cross-into-polygon
+    description: 'an egregore tile outside all polygons has a dirt neighbor inside polygon P (the edge cuts between them)'
+    expected: 'candidate rejected by the per-source filter ({} vs {P}); outside flora cannot leak into the polygon either'
+  - id: revery-spread-respects-containment
+    description: 'advanceEgregoreInRevery runs during a Revery with polygons present'
+    expected: 'first-Revery count (3) and later-Revery count (6 + reveryCount % 4) are unchanged; only the candidate set is filtered per-source; if filtered set is smaller than the target count, only as many tiles as exist are committed (existing slice behavior preserved)'
+  - id: f-pickup-standing-on-meteorite
+    description: 'player stands on a tile in state.placedMeteorites and taps F'
+    expected: 'meteorite spliced from placedMeteorites; meteorite item added to backpack; pickupBloom fires; no fall-through to scan / dialog / wall-break logic'
+  - id: f-pickup-facing-meteorite
+    description: 'player stands adjacent to a placed meteorite (in the facing direction) and taps F'
+    expected: 'standing-tile check misses; facing-tile check hits; meteorite picked up'
+  - id: f-pickup-no-inventory-space
+    description: 'player taps F on a placed meteorite but the backpack has no fit'
+    expected: 'placedMeteorites unchanged; backpack unchanged; no pickupBloom; F-handler returns false so other F handlers (scan) can run their checks on the next frame'
+  - id: f-pickup-priority-vs-dialog
+    description: 'player has an active dialog and stands on a placed meteorite, taps F'
+    expected: 'dialog handler wins (it runs first in the chain); meteorite remains placed; standard dialog-advance semantics'
+  - id: f-pickup-priority-vs-character
+    description: 'player faces a character AND is standing on a placed meteorite, taps F'
+    expected: 'character interact handler wins (it runs earlier in the F-tap chain than placed-meteorite pickup); dialog opens; meteorite stays placed. Rationale: meteorite pickup sits at the end of the interaction chain, just before the scan fallback, so it never preempts existing affordances.'
+
+failure_conditions:
+  - trigger: 'dropItem on a meteorite with no adjacent Dirt/Flora tile (water, off-map, all neighbors held by other placed meteorites)'
+    expected: 'returns false; no state mutation; meteorite remains in inventory'
+  - trigger: 'getHallowedPolygons called with empty or <3-vertex placedMeteorites'
+    expected: 'returns []'
+  - trigger: 'isInsideHallowedGround called with empty placedMeteorites'
+    expected: 'returns false unconditionally'
+  - trigger: 'state.placedMeteorites omitted from EXPECTED_FIELDS in the schema test'
+    expected: 'schema.test.ts fails with the expected-fields mismatch — this is the standard new-field gate'
+  - trigger: 'state.stoneCirclePreview omitted from EXPECTED_FIELDS in the schema test'
+    expected: 'schema.test.ts fails — this is the same gate for the inventory-hover preview field'
+  - trigger: 'F tap on a placed meteorite with no backpack fit'
+    expected: 'pickup helper returns false; placedMeteorites unchanged; backpack unchanged; F-handler falls through to the scan logic'
+
+verification:
+  test_file: src/engine/__tests__/RP-18-stone-circles.test.ts
+  test_pattern: '^RP-18 — stone circles$'
+  command: 'npx vitest run src/engine/__tests__/RP-18-stone-circles.test.ts'

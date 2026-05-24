@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 
 import { ACTION_COLOR } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
+import { spawnClickTarget } from '@/engine/effects'
+import { canPlaceMeteoriteAt, placeMeteoriteAt } from '@/engine/entities'
 import { removeItem } from '@/engine/inventory'
 import { getBlockedPositions } from '@/engine/movement'
 import { findPath } from '@/engine/pathfinding'
@@ -40,6 +42,10 @@ export const useCanvasDrop = ({
   useEffect(() => {
     if (!isDragging) {
       setCursorPos(null)
+      if (state.dragHoverTile !== null) {
+        state.dragHoverTile = null
+        refreshUI()
+      }
       return
     }
 
@@ -48,8 +54,33 @@ export const useCanvasDrop = ({
       if (target.tagName === 'CANVAS') {
         cursorTarget.current = 'canvas'
         canvasRect.current = target.getBoundingClientRect()
+        // RP-18 — translate canvas cursor to a tile coordinate so the
+        // stoneCircles render pass can draw a pink highlight on the
+        // would-be drop tile. We use the canvas rect + metrics directly,
+        // matching the formula used by the mouseup handler below.
+        const metrics = metricsRef.current
+        if (metrics) {
+          const rect = canvasRect.current
+          const mx = Math.floor((e.clientX - rect.left) / metrics.charWidth) + state.camera.x
+          const my = Math.floor((e.clientY - rect.top) / metrics.charHeight) + state.camera.y
+          const inBounds = mx >= 0 && mx < state.mapWidth && my >= 0 && my < state.mapHeight
+          const tile = inBounds ? state.map[my]?.[mx] : null
+          const next = tile && tile.type !== TileType.Space ? { x: mx, y: my } : null
+          const current = state.dragHoverTile
+          const same =
+            (current === null && next === null) ||
+            (current !== null && next !== null && current.x === next.x && current.y === next.y)
+          if (!same) {
+            state.dragHoverTile = next
+            refreshUI()
+          }
+        }
       } else {
         cursorTarget.current = 'other'
+        if (state.dragHoverTile !== null) {
+          state.dragHoverTile = null
+          refreshUI()
+        }
       }
       setCursorPos({ x: e.clientX, y: e.clientY })
     }
@@ -88,6 +119,17 @@ export const useCanvasDrop = ({
           })
         )
           return
+        // RP-18 — meteorites drop into state.placedMeteorites, not as
+        // a ground-item entity. Reject if the destination tile cannot
+        // hold a stone circle marker (water, structural tile, occupied).
+        if (defId === 'meteorite') {
+          if (!canPlaceMeteoriteAt(state, mx, my)) return
+          removeItem(container, itemUid)
+          placeMeteoriteAt(state, mx, my, performance.now())
+          spawnClickTarget(state, mx, my, performance.now())
+          refreshUI()
+          return
+        }
         removeItem(container, itemUid)
         if (defId === 'bee') {
           const beeEntity = state.world.createEntity()
@@ -102,6 +144,7 @@ export const useCanvasDrop = ({
           state.world.addComponent(ge, ComponentType.EntityZone, getCurrentEntityZone(state))
           state.world.addComponent(ge, ComponentType.PickupExemption, {})
         }
+        spawnClickTarget(state, mx, my, performance.now())
         refreshUI()
       }
 

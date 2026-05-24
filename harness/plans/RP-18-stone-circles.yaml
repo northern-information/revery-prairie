@@ -1,0 +1,383 @@
+plan:
+  id: RP-18-stone-circles
+  title: 'RP-18 — Stone circles and hallowed ground: placed meteorites, polygon detection, per-source egregoric containment, F-pickup, and inventory-hover preview'
+  created: 2026-05-24
+  # Cross-cutting. Adds two GameState fields (placedMeteorites, stoneCirclePreview),
+  # introduces a new pure-math module, wires drop/pickup into the input layer,
+  # mutates egregore spread semantics, registers a new render pass, and touches
+  # the inventory React component. Schema serialization and spread behavior both
+  # changed — full suite required.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + docs status ---
+
+  - id: doctrine-status-update
+    title: >
+      Set the spec and plan paths under the #18 entry in
+      docs/precis-status.yaml (status was already flipped to in-progress
+      on main by /churn at commit 32d522a — do not re-flip). Add a paragraph
+      to the #18 notes naming the plan filename, the locked containment
+      direction (per-source fence — inside flora stays inside, outside flora
+      unaffected), the locked placement model (pick-up plus drop-to-place),
+      the F-pickup affordance, and the locked proximity radius
+      (STONE_CIRCLE_RADIUS = 8 tiles, Euclidean) flagged for playtest tuning.
+      Update docs/claude/entities.md: in the meteorites section, replace the
+      old description (or extend it) to cover placed meteorites,
+      proximity-graph rendering, polygon formation, hallowed ground, and the
+      F-pickup affordance. Add a short paragraph to docs/claude/state.md
+      under a "Placed meteorites and stone-circle preview (RP-18)"
+      subhead documenting field ownership: placedMeteorites is appended by
+      dropItem when the dropped item is a meteorite and spliced by the
+      F-pickup helper; stoneCirclePreview is written by the InventoryGrid
+      hover handler and cleared on hover-out.
+    spec_id: RP-18-stone-circles
+    spec_sections: []
+    context_files:
+      - docs/precis-status.yaml
+      - docs/claude/entities.md
+      - docs/claude/state.md
+    output_files:
+      - docs/precis-status.yaml
+      - docs/claude/entities.md
+      - docs/claude/state.md
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: State shape + constants ---
+
+  - id: add-state-fields-and-constants
+    title: >
+      Add `placedMeteorites: Position[]` and `stoneCirclePreview: Position |
+      null` to GameState in src/engine/types.ts. Initialize both in
+      createGameState (src/engine/state.ts): placedMeteorites = [],
+      stoneCirclePreview = null. Add both field names to EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts. Add
+      `STONE_CIRCLE_RADIUS = 8` to src/engine/constants.ts with a short
+      comment naming RP-18 and noting "Euclidean tile distance; flagged
+      for playtest tuning." No callers in this task — the field and constant
+      are picked up by later tasks.
+    spec_id: RP-18-stone-circles
+    spec_sections:
+      - meteorite-drop-places
+      - inventory-hover-preview
+      - proximity-graph
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 2: Pure math module ---
+
+  - id: stone-circle-math
+    title: >
+      Create src/engine/stoneCircles.ts exporting four pure functions:
+        - getStoneCircleGraph(placedMeteorites): returns sorted Array<{
+          aIndex, bIndex }> for all pairs within STONE_CIRCLE_RADIUS
+          (Euclidean). aIndex < bIndex; output sorted by (aIndex, bIndex)
+          ascending for stability.
+        - getHallowedPolygons(placedMeteorites, edges): returns
+          Array<number[]> of simple cycle vertex-index rings, length >= 3.
+          Use a deterministic chordless-cycle enumeration. Each ring is
+          normalized to canonical form (smallest index first; direction
+          chosen so the second index is the smaller of the two adjacent
+          neighbors) and deduped. Collinear triples — vertices that all lie
+          on a single line in the (x, y) plane — return no polygon: filter
+          rings whose signed area equals zero.
+        - isInsideHallowedGround(state, x, y): runs ray-casting point-in-
+          polygon on (x + 0.5, y + 0.5) against each polygon's vertex
+          positions; returns true iff at least one polygon contains the
+          point. Returns false when state.placedMeteorites is empty or no
+          polygons exist.
+        - containingPolygonsKey(state, x, y): returns a stable string
+          composed of the polygon indices (sorted ascending, comma-joined)
+          whose interior contains (x + 0.5, y + 0.5); empty string for
+          tiles outside all polygons. Used by the spread containment task
+          to compare set membership cheaply.
+      Write src/engine/__tests__/RP-18-stone-circles.test.ts as the
+      test file (replacing the stub). Cover every behavior id of the
+      math module, plus the edge cases: empty-placed-array,
+      single-placed-meteorite, two-meteorites-in-range,
+      two-meteorites-out-of-range, triangle-closure, degenerate-collinear-
+      three, nested-polygon. The top-level describe block name MUST match
+      the verification.test_pattern exactly: `RP-18 — stone circles`.
+    spec_id: RP-18-stone-circles
+    spec_sections:
+      - proximity-graph
+      - polygon-detection
+      - hallowed-containment-check
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+      - src/engine/stoneCircles.ts
+      - src/engine/__tests__/RP-18-stone-circles.test.ts
+    output_files:
+      - src/engine/stoneCircles.ts
+      - src/engine/__tests__/RP-18-stone-circles.test.ts
+    depends_on:
+      - add-state-fields-and-constants
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/RP-18-stone-circles.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 3: Implementation (parallel — independent output files) ---
+
+  - id: drop-places-meteorite
+    title: >
+      Modify dropItem in src/engine/entities.ts so that when the dropped
+      item's definitionId is 'meteorite', the function takes a new branch
+      that appends a placement to state.placedMeteorites instead of
+      creating a groundItem ECS entity. Use the existing DROP_DELTAS
+      walking pattern (player.x first, then neighbors). A delta is valid
+      iff: in-bounds, TileType.Dirt or TileType.Flora, not a water tile,
+      and not already present in state.placedMeteorites. On success:
+      remove the meteorite uid from its source container via removeItem,
+      push { x, y } onto state.placedMeteorites, fire spawnPickupBloom
+      (per the new-item-acquisition-path rule — though this is a *drop*
+      bloom, treat it as an acquisition-of-ground-by-the-meteorite for
+      visual parity), and return true. On no valid delta, return false
+      and leave state unchanged. Order: place the meteorite branch
+      ABOVE the existing canDropAt fallback so it preempts the generic
+      ground-item creation for meteorites.
+    spec_id: RP-18-stone-circles
+    spec_sections:
+      - meteorite-drop-places
+      - placed-meteorite-not-walk-pickup
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/items.ts
+      - src/engine/types.ts
+      - src/engine/effects.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - stone-circle-math
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/RP-18-stone-circles.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: f-pickup-placed-meteorite
+    title: >
+      Add a new exported helper pickUpFacingOrStandingPlacedMeteorite(state,
+      time) in src/engine/interaction.ts that scans state.placedMeteorites
+      for a match at the player's standing tile first, then at the facing
+      tile (state.player + DIRECTIONS[state.playerFacing]). On the first
+      match: splice that entry out of state.placedMeteorites (preserving
+      relative order), call findFitPosition + placeItem on
+      state.backpack to add a 'meteorite' ItemInstance (return false if no
+      fit — placedMeteorites unchanged, backpack unchanged), call
+      recordDiscovery(state, 'item:meteorite'), fire spawnPickupBloom at
+      the matched tile, and return true. Returns false if no match.
+      Wire it into src/hooks/useKeyboard.ts at the very end of the F-tap
+      chain — AFTER getAdjacentCharacter and BEFORE the implicit fall-
+      through to the hold-to-scan handler at line ~283. Specifically:
+      after the `interactWithCharacter` branch (around line 180), before
+      the closing brace of the `if (activeScreen !== 'system')` block,
+      add a call to pickUpFacingOrStandingPlacedMeteorite; if it returns
+      true, refreshUI() and return.
+    spec_id: RP-18-stone-circles
+    spec_sections:
+      - pick-up-placed-meteorite-with-f
+      - placed-meteorite-walkable
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/entities.ts
+      - src/engine/items.ts
+      - src/engine/effects.ts
+      - src/engine/movement.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - stone-circle-math
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/RP-18-stone-circles.test.ts
+    repair: retry
+    tags:
+      - engine
+      - input
+
+  - id: egregore-spread-containment
+    title: >
+      Modify src/engine/egregore/spread.ts to apply per-source containment.
+      Add a new helper candidateDirtNeighborsContained(state) inside
+      egregore/positions.ts (or in spread.ts itself if it cleanly isolates
+      there). For each (egregoreSource, dirtCandidate) adjacency pair that
+      candidateDirtNeighbors would emit, accept the candidate iff
+      containingPolygonsKey(state, source.x, source.y) ===
+      containingPolygonsKey(state, candidate.x, candidate.y). Replace
+      the two call sites in spread.ts (one in tickEgregoreSpread, one in
+      advanceEgregoreInRevery) with the new helper. Preserve all other
+      gating (season, zone, deepTime, revery, year throttle) and the
+      year-slot-consumed behavior on empty candidates. Add a unit test
+      block to RP-18-stone-circles.test.ts covering the four spread
+      edge cases: spread-source-outside-polygon,
+      spread-source-inside-polygon-with-outside-candidate,
+      spread-source-inside-polygon-with-inside-candidate,
+      outside-source-cannot-cross-into-polygon. Existing
+      egregore-spread tests must continue to pass when no polygons exist.
+    spec_id: RP-18-stone-circles
+    spec_sections:
+      - egregore-spread-containment
+    context_files:
+      - src/engine/egregore/spread.ts
+      - src/engine/egregore/positions.ts
+      - src/engine/stoneCircles.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/RP-18-stone-circles.test.ts
+    output_files:
+      - src/engine/egregore/spread.ts
+      - src/engine/egregore/positions.ts
+      - src/engine/__tests__/RP-18-stone-circles.test.ts
+    depends_on:
+      - stone-circle-math
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/RP-18-stone-circles.test.ts
+      - npx vitest run src/engine/__tests__/ --testNamePattern='egregore|spread'
+    repair: retry
+    tags:
+      - engine
+
+  - id: stone-circles-render-pass
+    title: >
+      Create src/engine/render/passes/stoneCircles.ts as a RenderPass in
+      slot 'world-overlay'. The pass is active when state.placedMeteorites
+      is non-empty OR state.stoneCirclePreview is non-null. draw():
+        1. For each placed meteorite: draw the '✦' glyph at its world
+           position in #FFE4B5 (matches items.ts meteorite glyphColor).
+        2. Compute edges = getStoneCircleGraph(state.placedMeteorites) and
+           polygons = getHallowedPolygons(...). For each tile whose center
+           is isInsideHallowedGround, fill the tile background with
+           rgba(255, 215, 0, 0.06) ADDITIVELY (composite mode applied to
+           the existing world bg).
+        3. For each edge: draw a faint golden line segment between the
+           two meteorite tile centers. Alpha = 0.45 if the edge appears in
+           at least one polygon's cycle, else 0.18.
+        4. If state.stoneCirclePreview is non-null: treat the preview tile
+           as a transient vertex; compute the would-be edge set against
+           existing placedMeteorites and draw those preview edges in
+           rgba(255, 105, 180, alpha). Preview edges that would close a
+           new cycle (i.e., participate in a polygon when the preview
+           vertex is added) draw at alpha 0.6; non-closure preview edges
+           at 0.3.
+      Register the pass in src/engine/render/passes/index.ts following
+      the existing registry pattern.
+    spec_id: RP-18-stone-circles
+    spec_sections:
+      - placed-meteorite-rendering
+      - inventory-hover-preview
+    context_files:
+      - src/engine/render/passes.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/render/passes/pollenOverlay.ts
+      - src/engine/render/passes/prairieHalo.ts
+      - src/engine/stoneCircles.ts
+      - src/engine/items.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/render/passes/stoneCircles.ts
+      - src/engine/render/passes/index.ts
+    depends_on:
+      - stone-circle-math
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/RP-18-stone-circles.test.ts
+    repair: retry
+    tags:
+      - engine
+      - render
+
+  - id: inventory-hover-preview
+    title: >
+      Add hover handlers to src/components/InventoryGrid.tsx that detect
+      when the user moves their cursor over an item cell containing a
+      meteorite (definitionId === 'meteorite'): set state.stoneCirclePreview
+      = { x: state.player.x, y: state.player.y } and call refreshUI(). On
+      hover-out (or hover of a non-meteorite cell) clear
+      state.stoneCirclePreview to null and refreshUI(). Use onMouseEnter /
+      onMouseLeave (matching the existing handler style at line ~259).
+      Do not introduce React state for the preview position — write
+      straight through to the engine state, since the renderer reads it.
+      No other behavior change in the inventory grid.
+    spec_id: RP-18-stone-circles
+    spec_sections:
+      - inventory-hover-preview
+    context_files:
+      - src/components/InventoryGrid.tsx
+      - src/components/InventoryPanel.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/InventoryGrid.tsx
+    depends_on:
+      - add-state-fields-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  - id: manual-entries-and-discovery
+    title: >
+      Update src/engine/manual.ts: extend the existing meteorite manual
+      entry text to reflect placement/circles, keeping `{ lore: 'TODO' }`.
+      Add a new manual entry with id 'stone-circle' (name "Stone Circle"
+      in Title Case per the writing rules), category appropriate to
+      cosmological objects (mirror the meteorite entry's category), with
+      `{ lore: 'TODO' }`. Discovery hook: in src/engine/gameLoop.ts, add
+      a once-per-frame check that calls getHallowedPolygons on
+      state.placedMeteorites and, when the result transitions from empty
+      to non-empty for the first time, calls recordDiscovery(state,
+      'event:stone-circle'). Add the unlock guard to MANUAL_LORE
+      mapping so 'event:stone-circle' unlocks the new entry. Lore text
+      itself stays TODO — do not author it.
+    spec_id: RP-18-stone-circles
+    spec_sections:
+      - manual-entries
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/gameLoop.ts
+      - src/engine/stoneCircles.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/manual.ts
+      - src/engine/gameLoop.ts
+    depends_on:
+      - stone-circle-math
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/manual.test.ts
+    repair: retry
+    tags:
+      - engine
+      - manual
