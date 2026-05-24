@@ -1,0 +1,382 @@
+id: precis-34-tenure-opens-in-little-house
+name: 'The tenure opens in the little house — first-wake dialog with Emily (precis #34)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/characters.ts
+  - src/engine/gameLoop.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - precis-33-little-house-and-emily
+  - precis-32-revery-dormancy-pressure
+
+# Doctrine reference: docs/precis-status.yaml id '34' (lines 1313-1368) and
+# docs/precis-thinktank-v6.md round 3.
+#
+# v6 round 3 lock: the steward begins inside the little house; the girl is
+# the first character met; the first dialog beat sets the game's voice
+# register before the prairie ever speaks. Symmetric bookend with #16
+# (tenure-end handoff also occurs in the little house).
+#
+# Substrate already shipped by #33 (verified during research):
+#   * House interior zone exists (Zone.HouseInterior). state.houseMap,
+#     state.houseMapWidth, state.houseMapHeight populated by
+#     createGameState.
+#   * enterHouseAtTenureStart (state.ts:556) is called immediately by
+#     useGameEngine after createGameState. It places the player at
+#     state.houseEntranceInterior ({x: 9, y: 2}), sets state.currentZone
+#     to Zone.HouseInterior, points state.map at state.houseMap, and
+#     sets playerFacing = 'left' (Emily is across the room to the
+#     steward's left, by the chair). Camera centers on the player.
+#   * Emily character entity is created at {x: 5, y: 2} with
+#     zone: Zone.HouseInterior (state.ts:541).
+#   * Emily has four seasonal dialog registers; all lines are
+#     `TODO: emily {season} line N` placeholders per the manual-lore
+#     authoring convention.
+#
+# What #34 still needs (this spec):
+#   1. A one-shot first-wake dialog beat — Emily auto-initiates a dialog
+#      when the steward wakes in the house at tenure start, before the
+#      player has moved. The girl is the first surface; her first line
+#      sets the voice register before the prairie ever speaks.
+#   2. A persistent flag (`state.tenureOpened`) that gates the auto-
+#      trigger so it never re-fires after the first wake (Esc, walk-away,
+#      save/reload all leave it true).
+#   3. A dedicated first-wake dialog register (`EMILY_DIALOG_FIRST_WAKE`)
+#      with `TODO` placeholders — used only on the first opening at
+#      tenure start, never on re-engagement. Subsequent [f] interactions
+#      with Emily resume the existing seasonal registers from #33.
+#
+# Design decisions locked by the user 2026-05-23 during spec gathering:
+#
+#   1. Scope is the first-wake dialog beat only. No new tutorial
+#      affordances; no extra visual / shutter beats at handoff; no
+#      doctrine comment in genesis.ts (deferred — out of scope here).
+#      Dialog and door remain the whole onboarding.
+#
+#   2. Auto-trigger fires on wake. Emily opens her own dialog as soon as
+#      the steward has agency (state.genesis === null and
+#      state.bootTitleCard === null) and the steward is in the house
+#      interior. The player has not pressed [f]; the dialog appears as
+#      part of waking.
+#
+#   3. Dialog content is human-authored. All first-wake lines are
+#      `TODO: emily first wake line N` placeholders per
+#      feedback_manual_lore_only.md. Three lines is sufficient (matches
+#      the existing seasonal-register shape: `['...', line1, line2]`).
+#
+#   4. The auto-trigger is one-shot. Once state.tenureOpened is true, the
+#      tick that auto-opens the dialog short-circuits forever for this
+#      tenure. Esc / walking away / save+reload do not re-arm it.
+#      Re-engaging Emily with [f] after that opens her standard seasonal
+#      register via the existing interaction path.
+#
+#   5. No new awaitingConfirmation arming. The first-wake register does
+#      NOT arm activeDialog.awaitingConfirmation, even if tenure-start
+#      happens to land in autumn. The Revery-invitation prompt is a
+#      separate, re-engageable surface owned by #33 and reached by
+#      walking up to Emily and pressing [f] — not by being auto-spoken
+#      to on wake. (Rationale: the first wake is a doctrine beat, not a
+#      decision moment.)
+#
+#   6. Schema test (EXPECTED_FIELDS) is updated: ADD `tenureOpened`.
+#
+#   7. No multiplayer-protocol changes. The flag is per-tenure local
+#      state; multiplayer spawn semantics still defer to #16.
+#
+# What this feature does NOT do:
+#   - Does not author Emily's first-wake lines. All lines are TODO
+#     placeholders.
+#   - Does not change `enterHouseAtTenureStart`. #33's spawn semantics are
+#     preserved.
+#   - Does not add a wake animation, fade, eyes-opening beat, or any new
+#     visual cue at handoff. The bootTitleCard cover already provides
+#     the visual gate; the first frame after it clears shows the
+#     interior with the dialog overlay.
+#   - Does not change the genesis screen. No comment, no in-game text,
+#     no new pixels.
+#   - Does not add manual entries or unlock new manual content beyond
+#     what #33 already does. (Emily's manual entry was added by #33.)
+#   - Does not change the existing Emily seasonal dialog registers from
+#     #33. The seasonal lines and the autumn-invitation arming are
+#     unchanged.
+#   - Does not introduce new audio cues for the first wake. (Music handoff
+#     polish already shipped in commit b8dbe82.)
+#   - Does not change the Revery summons sequence. The first-wake dialog
+#     never arms awaitingConfirmation, even in autumn.
+#   - Does not add a `previousTenureOpened` or similar cross-tenure flag.
+#     `tenureOpened` is a per-tenure (per-save) boolean; cross-tenure
+#     lineage handoff is #16's scope.
+
+behaviors:
+  - id: tenure-opened-flag-initial-state
+    description: >
+      createGameState initializes state.tenureOpened = false. The flag is
+      false on every newly-created GameState — there is no per-character
+      override and no genesis-time mutation. The flag exists so the
+      first-wake auto-trigger can fire exactly once per tenure.
+    inputs:
+      - 'createGameState(stewardName, width, height) invocation'
+    outputs:
+      - 'state.tenureOpened === false on the returned GameState'
+    state_changes:
+      - field: tenureOpened
+        effect: 'initialized to false'
+    determinism: deterministic
+
+  - id: first-wake-dialog-register
+    description: >
+      A new exported array `EMILY_DIALOG_FIRST_WAKE` in
+      src/engine/characters.ts contains three TODO-placeholder strings,
+      shaped like the existing seasonal registers (`['...', line1,
+      line2]`). The leading `'...'` ellipsis matches the seasonal
+      registers' opening beat — the typing-dialog UI treats the first
+      element as the silent "she stirs" pause. The other two lines are
+      `'TODO: emily first wake line 1'` and
+      `'TODO: emily first wake line 2'`. The register is exported for
+      tests but not directly callable via [f] — it is consulted only by
+      `getEmilyDialog(state)` when the first-wake condition holds.
+    inputs:
+      - 'module load of src/engine/characters.ts'
+    outputs:
+      - 'EMILY_DIALOG_FIRST_WAKE is an exported readonly string array of length 3'
+      - 'EMILY_DIALOG_FIRST_WAKE[0] === "..."'
+      - 'EMILY_DIALOG_FIRST_WAKE[1] === "TODO: emily first wake line 1"'
+      - 'EMILY_DIALOG_FIRST_WAKE[2] === "TODO: emily first wake line 2"'
+    state_changes: []
+    determinism: deterministic
+
+  - id: get-emily-dialog-prefers-first-wake-when-active
+    description: >
+      `getEmilyDialog(state)` checks if `state.activeDialog?.characterId
+      === 'emily'` AND `state.tenureOpened === false` — if both, it
+      returns EMILY_DIALOG_FIRST_WAKE. Otherwise it falls through to the
+      existing seasonal-dispatch logic from #33. This means the
+      first-wake register is returned only while the auto-opened dialog
+      is on screen; once that dialog closes and state.tenureOpened
+      flips to true, subsequent [f] interactions get the normal
+      seasonal register.
+    inputs:
+      - 'state.activeDialog.characterId === "emily" and state.tenureOpened === false'
+    outputs:
+      - 'getEmilyDialog returns EMILY_DIALOG_FIRST_WAKE'
+    state_changes: []
+    determinism: deterministic
+
+  - id: first-wake-auto-trigger
+    description: >
+      A new gameplay-phase TickSystem in `src/engine/gameLoop.ts`
+      (id: `'firstWakeTrigger'`, intervalMs: 0, phase: 'gameplay',
+      zone: 'always', priority: -18 — runs after bootTitleCardTick at
+      -20 and zoneTransitionTick at -19, before any movement / dialog
+      typing systems) auto-opens Emily's dialog on the first eligible
+      frame and sets state.tenureOpened = true. Eligibility:
+        * state.tenureOpened === false
+        * state.genesis === null
+        * state.bootTitleCard === null
+        * state.currentZone === Zone.HouseInterior
+        * state.activeDialog === null
+        * state.revery === null
+        * state.zoneTransition === null
+      When all hold, the system sets:
+        state.activeDialog = {
+          characterId: 'emily',
+          lineIndex: 0,
+          typingIndex: 0,
+          typingDone: false,
+          transitioning: false,
+          transitionStartTime: 0,
+        }
+        state.tenureOpened = true
+      and calls callbacks.onRefreshUI?.() so the UI picks up the new
+      dialog overlay on the next render commit. The order matters:
+      activeDialog must be set BEFORE tenureOpened so that
+      getEmilyDialog returns the first-wake register on this same
+      frame's first typing-tick.
+    inputs:
+      - 'first eligible gameplay tick after tenure-start handoff'
+    outputs:
+      - 'state.activeDialog === { characterId: "emily", lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }'
+      - 'state.tenureOpened === true'
+      - 'callbacks.onRefreshUI was called'
+    state_changes:
+      - field: activeDialog
+        effect: 'set to emily / line 0 / not typing'
+      - field: tenureOpened
+        effect: 'set to true (one-shot latch)'
+    determinism: deterministic
+
+  - id: first-wake-trigger-idempotent
+    description: >
+      Once state.tenureOpened === true, the firstWakeTrigger system
+      short-circuits immediately. Even if the player later returns to
+      the house interior, closes a dialog, exits a Revery, or otherwise
+      satisfies the remaining eligibility checks, the dialog does NOT
+      re-auto-open. This is the one-shot guarantee.
+    inputs:
+      - 'gameplay tick with state.tenureOpened === true'
+    outputs:
+      - 'state.activeDialog is unchanged by the firstWakeTrigger system'
+    state_changes: []
+    determinism: deterministic
+
+  - id: schema-test-includes-tenure-opened
+    description: >
+      EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts gains the entry
+      `'tenureOpened'`. The list remains alphabetically sorted by the
+      `.sort((a, b) => a.localeCompare(b))` step at the end of the
+      array literal.
+    inputs:
+      - 'npm run test:harness'
+    outputs:
+      - 'schema.test.ts passes; EXPECTED_FIELDS contains "tenureOpened"'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: skip-genesis-url
+    description: >
+      The session is started with the skip-genesis URL parameter
+      (useGameEngine.ts:100-105 layoutEffect calls completeGenesis with
+      skipTitleCard: true). state.genesis is cleared and
+      state.bootTitleCard remains null because finalizeGenesisHandoff
+      is called synchronously before any title card is scheduled.
+    expected: >
+      On the first gameplay tick after the layoutEffect fires, all
+      eligibility checks pass (genesis null, bootTitleCard null, zone
+      HouseInterior, no dialog, no Revery, no zoneTransition). The
+      firstWakeTrigger fires immediately; state.activeDialog opens to
+      Emily's first-wake register; state.tenureOpened becomes true.
+
+  - id: dialog-already-open-at-handoff
+    description: >
+      A test or alternate code path opens an activeDialog before the
+      firstWakeTrigger has had a chance to fire (e.g., a fixture that
+      forces state.activeDialog into a non-null value pre-tick).
+    expected: >
+      The firstWakeTrigger sees state.activeDialog !== null and
+      short-circuits without mutating state.activeDialog or
+      state.tenureOpened. On a later tick where state.activeDialog has
+      become null (e.g., dialog closed), the trigger re-evaluates the
+      remaining conditions; if state.tenureOpened is still false and
+      currentZone is HouseInterior, the trigger fires then. This means
+      the one-shot landing is preserved but its timing can shift.
+
+  - id: player-closes-first-wake-dialog
+    description: >
+      Player presses Esc (or any close path) on the auto-opened
+      first-wake dialog. state.activeDialog returns to null.
+      state.tenureOpened was already true from the open frame.
+    expected: >
+      No re-trigger. The firstWakeTrigger short-circuits on
+      state.tenureOpened === true. Subsequent [f] interactions with
+      Emily go through the existing interaction.ts path and consult
+      getEmilyDialog, which now returns the seasonal register (not the
+      first-wake one).
+
+  - id: save-and-reload-after-first-wake
+    description: >
+      Player closes the first-wake dialog, then a save snapshot is
+      written and reloaded (tenureOpened was already true at save
+      time).
+    expected: >
+      EXPECTED_FIELDS includes `tenureOpened`; the field round-trips
+      correctly. On reload, state.tenureOpened === true and the
+      firstWakeTrigger does not re-fire. Re-engaging Emily yields her
+      seasonal register.
+
+  - id: save-and-reload-mid-first-wake-dialog
+    description: >
+      Player saves while the auto-opened first-wake dialog is on
+      screen. activeDialog and tenureOpened are both truthy at save
+      time.
+    expected: >
+      Per #33's serialization-roundtrip edge case ("the save format is
+      not stable across precis-level changes"), formal save/load
+      semantics are out of scope. For the purposes of this spec: as
+      long as state.tenureOpened survives a round-trip via the
+      EXPECTED_FIELDS schema, the trigger will not re-fire even if
+      activeDialog is dropped on load.
+
+  - id: tenure-start-in-non-autumn-seasons
+    description: >
+      State is constructed and tenure opens in winter, spring, or
+      summer (state.weather.season is non-Autumn at tenure start).
+    expected: >
+      First-wake register is used regardless of season — the season
+      gate lives in the seasonal dispatch (`getEmilyDialog`'s switch
+      statement), which is bypassed when `state.tenureOpened === false`
+      and `state.activeDialog?.characterId === 'emily'`. After the
+      dialog closes and `state.tenureOpened === true`, season-based
+      dispatch resumes.
+
+  - id: revery-active-at-tenure-start
+    description: >
+      A pathological test constructs a state where a Revery is already
+      active immediately after createGameState +
+      enterHouseAtTenureStart.
+    expected: >
+      The firstWakeTrigger short-circuits while state.revery !== null.
+      On the frame after Revery closes (state.revery returns to null),
+      the trigger re-evaluates and fires if the other conditions hold.
+      In production this path is not reachable — there is no Revery at
+      tenure-start by construction.
+
+  - id: zone-transition-active-at-tenure-start
+    description: >
+      An ongoing zoneTransition is in progress when the firstWakeTrigger
+      would otherwise fire (defensive — at tenure-start the player has
+      not moved, so this should not happen in practice).
+    expected: >
+      The firstWakeTrigger short-circuits while state.zoneTransition
+      !== null. On the next tick after the transition clears, the
+      trigger fires. This prevents the dialog from opening over a
+      mid-transition iris/dissolve render.
+
+  - id: boot-title-card-still-up
+    description: >
+      The bootTitleCard fade-out is still in progress: state.genesis is
+      null (cleared at hold midpoint by bootTitleCardTick) but
+      state.bootTitleCard is still set (until fade-out completes).
+    expected: >
+      The firstWakeTrigger short-circuits while
+      state.bootTitleCard !== null. The dialog opens on the first tick
+      after bootTitleCard becomes null — that is, the first frame in
+      which the player sees the interior unobscured.
+
+failure_conditions:
+  - trigger: >
+      The Emily character entity does not exist in state.characters
+      when the firstWakeTrigger fires (e.g., a partial fixture state
+      that bypassed createCharacterEntity).
+    expected: >
+      The auto-trigger still sets activeDialog and tenureOpened — there
+      is no entity lookup at the trigger site (the dialog UI is what
+      reads the character definition). The dialog UI's standard
+      missing-definition path applies (per #33 failure_conditions:
+      "no entity at facing tile" / empty render). No crash.
+
+  - trigger: >
+      `state.tenureOpened` is somehow already true on a freshly
+      constructed state (e.g., a test fixture overrides it before
+      createGameState returns).
+    expected: >
+      The firstWakeTrigger never fires for the lifetime of that state.
+      No dialog is auto-opened. This is the expected behavior for
+      "second tenure" or any pre-seeded scenario; the gating is honest.
+
+  - trigger: >
+      callbacks.onRefreshUI is null/undefined when the firstWakeTrigger
+      fires.
+    expected: >
+      The optional-chained `callbacks.onRefreshUI?.()` is a no-op. The
+      state mutation still lands. The next natural tick / RAF causes
+      the UI to read the new state. No crash.
+
+verification:
+  test_file: src/engine/__tests__/precis-34-tenure-opens-in-little-house.test.ts
+  test_pattern: '^precis #34 — the tenure opens in the little house$'
+  command: 'npx vitest run src/engine/__tests__/precis-34-tenure-opens-in-little-house.test.ts'

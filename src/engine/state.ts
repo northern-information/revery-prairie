@@ -288,6 +288,7 @@ export const createGameState = (
     houseChairInterior: houseInterior.chairInterior,
     emilyInvitation: 'unoffered',
     emilyReveryReturn: null,
+    tenureOpened: false,
     giftsReceived: new Set<string>(),
     world: createWorld(),
     meteorShower: {

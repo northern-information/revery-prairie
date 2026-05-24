@@ -248,7 +248,23 @@ export const EMILY_DIALOG_AUTUMN: string[] = [
   'TODO: emily autumn invitation',
 ]
 
+// Precis #34 — first-wake register. Used only while the firstWakeTrigger-
+// opened dialog is on screen (activeDialog.characterId === 'emily' and
+// state.tenureOpened === false). Subsequent [f] interactions resume the
+// seasonal registers above.
+export const EMILY_DIALOG_FIRST_WAKE: string[] = [
+  '...',
+  'TODO: emily first wake line 1',
+  'TODO: emily first wake line 2',
+]
+
 const getEmilyDialog = (state: GameState): string[] => {
+  // Precis #34 — first-wake register wins while the auto-opened dialog
+  // is up. Once the dialog closes and tenureOpened latches true,
+  // seasonal dispatch resumes.
+  if (state.activeDialog?.characterId === 'emily' && !state.tenureOpened) {
+    return EMILY_DIALOG_FIRST_WAKE
+  }
   switch (state.weather.season) {
     case Season.Winter:
       return EMILY_DIALOG_WINTER

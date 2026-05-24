@@ -215,6 +215,43 @@ const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[] => {
       },
     },
     {
+      // Precis #34 — first-wake dialog with Emily. Fires on the first
+      // eligible gameplay frame after the bootTitleCard clears, opening
+      // Emily's auto-dialog before the steward has agency to move.
+      // Latches state.tenureOpened so it never re-fires this tenure.
+      // Priority -18 places it after bootTitleCardTick (-20) and
+      // deepTimeTransitionCleanup (-19), and before movement (path -10).
+      id: 'firstWakeTrigger',
+      intervalMs: 0,
+      zone: 'always' as const,
+      phase: 'gameplay' as const,
+      priority: -18,
+      fn: (state: GameState) => {
+        // Genesis is gated by phase: 'gameplay' above (see the phase
+        // filter in tick()); no inline genesis check is needed or
+        // permitted here.
+        if (state.tenureOpened) return
+        if (state.bootTitleCard) return
+        if (state.currentZone !== Zone.HouseInterior) return
+        if (state.activeDialog) return
+        if (state.revery) return
+        if (state.zoneTransition) return
+        // Order matters: set activeDialog BEFORE tenureOpened so the
+        // first typing-tick this frame reads the first-wake register
+        // from getEmilyDialog.
+        state.activeDialog = {
+          characterId: 'emily',
+          lineIndex: 0,
+          typingIndex: 0,
+          typingDone: false,
+          transitioning: false,
+          transitionStartTime: 0,
+        }
+        state.tenureOpened = true
+        callbacks.onRefreshUI?.()
+      },
+    },
+    {
       // Sprint runs at SPRINT_MOVE_TICK_MS with one move per tick instead of
       // two moves per PATH_TICK_MS — keeps the 2x speed but makes every tile
       // a discrete stop point so keyup never overshoots an item.

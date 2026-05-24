@@ -1324,7 +1324,7 @@ features:
       between the enclosed interior the player has been looking at and
       the full prairie they walk into.
     depends_on: ['27', '33']
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null

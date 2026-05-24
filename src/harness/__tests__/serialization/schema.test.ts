@@ -55,6 +55,7 @@ const EXPECTED_FIELDS = [
   'houseChairInterior',
   'emilyInvitation',
   'emilyReveryReturn',
+  'tenureOpened',
   'meteorShower',
   'lastSatelliteSpawnTime',
   'screenShakeUntil',
