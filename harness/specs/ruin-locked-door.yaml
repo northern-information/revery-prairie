@@ -79,9 +79,9 @@ behaviors:
       aqueductKey and converts ALL door tiles in the current ruin's
       doorPositions to RuinDoorOpen atomically. the door row remains
       open for the rest of the session — re-locking is not a feature.
-      fires a unique unlock log entry: 'the lock turns'. records
-      discovery for event:ruin-door-unlocked. clicking any door tile
-      pathfinds to the closest walkable adjacent tile and triggers
+      fires a unique unlock log entry: 'the lock turns'. clicking
+      any door tile pathfinds to the closest walkable adjacent tile
+      and triggers
       the same unlock on arrival (see click-interaction edge case).
       pressing [f] facing a locked door with NO aqueductKey instead
       opens the gate dialog (see locked-gate-dialog behavior).
@@ -94,8 +94,6 @@ behaviors:
         effect: 'every RuinDoorLocked tile in the row becomes RuinDoorOpen'
       - field: backpack
         effect: 'one aqueductKey item removed'
-      - field: manualDiscoveries
-        effect: 'event:ruin-door-unlocked recorded'
     determinism: deterministic
 
   - id: locked-gate-dialog

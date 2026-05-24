@@ -253,8 +253,7 @@ behaviors:
       a RuinDebris tile pathfinds to the closest walkable adjacent tile
       and triggers the same clear on arrival via state.pendingAction
       (same pattern as click-to-unlock for doors). RuinDebris is added
-      to isInteractableAt for Ruin zones. records discovery
-      'event:rubble-cleared' on the first clear of the session. See
+      to isInteractableAt for Ruin zones. See
       trapped-coyote-stays-put:collapse-barrier-clears-atomically for
       the full collapseBarrier contract.
     inputs:
@@ -264,14 +263,11 @@ behaviors:
     outputs:
       - 'every collapseBarrier tile becomes RuinFloor'
       - 'crumble TimedEffect + pickupBloom spawned'
-      - 'event:rubble-cleared recorded the first time'
     state_changes:
       - field: map
         effect: 'every collapseBarrier tile flips from RuinDebris to RuinFloor together'
       - field: world
         effect: 'crumble TimedEffect with MultiPosition over the barrier tiles + pickupBloom at player position spawned'
-      - field: manualDiscoveries
-        effect: '"event:rubble-cleared" added on first clear'
     determinism: deterministic
 
   - id: dormant-garden-multilayer-visuals

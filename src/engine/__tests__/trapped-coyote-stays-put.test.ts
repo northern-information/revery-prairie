@@ -209,7 +209,6 @@ describe('collapse barrier clears atomically', () => {
     for (const bp of barrier) {
       expect(state.map[bp.y][bp.x].type).toBe(TileType.RuinFloor)
     }
-    expect(state.manualDiscoveries.has('event:rubble-cleared')).toBe(true)
   })
 
   it('atomic clear spawns a crumble TimedEffect entity covering the barrier tiles', () => {

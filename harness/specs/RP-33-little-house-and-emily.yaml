@@ -496,8 +496,7 @@ behaviors:
         (1) calls contributeDormancyPressure(state, 1.0) from omen.ts —
             crosses threshold deterministically;
         (2) sets state.emilyInvitation = 'confirmed';
-        (3) closes the dialog (state.activeDialog = null);
-        (4) records discovery 'event:emily-invitation-confirmed'.
+        (3) closes the dialog (state.activeDialog = null).
       On the next frame, the RP-32 threshold-trigger fires
       initiateRevery; the RP-32 summons sequence runs as normal but
       its overworld-tied side effects (Gron-teleport-adjacent-to-steward

@@ -49,8 +49,7 @@ behaviors:
       converts all tiles in caveBreakableWallPositions to CaveFloor,
       sets caveRevealed to true, creates a crumble ECS entity with
       MultiPosition (all wall positions), TimedEffect (kind: crumble),
-      EntityTag (crumble), EntityZone. records event:wall-break
-      discovery. calls updateFacingEntity after.
+      EntityTag (crumble), EntityZone. calls updateFacingEntity after.
     inputs:
       - 'player facing CaveBreakableWall, [f] pressed, caveRevealed is false, time (rAF timestamp)'
     outputs:
@@ -62,8 +61,6 @@ behaviors:
         effect: 'set to true'
       - field: world
         effect: 'crumble ECS entity created with MultiPosition, TimedEffect, EntityTag, EntityZone'
-      - field: manualDiscoveries
-        effect: 'event:wall-break recorded'
       - field: facingEntityPos
         effect: 'recalculated via updateFacingEntity'
     determinism: deterministic

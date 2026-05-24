@@ -477,8 +477,7 @@ tasks:
       state.activeDialog?.awaitingConfirmation === true, consume the press
       and run the confirm path: (1) call contributeDormancyPressure(state,
       1.0) from omen.ts; (2) set state.emilyInvitation = 'confirmed';
-      (3) set state.activeDialog = null; (4) call recordDiscovery(state,
-      'event:emily-invitation-confirmed'). Return early so the standard
+      (3) set state.activeDialog = null. Return early so the standard
       advance-line path does not also run. If the confirm path throws
       (contributeDormancyPressure failure or a future hook), wrap in a
       try/catch — log via console.error and still set activeDialog = null
@@ -872,9 +871,8 @@ tasks:
       'unoffered' → 'offered' at this moment. (4) confirm path: [f] press
       while awaitingConfirmation=true calls contributeDormancyPressure
       with amount=1.0 (verify state.dormancyPressure increases toward
-      ceiling), sets emilyInvitation='confirmed', sets activeDialog=null,
-      recordDiscovery('event:emily-invitation-confirmed') fires. (5)
-      cancel path: closing the dialog mid-invitation (any close path)
+      ceiling), sets emilyInvitation='confirmed', sets activeDialog=null.
+      (5) cancel path: closing the dialog mid-invitation (any close path)
       reverts emilyInvitation 'offered' → 'unoffered' and clears
       awaitingConfirmation implicitly. (6) re-entry: after cancel,
       reopening the dialog and re-reaching the last line re-arms the

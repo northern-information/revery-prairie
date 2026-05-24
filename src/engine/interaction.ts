@@ -209,7 +209,6 @@ export const advanceDialog = (
     try {
       contributeDormancyPressure(state, 1.0)
       state.emilyInvitation = 'confirmed'
-      recordDiscovery(state, 'event:emily-invitation-confirmed')
     } catch (err) {
       console.error('emily invitation confirm path threw', err)
     } finally {
@@ -417,8 +416,6 @@ export const unlockRuinDoor = (state: GameState): boolean => {
     setMapTile(state, pos.x, pos.y, { type: TileType.RuinDoorOpen })
   }
 
-  recordDiscovery(state, 'event:ruin-door-unlocked')
-
   updateFacingEntity(state)
   return true
 }
@@ -428,8 +425,8 @@ export const unlockRuinDoor = (state: GameState): boolean => {
  *  collapseBarrier, so every clear is atomic: every barrier tile flips
  *  from RuinDebris to RuinFloor in this call, mirroring breakWall's
  *  atomic cave-wall pattern. A crumble TimedEffect covers all barrier
- *  tiles, a pickupBloom fires at the player position, and
- *  'event:rubble-cleared' is recorded. Returns true if cleared. */
+ *  tiles, and a pickupBloom fires at the player position.
+ *  Returns true if cleared. */
 export const clearRuinDebris = (state: GameState, time = performance.now()): boolean => {
   if (state.currentZone !== Zone.Ruin) return false
   const d = DIRECTIONS[state.playerFacing]
@@ -460,7 +457,6 @@ export const clearRuinDebris = (state: GameState, time = performance.now()): boo
   state.world.addComponent(crumbleEntity, ComponentType.EntityZone, getCurrentEntityZone(state))
   spawnPickupBloom(state, state.player.x, state.player.y, time)
 
-  recordDiscovery(state, 'event:rubble-cleared')
   updateFacingEntity(state)
   return true
 }
@@ -659,7 +655,6 @@ export const breakWall = (state: GameState, time: number): boolean => {
   // condition changes for every caveHiddenPositions entry simultaneously.
   state.caveRevealed = true
   invalidateMapCache(state.map)
-  recordDiscovery(state, 'event:wall-break')
 
   updateFacingEntity(state)
   return true

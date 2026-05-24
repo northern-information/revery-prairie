@@ -125,7 +125,6 @@ describe('RP-33 — confirm path', () => {
     expect(state.activeDialog).toBeNull()
     expect(state.emilyInvitation).toBe('confirmed')
     expect(state.dormancyPressure).toBeGreaterThanOrEqual(1.0 - 1e-9)
-    expect(state.manualDiscoveries.has('event:emily-invitation-confirmed')).toBe(true)
   })
 })
 
