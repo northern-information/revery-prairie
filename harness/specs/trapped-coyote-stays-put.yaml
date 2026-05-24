@@ -70,9 +70,9 @@ behaviors:
       interaction, every RuinDebris tile in collapseBarrier converts to
       RuinFloor in the same call — not just the facing tile. This
       mirrors the cave breakable-wall pattern in breakWall, where
-      caveBreakableWallPositions all flip to CaveFloor together. Atomic
-      clearing records 'event:rubble-cleared' once. The clear also
-      spawns a crumble TimedEffect entity whose MultiPosition covers
+      caveBreakableWallPositions all flip to CaveFloor together. The
+      clear also spawns a crumble TimedEffect entity whose
+      MultiPosition covers
       the collapseBarrier tiles (matching the cave wall-break crumble
       entity), and spawns a pickupBloom effect at the player position
       (per the pickup bloom convention — every acquisition or
@@ -85,14 +85,11 @@ behaviors:
       - 'every tile in dormantGarden.collapseBarrier is RuinFloor'
       - 'a crumble TimedEffect entity exists with MultiPosition covering the collapseBarrier tiles'
       - 'a pickupBloom effect is spawned at the player position'
-      - 'event:rubble-cleared recorded'
     state_changes:
       - field: map (tiles at collapseBarrier positions)
         effect: 'all converted from RuinDebris to RuinFloor in one call'
       - field: world (new entities)
         effect: 'one crumble TimedEffect entity with MultiPosition over the collapseBarrier tiles; one pickupBloom effect at player position'
-      - field: manualDiscoveries
-        effect: "'event:rubble-cleared' added on first clear"
     determinism: deterministic
 
   - id: coyote-runs-to-player-and-opens-dialog-on-rescue
@@ -208,7 +205,7 @@ failure_conditions:
   - trigger: 'Player enters the coyote-role ruin and exits without rescuing the coyote.'
     expected: 'Coyote remains inside the ruin at its spawn position; coyote is not visible on the overworld adjacent to the player after exitRuin.'
   - trigger: 'Player faces and clears a single collapseBarrier tile.'
-    expected: 'All three collapseBarrier tiles convert to RuinFloor atomically; a crumble TimedEffect entity is created with MultiPosition over the collapseBarrier tiles; a pickupBloom is spawned at the player position; event:rubble-cleared is recorded.'
+    expected: 'All three collapseBarrier tiles convert to RuinFloor atomically; a crumble TimedEffect entity is created with MultiPosition over the collapseBarrier tiles; a pickupBloom is spawned at the player position.'
   - trigger: 'Rescue fires (player becomes adjacent to coyote after clearing the barrier).'
     expected: "state.activeDialog is set to the coyote dialog descriptor; the coyote definition's dialog returns ['Awoo!', 'Awoo!']; the coyote definition's portrait is '/gron.gif'; mainQuestPhase advances to Gathering; pickupBloom and 'Rescued Coyote!' toast fire as before."
 

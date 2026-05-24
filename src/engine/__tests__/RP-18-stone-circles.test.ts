@@ -280,25 +280,6 @@ describe('RP-18 — stone circles', () => {
       const newPlace = state.placedMeteorites[1]
       expect(newPlace.x === state.player.x && newPlace.y === state.player.y).toBe(false)
     })
-
-    it('records event:stone-circle the first time a polygon forms', () => {
-      const state = createTestState()
-      swapToOverworldForTest(state)
-      clearAroundPlayer(state, 4)
-      // Pre-seed two meteorites within radius — placing the third closes
-      // a triangle.
-      state.placedMeteorites = [
-        { x: state.player.x + 2, y: state.player.y },
-        { x: state.player.x, y: state.player.y + 2 },
-      ]
-      expect(state.manualDiscoveries.has('event:stone-circle')).toBe(false)
-
-      giveMeteorite(state)
-      const ok = dropItem(state, 'meteorite', 1000)
-      expect(ok).toBe(true)
-      expect(state.placedMeteorites).toHaveLength(3)
-      expect(state.manualDiscoveries.has('event:stone-circle')).toBe(true)
-    })
   })
 
   describe('F-tap pickup', () => {

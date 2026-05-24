@@ -10,7 +10,6 @@ import { recordDiscovery } from './manual'
 import { spawnBeeOrMonarch } from './monarch'
 import { createPlacedCamera } from './timeLapse'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
-import { getHallowedPolygons, getStoneCircleGraph } from './stoneCircles'
 import { recordCameraSubjectEvent } from './timeLapse'
 import { CameraSubject, FloraSpecies, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
@@ -349,10 +348,6 @@ export const placeMeteoriteAt = (state: GameState, x: number, y: number, time?: 
   state.placedMeteorites.push({ x, y })
   if (time !== undefined) {
     spawnPickupBloom(state, x, y, time)
-  }
-  if (state.placedMeteorites.length >= 3) {
-    const polygons = getHallowedPolygons(state.placedMeteorites, getStoneCircleGraph(state.placedMeteorites))
-    if (polygons.length > 0) recordDiscovery(state, 'event:stone-circle')
   }
   return true
 }

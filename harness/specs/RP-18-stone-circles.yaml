@@ -255,21 +255,16 @@ behaviors:
   - id: manual-entries
     description: >
       Update the existing meteorite manual entry to reflect the new
-      placement vocabulary, and add a new manual entry "Stone Circle"
-      that unlocks when the player has formed at least one closed
-      hallowed polygon. Both entries use { lore: 'TODO' } placeholders
-      in MANUAL_LORE — lore is human-authored. Discovery hooks:
-      `item:meteorite` (existing, on pickup) and `event:stone-circle`
-      (new, recorded when getHallowedPolygons first returns a non-empty
-      array). The discovery check runs once per frame in the same place
-      other event:* discoveries are recorded.
+      placement vocabulary. The meteorite entry continues to use
+      `item:meteorite` (recorded on pickup) as its discovery hook.
+      A dedicated "Stone Circle" manual entry is intentionally not
+      added — the hallowed-ground geometry is surfaced visually
+      through the render pass, not through a manual entry.
     inputs:
       - 'GameState'
     outputs:
-      - 'manual unlocks tracked via recordDiscovery'
-    state_changes:
-      - field: manualDiscoveries
-        effect: 'event:stone-circle recorded the first time getHallowedPolygons(state) is non-empty'
+      - 'manual unlocks tracked via recordDiscovery (existing item:meteorite hook only)'
+    state_changes: []
     determinism: deterministic
 
 edge_cases:

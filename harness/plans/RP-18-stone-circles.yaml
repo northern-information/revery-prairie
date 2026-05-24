@@ -351,27 +351,18 @@ tasks:
     title: >
       Update src/engine/manual.ts: extend the existing meteorite manual
       entry text to reflect placement/circles, keeping `{ lore: 'TODO' }`.
-      Add a new manual entry with id 'stone-circle' (name "Stone Circle"
-      in Title Case per the writing rules), category appropriate to
-      cosmological objects (mirror the meteorite entry's category), with
-      `{ lore: 'TODO' }`. Discovery hook: in src/engine/gameLoop.ts, add
-      a once-per-frame check that calls getHallowedPolygons on
-      state.placedMeteorites and, when the result transitions from empty
-      to non-empty for the first time, calls recordDiscovery(state,
-      'event:stone-circle'). Add the unlock guard to MANUAL_LORE
-      mapping so 'event:stone-circle' unlocks the new entry. Lore text
-      itself stays TODO — do not author it.
+      No dedicated stone-circle manual entry is added — the hallowed
+      geometry is surfaced through the render pass, not through the
+      manual. Lore text stays TODO — do not author it.
     spec_id: RP-18-stone-circles
     spec_sections:
       - manual-entries
     context_files:
       - src/engine/manual.ts
-      - src/engine/gameLoop.ts
       - src/engine/stoneCircles.ts
       - src/engine/types.ts
     output_files:
       - src/engine/manual.ts
-      - src/engine/gameLoop.ts
     depends_on:
       - stone-circle-math
     verification:

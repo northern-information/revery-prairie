@@ -443,7 +443,6 @@ describe('ruin dormant garden', () => {
       for (const bp of barrier) {
         expect(state.map[bp.y][bp.x].type).toBe(TileType.RuinFloor)
       }
-      expect(state.manualDiscoveries.has('event:rubble-cleared')).toBe(true)
     })
 
     it('clearRuinDebris is a no-op when not facing a RuinDebris tile', () => {
@@ -455,7 +454,6 @@ describe('ruin dormant garden', () => {
       state.playerFacing = 'up'
 
       expect(clearRuinDebris(state)).toBe(false)
-      expect(state.manualDiscoveries.has('event:rubble-cleared')).toBe(false)
     })
   })
 
