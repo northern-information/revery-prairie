@@ -1299,6 +1299,17 @@ features:
       simulation, not the steward's clock. Cosmological framing:
       _home is the place that does not tick for the steward._
 
+
+      v10 thinktank round 1 (2026-05-23). The little house gains
+      the night-beacon treatment during seasonal nights (per `#52`).
+      Windows lit, lamp on the porch, Emily silhouetted inside.
+      Visible at long range across the prairie when `dayPhase` is
+      `night`, at lower intensity during `dusk` / `dawn`. The
+      steward who is far from home when night begins can navigate
+      by aiming at the warm rectangle in the distance. Visual
+      treatment deferred to spec; the principle is _the steward
+      can always find home_.
+
   - id: '34'
     name: The tenure opens in the little house
     summary: >
@@ -1955,6 +1966,17 @@ features:
       constraint for metabolic / egregoric prose (per v6 R8 — _of-
       but-not-of_ register, never _invasive_).
 
+
+      v10 thinktank round 1 (2026-05-23). The witness-footprint
+      substrate this entry establishes now has two surfaces, not
+      one. The cellar reads it as prose (delayed by N years, where
+      N is the years since the Knot was tied). The wisps in `#54`
+      render it as light (delayed by exactly one year, same-
+      season). The two specs should share a `WitnessFootprint`
+      foundation rather than duplicate the derivation. _Same data,
+      two surfaces — the cellar speaks across years, the wisp
+      speaks across one._
+
   - id: '51'
     name: Time stops in domestic structures
     summary: >
@@ -1999,3 +2021,132 @@ features:
       (lean: no); whether future domestic spaces inherit
       automatically (lean: no — the principle is the test,
       domestic vs wild, drawn deliberately per space).
+
+  - id: '52'
+    name: Holographic day/night derived from seasonalPhase
+    summary: >
+      Each season holds one day and one night, derived from
+      `seasonalPhase` via a pure function — `dayPhase(seasonalPhase)`
+      returning `{ phase: 'day' | 'dawn' | 'night' | 'dusk', t }`. A
+      `nightFraction(season)` table allocates the night/day split
+      per season — long winter nights, short summer nights,
+      intermediate spring and autumn. The night palette is a global
+      tint wash composing with the existing `seasonalWash` in
+      `filmGrainOverlay.ts`; multiply the night tint over the
+      seasonal tint, both derived from the same scalar. Composes
+      with v7 R2's two-layer fog — night dims the present layer,
+      not the memory layer. The steward's gaze radius compresses
+      during the seasonal night. No new clock, no new field on
+      `GameState`, no save-shape change.
+    size: S
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 1 (2026-05-23). The reframe is the
+      round: a wall-clock day cycle would tick faster than the
+      seasons it lives inside (`SEASONAL_PHASE_PERIOD_MS` is 20
+      minutes — five minutes per season), so days and nights are
+      holographic at the seasonal scale. Four days, four nights,
+      per year. _The prairie does not have nights. The year has
+      four._ The seasonal night cannot be opted out of — Revery
+      is the once-per-year solstice event, not a nightly sleep.
+      v9 R2's `pausesPlayerTime` flag pauses both the season
+      clock and the derived day/night phase in one stroke. The
+      egregore script-bearing tiles read sharpest at the diurnal-
+      by-seasonal compounding — the winter night is the year's
+      crispest reading of the of-but-not-of script. Amendment to
+      v2 R5: _the ecology that wakes when ours sleeps_ now reads
+      at both seasonal and seasonal-night scale. Open at spec:
+      `nightFraction(season)` values (lean: winter ~0.55, autumn
+      ~0.45, spring ~0.40, summer ~0.30; constraint — total
+      night per year should feel like events, not a quarter of
+      the session); whether dawn and dusk are their own palette
+      register (lean: yes — diurnal analog of v7 R4's shoulder-
+      season lock); whether the steward can carry a light source
+      (lean: no, never craftable — compressed gaze is part of
+      the night's texture); whether egregore tiles need an
+      explicit visibility boost during winter night or whether
+      layered tint math suffices (lean: audit at spec). _Heat
+      death is the antagonist; night is the antagonist's daily
+      face, made small and ritualized into four passes._
+
+  - id: '53'
+    name: Fireflies (native bioluminescence)
+    summary: >
+      Sparse particle pass keyed to tall grass and damp tiles,
+      emitting only during spring and summer nights (per `#52`'s
+      `dayPhase`). Ambient, no behavior, no interaction. Of-this-
+      Earth bioluminescence — the prairie speaking with its own
+      light when the sun isn't drowning it. Absent in autumn and
+      winter. One new render pass under
+      `src/engine/render/passes/`.
+    size: S
+    depends_on: ['52']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 1 (2026-05-23). Fireflies are the calm
+      half of the night register, session-warming. _The night the
+      fireflies do not come is its own kind of cold_ — the
+      autumn and winter nights' absence is part of their meaning.
+      Kept sharply distinct from `#54` (will-o'-the-wisps) in
+      code, in render, and in lore; conflating the two would be
+      the same category mistake as letting the egregore wear a
+      coat. Manual entry uses the native voice register; lore
+      authoring is human-only per `docs/claude/manual.md`. Flag
+      for human lore author at spec time. Open at spec: density
+      cap; whether damp-tile emission also keys on recent
+      precipitation; whether fireflies cluster around the little
+      house's beacon.
+
+  - id: '54'
+    name: Will-o'-the-wisps (witness lights, same-season prior-year)
+    summary: >
+      Up to four wisps per year — one per seasonal night (per
+      `#52`'s `dayPhase`). Each wisp's drifting path encodes the
+      same-season slice of the prior year's footprint of one of
+      v9 R1's plural witnesses (coyote wander trail, egregore
+      patch perimeter, Emily's housebound circuit). The steward
+      may follow; the wisp dissolves at the end of its path on
+      schedule, whether or not the steward watched. Witness
+      provenance stays internal — the wisp does not announce
+      which witness sourced it. Live, one-year-delayed sibling
+      of the cellar's plural-witness revelation in `#50`; shares
+      the `WitnessFootprint` substrate with `#50`.
+    size: M
+    depends_on: ['52', '50']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 1 (2026-05-23). The wisp is a
+      _summons_, not wallpaper — at one wisp per seasonal night
+      the tempo is up to four per year, each one an event. The
+      steward who follows a wisp is walking a same-season prior-
+      year witness-trail in real time; the cellar reads back the
+      same path in prose years later. _Same data, two surfaces —
+      the cellar speaks across years, the wisp speaks across one._
+      The cosmological constraint, unchanged: never the steward's
+      own footprint. The steward does not haunt the prairie. Open
+      at spec: how the witness is chosen per night (lean:
+      deterministic from year and season — whichever witness
+      covered the most tiles in that season's prior-year slice;
+      no wisp appears if no witness covered meaningfully);
+      whether the wisp has a sound (lean: near-silence, the wind
+      sounds different where it passes — calm-tech register per
+      v4 R9; no howl, no chime); whether the wisp can be "caught"
+      or interacted with (lean: always a few tiles ahead like
+      classical ignis fatuus; following is the only interaction;
+      the steward arrives where the wisp dissolved and may find
+      a trace — a scorched tile, a coyote print, a single
+      egregoric glyph — or nothing). Manual entry uses the
+      _of-but-not-of_ register (per v6 R8); never _invasive_
+      (CI-guarded ban). Lore authoring is human-only per
+      `docs/claude/manual.md`. Flag for human lore author at spec
+      time. _The wisps are the cellar's footnotes, ahead of time._
