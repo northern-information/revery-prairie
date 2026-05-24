@@ -47,7 +47,13 @@ export default defineConfig({
           environment: 'node',
           globals: true,
           ...COMMON,
-          include: ['src/engine/**/*.test.ts', 'src/network/**/*.test.ts'],
+          include: [
+            'src/engine/**/*.test.ts',
+            'src/network/**/*.test.ts',
+            // Pure math; no DOM. Lives under src/components/ alongside the
+            // module it tests, but jsdom startup is wasted for it.
+            'src/components/__tests__/inventoryPanelClamping.test.ts',
+          ],
           exclude: ['src/engine/__tests__/audio.test.ts', 'src/engine/__tests__/proximityMusic.test.ts'],
         },
       },
@@ -88,6 +94,8 @@ export default defineConfig({
             'src/engine/__tests__/audio.test.ts',
             'src/engine/__tests__/proximityMusic.test.ts',
           ],
+          // Pure-math test that doesn't need jsdom — runs in the engine project.
+          exclude: ['src/components/__tests__/inventoryPanelClamping.test.ts'],
         },
       },
     ],
