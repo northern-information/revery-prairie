@@ -17,7 +17,11 @@ const HashGrid = ({ hash }: { hash: string }) => (
       <div
         key={i}
         className="text-permacomputer flex h-6 w-6 items-center justify-center"
-        style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '0.9rem' }}
+        style={{
+          fontFamily:
+            '"Libre Baskerville", Baskerville, "Baskerville Old Face", "Hoefler Text", Garamond, "Times New Roman", serif',
+          fontSize: '0.9rem',
+        }}
       >
         {hash[i] ?? '\u00b7'}
       </div>
@@ -57,7 +61,11 @@ export const CantosScreen = ({ cantos }: CantosScreenProps) => {
                       ? 'border-pink bg-pink/20 text-text'
                       : 'text-permacomputer border-permacomputer/30 hover:border-pink'
                   }`}
-                  style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '0.9rem' }}
+                  style={{
+                    fontFamily:
+                      '"Libre Baskerville", Baskerville, "Baskerville Old Face", "Hoefler Text", Garamond, "Times New Roman", serif',
+                    fontSize: '0.9rem',
+                  }}
                   onMouseEnter={() => {
                     setHoveredIndex(i)
                   }}

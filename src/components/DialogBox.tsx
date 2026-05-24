@@ -25,7 +25,11 @@ const HashGrid = ({ hash, revealCount }: { hash: string; revealCount: number }) 
         <div
           key={i}
           className="text-permacomputer flex h-6 w-6 items-center justify-center"
-          style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '0.9rem' }}
+          style={{
+            fontFamily:
+              '"Libre Baskerville", Baskerville, "Baskerville Old Face", "Hoefler Text", Garamond, "Times New Roman", serif',
+            fontSize: '0.9rem',
+          }}
         >
           {chars[i] ?? ''}
         </div>
