@@ -23,7 +23,7 @@ import { clearMovementTweens } from '../movementTween'
 import { isWalkableTile, posKey } from '../position'
 import { TileType, Zone } from '../types'
 import { createTestState } from './helpers'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 const getAngelEntities = (state: ReturnType<typeof createTestState>) => state.world.query(ComponentType.AngelData)
 
@@ -56,10 +56,6 @@ const createAngelTestState = () => {
   state.nextAngelSpawnTime = 0
   return state
 }
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
 
 describe('angel spawning', () => {
   it('spawns an angel when conditions are met', () => {
@@ -166,11 +162,15 @@ describe('angel drifting', () => {
       .mockReturnValueOnce(0) // drift chance passes
       .mockReturnValueOnce(0) // picks first cardinal direction (up)
 
-    tickAngelDrift(state)
+    try {
+      tickAngelDrift(state)
 
-    const posAfter = state.world.getComponent(eid, ComponentType.Position)
-    // Position should still exist — drift should not crash
-    expect(posAfter).toBeTruthy()
+      const posAfter = state.world.getComponent(eid, ComponentType.Position)
+      // Position should still exist — drift should not crash
+      expect(posAfter).toBeTruthy()
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 
   it('does not drift during dialog', () => {
@@ -190,11 +190,15 @@ describe('angel drifting', () => {
     }
 
     vi.spyOn(Math, 'random').mockReturnValue(0) // would normally drift
-    tickAngelDrift(state)
+    try {
+      tickAngelDrift(state)
 
-    const posAfter = requireComponent(state.world.getComponent(eid, ComponentType.Position))
-    expect(posAfter.x).toBe(posBefore.x)
-    expect(posAfter.y).toBe(posBefore.y)
+      const posAfter = requireComponent(state.world.getComponent(eid, ComponentType.Position))
+      expect(posAfter.x).toBe(posBefore.x)
+      expect(posAfter.y).toBe(posBefore.y)
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 
   it('attaches a MovementTween with ANGEL_DRIFT_TICK_MS duration on a successful drift', () => {
@@ -207,15 +211,19 @@ describe('angel drifting', () => {
     vi.spyOn(Math, 'random')
       .mockReturnValueOnce(0) // drift chance passes
       .mockReturnValueOnce(0) // picks first cardinal direction
-    tickAngelDrift(state)
+    try {
+      tickAngelDrift(state)
 
-    const posAfter = requireComponent(state.world.getComponent(eid, ComponentType.Position))
-    expect(posAfter.x !== posBefore.x || posAfter.y !== posBefore.y).toBe(true)
+      const posAfter = requireComponent(state.world.getComponent(eid, ComponentType.Position))
+      expect(posAfter.x !== posBefore.x || posAfter.y !== posBefore.y).toBe(true)
 
-    const tween = requireComponent(state.world.getComponent(eid, ComponentType.MovementTween))
-    expect(tween.durationMs).toBe(ANGEL_DRIFT_TICK_MS)
-    expect(tween.fromX).toBe(posBefore.x)
-    expect(tween.fromY).toBe(posBefore.y)
+      const tween = requireComponent(state.world.getComponent(eid, ComponentType.MovementTween))
+      expect(tween.durationMs).toBe(ANGEL_DRIFT_TICK_MS)
+      expect(tween.fromX).toBe(posBefore.x)
+      expect(tween.fromY).toBe(posBefore.y)
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 
   it('clears the angel MovementTween when zone tweens are cleared (e.g. cave entry)', () => {
@@ -226,11 +234,15 @@ describe('angel drifting', () => {
     vi.spyOn(Math, 'random')
       .mockReturnValueOnce(0)
       .mockReturnValueOnce(0)
-    tickAngelDrift(state)
-    expect(state.world.getComponent(eid, ComponentType.MovementTween)).toBeTruthy()
+    try {
+      tickAngelDrift(state)
+      expect(state.world.getComponent(eid, ComponentType.MovementTween)).toBeTruthy()
 
-    clearMovementTweens(state)
-    expect(state.world.getComponent(eid, ComponentType.MovementTween)).toBeUndefined()
+      clearMovementTweens(state)
+      expect(state.world.getComponent(eid, ComponentType.MovementTween)).toBeUndefined()
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 
   it('overwrites the in-flight MovementTween when a second drift fires before the first completes', () => {
@@ -244,13 +256,17 @@ describe('angel drifting', () => {
       .mockReturnValueOnce(0) // first drift: direction
       .mockReturnValueOnce(0) // second drift: chance passes
       .mockReturnValueOnce(0) // second drift: direction
-    tickAngelDrift(state)
-    const midPos = { ...requireComponent(state.world.getComponent(eid, ComponentType.Position)) }
-    tickAngelDrift(state)
+    try {
+      tickAngelDrift(state)
+      const midPos = { ...requireComponent(state.world.getComponent(eid, ComponentType.Position)) }
+      tickAngelDrift(state)
 
-    const tween = requireComponent(state.world.getComponent(eid, ComponentType.MovementTween))
-    expect(tween.fromX).toBe(midPos.x)
-    expect(tween.fromY).toBe(midPos.y)
+      const tween = requireComponent(state.world.getComponent(eid, ComponentType.MovementTween))
+      expect(tween.fromX).toBe(midPos.x)
+      expect(tween.fromY).toBe(midPos.y)
+    } finally {
+      vi.restoreAllMocks()
+    }
   })
 })
 
