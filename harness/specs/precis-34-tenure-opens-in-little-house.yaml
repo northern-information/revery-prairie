@@ -1,11 +1,12 @@
 id: precis-34-tenure-opens-in-little-house
-name: 'The tenure opens in the little house — first-wake dialog with Emily (precis #34)'
+name: 'The tenure opens in the little house — Emily speaks first (precis #34)'
 priority: high
 layer: integration
 source_files:
   - src/engine/types.ts
   - src/engine/state.ts
   - src/engine/characters.ts
+  - src/engine/interaction.ts
   - src/engine/gameLoop.ts
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies:
@@ -32,83 +33,99 @@ dependencies:
 #     steward's left, by the chair). Camera centers on the player.
 #   * Emily character entity is created at {x: 5, y: 2} with
 #     zone: Zone.HouseInterior (state.ts:541).
-#   * Emily has four seasonal dialog registers; all lines are
-#     `TODO: emily {season} line N` placeholders per the manual-lore
-#     authoring convention.
+#   * Emily previously had four seasonal dialog registers
+#     (EMILY_DIALOG_WINTER/SPRING/SUMMER/AUTUMN), all TODO placeholders.
+#     The unified register below replaces them in this spec.
 #
-# What #34 still needs (this spec):
-#   1. A one-shot first-wake dialog beat — Emily auto-initiates a dialog
-#      when the steward wakes in the house at tenure start, before the
-#      player has moved. The girl is the first surface; her first line
-#      sets the voice register before the prairie ever speaks.
-#   2. A persistent flag (`state.tenureOpened`) that gates the auto-
-#      trigger so it never re-fires after the first wake (Esc, walk-away,
-#      save/reload all leave it true).
-#   3. A dedicated first-wake dialog register (`EMILY_DIALOG_FIRST_WAKE`)
-#      with `TODO` placeholders — used only on the first opening at
-#      tenure start, never on re-engagement. Subsequent [f] interactions
-#      with Emily resume the existing seasonal registers from #33.
+# What #34 ships (this spec):
+#   1. A unified, year-round Emily dialog register (`EMILY_DIALOG`) of
+#      three locked lines, replacing the four seasonal registers from
+#      #33. Lines are authored by the user (not TODO placeholders) and
+#      include the v6 R2 canonical refrain as the third line.
+#   2. A one-shot first-wake dialog beat — Emily auto-initiates her
+#      dialog when the steward wakes in the house at tenure start,
+#      before the player has moved. Same `EMILY_DIALOG` register;
+#      no dedicated first-wake register.
+#   3. A persistent flag (`state.tenureOpened`) that gates the auto-
+#      trigger so it never re-fires after the first wake (Esc, walk-
+#      away, save/reload all leave it true).
 #
-# Design decisions locked by the user 2026-05-23 during spec gathering:
+# Design decisions locked by the user 2026-05-23 / 2026-05-24:
 #
-#   1. Scope is the first-wake dialog beat only. No new tutorial
-#      affordances; no extra visual / shutter beats at handoff; no
-#      doctrine comment in genesis.ts (deferred — out of scope here).
-#      Dialog and door remain the whole onboarding.
+#   1. Scope is the first-wake dialog beat plus a dialog-register
+#      simplification. No new tutorial affordances; no extra visual /
+#      shutter beats at handoff; no doctrine comment in genesis.ts
+#      (deferred — out of scope here). Dialog and door remain the whole
+#      onboarding.
 #
-#   2. Auto-trigger fires on wake. Emily opens her own dialog as soon as
-#      the steward has agency (state.genesis === null and
+#   2. Auto-trigger fires on wake. Emily opens her own dialog as soon
+#      as the steward has agency (state.genesis === null and
 #      state.bootTitleCard === null) and the steward is in the house
 #      interior. The player has not pressed [f]; the dialog appears as
 #      part of waking.
 #
-#   3. Dialog content is human-authored. All first-wake lines are
-#      `TODO: emily first wake line N` placeholders per
-#      feedback_manual_lore_only.md. Three lines is sufficient (matches
-#      the existing seasonal-register shape: `['...', line1, line2]`).
+#   3. Dialog content is locked to three lines, identical year-round:
 #
-#   4. The auto-trigger is one-shot. Once state.tenureOpened is true, the
-#      tick that auto-opens the dialog short-circuits forever for this
-#      tenure. Esc / walking away / save+reload do not re-arm it.
-#      Re-engaging Emily with [f] after that opens her standard seasonal
-#      register via the existing interaction path.
+#        1. "Happy first day of spring, steward."
+#        2. "I wonder what this year's knot will hold?"
+#        3. "You will return before the winter solstice, to revery."
 #
-#   5. No new awaitingConfirmation arming. The first-wake register does
-#      NOT arm activeDialog.awaitingConfirmation, even if tenure-start
-#      happens to land in autumn. The Revery-invitation prompt is a
-#      separate, re-engageable surface owned by #33 and reached by
-#      walking up to Emily and pressing [f] — not by being auto-spoken
-#      to on wake. (Rationale: the first wake is a doctrine beat, not a
+#      Lines 1 and 2 are doctrinal additions; line 3 is the v6 R2
+#      canonical refrain locked in the thinktank. The four seasonal
+#      registers from #33 (and the TODO placeholders within them) are
+#      deleted; replaced by a single `EMILY_DIALOG` export.
+#
+#   4. The autumn-only awaitingConfirmation arm from #33 is preserved.
+#      The third line is the same year-round, but the existing
+#      tickDialogTyping / advanceDialog arm logic only flips
+#      activeDialog.awaitingConfirmation = true when
+#      state.weather.season === Autumn. The line index used by the
+#      arm site changes from `EMILY_DIALOG_AUTUMN.length - 1` to
+#      `EMILY_DIALOG.length - 1`; semantics otherwise unchanged.
+#      In non-autumn seasons the same line plays as foreshadowing;
+#      no confirm prompt.
+#
+#   5. The auto-trigger is one-shot. Once state.tenureOpened is true,
+#      the tick that auto-opens the dialog short-circuits forever for
+#      this tenure. Esc / walking away / save+reload do not re-arm
+#      it. Re-engaging Emily with [f] after that opens the same
+#      EMILY_DIALOG register via the existing interaction path.
+#
+#   6. The first-wake auto-open does NOT pre-arm awaitingConfirmation,
+#      even if tenure-start happens to land in autumn. The arm logic
+#      lives in tickDialogTyping / advanceDialog and is gated on the
+#      typing-done last-line condition; the first frame after the
+#      auto-open is on lineIndex 0 with typingIndex 0, so the arm
+#      naturally doesn't fire. (Even if the player advances through
+#      to the last line during the first-wake reading, the arm fires
+#      as usual — autumn-gated, same as a manual [f] visit. The
+#      first wake is the doctrine beat; the autumn arm is the
 #      decision moment.)
 #
-#   6. Schema test (EXPECTED_FIELDS) is updated: ADD `tenureOpened`.
+#   7. Schema test (EXPECTED_FIELDS) is updated: ADD `tenureOpened`.
 #
-#   7. No multiplayer-protocol changes. The flag is per-tenure local
+#   8. No multiplayer-protocol changes. The flag is per-tenure local
 #      state; multiplayer spawn semantics still defer to #16.
 #
 # What this feature does NOT do:
-#   - Does not author Emily's first-wake lines. All lines are TODO
-#     placeholders.
-#   - Does not change `enterHouseAtTenureStart`. #33's spawn semantics are
-#     preserved.
-#   - Does not add a wake animation, fade, eyes-opening beat, or any new
-#     visual cue at handoff. The bootTitleCard cover already provides
-#     the visual gate; the first frame after it clears shows the
-#     interior with the dialog overlay.
+#   - Does not change `enterHouseAtTenureStart`. #33's spawn semantics
+#     are preserved.
+#   - Does not add a wake animation, fade, eyes-opening beat, or any
+#     new visual cue at handoff. The bootTitleCard cover already
+#     provides the visual gate; the first frame after it clears shows
+#     the interior with the dialog overlay.
 #   - Does not change the genesis screen. No comment, no in-game text,
 #     no new pixels.
 #   - Does not add manual entries or unlock new manual content beyond
-#     what #33 already does. (Emily's manual entry was added by #33.)
-#   - Does not change the existing Emily seasonal dialog registers from
-#     #33. The seasonal lines and the autumn-invitation arming are
-#     unchanged.
-#   - Does not introduce new audio cues for the first wake. (Music handoff
-#     polish already shipped in commit b8dbe82.)
-#   - Does not change the Revery summons sequence. The first-wake dialog
-#     never arms awaitingConfirmation, even in autumn.
-#   - Does not add a `previousTenureOpened` or similar cross-tenure flag.
-#     `tenureOpened` is a per-tenure (per-save) boolean; cross-tenure
-#     lineage handoff is #16's scope.
+#     what #33 already did. (Emily's manual entry was added by #33.)
+#   - Does not change the dormancy-pressure ramp from #32 or the
+#     summons sequence from #33. The Emily confirm path still routes
+#     through the existing dormancyPressure contribution.
+#   - Does not introduce new audio cues for the first wake. (Music
+#     handoff polish already shipped in commit b8dbe82.)
+#   - Does not author seasonal-register variants. The unified register
+#     is intentional — Emily's voice is the unchanged thing the prairie
+#     produced (v6 R3 doctrine).
 
 behaviors:
   - id: tenure-opened-flag-initial-state
@@ -126,43 +143,51 @@ behaviors:
         effect: 'initialized to false'
     determinism: deterministic
 
-  - id: first-wake-dialog-register
+  - id: emily-dialog-unified-register
     description: >
-      A new exported array `EMILY_DIALOG_FIRST_WAKE` in
-      src/engine/characters.ts contains three TODO-placeholder strings,
-      shaped like the existing seasonal registers (`['...', line1,
-      line2]`). The leading `'...'` ellipsis matches the seasonal
-      registers' opening beat — the typing-dialog UI treats the first
-      element as the silent "she stirs" pause. The other two lines are
-      `'TODO: emily first wake line 1'` and
-      `'TODO: emily first wake line 2'`. The register is exported for
-      tests but not directly callable via [f] — it is consulted only by
-      `getEmilyDialog(state)` when the first-wake condition holds.
+      Emily speaks a single year-round register exported as
+      `EMILY_DIALOG` from src/engine/characters.ts. The register is a
+      readonly three-entry string array containing the locked lines
+      (see decision 3 in the header notes). The four prior seasonal
+      registers (EMILY_DIALOG_WINTER/SPRING/SUMMER/AUTUMN) are
+      deleted. `getEmilyDialog` is collapsed to a one-liner returning
+      EMILY_DIALOG; `getCharacterDialog(state, 'emily')` dispatches to
+      it unchanged from #33.
     inputs:
       - 'module load of src/engine/characters.ts'
+      - 'getCharacterDialog(state, "emily") in any season'
     outputs:
-      - 'EMILY_DIALOG_FIRST_WAKE is an exported readonly string array of length 3'
-      - 'EMILY_DIALOG_FIRST_WAKE[0] === "..."'
-      - 'EMILY_DIALOG_FIRST_WAKE[1] === "TODO: emily first wake line 1"'
-      - 'EMILY_DIALOG_FIRST_WAKE[2] === "TODO: emily first wake line 2"'
+      - 'EMILY_DIALOG is exported, length 3, content matches the locked lines'
+      - 'getCharacterDialog returns EMILY_DIALOG regardless of state.weather.season'
+      - 'EMILY_DIALOG_WINTER/SPRING/SUMMER/AUTUMN are no longer exported'
     state_changes: []
     determinism: deterministic
 
-  - id: get-emily-dialog-prefers-first-wake-when-active
+  - id: autumn-arm-uses-unified-register-length
     description: >
-      `getEmilyDialog(state)` checks if `state.activeDialog?.characterId
-      === 'emily'` AND `state.tenureOpened === false` — if both, it
-      returns EMILY_DIALOG_FIRST_WAKE. Otherwise it falls through to the
-      existing seasonal-dispatch logic from #33. This means the
-      first-wake register is returned only while the auto-opened dialog
-      is on screen; once that dialog closes and state.tenureOpened
-      flips to true, subsequent [f] interactions get the normal
-      seasonal register.
+      The two arm sites in src/engine/interaction.ts that previously
+      gated on `state.activeDialog.lineIndex ===
+      EMILY_DIALOG_AUTUMN.length - 1` now gate on
+      `state.activeDialog.lineIndex === EMILY_DIALOG.length - 1`.
+      The autumn season gate
+      (`state.weather.season === Season.Autumn`) and the no-active-
+      Revery gate (`state.revery === null`) are preserved. Behavior:
+      pressing [f] on the last line in autumn arms
+      activeDialog.awaitingConfirmation and flips emilyInvitation to
+      'offered'; the existing confirm path then commits to Revery on
+      the next [f]. In non-autumn seasons the same line reads as
+      foreshadowing and no arm occurs.
     inputs:
-      - 'state.activeDialog.characterId === "emily" and state.tenureOpened === false'
+      - 'tickDialogTyping or advanceDialog reaches the last line with characterId === "emily"'
     outputs:
-      - 'getEmilyDialog returns EMILY_DIALOG_FIRST_WAKE'
-    state_changes: []
+      - 'state.activeDialog.awaitingConfirmation === true when season is Autumn and revery is null'
+      - 'state.emilyInvitation === "offered" (was "unoffered")'
+      - 'in non-autumn seasons, awaitingConfirmation remains undefined and emilyInvitation remains "unoffered"'
+    state_changes:
+      - field: activeDialog.awaitingConfirmation
+        effect: 'set to true on autumn last-line typing-done'
+      - field: emilyInvitation
+        effect: 'unoffered → offered on autumn last-line typing-done'
     determinism: deterministic
 
   - id: first-wake-auto-trigger
@@ -170,16 +195,19 @@ behaviors:
       A new gameplay-phase TickSystem in `src/engine/gameLoop.ts`
       (id: `'firstWakeTrigger'`, intervalMs: 0, phase: 'gameplay',
       zone: 'always', priority: -18 — runs after bootTitleCardTick at
-      -20 and zoneTransitionTick at -19, before any movement / dialog
-      typing systems) auto-opens Emily's dialog on the first eligible
-      frame and sets state.tenureOpened = true. Eligibility:
+      -20 and deepTimeTransitionCleanup at -19, before any movement
+      systems) auto-opens Emily's dialog on the first eligible frame
+      and sets state.tenureOpened = true. Eligibility:
         * state.tenureOpened === false
-        * state.genesis === null
         * state.bootTitleCard === null
         * state.currentZone === Zone.HouseInterior
         * state.activeDialog === null
         * state.revery === null
         * state.zoneTransition === null
+      (Genesis gating is handled by `phase: 'gameplay'` and the
+      gameloop's phase filter; no inline `state.genesis` check is
+      written or permitted — see the meta-test "no genesis guards
+      remain in game loop system bodies" in genesis.test.ts.)
       When all hold, the system sets:
         state.activeDialog = {
           characterId: 'emily',
@@ -191,10 +219,7 @@ behaviors:
         }
         state.tenureOpened = true
       and calls callbacks.onRefreshUI?.() so the UI picks up the new
-      dialog overlay on the next render commit. The order matters:
-      activeDialog must be set BEFORE tenureOpened so that
-      getEmilyDialog returns the first-wake register on this same
-      frame's first typing-tick.
+      dialog overlay on the next render commit.
     inputs:
       - 'first eligible gameplay tick after tenure-start handoff'
     outputs:
@@ -246,10 +271,11 @@ edge_cases:
       is called synchronously before any title card is scheduled.
     expected: >
       On the first gameplay tick after the layoutEffect fires, all
-      eligibility checks pass (genesis null, bootTitleCard null, zone
-      HouseInterior, no dialog, no Revery, no zoneTransition). The
-      firstWakeTrigger fires immediately; state.activeDialog opens to
-      Emily's first-wake register; state.tenureOpened becomes true.
+      eligibility checks pass (bootTitleCard null, zone HouseInterior,
+      no dialog, no Revery, no zoneTransition). The phase filter
+      passes too because state.genesis is null. The firstWakeTrigger
+      fires immediately; state.activeDialog opens to EMILY_DIALOG;
+      state.tenureOpened becomes true.
 
   - id: dialog-already-open-at-handoff
     description: >
@@ -273,9 +299,8 @@ edge_cases:
     expected: >
       No re-trigger. The firstWakeTrigger short-circuits on
       state.tenureOpened === true. Subsequent [f] interactions with
-      Emily go through the existing interaction.ts path and consult
-      getEmilyDialog, which now returns the seasonal register (not the
-      first-wake one).
+      Emily go through the existing interaction.ts path and open the
+      same EMILY_DIALOG register.
 
   - id: save-and-reload-after-first-wake
     description: >
@@ -285,8 +310,8 @@ edge_cases:
     expected: >
       EXPECTED_FIELDS includes `tenureOpened`; the field round-trips
       correctly. On reload, state.tenureOpened === true and the
-      firstWakeTrigger does not re-fire. Re-engaging Emily yields her
-      seasonal register.
+      firstWakeTrigger does not re-fire. Re-engaging Emily yields the
+      same EMILY_DIALOG register.
 
   - id: save-and-reload-mid-first-wake-dialog
     description: >
@@ -300,18 +325,6 @@ edge_cases:
       long as state.tenureOpened survives a round-trip via the
       EXPECTED_FIELDS schema, the trigger will not re-fire even if
       activeDialog is dropped on load.
-
-  - id: tenure-start-in-non-autumn-seasons
-    description: >
-      State is constructed and tenure opens in winter, spring, or
-      summer (state.weather.season is non-Autumn at tenure start).
-    expected: >
-      First-wake register is used regardless of season — the season
-      gate lives in the seasonal dispatch (`getEmilyDialog`'s switch
-      statement), which is bypassed when `state.tenureOpened === false`
-      and `state.activeDialog?.characterId === 'emily'`. After the
-      dialog closes and `state.tenureOpened === true`, season-based
-      dispatch resumes.
 
   - id: revery-active-at-tenure-start
     description: >
@@ -346,6 +359,19 @@ edge_cases:
       state.bootTitleCard !== null. The dialog opens on the first tick
       after bootTitleCard becomes null — that is, the first frame in
       which the player sees the interior unobscured.
+
+  - id: autumn-tenure-open-and-walk-to-last-line
+    description: >
+      Tenure opens in autumn. firstWakeTrigger fires, opening
+      EMILY_DIALOG at lineIndex 0. Player walks the dialog to the last
+      line and lets typing finish (or presses [f] to skip).
+    expected: >
+      The existing #33 autumn arm logic fires unchanged — the season
+      is Autumn, revery is null, lineIndex === EMILY_DIALOG.length - 1,
+      typing is done → awaitingConfirmation = true, emilyInvitation
+      = 'offered'. The player can then confirm (committing to Revery)
+      or cancel (reverting emilyInvitation). The first-wake auto-open
+      does not bypass or pre-arm the autumn invitation surface.
 
 failure_conditions:
   - trigger: >

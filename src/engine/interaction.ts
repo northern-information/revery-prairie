@@ -1,5 +1,5 @@
 import { storeAngelCanto } from './angels'
-import { EMILY_DIALOG_AUTUMN, getCharacterDefinition, getCharacterDialog } from './characters'
+import { EMILY_DIALOG, getCharacterDefinition, getCharacterDialog } from './characters'
 import { contributeDormancyPressure } from './omen'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
@@ -228,7 +228,7 @@ export const advanceDialog = (
       state.activeDialog.characterId === 'emily' &&
       state.weather.season === Season.Autumn &&
       state.revery === null &&
-      state.activeDialog.lineIndex === EMILY_DIALOG_AUTUMN.length - 1
+      state.activeDialog.lineIndex === EMILY_DIALOG.length - 1
     ) {
       state.activeDialog.awaitingConfirmation = true
       if (state.emilyInvitation === 'unoffered') {
@@ -312,7 +312,7 @@ export const tickDialogTyping = (state: GameState, now: number): void => {
       state.activeDialog.characterId === 'emily' &&
       state.weather.season === Season.Autumn &&
       state.revery === null &&
-      state.activeDialog.lineIndex === EMILY_DIALOG_AUTUMN.length - 1
+      state.activeDialog.lineIndex === EMILY_DIALOG.length - 1
     ) {
       state.activeDialog.awaitingConfirmation = true
       if (state.emilyInvitation === 'unoffered') {

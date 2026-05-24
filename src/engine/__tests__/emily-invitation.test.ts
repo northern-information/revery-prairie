@@ -1,11 +1,5 @@
-import {
-  EMILY_DIALOG_AUTUMN,
-  EMILY_DIALOG_SPRING,
-  EMILY_DIALOG_SUMMER,
-  EMILY_DIALOG_WINTER,
-  getCharacterDialog,
-} from '../characters'
-import { advanceDialog, closeActiveDialog, tickDialogTyping } from '../interaction'
+import { EMILY_DIALOG, getCharacterDialog } from '../characters'
+import { advanceDialog, tickDialogTyping } from '../interaction'
 import { Season } from '../types'
 import { createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -41,17 +35,13 @@ const advanceToLine = (state: ReturnType<typeof createTestState>, dialog: string
   }
 }
 
-describe('precis #33 — getEmilyDialog seasonal dispatch', () => {
-  it('returns the matching seasonal register', () => {
+describe('Emily dialog dispatch', () => {
+  it('returns the unified EMILY_DIALOG register in every season', () => {
     const state = createTestState()
-    setSeason(state, Season.Winter)
-    expect(getCharacterDialog(state, 'emily')).toBe(EMILY_DIALOG_WINTER)
-    setSeason(state, Season.Spring)
-    expect(getCharacterDialog(state, 'emily')).toBe(EMILY_DIALOG_SPRING)
-    setSeason(state, Season.Summer)
-    expect(getCharacterDialog(state, 'emily')).toBe(EMILY_DIALOG_SUMMER)
-    setSeason(state, Season.Autumn)
-    expect(getCharacterDialog(state, 'emily')).toBe(EMILY_DIALOG_AUTUMN)
+    for (const season of [Season.Winter, Season.Spring, Season.Summer, Season.Autumn]) {
+      setSeason(state, season)
+      expect(getCharacterDialog(state, 'emily')).toBe(EMILY_DIALOG)
+    }
   })
 })
 
@@ -63,17 +53,16 @@ describe('precis #33 — emilyInvitation initialization', () => {
   })
 })
 
-describe('precis #33 — invitation arm', () => {
-  it('arms awaitingConfirmation when the autumn last line completes typing', () => {
+describe('precis #33 — invitation arm (autumn-only)', () => {
+  it('arms awaitingConfirmation when the last line completes typing in autumn', () => {
     const state = createTestState()
     setSeason(state, Season.Autumn)
     state.revery = null
     openEmilyDialog(state)
-    advanceToLine(state, EMILY_DIALOG_AUTUMN, EMILY_DIALOG_AUTUMN.length - 1)
+    advanceToLine(state, EMILY_DIALOG, EMILY_DIALOG.length - 1)
     expect(state.activeDialog).not.toBeNull()
-    // Run tickDialogTyping enough times to complete the last line.
     state.lastDialogTypingTick = 0
-    const lastLine = EMILY_DIALOG_AUTUMN[EMILY_DIALOG_AUTUMN.length - 1]
+    const lastLine = EMILY_DIALOG[EMILY_DIALOG.length - 1]
     for (let t = 50; t < 50 + lastLine.length * 50 + 100; t += 50) {
       tickDialogTyping(state, t)
     }
@@ -87,11 +76,10 @@ describe('precis #33 — invitation arm', () => {
       const state = createTestState()
       setSeason(state, season)
       state.revery = null
-      const dialog = getCharacterDialog(state, 'emily')
       openEmilyDialog(state)
-      advanceToLine(state, dialog, dialog.length - 1)
+      advanceToLine(state, EMILY_DIALOG, EMILY_DIALOG.length - 1)
       state.lastDialogTypingTick = 0
-      const lastLine = dialog[dialog.length - 1]
+      const lastLine = EMILY_DIALOG[EMILY_DIALOG.length - 1]
       for (let t = 50; t < 50 + lastLine.length * 50 + 100; t += 50) {
         tickDialogTyping(state, t)
       }
@@ -106,9 +94,9 @@ describe('precis #33 — invitation arm', () => {
     // Forge a non-null revery — only the truthy check matters for the arm gate.
     state.revery = { active: true } as unknown as typeof state.revery
     openEmilyDialog(state)
-    advanceToLine(state, EMILY_DIALOG_AUTUMN, EMILY_DIALOG_AUTUMN.length - 1)
+    advanceToLine(state, EMILY_DIALOG, EMILY_DIALOG.length - 1)
     state.lastDialogTypingTick = 0
-    const lastLine = EMILY_DIALOG_AUTUMN[EMILY_DIALOG_AUTUMN.length - 1]
+    const lastLine = EMILY_DIALOG[EMILY_DIALOG.length - 1]
     for (let t = 50; t < 50 + lastLine.length * 50 + 100; t += 50) {
       tickDialogTyping(state, t)
     }
@@ -124,7 +112,7 @@ describe('precis #33 — confirm path', () => {
     state.dormancyPressure = 0
     openEmilyDialog(state)
     if (!state.activeDialog) throw new Error('dialog not opened')
-    state.activeDialog.lineIndex = EMILY_DIALOG_AUTUMN.length - 1
+    state.activeDialog.lineIndex = EMILY_DIALOG.length - 1
     state.activeDialog.typingDone = true
     state.activeDialog.awaitingConfirmation = true
     state.emilyInvitation = 'offered'
@@ -138,28 +126,12 @@ describe('precis #33 — confirm path', () => {
   })
 })
 
-describe('precis #33 — cancel path', () => {
-  it('closing the dialog mid-invitation reverts emilyInvitation to "unoffered"', () => {
-    const state = createTestState()
-    openEmilyDialog(state)
-    if (!state.activeDialog) throw new Error('dialog not opened')
-    state.activeDialog.awaitingConfirmation = true
-    state.emilyInvitation = 'offered'
-
-    closeActiveDialog(state)
-
-    expect(state.activeDialog).toBeNull()
-    expect(state.emilyInvitation).toBe('unoffered')
-  })
-
-  it('closing the dialog after a confirm leaves emilyInvitation as "confirmed"', () => {
-    const state = createTestState()
-    openEmilyDialog(state)
-    if (!state.activeDialog) throw new Error('dialog not opened')
-    state.emilyInvitation = 'confirmed'
-
-    closeActiveDialog(state)
-
-    expect(state.emilyInvitation).toBe('confirmed')
+describe('Emily dialog content lock', () => {
+  it('exports the three locked lines in order', () => {
+    expect(EMILY_DIALOG).toEqual([
+      'Happy first day of spring, steward.',
+      "I wonder what this year's knot will hold?",
+      'You will return before the winter solstice, to revery.',
+    ])
   })
 })

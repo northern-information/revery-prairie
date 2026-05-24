@@ -1,20 +1,13 @@
 // Acceptance suite for precis #34 — the tenure opens in the little house.
-// Covers: initial-state latch, first-wake dialog register shape,
-// getCharacterDialog gating, firstWakeTrigger eligibility (every gate),
-// one-shot latch behavior, and onRefreshUI side effect.
+// Covers: initial-state latch, firstWakeTrigger eligibility (every gate),
+// one-shot latch behavior, and onRefreshUI side effect. Emily's dialog
+// content is a single unified register asserted in emily-invitation.test.ts;
+// the first-wake auto-trigger reuses that register.
 import { describe, expect, it, vi } from 'vitest'
 
-import {
-  EMILY_DIALOG_AUTUMN,
-  EMILY_DIALOG_FIRST_WAKE,
-  EMILY_DIALOG_SPRING,
-  EMILY_DIALOG_SUMMER,
-  EMILY_DIALOG_WINTER,
-  getCharacterDialog,
-} from '../characters'
 import { createGameLoop } from '../gameLoop'
 import { createGameState } from '../state'
-import { Season, Zone } from '../types'
+import { Zone } from '../types'
 
 import { createTestState } from './helpers'
 
@@ -36,93 +29,6 @@ describe('precis #34 — the tenure opens in the little house', () => {
     it('createGameState initializes tenureOpened to false', () => {
       const state = createGameState('Test', 20, 20)
       expect(state.tenureOpened).toBe(false)
-    })
-  })
-
-  describe('EMILY_DIALOG_FIRST_WAKE register', () => {
-    it('exports a three-entry register with the expected TODO placeholders', () => {
-      expect(EMILY_DIALOG_FIRST_WAKE).toHaveLength(3)
-      expect(EMILY_DIALOG_FIRST_WAKE[0]).toBe('...')
-      expect(EMILY_DIALOG_FIRST_WAKE[1]).toBe('TODO: emily first wake line 1')
-      expect(EMILY_DIALOG_FIRST_WAKE[2]).toBe('TODO: emily first wake line 2')
-    })
-  })
-
-  describe('getCharacterDialog gating', () => {
-    it('returns EMILY_DIALOG_FIRST_WAKE while emily dialog is open and tenureOpened is false', () => {
-      const state = createTestState({ keepHouseSpawn: true })
-      state.tenureOpened = false
-      state.activeDialog = {
-        characterId: 'emily',
-        lineIndex: 0,
-        typingIndex: 0,
-        typingDone: false,
-        transitioning: false,
-        transitionStartTime: 0,
-      }
-      expect(getCharacterDialog(state, 'emily')).toBe(EMILY_DIALOG_FIRST_WAKE)
-    })
-
-    it('returns the seasonal register once tenureOpened is true', () => {
-      const state = createTestState({ keepHouseSpawn: true })
-      state.tenureOpened = true
-      state.activeDialog = {
-        characterId: 'emily',
-        lineIndex: 0,
-        typingIndex: 0,
-        typingDone: false,
-        transitioning: false,
-        transitionStartTime: 0,
-      }
-      // createTestState defaults to spring.
-      state.weather.season = Season.Spring
-      expect(getCharacterDialog(state, 'emily')).toBe(EMILY_DIALOG_SPRING)
-    })
-
-    it('returns first-wake register regardless of season while gate holds', () => {
-      const seasons: [Season, string[]][] = [
-        [Season.Winter, EMILY_DIALOG_WINTER],
-        [Season.Spring, EMILY_DIALOG_SPRING],
-        [Season.Summer, EMILY_DIALOG_SUMMER],
-        [Season.Autumn, EMILY_DIALOG_AUTUMN],
-      ]
-      for (const [season] of seasons) {
-        const state = createTestState({ keepHouseSpawn: true })
-        state.tenureOpened = false
-        state.weather.season = season
-        state.activeDialog = {
-          characterId: 'emily',
-          lineIndex: 0,
-          typingIndex: 0,
-          typingDone: false,
-          transitioning: false,
-          transitionStartTime: 0,
-        }
-        expect(getCharacterDialog(state, 'emily')).toBe(EMILY_DIALOG_FIRST_WAKE)
-      }
-    })
-
-    it('falls through to seasonal dispatch when no dialog is open (defensive)', () => {
-      const state = createTestState({ keepHouseSpawn: true })
-      state.tenureOpened = false
-      state.activeDialog = null
-      state.weather.season = Season.Autumn
-      expect(getCharacterDialog(state, 'emily')).toBe(EMILY_DIALOG_AUTUMN)
-    })
-
-    it('falls through when an unrelated character has the dialog (defensive)', () => {
-      const state = createTestState({ keepHouseSpawn: true })
-      state.tenureOpened = false
-      state.activeDialog = {
-        characterId: 'gron',
-        lineIndex: 0,
-        typingIndex: 0,
-        typingDone: false,
-        transitioning: false,
-        transitionStartTime: 0,
-      }
-      state.weather.season = Season.Winter
-      expect(getCharacterDialog(state, 'emily')).toBe(EMILY_DIALOG_WINTER)
     })
   })
 

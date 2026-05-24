@@ -215,69 +215,27 @@ const getMoabDialog = (state: GameState): string[] => {
   }
 }
 
-// Precis #33 — Emily speaks in four seasonal registers. The autumn
-// register's LAST line is the invitation that arms
-// activeDialog.awaitingConfirmation; all other lines and registers do
-// not. Dialog register matches the v4 R5 / v6 R5 doctrine: statements
-// not questions, no contractions, no editorial affect, no opinion of
-// the steward, dispatched by season. All lines are TODO placeholders
-// per feedback_manual_lore_only.md — humans author the real content.
-export const EMILY_DIALOG_WINTER: string[] = [
-  '...',
-  'TODO: emily winter line 1',
-  'TODO: emily winter line 2',
+// Emily speaks the same three lines year-round, on every [f] interaction
+// and on the precis #34 first-wake auto-open. The LAST line is the
+// invitation — pressing [f] on it while season is Autumn arms
+// activeDialog.awaitingConfirmation and routes through the precis #33
+// confirm-to-Revery path. In other seasons the same line plays as
+// foreshadowing; no arm, no confirm prompt.
+//
+// Register matches the v4 R5 / v6 R5 doctrine: statements not questions,
+// no contractions, no editorial affect, no opinion of the steward.
+// The third line is the v6 R2 canonical refrain locked in the thinktank
+// ("you will return before the winter solstice, to revery"). The other
+// two lines are doctrinal additions — the spring-day greeting and the
+// knot-wondering — chosen so the same dialog reads as natural in any
+// season.
+export const EMILY_DIALOG: string[] = [
+  'Happy first day of spring, steward.',
+  "I wonder what this year's knot will hold?",
+  'You will return before the winter solstice, to revery.',
 ]
 
-export const EMILY_DIALOG_SPRING: string[] = [
-  '...',
-  'TODO: emily spring line 1',
-  'TODO: emily spring line 2',
-]
-
-export const EMILY_DIALOG_SUMMER: string[] = [
-  '...',
-  'TODO: emily summer line 1',
-  'TODO: emily summer line 2',
-]
-
-// The LAST line is the invitation — arms awaitingConfirmation when
-// reached during autumn.
-export const EMILY_DIALOG_AUTUMN: string[] = [
-  '...',
-  'TODO: emily autumn line 1',
-  'TODO: emily autumn invitation',
-]
-
-// Precis #34 — first-wake register. Used only while the firstWakeTrigger-
-// opened dialog is on screen (activeDialog.characterId === 'emily' and
-// state.tenureOpened === false). Subsequent [f] interactions resume the
-// seasonal registers above.
-export const EMILY_DIALOG_FIRST_WAKE: string[] = [
-  '...',
-  'TODO: emily first wake line 1',
-  'TODO: emily first wake line 2',
-]
-
-const getEmilyDialog = (state: GameState): string[] => {
-  // Precis #34 — first-wake register wins while the auto-opened dialog
-  // is up. Once the dialog closes and tenureOpened latches true,
-  // seasonal dispatch resumes.
-  if (state.activeDialog?.characterId === 'emily' && !state.tenureOpened) {
-    return EMILY_DIALOG_FIRST_WAKE
-  }
-  switch (state.weather.season) {
-    case Season.Winter:
-      return EMILY_DIALOG_WINTER
-    case Season.Spring:
-      return EMILY_DIALOG_SPRING
-    case Season.Summer:
-      return EMILY_DIALOG_SUMMER
-    case Season.Autumn:
-      return EMILY_DIALOG_AUTUMN
-    default:
-      return EMILY_DIALOG_AUTUMN
-  }
-}
+const getEmilyDialog = (): string[] => EMILY_DIALOG
 
 export const getCharacterDialog = (state: GameState, characterId: string): string[] => {
   if (characterId === 'gron') {
@@ -287,7 +245,7 @@ export const getCharacterDialog = (state: GameState, characterId: string): strin
     return getMoabDialog(state)
   }
   if (characterId === 'emily') {
-    return getEmilyDialog(state)
+    return getEmilyDialog()
   }
   const def = getCharacterDefinition(characterId)
   if (def.postGiftDialog && state.giftsReceived.has(characterId)) {
