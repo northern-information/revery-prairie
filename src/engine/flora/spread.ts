@@ -1,4 +1,4 @@
-// Precis #17 — species-agnostic flora spread engine.
+// RP-17 — species-agnostic flora spread engine.
 //
 // Detects connected patches of a target species, hands them to a
 // per-species selector to choose preview targets, and commits previews

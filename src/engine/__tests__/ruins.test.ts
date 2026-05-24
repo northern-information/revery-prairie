@@ -352,7 +352,7 @@ describe('ruin infrastructure', () => {
 
   describe('seed and artifact items', () => {
     // Seed items (wildflowerSeeds, tallGrassSeeds, milkweedSeeds) were
-    // deleted in precis #1. The artifact, key, and tablet items remain.
+    // deleted in RP-1. The artifact, key, and tablet items remain.
     it('defines stone tablet artifact', () => {
       expect(ITEM_DEFINITIONS.stoneTablet).toBeDefined()
       expect(ITEM_DEFINITIONS.stoneTablet.category).toBe('artifact')

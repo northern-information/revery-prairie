@@ -13,7 +13,7 @@ interface ScanProgressBarProps {
   activeScreen: PermacomputerScreen
 }
 
-// Precis #6 — scan widget. Two display modes:
+// RP-6 — scan widget. Two display modes:
 //   1. Hint mode: a scan target is available and the player isn't holding [f].
 //      Shows "[f] to sequence." so the player knows the action exists.
 //   2. Active mode: state.scanInProgress is non-null. Shows "Sequencing..."

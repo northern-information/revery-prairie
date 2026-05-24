@@ -14,7 +14,7 @@ const WIND_DIRECTIONS: WindDirection[] = [
   WindDirection.NW,
 ]
 
-// Operational temperature range covers the full four-season year (precis #2).
+// Operational temperature range covers the full four-season year (RP-2).
 // The deep-winter floor of -5°F lets snow events be unambiguous; the summer
 // ceiling of 95°F keeps midwest highs in range. The seasonal mean (below) is
 // what shapes the *typical* temperature for a given seasonalPhase — the
@@ -148,7 +148,7 @@ export const generateWeather = (): Weather => {
 
 const clamp = (val: number, min: number, max: number): number => Math.max(min, Math.min(max, val))
 
-// tickWeather (precis #2 signature change): takes the full state because it
+// tickWeather (RP-2 signature change): takes the full state because it
 // now (a) advances state.seasonalPhase in the overworld zone, (b) biases drift
 // toward the seasonal mean, and (c) updates state.weather.season via the
 // derived classifier so the rest of the engine can branch on it. dt is the

@@ -54,14 +54,14 @@ export const createGameState = (
       precomputeGenesis(s, GENESIS_EPOCHS)
       return s
     })()
-  // Multi-species flora post-process (precis #1): scatter wildflower
+  // Multi-species flora post-process (RP-1): scatter wildflower
   // and tall grass patches across walkable dirt and tag every Flora tile
   // with its species. Determinism preserved — same steward name, same
-  // patch layout. The genesis seed is threaded through so precis #3
+  // patch layout. The genesis seed is threaded through so RP-3
   // genetics can attach a deterministic identity + trait bag to each tile.
   const initialFloraLifecycle = postProcessMultiSpeciesFlora(sim, genesisSeed)
 
-  // Egregoric flora post-process (precis #8a): place inert egregore
+  // Egregoric flora post-process (RP-8a): place inert egregore
   // tiles biased near crater positions. Determinism preserved — same
   // steward name, same egregore positions.
   const initialEgregorePositions = postProcessEgregoreTiles(sim)
@@ -152,7 +152,7 @@ export const createGameState = (
     }
   }
 
-  // Little house (precis #33). Build the 30x18 deterministic interior
+  // Little house (RP-33). Build the 30x18 deterministic interior
   // and place the overworld HouseEntrance west of Gron, mirroring the
   // cave's ring algorithm. The interior is owned by house.ts; the
   // overworld door is placed here so it appears on the same prairie
@@ -224,7 +224,7 @@ export const createGameState = (
 
   const backpack = createBackpack()
 
-  // Precis #33 — the player initially spawns on the overworld here.
+  // RP-33 — the player initially spawns on the overworld here.
   // `enterHouseAtTenureStart` (called by the React hook in production)
   // swaps to the HouseInterior buffers and repositions the player.
   // Tests that don't need the house spawn keep the legacy overworld
@@ -411,7 +411,7 @@ export const createGameState = (
     state.manualDiscoveries.add(`egregore:${String(pos.x)},${String(pos.y)}`)
   }
 
-  // Precis #8b — seed activity-state entries for every egregore tile.
+  // RP-8b — seed activity-state entries for every egregore tile.
   // Species + genome are deterministic per (steward, position) so the
   // lifecycle starts identical across reloads. Initial stage is Active
   // when the game starts in Winter (rare at genesis); otherwise Dormant.
@@ -536,7 +536,7 @@ export const createGameState = (
   // Create Moab in the cave (persists permanently, tagged as cave zone)
   createCharacterEntity(state, 'moab', { ...cave.npcSpot }, { zone: Zone.Cave })
 
-  // Precis #33 — create Emily inside the little house at her idle
+  // RP-33 — create Emily inside the little house at her idle
   // position (by the hearth, west of the fire). Stationary, no AI tick;
   // appears only when state.currentZone === Zone.HouseInterior.
   createCharacterEntity(state, 'emily', { x: 5, y: 2 }, { zone: Zone.HouseInterior })
@@ -547,7 +547,7 @@ export const createGameState = (
 }
 
 /**
- * Precis #33 — production hook calls this after createGameState to
+ * RP-33 — production hook calls this after createGameState to
  * place the player inside the little house at tenure start. The state
  * leaves createGameState in the legacy overworld posture so tests that
  * call createGameState directly retain their original assumptions.

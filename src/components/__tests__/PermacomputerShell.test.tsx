@@ -113,7 +113,7 @@ describe('PermacomputerShell', () => {
       expect(screen.getByTestId('tab-cantos')).toBeInTheDocument()
     })
 
-    it('no longer renders REVERIES tab (action bar deleted in precis #0)', () => {
+    it('no longer renders REVERIES tab (action bar deleted in RP-0)', () => {
       renderShell()
       expect(screen.queryByTestId('tab-reveries')).not.toBeInTheDocument()
     })

@@ -95,11 +95,11 @@ const buildCropClasses = (borderClass: string) => {
 }
 
 // Gel-electrophoresis-style band view for a scanned specimen (flora or
-// egregore tile). Reuses the locked hashToHexGrid mapping from precis-3
+// egregore tile). Reuses the locked hashToHexGrid mapping from RP-3
 // for the 8x8 opacity grid; only palette and column geometry vary by
 // variant.
 //
-// Per the spec (precis #8a → egregore-glyph-scan-fix):
+// Per the spec (RP-8a → egregore-glyph-scan-fix):
 //   - flora variant: gold/bee palette, uniform column widths, base jitter
 //   - egregore variant: violet palette, per-column hash-derived widths,
 //     amplified band jitter

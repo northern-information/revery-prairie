@@ -105,7 +105,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
       if (placed && itemDrop.definitionId === 'coin' && itemDrop.glinting !== false) {
         state.glintingCoins.add(placed.uid)
       }
-      // Precis #11 — genetics-bearing seeds carry a FloraGenome on the
+      // RP-11 — genetics-bearing seeds carry a FloraGenome on the
       // ItemDrop component. Transfer it to the uid-keyed side-table at
       // pickup so the inventory layer stays flat (mirrors glintingCoins).
       if (placed && itemDrop.genome) {
@@ -134,7 +134,7 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   return { pickedUp }
 }
 
-// Precis #7 — bee food is any Flora tile whose species has nonzero
+// RP-7 — bee food is any Flora tile whose species has nonzero
 // beePreference. Clover historically was the only food; wildflower and tall
 // grass now also count.
 const isFloraFoodAt = (state: GameState, x: number, y: number): boolean => {
@@ -153,7 +153,7 @@ const isBeeNearFood = (state: GameState, pos: Position): boolean => {
   return false
 }
 
-// Precis #7 — non-Flora walkable tiles still receive a small baseline weight
+// RP-7 — non-Flora walkable tiles still receive a small baseline weight
 // so bees wander even when no flora is adjacent. Tuned to keep clover (1.0)
 // roughly 20× more attractive than bare dirt; wildflower (0.6) ~12×.
 const WANDER_BASELINE_WEIGHT = 0.05
@@ -173,7 +173,7 @@ export const tickBees = (state: GameState, zone?: Zone): Position[] => {
     // Only move sometimes — gives a lazy, buzzing feel
     if (Math.random() > 0.3) continue
 
-    // Precis #7 — weighted neighbor pick. Each walkable neighbor gets a
+    // RP-7 — weighted neighbor pick. Each walkable neighbor gets a
     // weight: Flora tiles use getTileBeePreference (species baseline ×
     // per-plant trait, clamped to [0, 1]); non-Flora walkable tiles use a
     // small baseline so bees still wander. Cumulative-weight selection.
@@ -286,7 +286,7 @@ const canDropAt = (state: GameState, x: number, y: number): boolean => {
   return true
 }
 
-// Precis #11 — seed items plant into Dirt rather than dropping as ground
+// RP-11 — seed items plant into Dirt rather than dropping as ground
 // items. The mapping is definitionId → FloraSpecies. milkweedSeeds remains
 // absent (no FloraSpecies entry) so it is not listed here.
 const SEED_TO_SPECIES: Record<string, FloraSpecies> = {
@@ -324,7 +324,7 @@ export const dropItem = (state: GameState, definitionId: string, time?: number):
 
   if (!sourceContainer || !sourceItem) return false
 
-  // Precis #11 — seed items plant onto adjacent Dirt rather than dropping
+  // RP-11 — seed items plant onto adjacent Dirt rather than dropping
   // as ground items. Cannot be set down as bare ground items. Aligns with
   // v4 "renewal not stockpile" cosmology — every drop either plants or
   // fails. Genome travels from state.seedGenomes (uid-keyed) to the

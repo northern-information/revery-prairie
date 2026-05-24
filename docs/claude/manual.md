@@ -12,7 +12,7 @@ hand-authored lore goes in `MANUAL_LORE` table in `manual.ts`. run `/maintain-ma
 
 **when adding new game content**: items, recipes, and characters auto-generate manual entries — no extra work. new entity types that don't fit existing registries must be added to `MANUAL_ONLY_ENTRIES` with a corresponding `recordDiscovery` call.
 
-## scan-to-discover flora (precis #6)
+## scan-to-discover flora (RP-6)
 
 flora species discovery is *not* automatic. the player must hold-scan a flora tile with `[f]` for ~1.5s while standing on or adjacent to it. on successful release `commitScan` (in `src/engine/scan.ts`) records the species discovery and appends a `ScannedSpecimen` ({ identity, scannedAt, position }) to `state.scannedSpecimens[species]`. scanning the same plant twice (same identity) is deduped — only distinct specimens become cards. scanning a different specimen of the same species appends a new card to the stack.
 

@@ -10,7 +10,7 @@ plan:
 tasks:
   - id: create-gel-band-view
     title: 'Build GelBandView component, delete HexGridView'
-    spec_id: precis-6-naturalists-manual
+    spec_id: RP-6-naturalists-manual
     spec_sections:
       - manual-renders-gel-band-view-for-scanned-species
     context_files:
@@ -31,7 +31,7 @@ tasks:
 
   - id: swap-gel-into-specimen-stack
     title: 'Replace HexGridView usage in SpecimenStack with GelBandView'
-    spec_id: precis-6-naturalists-manual
+    spec_id: RP-6-naturalists-manual
     spec_sections:
       - manual-renders-gel-band-view-for-scanned-species
     context_files:
@@ -50,7 +50,7 @@ tasks:
 
   - id: add-scan-result-screen-state
     title: "Add 'scan-result' value to PermacomputerScreen union; expose setter"
-    spec_id: precis-6-naturalists-manual
+    spec_id: RP-6-naturalists-manual
     spec_sections:
       - scan-completion-opens-gel-modal
     context_files:
@@ -67,7 +67,7 @@ tasks:
 
   - id: build-scan-result-modal
     title: 'Build ScanResultModal with binomial heading + row-by-row reveal'
-    spec_id: precis-6-naturalists-manual
+    spec_id: RP-6-naturalists-manual
     spec_sections:
       - scan-completion-opens-gel-modal
       - scan-modal-beat-reveal
@@ -89,7 +89,7 @@ tasks:
 
   - id: rewire-scan-completion-callback
     title: 'Replace onOpenManual with onScanComplete(species, identity) at scan commit site'
-    spec_id: precis-6-naturalists-manual
+    spec_id: RP-6-naturalists-manual
     spec_sections:
       - commit-scan-records-discovery
       - scan-completion-opens-gel-modal
@@ -113,7 +113,7 @@ tasks:
 
   - id: gate-scan-modal-input
     title: 'Block hold-to-scan + movement while scan-result modal is open'
-    spec_id: precis-6-naturalists-manual
+    spec_id: RP-6-naturalists-manual
     spec_sections:
       - scan-completion-opens-gel-modal
       - scan-modal-beat-reveal
@@ -131,7 +131,7 @@ tasks:
 
   - id: integration-test-scan-flow
     title: 'Integration test: scan commit opens modal; manual highlight survives dismiss'
-    spec_id: precis-6-naturalists-manual
+    spec_id: RP-6-naturalists-manual
     spec_sections:
       - scan-completion-opens-gel-modal
       - scan-modal-beat-reveal
@@ -151,7 +151,7 @@ tasks:
 
   - id: update-claude-docs
     title: 'Update docs/claude/manual.md and docs/claude/genetics.md for modal + gel-band flow'
-    spec_id: precis-6-naturalists-manual
+    spec_id: RP-6-naturalists-manual
     spec_sections:
       - doctrine-and-status-aligned
     context_files:

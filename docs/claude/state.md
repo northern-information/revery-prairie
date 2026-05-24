@@ -13,13 +13,13 @@ mutable game state has no access control. these conventions document write patte
 
 new fields also require updating `EXPECTED_FIELDS` in `src/harness/__tests__/serialization/schema.test.ts` — the schema allowlist test fails otherwise.
 
-## example: precis-32 fields
+## example: RP-32 fields
 
 - **`dormancyPressure: number`** — single-owner. `tickDormancyPressure` in `src/engine/omen.ts` writes; gameLoop and `tickRevery`'s Closing branch reset to 0. All other readers are read-only.
 - **`collapsedStewardTile: Position | null`** — owner + clearers. `tickRevery`'s Omen → Observing branch sets it from `state.revery.summonsCollapseTile`; `tickRevery`'s Closing branch clears it. Renderers read it.
 - **`state.revery.summons / summonsAudioCue / summonsCollapseTile`** — single-owner. gameLoop sets `summons` at threshold-trigger time; `tickRevery`'s Omen branch sets `summonsAudioCue` and `summonsCollapseTile`. All other readers are read-only until Closing.
 
-## example: precis-33 fields
+## example: RP-33 fields
 
 - **`houseMap: Tile[][]`, `houseMapWidth: number`, `houseMapHeight: number`** — single-owner. Created by `createHouseInterior()` in `src/engine/house.ts`. `enterHouse` / `exitHouse` swap `state.map` to/from `state.houseMap` (state field pointer; no copy).
 - **`houseEntranceOverworld: Position`** — single-owner. Written once by `createGameState` in `src/engine/state.ts` during the west-of-Gron placement loop. `exitHouse` reads it for the safe exit position.
@@ -28,6 +28,6 @@ new fields also require updating `EXPECTED_FIELDS` in `src/harness/__tests__/ser
 - **`emilyReveryReturn: Position | null`** — owner + clearers. `revery.ts` `Omen → Observing` captures Emily's prior idle position; `Closing` clears it after restoring her.
 - **`state.activeDialog.awaitingConfirmation?: boolean`** — owner + clearers. `interaction.ts` dialog-tick sets it when on Emily's autumn last line; cleared implicitly whenever `state.activeDialog` is set to `null` (any close path).
 
-## removed: precis-33 also drops `playerSpawn`
+## removed: RP-33 also drops `playerSpawn`
 
 The `state.playerSpawn` field and the `PlayerSpawn` interface are removed entirely. The falling-star spawn ceremony is gone — the player spawns inside the house at tenure start. All `state.playerSpawn.visible` gates in `movement.ts`, `renderer.ts`, `camera.ts`, and `useGameEngine.ts` are deleted (player is always visible from frame 1). `EXPECTED_FIELDS` loses `playerSpawn` in the same PR that adds the new fields above.

@@ -1,4 +1,4 @@
-// Precis #9b — Torchbearer behavior pass tests.
+// RP-9b — Torchbearer behavior pass tests.
 // Covers: state shape, draw-mode toggle, click-chain validation,
 // Winter → Spring lock, Spring → Summer cleanup, walking pacing,
 // tile burn rules (Flora → BurntFlora, Egregore → Dirt), refusal
@@ -30,7 +30,7 @@ const benignWeather = (state: GameState): void => {
   state.weather.humidity = 60
 }
 
-describe('torchbearer (precis #9b)', () => {
+describe('torchbearer (RP-9b)', () => {
   describe('initial state', () => {
     it('createGameState initializes all torchbearer fields', () => {
       const state = createTestState()
@@ -329,21 +329,21 @@ describe('torchbearer (precis #9b)', () => {
       seedMoab(state)
     })
 
-    it('Walking register is distinct from seasonal registers and ends with the precis-8a refusal', () => {
+    it('Walking register is distinct from seasonal registers and ends with the RP-8a refusal', () => {
       state.moabState = MoabState.Walking
       const lines = getCharacterDialog(state, 'moab')
       expect(lines.length).toBeGreaterThanOrEqual(2)
       expect(lines[lines.length - 1]).toBe('The other clover. We do not grow that.')
     })
 
-    it('Refusing register is distinct and ends with the precis-8a refusal', () => {
+    it('Refusing register is distinct and ends with the RP-8a refusal', () => {
       state.moabState = MoabState.Refusing
       const lines = getCharacterDialog(state, 'moab')
       expect(lines.length).toBeGreaterThanOrEqual(2)
       expect(lines[lines.length - 1]).toBe('The other clover. We do not grow that.')
     })
 
-    it('Dismissed register is distinct and ends with the precis-8a refusal', () => {
+    it('Dismissed register is distinct and ends with the RP-8a refusal', () => {
       state.moabState = MoabState.Dismissed
       const lines = getCharacterDialog(state, 'moab')
       expect(lines.length).toBeGreaterThanOrEqual(2)

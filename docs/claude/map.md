@@ -25,4 +25,4 @@ defined in `src/engine/types.ts` as a const object (not an enum — `erasableSyn
 - `caveWall` — impassable cave wall (`#`, darker gray)
 - `caveBreakableWall` — breakable wall (`#`, warm brown `#997755` — same char as cave wall but distinct color) — press `[e]` to break, reveals hidden chamber
 - `caveEntrance` — transition tile (`O`, light gray) — triggers zone swap on walk-over
-- `egregore` — egregoric flora tile (Voynich glyph from `EGREGORE_GLYPHS`, color `#7A88A0`). Walkable, inert in precis #8a (no lifecycle, no interaction). Tile glyph is per-position-deterministic; the renderer applies the `'Voynich'` font family for the draw call only. See `egregores.md`.
+- `egregore` — egregoric flora tile (Voynich glyph from `EGREGORE_GLYPHS`, color `#7A88A0`). Walkable, inert in RP-8a (no lifecycle, no interaction). Tile glyph is per-position-deterministic; the renderer applies the `'Voynich'` font family for the draw call only. See `egregores.md`.

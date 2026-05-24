@@ -1,0 +1,2246 @@
+# Backlog — current status
+# Source of truth for the backlog dashboard TUI. Run: `npm run backlog`.
+# Doctrine lives in docs/backlog-thinktank-v3.md. This file is the running state.
+#
+# Status values: todo | in-progress | shipped
+# The dashboard derives a fourth bucket — `next` — for any `todo` whose deps are all `shipped`.
+# Field order is locked: id, name, summary, depends_on, status, spec, plan, pr, notes.
+# (The `size` field was removed in v4 round 9 — sizing is not load-bearing in the current
+# authorship environment. Historical sizes remain in git history.)
+# Keep it diff-friendly.
+
+features:
+  - id: 'RP-0'
+    name: Reclaim Revery
+    summary: Delete the four player-cast spells and the action bar entirely (state, UI, keybinds, drag targets).
+    depends_on: []
+    status: shipped
+    spec: harness/specs/RP-0-reclaim-revery.yaml
+    plan: harness/plans/RP-0-reclaim-revery.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/314
+    notes: >
+      v3 doctrine updated — action bar deleted in RP-0, not retained.
+
+
+      v7 thinktank round 2 (2026-05-23). Revery exit becomes a hook point
+      for the post-Revery memory softening effect (`RP-39`). No behavior
+      change to the phase machine itself; just a new observer on exit.
+      The steward wakes in the little house after Revery; the
+      `fullyDiscovered` fog layer softens so the walk back out has shape
+      again.
+
+  - id: 'RP-1'
+    name: Multi-species Flora
+    summary: Clover → Flora; add wildflower (Echinacea purpurea) and tall grass (Andropogon gerardii) under a shared registry. Harvest [f] and cut [x] mechanics deleted.
+    depends_on: ['RP-0']
+    status: shipped
+    spec: harness/specs/RP-1-multi-species-flora.yaml
+    plan: harness/plans/RP-1-multi-species-flora.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/316
+    notes: 'Latin binomials locked: Trifolium repens (clover), Echinacea purpurea (wildflower), Andropogon gerardii (tall grass). Seed items (wildflowerSeeds, tallGrassSeeds, milkweedSeeds) deleted — re-introduced in RP-11.'
+
+  - id: 'RP-8a'
+    name: Egregoric flora — thematic
+    summary: One inert TileType.Egregore, Voynich manual entries with Latin pierces, NPC refusal lines, invasive-lint guard. Foreshadowing pass.
+    depends_on: ['RP-0']
+    status: shipped
+    spec: harness/specs/RP-8a-egregoric-thematic.yaml
+    plan: harness/plans/RP-8a-egregoric-thematic.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/320
+    notes: >
+      Voynich font self-hosted via public/fonts/voynich.ttf (manual
+      install — fallback to ? / □ is doctrinally correct). 16-word
+      Latin pierce allowlist locked from v3 doctrine. Egregore glyphs
+      render in iridescent violet (#B080D0). cosmologicalDrift /
+      passive-transmission tracking deferred to RP-4.
+
+
+      v7 thinktank round 3 (2026-05-23). Thermogenesis added as a soft
+      amendment via RP-43 rather than reopening this backlog item. The
+      egregore's cold-active lifecycle is reframed as cold-_refusing_:
+      they radiate heat in winter against the season. _Fevers don't
+      burn down — they warm._
+
+  - id: 'RP-2'
+    name: Phenological seasons
+    summary: Annual phase clock + temperature-derived season, FloraStage.Dormant, snow render pass, winter palette wash. rainIntensity → precipitationIntensity rename.
+    depends_on: ['RP-1']
+    status: shipped
+    spec: harness/specs/RP-2-phenological-seasons.yaml
+    plan: harness/plans/RP-2-phenological-seasons.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/325
+    notes: 'Resized S/M → M after winter palette + snow scope. No debounce on the dormant transition — plants follow weather literally. Egregore tiles exempt from the winter wash so the violet script pops against the grey.'
+
+  - id: 'RP-3'
+    name: Genetics v1
+    summary: SHA256 identity layer + trait-bag inheritance (option C). Not a breed-spike port. 8x8 hex grid derivation included (renderer ships in RP-6).
+    depends_on: ['RP-1', 'RP-2']
+    status: shipped
+    spec: harness/specs/RP-3-genetics-v1.yaml
+    plan: harness/plans/RP-3-genetics-v1.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/328
+    notes: 'Hex grid timing override — v3 doctrine line 62-63 said "stays buried, only in late-game ritual." Overridden: the grid surfaces in RP-6 as part of the naturalist''s manual, player-facing. Scope locked: identity + trait bag + pure crossing math + grid derivation. No callers in RP-3 — RP-6 renders the grid, #12 calls crossing.'
+
+  - id: 'RP-4'
+    name: The Revery (long-form phase)
+    summary: Omen-triggered entry, observation UX, end-of-Revery summary (bilingual ASCII + Voynich).
+    depends_on: ['RP-1', 'RP-2', 'RP-3', 'RP-8a']
+    status: shipped
+    spec: harness/specs/RP-4-the-revery.yaml
+    plan: harness/plans/RP-4-the-revery.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/341
+    notes: >
+      Scope locked 2026-05-19: hard input lock, "pass through the winter"
+      duration via year accelerator (mirrors deepTime.ts), bilingual ASCII +
+      Voynich summary, one hedged phenotype label per Revery on
+      most-discovered species (axis cycles by reveryCount), first-Revery 3 →
+      6 egregoric bump per v3 8a doctrine. Three omen variants: bee on
+      shoulder, distant meteorite, cloud passing the sun. cosmologicalDrift
+      field lands here (0 baseline, no incrementers in this PR). Ongoing
+      per-Revery egregore spread defers to RP-8b.
+
+
+      v6 thinktank rounds 1, 4, 5 (2026-05-22). The omen-direct-trigger model
+      is replaced by `RP-32`'s pressure-contribution model. `detectOmen` keeps
+      returning `OmenKind | null` but the return is consumed by the pressure
+      accumulator, not by `initiateRevery` directly. The summons sequence in
+      `RP-32` (omen at full volume + Gron teleport + dialog + collapse-in-place)
+      replaces the simple omen-direct path at the solstice deadline. The
+      Revery's enter-from-current-tile behavior is preserved unchanged.
+
+  - id: 'RP-5'
+    name: Ruin → first non-clover species
+    summary: Starter ruins bumped 3 → 5; new Wildflower and TallGrass roles deliver seed items via DormantGarden vault. Bee+Clover/Coyote main-quest ruins preserved.
+    depends_on: ['RP-1']
+    status: shipped
+    spec: harness/specs/RP-5-ruin-recovery-flora.yaml
+    plan: harness/plans/RP-5-ruin-recovery-flora.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/318
+    notes: 'Resurrects wildflowerSeeds and tallGrassSeeds items deleted in RP-1 — collectibles only, no planting (RP-11 wires planting).'
+
+  - id: 'RP-6'
+    name: Naturalist's manual
+    summary: Hold-to-scan flora with the permacomputer. Scanned species unlock in the manual with their 8x8 hex grid rendered above the lore. Phenotype labels are deferred to RP-4.
+    depends_on: ['RP-3']
+    status: shipped
+    spec: harness/specs/RP-6-naturalists-manual.yaml
+    plan: harness/plans/RP-6-naturalists-manual.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/332
+    notes: 'Scope locked: hold-to-scan ([v] key, 1.5s hold) + first-specimen-cached hex grid + per-species discovery. Undiscovered entries hidden entirely. No phenotype labels — those ship in RP-4 (the Revery) per the doctrine split decided 2026-05-19. See docs/backlog-thinktank-v3.md genetics block for the reasoning.'
+
+  - id: 'RP-7'
+    name: Pollinator routes & preference
+    summary: Pollinators favor certain species and route through the prairie.
+    depends_on: ['RP-1', 'RP-3']
+    status: shipped
+    spec: harness/specs/RP-7-pollinator-routes.yaml
+    plan: harness/plans/RP-7-pollinator-routes.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/339
+    notes: 'Scope locked 2026-05-19: two-layer preference (species baseline on FloraSpeciesDef + per-plant `pollinatorPreference` trait from RP-3). Bees use weighted neighbor pick over preference; pollen emission gets a per-plant trait multiplier. Subtle — no UI, no manual entry, no event log. Bees only — no new pollinator entities. Phenotype labels stay in RP-4.'
+
+  - id: 'RP-8b'
+    name: Egregoric flora — mechanical
+    summary: Parallel species set, invisible pollinator, winter-phased spread, "no compatible regions" crossbreeding.
+    depends_on: ['RP-1', 'RP-2', 'RP-3', 'RP-4', 'RP-7']
+    status: shipped
+    spec: harness/specs/RP-8b-egregoric-mechanical.yaml
+    plan: harness/plans/RP-8b-egregoric-mechanical.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/344
+    notes: >
+      Scope locked 2026-05-20: parallel species set under
+      TileType.Egregore (no FloraSpecies entry); two species
+      (allelopath, spreader) selected deterministically per position;
+      invisible pollinator (zero PollenParticles); inverse-phased
+      lifecycle (Active in Winter, Dormant otherwise); spread cadence
+      asymmetric — stewardship-winter slow drift (1–2 tiles/year,
+      throttled via lastEgregoreSpreadYear) vs Revery-winter large push
+      (refactor advanceEgregoreFirstRevery → advanceEgregoreInRevery,
+      first Revery places 3 to preserve RP-4 contract, subsequent
+      place 6–9); canCross(a,b)===false for native×egregore pairs;
+      manual footnote (Voynich EVA tokens translating to "no compatible
+      regions") appears once player has any flora:* discovery. Parallel
+      EgregoreGenome interface (allelopathy, spreadVelocity, identity
+      SHA256) separate from TraitBag. Follow-up work tracked separately
+      — see RP-26 (egregoric metabolism) for the native-flora consumption
+      rule named in v4 round 8.
+
+
+      v7 thinktank round 3 (2026-05-23). Thermogenesis added as a soft
+      amendment via RP-43 rather than reopening this backlog item. New
+      thermogenicRadius (or rolled into existing EgregoreGenome
+      gradient — confirm at spec) lifts effective temperature on
+      adjacent tiles in winter; flora dormancy check reads the lifted
+      temperature. Thermogenic activity also drives winter geology
+      (RP-44) — the egregores are the prairie's liver, the organ that
+      reshapes.
+
+  - id: 'RP-9a'
+    name: Torchbearer voice pass
+    summary: Moab gains a `drip torchbearer` title and a season-routed dialog dispatcher (Winter / Spring / Summer-or-Autumn). Folk-Coldë rules enforced programmatically; refusal lines locked to the RP-8a egregore allowlist. Voice only — behavior defers to 9b.
+    depends_on: ['RP-2']
+    status: shipped
+    spec: harness/specs/RP-9a-torchbearer-voice.yaml
+    plan: harness/plans/RP-9a-torchbearer-voice.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/350
+    notes: 'Split from original RP-9 (now retired) on 2026-05-20. Voice pass only — registers dispatched by state.weather.season, no contractions across any register, refusal lines drawn from the locked 8a allowlist. Resets MANUAL_LORE[character:moab] to TODO pending human-authored prose. Dev panel: Force Season dropdown for register testing (sets temperatureF + seasonalPhase to a coherent pair). Walking-the-line, burn ignition, refusals, and ash-prairie outcome defer to RP-9b.'
+
+  - id: 'RP-9b'
+    name: Controlled burn — walk the line
+    summary: Click to draw a line, then walk it together with Moab. Burn ignition along the path, player refusal, Moab refusal, ash-prairie outcome. Behavior pass following 9a's voice pass.
+    depends_on: ['RP-9a']
+    status: shipped
+    spec: harness/specs/RP-9b-torchbearer-behavior.yaml
+    plan: harness/plans/RP-9b-torchbearer-behavior.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/353
+    notes: 'Split from original RP-9 (now retired) on 2026-05-20 after 9a shipped (#350). Design intent recorded in 9a spec: walking is "click to draw a line, then walk it together" — path drawn before Moab arrives, both traverse on confirm. Burn semantics + ash-prairie outcome land here; the ash biome itself is RP-10.'
+
+  - id: 'RP-10'
+    name: Failure-state biomes
+    summary: Ash, fungal, Far Garden conversion as Revery outcomes.
+    depends_on: ['RP-4', 'RP-8b', 'RP-9b', 'RP-35']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      Depends on 9b (controlled burn behavior + ash-prairie outcome)
+      rather than the original combined RP-9 (now retired). The ash biome itself
+      is the conversion target; 9b produces the ash, 10 makes it a
+      persistent failure state.
+
+
+      2026-05-22. The fungal conversion outcome additionally blocks on
+      `RP-35` (mushrooms, fungus, mycelium), which has not yet been
+      designed. Until the fungal kingdom exists in the cosmology, this
+      item is not ready for dev.
+
+  - id: 'RP-11'
+    name: Seed taxonomy + drop-to-plant
+    summary: Genetics-bearing seeds (FloraGenome via state.seedGenomes side-table) and drop-on-dirt planting. Vault-spawn genomes deterministic from (steward, ruin, slot).
+    depends_on: ['RP-3', 'RP-5']
+    status: shipped
+    spec: harness/specs/RP-11-seed-taxonomy.yaml
+    plan: harness/plans/RP-11-seed-taxonomy.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/348
+    notes: 'Scope locked 2026-05-20: genetics-bearing seeds; genome carried on ItemDrop component in-world, transferred to state.seedGenomes (uid-keyed, mirrors glintingCoins) on pickup; drop-on-dirt = plant (seeds cannot be set down as ground items); vault-spawn derives genome deterministically from (stewardName, ruinIndex, vaultSlot) via generateGenesisIdentity + generateTraitBag; wildflowerSeeds + tallGrassSeeds recategorized Flora → Seed. Resized S → M after taxonomy + planting + genome-threading scope. Out of scope: milkweedSeeds, cloverSeeds, genetic-fragment item class, seed scan UX, autonomous spread (RP-17).'
+
+  - id: 'RP-13'
+    name: Angels are passages
+    summary: >
+      Angel encounters become ambient, non-interactive events. Drop dialog,
+      drop the pink highlight (pink is the steward's color), drop the
+      per-encounter canto append. Aura-overlap with the steward is the
+      recording event: when the steward's tile first enters an active
+      angel's aura, write a deduped lineage entry to the cellar Knot
+      (`RP-37`). Extend ANGEL_AURA_KINDS from three to ten — adds
+      wildflower, tallgrass, fire, lightning, egregore, sundering,
+      meteorite alongside the existing rain, bees, clover. Each new
+      kind personifies an existing or doctrine-locked substrate. Remove
+      the Cantos screen (state.angelCantos, CantosScreen.tsx, the
+      'cantos' permacomputer nav entry, GameScreen conditional render,
+      PermacomputerShell menu entry). Hex-grid surface remains only in
+      flora sequencing (`RP-6` gel-band) where the v2 lock put it.
+    size: M
+    depends_on: ['RP-8b', 'RP-37', 'RP-42', 'RP-44']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v8 thinktank round 2 (2026-05-23). Scope rewrite from the original
+      "Emergent Angels" framing (flora-identity hash derivation, never
+      shipped). The room rejected the hash-from-ecology direction —
+      angels are not phenotype readouts; the v2 lock kept genetics in
+      flora and in the manual gel-band. The flora-hash idea is retired.
+
+
+      Astrid: _the angel is not a thing you talk to; the angel is a
+      thing that passes through_. Removing interactivity is what makes
+      the cast safe to expand — once there is no grace economy (no
+      canto, no dialog, no gift), every cosmological actor can have an
+      angel without folding the not-prairie into the prairie's grace.
+      Delta: _the prairie has many cycles, and all of them get faces._
+      Each new aura kind personifies a substrate already running —
+      fire/lightning on `RP-42`, sundering on `RP-44`'s winter geology,
+      meteorites on existing state.meteorites and the
+      `#cosmologicalDrift` register, egregore on `RP-8a`/`RP-8b`.
+
+
+      The Angel of Egregores is in. Excluding it was Astrid's earlier
+      worry (grace economy folding the not-prairie); with interactivity
+      gone, the grace economy is gone. _Same shelf, different hand._
+      The body renders Voynich; the aura primes egregoric spread under
+      `RP-8b`'s existing throttle (no new metabolism); the Knot entry is
+      rendered in PUA glyphs awaiting human-authored lore. Excluding
+      would have been the satanic move — _what is left out is what is
+      condemned_ — and the cosmology has been working toward including
+      it since v6 R3 named the egregore _of-but-not-of_.
+
+
+      Engineering scope (Boon): each new kind is a handler in the same
+      shape as the existing bees-spawn and clover-spawn loops at
+      `src/engine/angels.ts:228-310`. Per-frame cost: one proximity
+      sweep per active angel of that kind, same budget as the existing
+      three. Aura-overlap recording: each frame, check the steward's
+      tile against active auras; on first overlap per encounter, write
+      a deduped Knot lineage entry keyed by `(angelKind, encounterHash)`.
+
+
+      Parking note (deferred from original `RP-13`): the cantos-as-keys /
+      single-use wildcard / egregoric-adaptor idea is decoupled from
+      this amendment. The current scope removes the canto surface
+      entirely; whether some future artifact carries the key-like
+      property is a separate question for a later round.
+
+
+      Open at spec: exact aura-overlap dedupe key (lean `(angelKind,
+      encounterHash)`); Angel of Sundering's effect on `RP-44`'s
+      ruin-shift probability (additive / multiplicative / regional —
+      defer to `RP-44`'s own spec); whether the Angel of Egregores' aura
+      is rate-limited differently from autonomous `RP-8b` spread (lean
+      same throttle — the angel is a face, not a multiplier); whether
+      the egregore-angel's Voynich body uses the same 9x9 footprint as
+      the existing angels or a different render path; the PUA glyph
+      vocabulary for egregore-angel Knot entries (flagged for human
+      authorship).
+
+  - id: 'RP-52'
+    name: Angel-encounter sensory cue (angel.mp3)
+    summary: >
+      A single `angel.mp3` audio cue plays when the steward's tile
+      first enters an active angel's aura, deduped per encounter so
+      multiple aura overlaps within the same drift do not retrigger.
+      One-shot, single-channel; no screen interruption, no overlay.
+      The audio is the cue that makes the encounter felt — without
+      it, aura-overlap recording goes invisible. Same cue across all
+      angel kinds (rain, bees, clover, wildflower, tallgrass, fire,
+      lightning, egregore, sundering, meteorite).
+    size: XS
+    depends_on: ['RP-13']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v8 thinktank round 2 (2026-05-23). Calla's load-bearing
+      requirement attached to the angel rewrite — _the angel is felt
+      or it is not there_. Tracked as its own item to give it a spec
+      slot, but spec author may fold into `RP-13`'s amended scope at
+      their discretion. The asset itself (`angel.mp3`) is flagged for
+      human authorship; the room does not source audio. Same cue for
+      every angel kind: _the angel is the angel, regardless of which
+      cycle it personifies_. Open at spec: exact playback rule
+      (one-shot at entry, do not stack across simultaneous aura
+      overlaps), volume relative to ambient music, whether the cue
+      varies subtly per kind (lean: it does not).
+
+  - id: 'RP-17'
+    name: Autonomous flora spread + bee+clover ceremony + bee-mediated genetics
+    summary: >
+      All three flora species spread on their own via a species-agnostic
+      engine. Clover via stolons (existing spiral, extracted out of
+      clover.ts into flora/clover/). Wildflower via pollinators
+      (Chebyshev-3 bee/monarch gating). Tall grass via rhizomes
+      (pollinator-independent). Genetic traits (RP-3) propagate via
+      parent-identity-prefix seeding so family resemblance is visible
+      in the manual hex grid. Bee+clover combine is rewritten as a slow
+      ceremonial radial wave (~150 tiles per cast, organic/jittered
+      boundary via cellNoise, pollen bursts). Bees gain a PollenBag
+      component (capacity 4, LIFO eviction, cross-species mixing
+      allowed); visiting a flora tile picks up pollen, visiting a
+      same-species-different-identity tile primes that tile for cross
+      via crossTraitBags on next spread (father = pollen, mother =
+      visited tile). Pollen is retained until the bee returns to a
+      hive (Chebyshev-1). Number-key overlay system — [1] default,
+      [2] family-tree overlay (lineage edges, gated by full
+      sequencing), [3] reserved for future root/mycelium view.
+    depends_on: []
+    status: shipped
+    spec: harness/specs/RP-17-autonomous-flora-spread.yaml
+    plan: harness/plans/RP-17-autonomous-flora-spread.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/375
+    notes: >
+      v4 thinktank round 4 (2026-05-19). Touchstone: Emily Dickinson — "To
+      make a prairie it takes a clover and a bee, and revery. The revery
+      alone will do, if bees are few." Stewardship-time growth is slow
+      and autonomous; Revery-time growth is the massive jump (RP-4). The
+      player's hand is a punctuation, not the engine. Bee+clover
+      materials are recovered from ruins (RP-5, shipped via
+      RuinRole.Bee / RuinRole.Clover at ruins.ts:1069-1075).
+
+      Planning corrections (2026-05-21):
+       - No persisted patch substrate. Prairies are mixed mosaics;
+         patches merge naturally; bees hop between species. Lineage
+         flows through identity-hash prefixing, not a Map<patchId>.
+       - Bee-binding dropped. Per-ceremony "one bee per patch ever"
+         translated as: the bee item is consumed and a normal bee
+         spawns. Existing beehive mechanics keep bees local.
+       - Genetics (RP-3) wired via bee-mediated pollination — PollenBag
+         component, father = pollen / mother = visited tile, crossTraitBags
+         fires on next spread from a primed parent.
+       - Pollen retained until hive return (Chebyshev-1 to any
+         beehive). Cross-species mixing allowed in the bag.
+       - Family-tree visualization moved into a number-key overlay
+         system. [1] off, [2] family-tree, [3] reserved for a future
+         root/mycelium view (placeholder no-op now to lock the
+         keybind layout).
+       - Sidebar fully deleted — Sidebar.tsx, its tests, getTileEffects
+         consumers, docs/claude/sidebar.md, and the CLAUDE.md sidebar
+         rule are all gone (2026-05-23). The cursor-info-panel system
+         no longer exists.
+       - Per-species code isolated: flora/clover/spread.ts,
+         flora/wildflower/spread.ts, flora/tallgrass/spread.ts each
+         own their config and behavior; no cross-species imports.
+         Shared engine in flora/spread.ts.
+       - Perf gate: 1.5x measured baseline of existing
+         tickFloraLifecycle + tickCloverGrowth under the 5000-tile
+         fixture, not a guessed ms number.
+
+
+      v7 thinktank round 1 (2026-05-22). Autonomous bee-mediated
+      pollination stays — pollen moves via bees, identities mix
+      where bees route, the player does not direct it. That is the
+      prairie's own process and survives the v7 doctrine
+      ("crossbreeding is GMO / capitalist; the steward is a
+      naturalist, not a breeder"). A vocabulary audit rides on this
+      item as a maintenance task — rename `father` / `mother` /
+      `crossTraitBags` in `src/engine/beePollination.ts` and
+      `src/engine/flora/actions/pollinate.ts` to a naturalism
+      register (lean: `pollenSource` / `pistilTile` or
+      `receivingTile` / `pollinateIdentities`); audit the lineage
+      overlay (`[2]`) text, the hex grid label, and the
+      `event:cross-pollinated` manual lore brief for breeder
+      vocabulary. Behavior unchanged; this is a names-only pass.
+      `#12` (Crossbreeding UX) was removed from the backlog in the
+      same round.
+
+
+      v7 thinktank round 4 (2026-05-23). The overlay-registry seed
+      shipped here (`[1]` default / `[2]` family-tree / `[3]`
+      reserved) is superseded by `RP-47` (Layer toggle system v2 —
+      Record / Thermal / Rhizome, stackable independent toggles).
+      `RP-17`'s shipped behavior is untouched — pollination, lineage
+      prefixing, and the family-tree-overlay rendering all stand.
+      The keybind layout and visual contract migrate into `RP-47`,
+      which absorbs `[2]`'s family-tree edges and extends them into
+      on-prairie lineage-edge drawing within gaze radius.
+
+  - id: 'RP-14'
+    name: Delete the activity event log
+    summary: >
+      Remove EventLog.tsx, useEventLog.ts, and all addEvent call sites. No
+      replacement surface. World-effects (pickup blooms, dialog, recipe
+      output, manual discovery) already cover the legibility needs; a
+      running ledger of player actions contradicts steward/observer framing.
+    depends_on: []
+    status: shipped
+    spec: harness/specs/delete-event-log.yaml
+    plan: harness/plans/delete-event-log.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/342
+    notes: >
+      v4 thinktank round 0 (2026-05-19). The log was scaffolding built early
+      to confirm things were working; world-effects have made it redundant.
+      Delete cleanly; no toast, no chime, no replacement. Center slot of the
+      bottom-bar overlay becomes empty (Minimap stays left, Backpack stays
+      right). Spec already written.
+
+  - id: 'RP-15'
+    name: Wear (visible item degradation)
+    summary: >
+      Optional wear field on ItemInstance + maxUses on ItemDefinition.
+      Visible alpha decay across an item's lifetime. At wear=1.0 the item is
+      removed — no fanfare, empty grid cell is the eulogy. Mechanic teaches
+      impermanence at the item layer as grammar for the steward's own
+      Voynich drift in RP-4. Renewal loops replace stockpile loops.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 1 (2026-05-19). Visible wear per Tyler — "it's a
+      game about noticing. you notice your net not working as great
+      anymore." Continuous alpha decay is the default; late-threshold-only
+      is a documented escape hatch if playtesting argues for it. Per session
+      ~5-10% of player actions touch wearing items; the rest are ambient.
+      Not Don't Starve — wear is a presence, not a pressure. Cosmology lock
+      (v4): heat death is the antagonist; tending is the verb.
+
+  - id: 'RP-16'
+    name: The tenure ends (lineage handoff)
+    summary: >
+      The game has an ending and the ending is not a death. The steward's
+      drift reaches threshold (state.player.cosmologicalDrift fully
+      Voynich-registered), the tenure closes, the save file is preserved as
+      a predecessor record the next steward inherits. Multiplayer is
+      reframed as lineage — other players are predecessors and successors,
+      never coop partners or adversaries.
+    depends_on: ['RP-4', 'RP-10']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 2 (2026-05-19). Cosmology lock — heat death is the
+      antagonist; tending is the verb; the tenure is the unit; the lineage
+      is the medium. The cloud Gron carries is the inter-tenure persistence
+      layer for bees (round 5); what the player hands forward is, in part,
+      the bees they kept alive. Open questions deferred to spec: what does
+      a predecessor record contain (Calla: previous steward's manual as
+      next steward finds it, one readable predecessor name); is the player
+      ever named in someone else's manual (Astrid: yes, late, by
+      recognition); ending trigger (Calla: cosmologicalDrift threshold —
+      derives from existing state, free). Forecloses adversarial
+      multiplayer permanently.
+
+
+      v6 thinktank rounds 3, 4, 5 (2026-05-22). The tenure now has symmetric
+      bookends — the steward begins inside the little house (per `RP-34`) and
+      ends there (this item). _The steward begins where the steward will
+      end._ The girl is the witness at both bookends. The Kojima-shaped
+      input hijack rejected for the annual summons in Round 4 is reserved
+      here: the final tenure-end Revery is the natural home for the
+      body-betrayal gesture (WASD overridden, sleepwalking-home, screen
+      darkening). Spec author considers whether the route is to the little
+      house (lean) or to a different terminal tile. Predecessor cameras
+      (`RP-23`, `RP-24`) may carry the final Revery as documentation if any are
+      placed.
+
+
+      v6 thinktank round 6 (2026-05-22). The tenure handoff includes a
+      bed-knot transfer mechanic: the previous steward's final Revery
+      Knot (`RP-36`) remains on the bed at tenure close — it was never moved
+      to the root cellar (`RP-37`), because the steward did not wake from
+      that Revery. On the new tenure's open (`RP-34`), Emily takes the old
+      Knot down and hangs it last in the cellar, in the row of the
+      previous steward's years. The new steward wakes next to a Knot
+      they did not earn. _The cosmology hands the bed forward._
+
+  - id: 'RP-18'
+    name: Meteorites as cosmological punctuation (stone circles, hallowed ground)
+    summary: >
+      Meteorites become placeable objects (state.placedMeteorites). Proximate
+      meteorites connect via faint golden lines; closed shapes form hallowed
+      ground. Hallowed ground has subtle visual treatment and biases the next
+      Revery's egregore spread (toward or away — design choice deferred to
+      spec). The 1-in-7 unstable-meteorite explode mechanic in entities.ts:113
+      is deleted in the same spec.
+    depends_on: []
+    status: in-progress
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 4 (2026-05-19). Meteorites started as a universal
+      resource and have been a leftover for some time. v4 reframes them as
+      the player's vocabulary for marking places with cosmological intent —
+      the complementary ceremony to the bee+clover seeding. Bee+clover is
+      commitment to the prairie's native life; stone circles are commitment
+      to the prairie's otherness. Two hands of stewardship. Folds in the v2
+      round 5 "meteorite-carrying" help-the-egregores layer (was sketch;
+      now mechanics). Open: hallowed-ground cosmological consequence — what
+      does it bias and how. Standalone — does not block anything else on the
+      board.
+
+  - id: 'RP-19'
+    name: Soil depletion
+    summary: >
+      Same patch planted three seasons running gets thinner. Soil rebounds
+      from rotation, fallow, or nitrogen-fixing crosses (Trifolium repens is
+      a nitrogen fixer — the species choice already encoded the mechanic).
+      Soil readability already shipped with RP-6; this adds the consequence.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 3 (2026-05-19). One of the "leaks" Boon named when
+      cosmology locked entropy as the antagonist. Soil readable in RP-6
+      (shipped) but not yet consequential. Same tiles, new dimension — no
+      new content required. Independent of RP-15, RP-17. Could ship any time
+      after current pipeline lands.
+
+  - id: 'RP-20'
+    name: NPC mortality
+    summary: >
+      NPCs age and eventually die. Moab the Torchbearer does not have
+      infinite springs — at some point he does not emerge from his cave at
+      the burn window. Ghosts are NPC entropy's existing output; this adds
+      the transition. The player cannot prevent NPC death; gaming the
+      mechanic erases the lesson. What the player remembers of the NPC after
+      is the manual entry they leave.
+    depends_on: ['RP-16']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 3 (2026-05-19). Second of Boon's named leaks.
+      Touches dialog, the manual, the seasonal calendar, and the lineage
+      system. Delta's deepest version — there should be a tenure where
+      Moab dies before the player arrives; the cave is already empty; the
+      ghost there carries a shifted folk name; a different Torchbearer
+      takes up the drip torch. The lineage applies to NPCs too. The
+      cosmology has no protected nouns.
+
+  - id: 'RP-21'
+    name: Gron — round-5 doctrine pass (controllable removal, dialog, manual entry, bees plural)
+    summary: >
+      Apply v4 round 5 cosmology to Gron. Remove him from CONTROLLABLE_IDS
+      (selection.ts:9). Rewrite the four GRON_DIALOG_* constants per the
+      round-5 doctrine — no contractions, indefinite articles, no editorial
+      affect, no direct address by title. Replace the manual entry with a
+      half-Voynich "the manual does not know" treatment (requires a
+      `glitched: true` flag on lore entries + EgregoreLore renderer
+      extension). Strike "one bee per patch" from RP-17's framing — bees are
+      a colony, hives grow with patches via the existing CloverPatch
+      hiveCount/maxHives system. Gron is the bee-keeper between stewards
+      (his pendingSavedBees mechanic in interaction.ts:204 is the channel).
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 5 (2026-05-19). Six locked design principles:
+      irreducibility (no origin story, no canonical explanation);
+      no taxonomic home (Gron belongs to no system); no opinion of the
+      player (no gronAffection / gronTrust hidden variable); oblique
+      dialog (statements not questions, no contractions); music precedes
+      arrival (cloud is heard before seen); manual entry says the manual
+      does not know. Files touched: src/engine/selection.ts:9,
+      src/engine/characters.ts:98-110, src/engine/manual.ts:81-83,
+      src/components/ManualPanel.tsx:218 (glitched-flag routing). Open:
+      what triggers Gron's later visits beyond the existing sealing
+      teleport — multiple overlapping/contradictory conditions, not a
+      single counter. Flagged for a future round: coyote.ts:296-317
+      dumps overflow items near Gron; mechanistically convenient,
+      cosmologically suspicious.
+
+
+      v6 thinktank round 5 (2026-05-22). Gron gains a fifth dialog constant
+      `GRON_DIALOG_SOLSTICE_SUMMONS` for the field-Revery summons mechanic
+      from `RP-32`. Register matches the round 5 locks: statements not
+      questions, no contractions, no editorial affect, no opinion of the
+      player, music precedes arrival. The girl (per `RP-33`) and Gron are now
+      an explicit cosmological pair — _the unchanged thing that waits_ (the
+      girl in the little house) and _the unchanged thing that travels_ (Gron
+      arriving at the field summons). Dialog content marked
+      `MANUAL_LORE`-style TODO until human-authored.
+
+  - id: 'RP-22'
+    name: Named regions + chronicle events (the world speaks of itself)
+    summary: >
+      The prairie acquires named regions (the south ridge, the village, the
+      west pond, the cave mouth) detected at genesis time from terrain
+      features and meteorite placements. World-state transitions emit
+      "chronicle events" — past-tense sentences bound to templates and
+      filled from world state. "The line passed the village in the fourth
+      winter." "The clover didn't grow on the south ridge." Events surface
+      in three places only — the end-of-Revery summary (RP-4), per-region /
+      per-species threads in the naturalist's manual (RP-6, shipped), and as
+      predecessor lines in the lineage record (RP-16). Never a running log.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 6 (2026-05-19). Three operating constraints:
+      (1) events are emitted by world-state transitions, not by player
+      actions — the player did nothing to trigger the sentence, the world
+      did; (2) sentences are template-bound with slots filled from world
+      state, every word corresponds to a fact the player can verify by
+      walking to the place; (3) the sentences never accumulate in a feed —
+      we just deleted the activity log, we are not reinstating it as a
+      story log. **Negative events are the language of entropy.** Half the
+      templates must be negative — the prairie names what failed to happen.
+      A game that can only narrate what did happen is a logbook; a game
+      that can narrate what did not happen is literature. Heat death is
+      the antagonist; the prairie's voice should know how to name what it
+      has lost. Region detection is the largest sub-task (genesis-time
+      pass, stable across a tenure). Template registry is small once
+      regions exist. Cascades into RP-4 (Revery summary becomes the
+      headline surface), RP-6 (per-region/species chronicle threads), and
+      RP-16 (inter-tenure predecessor record).
+
+
+      v6 thinktank round 6 (2026-05-22). Chronicle event sentences
+      additionally surface as Knot-bound text in the root cellar (`RP-37`).
+      Each Revery Knot (`RP-36`) hung in the cellar carries that year's
+      chronicle sentences as a hover or interact surface. The cellar
+      becomes the in-prairie reading surface for `RP-22`; the existing
+      Revery-summary surface (`RP-4`) and manual surfaces (`RP-6`) are
+      preserved. _The manual catalogs species; the cellar catalogs
+      winters._
+
+  - id: 'RP-23'
+    name: Time-lapse camera (analog 35mm field instrument)
+    summary: >
+      A recovered analog field camera. Player places it on a tile, chooses
+      a span (season, year, Revery), walks away. The camera sparsely
+      records the tile and its 8-neighborhood whenever something changes —
+      stage advances, entity arrival, terrain mutation. Returning to the
+      camera and interacting opens a modal ASCII playback overlay that
+      re-renders the recorded frames through the engine's existing tile
+      pass. Film is a separate inventory item found in ruins (N-INFO 400
+      tubes); loading film into the camera is a recipe. Film cannot be
+      overwritten — exposed frames are exposed. When film is exhausted the
+      camera is decoration. Wears like other tools (RP-15).
+    depends_on: ['RP-15']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 7 (2026-05-20). Tyler's breakthrough — FromSoft
+      games are materialist (spells are scrolls, abilities are talismans,
+      the inventory IS the character sheet). Doctrine v4 amended to five
+      lines; the fifth line is "the inventory is the character sheet."
+      The camera answers the ASCII-observation tension: a clover growing
+      in real time over forty minutes is not pleasurable to watch in any
+      rendering, especially not ASCII. The camera is the steward's
+      delegate of attention across time the steward cannot personally
+      attend. Visual language inherits entirely from the gel-band scan
+      result (src/components/GelBandView.tsx) — edge printing
+      (NORTHERN-INFORMATION · 8-char identity · N-INFO 400), reticle crop
+      corners, dim-yellow palette pulled from bg-bee, monospace font.
+      Playback overlay reads as a developed contact sheet from the same
+      lab. Film grain in playback is a new render pass with dim
+      per-frame jitter using the same cellNoise primitive the gel uses
+      (worth extracting to src/engine/render/jitter.ts as a follow-up
+      refactor — the same hash will drive gel jitter, Voynich offsets,
+      and film grain; one function carries the game's visual signature).
+      Sparse frame storage keeps memory bounded by interestingness — a
+      boring patch produces light files. Open questions deferred to
+      spec: how many cameras per tenure (lean: rare — one or two per
+      run); span options (lean: season + Revery as the two MVP choices);
+      where the camera lives in the inventory grid (lean: 2x2, weight
+      matches cosmological weight). Sequencing argument: ships after RP-15
+      (wear substrate in place) and benefits massively from being before
+      or alongside RP-17 (camera is the primary reading instrument for
+      autonomous spread). The camera also makes RP-19 (soil depletion)
+      legible. Lineage handoff in RP-16 inherits cameras + footage as
+      first-class predecessor evidence. Round 8 cascade — the camera is
+      also the genre's required object for the cosmic-horror register;
+      found footage is how horror is expressed in a materialist
+      universe; without RP-23, the egregore has no observational surface.
+
+  - id: 'RP-24'
+    name: Seeded predecessor stewards
+    summary: >
+      Procedural predecessor cameras placed at genesis time, with
+      procedural footage from procedural prior tenures already inside.
+      Player encounters predecessor cameras in the world before they
+      ever find their own. Some predecessor cameras have film remaining
+      (gifts); some are exhausted (memorials). Footage may show species
+      no longer present, geographies that have shifted, names the player
+      sees nowhere else. Reuses the camera substrate from RP-23 — same
+      Recording[] shape, same playback overlay, same renderer — plus a
+      predecessor field on TimeLapseCamera ({ stewardName, tenure } |
+      null). When real-player predecessor data eventually flows in from
+      multiplayer (RP-16), seeded predecessors remain as the prairie's
+      oldest layer. The player will never know which were people and
+      which were procedural; the cosmology says that is exactly right.
+    depends_on: ['RP-23']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank rounds 7 and 8 (2026-05-20). Procedural predecessors
+      are not a placeholder for multiplayer — they are the substrate
+      multiplayer rides on. Without a procedural floor, multiplayer
+      lineage feels thin (only as deep as the live player population).
+      With it, the lineage is bottomless. Genesis-coincident placement
+      locked: the first time the player ever looks at the prairie,
+      there is a camera by the south pond they did not place.
+      Predecessor footage degrades visibly more than current footage
+      (film grain pass turns up with procedural tenure depth) — heat
+      death applies to memory. Steward names come from a name generator
+      using the same SHA256 substrate as flora identity. The seeded
+      stewards are flora, in the cosmology's view — temporary slowings
+      that left an artifact. Round 8 amendment — content-biased toward
+      the seam: roughly 30% of seeded predecessor footage contains at
+      least one egregoric frame, ~10% is predominantly egregoric. Some
+      predecessors were eaten; their cameras kept rolling. Found-footage
+      touchstones for the procedural generator: Blair Witch
+      (last-frame-of-the-last-camera moments emerge procedurally with
+      template hints, not explicit authoring); House of Leaves
+      (footage that contradicts the player's own map — a clover patch
+      where the map shows ash); backrooms (a camera recorded inside a
+      cave whose connectivity has shifted, footage exists but the space
+      doesn't anymore); Stalker (the act of finding a predecessor camera
+      adjacent to an egregoric tile is itself the investigative loop).
+      Spec sizing is sibling to RP-23, not a sub-feature — separate item
+      so it can be sequenced independently and so its scope (procedural
+      footage generation, name generator, predecessor render pass) does
+      not overrun the camera's own MVP.
+
+
+      v8 thinktank round 1 (2026-05-23). Predecessor lineage records
+      gain a "fate" distinction — whether the tenure ended in the bed
+      (returned to the little house) or in the field (collapsed on the
+      overworld via `RP-32`'s Closing-phase commit). The field-collapse
+      case carries the collapse tile coordinate so the cellar lineage
+      (`RP-37`) can reference it directly. _The umbral steward is not a
+      peer of the egregore. The umbral steward is the egregore._
+
+  - id: 'RP-25'
+    name: Egregoric fauna (the parallel fauna register)
+    summary: >
+      A parallel fauna register the way RP-8b is a parallel flora register.
+      Creatures whose lifecycle, routing, or origin is egregoric rather
+      than terran. Includes at least one analog to a native creature
+      (e.g. a "wrong bee" whose routing violates pollinator preference
+      rules) and at least one with no native analog. Seeded predecessor
+      footage (RP-24) may contain creatures the current player has never
+      seen — rare emergences, or ones that have not yet emerged in this
+      tenure, or ones the previous steward saw and the current steward
+      never will. The egregore's fourth register (after glyphic,
+      mechanical, visual) is the unspoken seen — what the camera shows
+      when it shows egregoric activity. Egregoric fauna is that register
+      walking around.
+    depends_on: ['RP-8b']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 8 (2026-05-20). The cosmology has bees, ghosts,
+      angels, coyote, shooting stars — none egregoric. Tyler's "egregoric
+      flora/fauna devouring terran" implies a category we don't have.
+      Benefits from RP-23 (camera) because found footage is how the player
+      learns the horror — but does not strictly depend on it; egregoric
+      fauna can exist in the world before the camera ships. Open for
+      the spec: which fauna types ship in the first cut (lean: at least
+      one analog — wrong bee — and at least one with no analog, spec
+      author chooses). Touchstones for behavior authorship: Stalker
+      anomalies (mundane creatures with cosmologically wrong behavior),
+      Annihilation (the shimmer's mutated wildlife), the SCP register
+      (containment is impossible; observation is everything). The horror
+      register is opt-in by placement (per round 8 doctrine) — a player
+      who does not seek the seam may never encounter egregoric fauna in
+      a calm tenure. Frequency tuning deferred to spec.
+
+  - id: 'RP-26'
+    name: Egregoric metabolism (native flora consumption)
+    summary: >
+      Behavior change to egregore.ts spread logic (already shipped in
+      RP-8b). When egregoric spread is allowed by existing throttle rules
+      and the candidate tile is occupied by native flora, the native
+      flora is consumed rather than displaced; the tile becomes
+      egregoric at its destination stage. Replaces the implicit
+      "spread into empty tiles only" model. The prairie's substance is
+      metabolized by the egregore, not merely overtaken.
+    depends_on: ['RP-23']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 8 (2026-05-20). Names the rule —
+      "the egregore is the prairie's heat death rendered as appetite."
+      Depends on RP-23 (camera) rather than purely on RP-8b (shipped)
+      because the cosmic-horror payoff of metabolism requires found
+      footage to land — the camera is how the player learns the
+      consumption happened. Calla's lock: metabolic consumption should
+      be visible only via camera footage, never via toast or notification
+      (the camera is how horror is learned; otherwise the player learns
+      by happenstance, which violates the noticing-is-the-game
+      principle). The change to egregore.ts spread logic is small —
+      one branch in the candidate-tile check. Until RP-23 ships and RP-26
+      follows it, egregoric spread continues to behave as it does in
+      RP-8b's shipped form (empty-tile spread). Once RP-26 lands, players
+      who do not place cameras will still experience metabolism
+      silently — they notice only by walking past the tile that used
+      to be native; players who place cameras will see the act on film.
+      Lint guard reminder: the word "invasive" is banned player-facing
+      (CI guard); "metabolic" is the room's word internally, the
+      player-facing register continues to favor showing-not-naming.
+
+  - id: 'RP-27'
+    name: Strip genesis epoch commentary; reframe as reverse deep-time projection
+    summary: >
+      Delete all 14 commentary strings from GENESIS_EPOCHS in
+      src/engine/genesis.ts (including the final "A steward is called…")
+      and remove the italic gold <p> line from GenesisBottomBar.tsx.
+      Retain the year counter, recast in the permacomputer's
+      typographic register: format ~13.8B years ago → ~4.5B → ~100K →
+      ~now (tilde-prefixed, abbreviated unit, never decimal-precise),
+      monospace, no ornamentation, no caption above it. Drop or
+      rewrite any tests that assert commentary text — no replacement
+      surface. Update docs/claude/genesis.md to the reverse deep-time
+      projection framing: the permacomputer back-derives the world
+      from the seed of the steward's name and exposes the seams of
+      its derivation; the screen is not a narrated prologue.
+    depends_on: []
+    status: shipped
+    spec: harness/specs/RP-27-strip-genesis-commentary.yaml
+    plan: harness/plans/RP-27-strip-genesis-commentary.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/367
+    notes: >
+      v4 thinktank round 9 (2026-05-21). The commentary was god-view
+      narration of cosmic history; the genesis screen is reframed as
+      the permacomputer back-deriving the world from the name-seed
+      (which is literally what nameToSeed → mulberry32 → 14 epoch
+      mutations does in code). Astrid's lock: a reverse projection
+      has no narrator, only readings and gradients. Tyler's
+      additional discipline: the year is approximated, never precise
+      — "~13.8B years ago" is the language of geology citing
+      isotope-dated bounds, not consumer electronics pretending to
+      know what it cannot. Consumer-electronics gestures (boot
+      animations, progress bars, splash screens, loading prefixes,
+      percentage indicators) are voices in the visual domain and are
+      banned by the diegetic test locked in this round. Open at spec:
+      whether the screen acquires any new exposed-seam affordance
+      (hash readout, tile-count counter, seed-bytes display) — default
+      to nothing unless the spec author finds one that earns its
+      place. Permacomputing (permacomputing.net) is named as the
+      source doctrine; the visual register is calm-tech, not
+      power-armor HUD.
+
+
+      v6 thinktank round 3 (2026-05-22). Doctrinal reframe: the genesis
+      sequence is now interpretable as the dormancy the steward is just
+      waking from. The permacomputer back-derives the world during the
+      sleep; the steward wakes into what it produced. The reframe lives in
+      doctrine plus a comment in `genesis.ts`; no in-game text change
+      required, no spec rework. The handoff target at end of genesis moves
+      from the open prairie to the interior of the little house (per `RP-34`);
+      the player's first surface is the girl across the room. _The genesis
+      screen is the dormancy the steward just slept through._
+
+  - id: 'RP-28'
+    name: Permacomputer ambient instruments (bottom-bar center)
+    summary: >
+      New component in src/components/ placed between Minimap and
+      ItemInfo in the bottom-bar flex layout (GameScreen.tsx:225-247).
+      Renders four current-state readouts: a weathervane (rotating
+      arrow glyph driven by state.wind.direction, 8-cardinal, 45°
+      increments), qualitative wind speed (five labels legible to a
+      19th-century farmer — suggested starting set "calm / light /
+      fresh / brisk / gale", spec to refine — mapping over
+      state.wind.smoothSpeed), current sky glyph, current season
+      label, and an almanac line with a continuous countdown to the
+      next equinox or solstice (projected from state.seasonalPhase).
+      Calm-tech / exposed-seam visual register — monospace,
+      low-color, no chrome. Pure render; no new state fields, no new
+      events. Continuous readouts, no emphasis change near bookmarks,
+      no transition narration, no event language.
+    depends_on: ['RP-30']
+    status: shipped
+    spec: harness/specs/RP-28-permacomputer-instruments.yaml
+    plan: harness/plans/RP-28-permacomputer-instruments.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/386
+    notes: >
+      v4 thinktank round 9 (2026-05-21). This is a new affordance,
+      not a revival of the stats bar — the stats bar has been gone
+      for a long time, its plumbing (state.wind, state.weather,
+      state.seasonalPhase, state.precipitationIntensity) survived but
+      the affordance did not. The distinction is doctrinal: a stats
+      bar is a commodity-game gesture; the permacomputer's ambient
+      instruments are a thing in the world the steward carries. The
+      reference frame is 1850s farmstead instruments (weathervane,
+      barometer, almanac, calendar) rendered as one device, not
+      Fallout's power-armor HUD — Tyler's HUD reference was about the
+      kind of information available at a glance, not the visual
+      treatment. The almanac countdown is an instrument, not a
+      forecast — it reads the world's trajectory and reports current
+      position the way a barometer reports a coming storm, by showing
+      where the needle is now, not by telling the steward what to do.
+      Calla's argument: this also gives the player structural rhythm
+      ("38 days to the equinox") which rewards attention with
+      planning — the Round 1 loop surfaced on the device.
+      Open at spec: exact weathervane arrow glyph and exact five
+      wind-speed labels.
+
+
+      v5 thinktank round 1 (2026-05-21). Amendment: ships under the
+      rotated cardinal frame established by RP-30 (the diamond is the
+      world). Wind-speed labels lock as "still / breeze / brisk /
+      gusty / gale". Arrow glyph and letter are derived from the
+      rotated cardinals directly — the vane reads what the steward
+      can see, no translation layer. Now depends on RP-30. Remaining
+      open at spec: threshold values for the five wind-speed labels
+      along [0, MAX_WIND_SPEED] (Boon: even fifths default; narrower
+      "still" and "gale" bands an option); uppercase vs. lowercase
+      for the cardinal letter (Astrid: defer).
+
+  - id: 'RP-29'
+    name: Diegetic survey
+    summary: >
+      Audit existing UI surfaces and upcoming backlog items against
+      the diegetic test locked in v4 round 9 (inscription /
+      instrument / voice — inscriptions and instruments pass, voices
+      do not). Produces a written survey under docs/ that links to
+      individual amendments on affected items. Items to audit:
+      existing — command panel, manual, minimap, item info,
+      dev panel, scan progress bar, boot title card (verify pass);
+      upcoming — RP-15 (wear visibility), RP-16 (tenure handoff surface),
+      RP-19 (soil depletion surface), RP-20 (NPC mortality surface), RP-23
+      (camera footage — verify inscription-shape), RP-24 (predecessor
+      records — verify inscription-shape). May produce follow-up
+      specs for any current surface that fails.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v4 thinktank round 9 (2026-05-21). Meta-task; output is a
+      survey doc plus targeted item amendments rather than direct
+      code changes. The diegetic test is portable and retroactive —
+      it explains Round 0's correctness (activity log was a voice)
+      and forward-constrains every future UI decision. Delta's
+      framing: "the audit is a round, not a sentence." Open at spec:
+      format of the output — survey doc with links to amendments
+      (lean) vs. amendments distributed across affected item notes
+      with no central doc. Calla flagged that RP-15 (visible wear) now
+      has a frame from this round: an instrument-register indicator,
+      not a HUD chrome bar.
+
+  - id: 'RP-30'
+    name: The diamond is the world
+    summary: >
+      Rotate the cardinal frame 45° to align with the iso diamond,
+      at both the label level and the iteration level. Label layer:
+      rewrite the (sx, sy) table in WIND_SCREEN_VECTORS
+      (src/engine/weather/wind.ts), windToFrontAxis
+      (src/engine/tileWater.ts), and the pollen-bias mapping
+      (src/engine/effects.ts) so each WindDirection key denotes a
+      diamond-tip direction (N = top tip, E = right, S = bottom, W =
+      left; NE/SE/SW/NW align with the storage axes themselves).
+      Iteration layer: rewrite the four topDist/bottomDist sites in
+      src/engine/genesis.ts (1451, 1563, 1594, 1983) to measure
+      polar distance along the rotated frame — u = x + y from the
+      top pole, 2·(height − 2·SPACE_BORDER) − u from the bottom pole
+      — and reindex the glacial edge noise (genesis.ts:1438) from x
+      to the perpendicular coordinate v = x − y. Includes tests
+      (wind.test.ts, tileWater.test.ts, cursorTileInfo.test.ts) and
+      a visual check that icecaps emerge from the diamond's top and
+      bottom points. Audit pass: any in-game text or label that
+      references a cardinal reads naturally under the new semantics.
+    depends_on: []
+    status: shipped
+    spec: harness/specs/RP-30-the-diamond-is-the-world.yaml
+    plan: harness/plans/RP-30-the-diamond-is-the-world.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/382
+    notes: >
+      v5 thinktank round 1 (2026-05-21). The line the room locked:
+      "the diamond is the world." Iso is not a viewing layer applied
+      to a flat grid; iso is the world's shape. World (x, y) storage
+      indices are internal storage, not a coordinate frame the game
+      exposes. The compass points at the world the steward inhabits,
+      not at the grid the storage uses. No coordinate translation
+      lives anywhere in the game after this ships — the display
+      layer does not translate between two frames because there is
+      only one frame. Boon enumerated the migration sites; Astrid
+      named the existing glacier code (genesis.ts:1444 "Glaciers
+      advance from top and bottom") as already-broken under the old
+      frame — the comment described the design intent and the code
+      walked a different geometry. Calla connected the rotation to
+      icecaps as a concrete pre-existing intent, not a future one:
+      after RP-30, icecaps actually arrive from where the steward
+      would point at them. Delta delivered the framing: "the
+      compass points at the world, not at the storage." Open at
+      spec: a single golden test fixturing each cardinal's (sx, sy)
+      and each pole's iteration metric so future code cannot author
+      the old frame by accident; whether the glacial edge noise
+      needs more lattice cells under the rotated index (the
+      perpendicular coordinate v = x − y spans roughly 2·width
+      instead of width); any user-facing text strings that name a
+      cardinal under the old semantics (probably zero today; the
+      value is the constraint going forward).
+
+  - id: 'RP-31'
+    name: The unreadable does not announce its source
+    summary: >
+      Doctrinal item, not a code change. Adds two locks to
+      docs/claude/egregores.md under the "never write egregore lore"
+      section: (1) no in-game text refers to Voynich as an external
+      object — the script exists in the prairie because the prairie
+      produced it, the manual does not name a source because the
+      steward cannot name what they cannot read; (2) the EVA-token
+      generator samples phonemes, not transcribed MS 408 text. The
+      first lock is the diegetic constraint that future authors of
+      manual entries, NPC dialog, and predecessor records check
+      against. The second is the wire-layer invariant that keeps
+      direct exposure to a hypothetical Voynich solve at zero. No
+      engine code touched.
+    depends_on: []
+    status: shipped
+    spec: null
+    plan: null
+    pr: https://github.com/northern-information/revery-prairie/pull/379
+    notes: >
+      v5 thinktank round 2 (2026-05-21). Seed: Tyler asked what the
+      risk exposure is if the Voynich manuscript ever gets solved.
+      Boon mapped the in-flight worktree state — EGREGORE_GLYPHS
+      moving from Latin Extended-E (U+AB10..U+AB1F) to the Voynich
+      PUA (U+F120..U+F15F), with Latin pierces dropped from tile
+      rendering — and concluded direct exposure is still effectively
+      zero: the substrate now uses the manuscript's script but not
+      its text, because EVA_TOKENS are procedurally sampled
+      phonemes, not folio transcriptions. Astrid named the
+      sharpening: the in-flight swap raises associative exposure
+      (the cultural valence is now literally the manuscript's
+      glyphs, not a Latin neighbor) even as direct exposure stays
+      at zero. Calla connected the glyph swap to Tyler's reason for
+      doing it — the Latin substitutes broke immersion ("goofy /
+      griefing") — and held that the phenomenology of "this script
+      refuses me" is local to the tile regardless of a solve.
+      Delta delivered the framing: "we are not running on Voynich.
+      We are running on the gesture Voynich points at." The
+      gesture (writing that does not yield) is permanent across
+      Linear A / Phaistos / rongorongo; the manuscript is one
+      current carrier. Two locks captured here: the diegetic
+      constraint (no in-game text names Voynich as external) and
+      the wire-layer invariant (phoneme sampling only). Open at
+      spec: whether dev-surface Voynich names (font-family,
+      fetch-voynich-font.mjs, /fonts/voynich.ttf path,
+      docs/claude/egregores.md) are worth renaming for grep
+      hygiene — the room said no urgency, defer; whether the
+      doctrine wants a positive in-world name for the script or
+      keeps it nameless (room leaned nameless). The in-flight
+      glyph-swap worktree should assert the phoneme-sampling
+      invariant in a test alongside the swap, but that work
+      belongs to the worktree, not to RP-31.
+
+  - id: 'RP-32'
+    name: Revery dormancy pressure (forcing function)
+    summary: >
+      Replace the omen-as-direct-trigger model with a
+      `state.player.dormancyPressure` accumulator that climbs across
+      autumn. The three existing omen variants (bee on shoulder,
+      distant meteorite, cloud passing the sun) contribute bounded
+      scalar pressure rather than directly triggering the Revery.
+      Pressure reaches ceiling at the winter solstice frame regardless
+      of inputs. Crossing a threshold schedules the Revery via
+      `initiateRevery`. The summons mechanic is collapse-in-place: the
+      Revery enters from the steward's current tile, accompanied by
+      the highest-contributing omen variant playing at full intensity,
+      followed by Gron teleporting to an adjacent walkable tile to
+      speak one line per `RP-21` round 5 doctrine. Reuses Gron's
+      existing teleport (`src/engine/interaction.ts:204`,
+      `src/engine/coyote.ts:296-317`) and dialog substrate.
+    depends_on: ['RP-4']
+    status: shipped
+    spec: harness/specs/RP-32-revery-dormancy-pressure.yaml
+    plan: harness/plans/RP-32-revery-dormancy-pressure.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/407
+    notes: >
+      v6 thinktank round 1 (2026-05-22). The current omen lives in
+      `src/engine/omen.ts:28-62` with 5 gates and 3 OR'd predicates;
+      the fragility is structural — three rare predicates over a
+      single autumn can roll zero hits. Round 1 named the fix:
+      pressure accumulator + threshold, with the omens as inputs.
+      _The steward does not enter the Revery; the Revery enters the
+      steward._
+
+
+      v6 thinktank round 4 (2026-05-22) amendments: deadline ceilings
+      at the winter solstice, not the first winter frame, matching
+      Tyler's Round 2 line "before the solstice, to revery." Summons
+      is collapse-in-place with the highest-contributing omen variant
+      at full volume. Reuses `seasonalPhase` machinery from the
+      spring-equinox re-anchoring (PR #351). The Kojima-shaped input
+      hijack is rejected for the annual summons but reserved for the
+      final tenure-end Revery (`RP-16`). _The prairie sleeps the steward
+      where the steward stands._
+
+
+      v6 thinktank round 5 (2026-05-22) amendments: the summons
+      sequence is omen at full intensity → cloud audio cue (per `RP-21`
+      round 5 doctrine, "music precedes arrival") → Gron teleports to
+      an adjacent walkable tile → Gron's solstice-summons dialog →
+      `initiateRevery` from the steward's tile. The steward's
+      collapsed tile uses the dormant-flora visual register from `RP-2`.
+      Engine reuse is near-total; one new dialog constant on Gron's
+      character data (`GRON_DIALOG_SOLSTICE_SUMMONS`).
+
+
+      Open at spec: pressure curve shape (linear vs accelerating
+      across autumn), per-omen contribution weighting, tie-breaking
+      when multiple variants contribute equally, visual and audio
+      treatment of the full-volume summons frame, exact glyph for the
+      collapsed-steward tile, Gron's arrival-tile selection logic,
+      whether Gron remains adjacent for the Revery duration (lean
+      yes), whether the field collapse leaves a persistent mark for
+      predecessor cameras (`RP-23`, `RP-24`), and whether the existing
+      `REVERY_COOLDOWN_MS` gate is replaced by the pressure-reset
+      semantics or kept as a redundant guard.
+
+
+      v6 thinktank round 6 (2026-05-22). The three existing omen variants
+      (bee on shoulder, distant meteorite, cloud passing the sun) are
+      **retired**. They do not survive into this spec. The omen-
+      contribution behavior is rewritten: pressure contributions arrive
+      from the Revery Knot (`RP-36`) pickup event — Emily ties them, the
+      coyote carries one to the steward each autumn, the pickup
+      contributes a bounded scalar to `dormancyPressure`. Until `RP-36`
+      ships, the spec's pressure-only ramp from autumn equinox to winter
+      solstice carries autumns alone; the cosmology is internally
+      consistent at each step (a stewardship that has not yet earned
+      recognition). The pressure substrate, threshold trigger, summons
+      sequence, Gron arrival, collapse-in-place, and Closing-phase
+      egregoric commit all remain in scope. _The item is the omen. The
+      omen is the item._
+
+
+      v8 thinktank round 1 (2026-05-23). Resolves the open question
+      "whether the field collapse leaves a persistent mark for
+      predecessor cameras (`RP-23`, `RP-24`)": _yes_, but via the cellar
+      lineage (`RP-37`) rather than the camera substrate. The camera still
+      records the moment if one was watching; the cellar records the
+      lineage regardless. The Closing-phase commit is cosmologically
+      correct as shipped — the umbral steward is the egregore on the
+      collapse tile, not an NPC. _Service implies a contract. The
+      prairie has no contracts._
+
+  - id: 'RP-33'
+    name: The little house and the girl who waits
+    summary: >
+      The Revery's opt-in surface is a tile-bound location: the little
+      house, open all year, with a girl who invites the steward to
+      Revery with her. Her dialog register matches `RP-21` round 5 Gron
+      doctrine — statements, no contractions, no editorial affect, no
+      opinion of the steward, dispatched by season. Tyler's canonical
+      late-autumn refrain locks: _you will be back before the
+      solstice, to revery._ Confirming the invitation commits dormancy
+      pressure (`RP-32`) to threshold; the Revery enters on the next
+      frame. The girl Reveries alongside the steward (default reading)
+      — she goes dormant in a chair across the room while the steward
+      sleeps in the offered bed. No origin and no name for the girl in
+      the spec; the house is its own explanation.
+    depends_on: ['RP-32']
+    status: shipped
+    spec: harness/specs/RP-33-little-house-and-emily.yaml
+    plan: harness/plans/RP-33-little-house-and-emily.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/419
+    notes: >
+      v6 thinktank round 2 (2026-05-22). Resolves Round 1's open
+      question on opt-in object identity. An item would have been
+      transactional; a place with a person is a visit. _She waits._
+      The little house is the only place in the prairie that does not
+      change — the cosmology's one always-open surface. Her prescience
+      is procedural, not supernatural: she knows the steward will
+      return before the solstice because `RP-32`'s pressure system will
+      force it, and she is the surface the pressure speaks through.
+      _The house is the almanac with a voice._
+
+
+      Engine substrate: the house is a tile or small structure
+      footprint, sibling to the cave's `zoneTransition.ts` system. The
+      girl is a character entity in `src/engine/characters.ts` with
+      seasonal dialog constants matching Moab's existing pattern at
+      `src/engine/characters.ts:98-110`. Interaction is the standard
+      `[f]` key with a confirm option; confirm sets dormancy pressure
+      to threshold and the Revery enters next frame.
+
+
+      v6 thinktank round 5 (2026-05-22) reference: the girl and Gron
+      are now an explicit cosmological pair — _the unchanged thing
+      that waits_ and _the unchanged thing that travels_. The girl's
+      dialog dispatcher may acknowledge this in time but no new lines
+      required for shipping.
+
+
+      Open at spec: the girl's name (lean: nameless until earned), the
+      house's location in the world (lean: findable but not central),
+      visual glyph for the house and the girl, interior as small zone
+      vs overlay over an overworld footprint, whether the steward can
+      enter and decline (lean: yes — walking out without confirm is a
+      quiet visit), whether the girl acknowledges predecessor stewards
+      in any dialog branch (lean: oblique acknowledgment under
+      late-tenure conditions, per `RP-16`), whether late-tenure handoff
+      changes her dialog at all (lean: same line, the fact is the
+      payload), the following-autumn dialog branch for a steward who
+      Reveried alone in the field via `RP-32`'s summons. All dialog
+      content is human-authored lore — the round names the register.
+
+
+      v6 thinktank round 6 (2026-05-22). The girl is named **Emily**.
+      Carries the Dickinson touchstone (the game's namesake line), the
+      Wyeth Christina's-World register, and the Ingalls-Little-House
+      frontier register in one figure. She ties Revery Knots (`RP-36`)
+      from prairie grass — clover, tall grass, milkweed silk, wildflower
+      stems — in the manner of pan-European frontier harvest-knot
+      traditions. She keeps a small persistent pool of pre-tied Knots in
+      the house; the coyote and Emily are in cahoots, and the coyote
+      carries one Knot to the steward each autumn. The little house
+      gains a root cellar (`RP-37`) with an alternate bulkhead entrance —
+      a new zone sibling to the cave where Revery Knots accumulate after
+      each Revery. _The unchanged thing that waits is named Emily, and
+      she has been in cahoots with the coyote the whole time._
+
+
+      Spec + plan land 2026-05-23 (`harness/specs/RP-33-little-house-
+      and-emily.yaml`, `harness/plans/RP-33-little-house-and-emily.
+      yaml`). Design clarification locked during spec gathering: the
+      Revery scene is the house interior, regardless of where in the
+      world the pressure trip occurs. Confirm-in-house and field-summons
+      both end with the steward in the bed and Emily in the chair —
+      _fade to black. fade to house. revery begins._ The falling-star
+      spawn ceremony is dropped wholesale (the player now spawns inside
+      the house at tenure start). The Revery Knots pool and the root
+      cellar (`RP-37`) remain out-of-scope for this PR.
+
+
+      v9 thinktank round 2 (2026-05-23). The little house gains
+      `pausesPlayerTime: true` on its zone definition (per `RP-51`).
+      Sleep continues to advance time via the Revery mechanic; non-
+      sleep visits — sitting at the table, picking something off the
+      bed, talking with Emily — do not cost daylight or seasonal
+      progression. The prairie's simulation tick continues at normal
+      rate while the steward is inside; Emily continues at the
+      prairie's tick because she is part of the prairie's
+      simulation, not the steward's clock. Cosmological framing:
+      _home is the place that does not tick for the steward._
+
+
+      v10 thinktank round 1 (2026-05-23). The little house gains
+      the night-beacon treatment during seasonal nights (per `RP-52`).
+      Windows lit, lamp on the porch, Emily silhouetted inside.
+      Visible at long range across the prairie when `dayPhase` is
+      `night`, at lower intensity during `dusk` / `dawn`. The
+      steward who is far from home when night begins can navigate
+      by aiming at the warm rectangle in the distance. Visual
+      treatment deferred to spec; the principle is _the steward
+      can always find home_.
+
+  - id: 'RP-34'
+    name: The tenure opens in the little house
+    summary: >
+      Spawn the steward inside the little house at tenure start; the
+      girl is the first character met. The genesis sequence (`RP-27`)
+      handoff routes into the house interior rather than the open
+      prairie. The steward's first action is waking; their first
+      surface is the girl; their first dialog beat sets the game's
+      voice register before the prairie ever speaks. First emergence
+      onto the prairie is a normal walk through the door — no special
+      pan, no fade, no cinematic. The impact comes from the contrast
+      between the enclosed interior the player has been looking at and
+      the full prairie they walk into.
+    depends_on: ['RP-27', 'RP-33']
+    status: in-progress
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v6 thinktank round 3 (2026-05-22). The cliché of
+      starting-on-awakening is doctrinally earned because the game's
+      whole grammar is sleep-and-wake at every scale. The opening is
+      the first beat of the grammar, not a borrowed trope. _The
+      steward begins where the steward will end, and the little house
+      is the hinge._
+
+
+      Cosmological reframe: the genesis sequence (`RP-27`) is now
+      interpretable as the dormancy the steward is just waking from.
+      The permacomputer back-derives the world during the sleep; the
+      steward wakes into what it produced. The girl was awake the
+      whole time — she is the unchanged surface. The reframe lives in
+      doctrine plus a comment in `genesis.ts`; no in-game text change.
+
+
+      Engine cost: small once `RP-33` ships. The genesis handoff in
+      `genesisRenderer.ts` currently ends with the player on the
+      prairie; the handoff target moves to a known interior tile
+      within the house. Camera frames the interior on spawn.
+
+
+      Touches `RP-16` (the tenure-end handoff also occurs in the little
+      house — symmetric bookends; `RP-16`'s spec should account for
+      this).
+
+
+      Open at spec: interior implementation (small zone vs overlay
+      over an overworld footprint), spawn-tile placement inside the
+      house, camera-on-spawn behavior, whether the house interior
+      carries any tutorial-shaped affordance (lean: no — dialog and
+      door are the whole onboarding), the girl's first-encounter
+      dialog line (flagged for human authoring), multiplayer spawn
+      semantics in a shared prairie (defers to `RP-16`'s lineage
+      framing), whether the genesis screen gets any in-game signal
+      that it is the previous Revery (lean: doctrine only, no new
+      pixels).
+
+  - id: 'RP-35'
+    name: Mushrooms, fungus, mycelium
+    summary: >
+      Stub. The cosmology currently has flora (clover, wildflower,
+      tall grass) and a parallel egregoric flora register (`RP-8b`), but
+      no fungal kingdom — mushrooms, fungus, and mycelium have not
+      been designed yet. Open at design: species set, lifecycle and
+      seasonal rhythm, whether mycelium is a substrate underlying
+      everything or a localized network, interaction with the existing
+      flora registry, visual register (ASCII glyph, palette), and how
+      the kingdom relates to the egregore (`RP-8b`) and to soil
+      depletion (`RP-19`). Awaits a future thinktank round.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      2026-05-22. Stub item created to formally gate `RP-10`'s "fungal
+      conversion" failure-state biome on a thinktank-shaped design
+      pass for the fungal kingdom. Until the design exists, the
+      fungal outcome in `RP-10` cannot reach feature-complete and `RP-10`
+      is not ready for dev. No spec or plan; needs a round to
+      establish what fungus _is_ in this cosmology before a spec can
+      be written.
+
+  - id: 'RP-36'
+    name: The Revery Knot
+    summary: >
+      Emily, the girl who lives in the little house (`RP-33`), ties Revery
+      Knots from prairie grass — clover, tall grass, milkweed silk,
+      wildflower stems — in the manner of pan-European frontier
+      harvest-knot traditions (corn dolly, wheat braid, last sheaf). She
+      keeps a small persistent pool of pre-tied Knots in the house. Once
+      per autumn the coyote picks one up at the house and routes to the
+      steward via existing pathfinding; on arrival within Chebyshev-1 of
+      the steward, drops the Knot as a ground item or auto-deposits to
+      the backpack. Pickup contributes a bounded scalar to
+      `dormancyPressure` per `RP-32`. The current year's Knot rests on the
+      bed in the little house during its working winter; Emily moves it
+      to the root cellar (`RP-37`) at the Revery's spring.
+    depends_on: ['RP-33']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v6 thinktank round 6 (2026-05-22). The omen variant under `RP-32`'s
+      pressure model. The three existing omens in `omen.ts:36-58` are
+      retired; the Revery Knot replaces them as the single-variant
+      catalog. _The item is the omen. The omen is the item._
+      Emily and the coyote are in cahoots: Emily hands the autumn's
+      Knot to the coyote, who carries it to the steward, wherever the
+      steward is on the prairie. The trickster register survives because
+      the coyote does not say where the thing came from; the steward
+      learns slowly across tenures, or not.
+
+
+      v9 thinktank round 1 (2026-05-23). The open question on per-
+      year Knot variation closes: the Knot's `materials` bag is
+      auto-derived at the autumn tying tick, walking the union of
+      four witness footprints (steward gaze + memory, Emily's radius
+      around the little house, the coyote's wander trail, the
+      egregore's patch extent). The Knot is the camera that does
+      not know; the witnesses are plural; the cellar tells the
+      steward what they missed. Derivation engine ships under `RP-50`
+      (shared substrate with `RP-46`). The pickup's pressure
+      contribution to `RP-32` is unchanged; pickup still has no stat
+      surface beyond the existing scalar. The room's earlier
+      instinct toward a steward-offering / curation surface
+      (provisional `#49`) was refused on cosmological grounds —
+      curation is the breeder in a smaller coat — and the `#49`
+      slot vacates.
+
+
+      Name lock: `Revery Knot`. FromSoft-shaped on hover — clear about
+      function (the Revery's signal) in the cosmology's own vocabulary,
+      cryptic about origin until the manual entry surfaces the folk-craft
+      lineage. Inventory tooltip lore TODO per `feedback_no_write_lore`;
+      manual entry lore TODO per `MANUAL_LORE` doctrine.
+
+
+      Engine substrate: new item type `Revery Knot` with inventory glyph
+      TBD; `state.emilyKnotPool` or sibling on Emily's character data
+      holding pre-tied Knots; extension to `state.coyoteCargo` routing
+      from house to steward; the existing `lastOmenKindDetected` field
+      from `RP-32`'s in-progress spec becomes `lastReveryKnotDeliveredYear`
+      or similar (per-edge per-autumn guarantee).
+
+
+      Open at spec: whether the Knot's appearance varies by autumn's
+      stewardship (species mix, egregore proximity, soil health); whether
+      the Knot is consumed at any point or persists indefinitely on the
+      bed → cellar trajectory; coyote routing strategy when the steward
+      is in the cave or a ruin at the moment of an autumn delivery (lean:
+      coyote waits at the house, delivers on the steward's next overworld
+      arrival). _The prairie wove this year for you. The girl tied it.
+      The coyote brought it. Sleep under it._
+
+  - id: 'RP-37'
+    name: The root cellar
+    summary: >
+      The little house (`RP-33`) gains a root cellar with an alternate
+      bulkhead entrance outside the house. The cellar is its own zone,
+      sibling to the cave (`zoneTransition.ts` substrate). Footprint: a
+      corridor 3 tiles wide, very long, where the existing fog-of-war
+      rendering fades the cellar's far end into unreadability before the
+      steward can walk to it. Hooks line the ceiling at regular
+      intervals along the corridor's length. Revery Knots (`RP-36`)
+      accumulate one per year, hung by Emily after each Revery completes.
+      The cellar is the prairie's archive of every year the steward has
+      lived through. The cellar is also the in-prairie reading surface
+      for chronicle events from `RP-22` — hung Knots carry that year's
+      chronicle sentences as a hover or interact surface.
+    depends_on: ['RP-33', 'RP-36']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v6 thinktank round 6 (2026-05-22). The Revery is the prairie
+      sleeping; the root cellar is where what survived the harvest
+      sleeps. The cellar is the Revery's architectural cognate. _Above
+      sleeps the present; below sleeps the past._
+
+
+      Load-bearing fact: **very long and very empty**. A long, empty
+      cellar reads as _the architecture predates every steward who has
+      used it_. The cosmology built the cellar for a count of years no
+      lineage has reached. _Heat death is the antagonist; the cellar is
+      heat death rendered as architecture._
+
+
+      Single-player lock: the cellar starts empty. No procedural
+      predecessor Knots, no multiplayer lineage Knots, no pre-population.
+      The first hook the new steward fills is the autumn's first Knot.
+      Multiplayer / procedural predecessor pre-population defers to a
+      future round when those mechanics ship. The single-player
+      cosmological reading is sharper for being unambiguous: _the
+      steward is the first; the cellar's emptiness is honest._
+
+
+      Engine substrate: new zone (sibling to the cave); bulkhead-door
+      tile placed outside the little house at genesis; new tile type for
+      hooks (empty vs Knot-bearing render distinction); new state field
+      `state.reveryKnotsInCellar: ReveryKnotEntry[]` capturing year and
+      per-year flavor data. Emily's hang-after-Revery behavior runs at
+      Closing phase. Knot-bound chronicle text per `RP-22`'s amendment.
+
+
+      Open at spec: exact cellar length and fog-fade tuning (target the
+      "I can walk for a while and the room still continues" feeling);
+      hook glyph; whether the steward can interact with hung Knots
+      (hover, examine, never remove); whether the cellar's far end has
+      anything the steward cannot reach in normal play but a careful
+      enough steward could — the cosmological-horror register would say
+      yes, and the steward should not know what it is. Defer; the
+      cellar's first ship can be a featureless dimming. _The cellar
+      reads the chronicle. The manual catalogs species; the cellar
+      catalogs winters._
+
+
+      v8 thinktank round 1 (2026-05-23). The cellar is the home for
+      collapse-tile attribution. When a tenure ends with
+      `state.collapsedStewardTile` set (the field-collapse case from
+      `RP-32`), the cellar gains a lineage entry pointing at that tile
+      and the steward who fell there (via `RP-24`'s new "fate" field).
+      Surface: existing Knot rendering carries the entry; the
+      permacomputer reveals it when the next steward scans the violet
+      patch. No new glyph and no new EVA token on the egregore tile
+      itself; the record lives in the cellar lineage, not in surface
+      flora vocabulary. Cellar Knot lore phrasing for collapse-tile
+      lineages is flagged for human authorship — naturalist register,
+      not lab register; mortal register, not mythic register. _The
+      cellar carries the name; the prairie carries the body._
+
+
+      v8 thinktank round 2 (2026-05-23). The cellar Knot gains a
+      third lineage-entry kind: angel-encounters. When the steward's
+      tile first enters an active angel's aura (any kind — rain,
+      bees, clover, wildflower, tallgrass, fire, lightning, egregore,
+      sundering, meteorite), a deduped Knot entry is appended keyed
+      by `(angelKind, encounterHash)`. Render distinguishes the three
+      kinds (steward, collapse, angel-encounter). Egregore-angel
+      entries render in PUA glyphs, awaiting human-authored lore.
+      Replaces the now-removed Cantos screen as the angel-record
+      surface. _The Knot is the angel's record surface. The hex-grid
+      lived in the wrong place; the Knot is where the encounter
+      belongs._
+
+
+      v9 thinktank round 1 (2026-05-23). The cellar's role formalizes
+      from memorial to revelation surface. The hover text on year-N's
+      Knot reads year-N's plural-witness record — the wildfire on the
+      northwest ridge the steward never reached, the egregore that
+      crept on the southern slope unobserved. The revelation always
+      arrives later, in a future year's cellar visit; never in the
+      year of the event. Witness provenance is internal — the prose
+      reads in the prairie's voice, not "(coyote saw)" attribution.
+      No structural change to the cellar zone; the new behavior
+      lives in the Knot's `materials` bag (`RP-50`) and is rendered
+      at the cellar's existing hover surface.
+
+
+      v9 thinktank round 2 (2026-05-23). The cellar gains
+      `pausesPlayerTime: true` on its zone definition (per `RP-51`).
+      Reading Knots is contemplation — stand-and-look, not glance.
+      The daylight clock (`state.timeOfDay`) and seasonal
+      progression clock (`state.season`) do not advance while the
+      steward is inside; the prairie's simulation tick continues
+      at normal rate. Re-entry to the prairie does not snap-
+      advance. Cosmological framing: _memory does not tick_. The
+      cellar is the prairie's archive of itself; archives are not
+      present tense.
+
+  - id: 'RP-38'
+    name: Overworld gaze, memory, and unseen
+    summary: >
+      Extend two-layer fog of war to the prairie. `hasFogOfWar` returns
+      true for `Zone.Prairie`; the existing three states (`unexplored`
+      / `fullyDiscovered` / `visible`) and `fog-mask` render pass carry
+      over. Vision radius is unchanged across zones — same eyes,
+      indoors or out. Persist FOW state on `GameState` per tenure.
+      Cull entity render passes outside the visible radius; simulation
+      underneath continues to run.
+    size: M
+    depends_on: []
+    status: shipped
+    spec: harness/specs/overworld-fog-of-war.yaml
+    plan: harness/plans/RP-38-overworld-gaze.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/420
+    notes: >
+      v7 thinktank round 2 (2026-05-23). God-mode visibility on the
+      overworld was a placeholder from the era when rendering was cheap
+      and the cosmology was unwritten. The substrate already exists for
+      cave and ruin; this is a gating change plus per-tenure
+      persistence. Player-facing vocabulary is _gaze_, _memory_,
+      _unseen_ — engineering identifiers (`hasFogOfWar`, `fog-mask`)
+      keep their names. No manual entry — well-established mechanic,
+      does not need in-fiction explanation. Hard cosmological lock from
+      this round: simulation does not depend on observation — fog culls
+      _rendering passes_, not simulation. Perf benefit is real but
+      secondary; bill the work as clarity, not framerate. Files in
+      play: `src/engine/visibility.ts`, `src/engine/render/passes/fogMask.ts`,
+      `GameState` (new per-tenure FOW field).
+
+  - id: 'RP-39'
+    name: Post-Revery memory softening
+    summary: >
+      On Revery exit (steward wakes in the little house), the
+      `fullyDiscovered` memory layer softens so the walk back out of
+      the house has shape again. Memory persists but dims; lived
+      history is not erased. No change to gaze radius — same eyes
+      seeing.
+    size: S
+    depends_on: ['RP-38', 'RP-0']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 2 (2026-05-23). Calla's framing: the door
+      opens onto a prairie that has moved on without the steward. Full
+      re-darken would erase lived history; the room rejected that.
+      Tuning target is dream, not punishment. Hook point is Revery
+      exit, not entry, because the steward is inside the little house
+      for the duration of Revery. Size TBD at spec; defaults to S.
+      Open at spec: exact softening curve — partial fade, time-based
+      decay, or one-shot dim.
+
+  - id: 'RP-40'
+    name: Per-tenure FOW reset
+    summary: >
+      A new steward inheriting the cellar starts with a fresh-fog
+      prairie. The fog state from the previous tenure does not carry
+      forward into the new one. The Knot retains lineage, the cellar
+      retains the chronicle; the eyes do not.
+    size: S
+    depends_on: ['RP-38', 'RP-24']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 2 (2026-05-23). Each tenure is its own
+      discovery of the same map. The lock from Round 2: _the Knot
+      remembers; the eyes do not_. Pairs with the tenure handoff in
+      `RP-24` and the cellar bed-knot transfer in `RP-34`'s amendment from
+      v6 round 6.
+
+  - id: 'RP-41'
+    name: Cliffs and verticality
+    summary: >
+      Impassable cliff tile type rendered as a column of existing tile
+      glyphs stacked in the iso z-axis. No new glyphs — iso projection
+      handles 3D for free. X-ray (semi-transparent alpha) applied to
+      cliff tiles that occlude the player avatar or player-relevant
+      tiles, so the steward stays visible at all times. Camera rotation
+      is not in scope; only revisit if x-ray fails the feel test. Fog
+      of war (`RP-38`) handles LOS truncation naturally. Cave and ruin
+      entrances may be placed on cliff faces as arches.
+    size: M
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 3 (2026-05-23). Flat-prairie prior is a
+      cliché, not a biome — Loess Hills, Illinois hill prairies, Ozark
+      glades are all real precedents and should be named in spec.
+      Verticality gives the prairie _shape_ — bones — landmarks the
+      steward can carry in their head. Placement of major escarpments
+      should consider firebreak geometry once RP-42 lands, not only
+      landmark legibility. Open at spec: cliff height (single-stack vs
+      2–3 tile bluffs), hand-placed majors vs procedural minors. Lean:
+      hand-placed major escarpments + procedural minor cliffs.
+
+  - id: 'RP-42'
+    name: Live wildfire (lightning-ignited)
+    summary: >
+      Lightning strikes during warm-season thunderstorms ignite flora;
+      fire spreads via BFS over adjacent flora the same shape as the
+      genesis Burn in genesis.ts (lifted to a live system). Cliffs,
+      water, and bare earth act as firebreaks. Scorched-tile state
+      with multi-year recovery curve; tallgrass benefits post-burn
+      (real prairie ecology). Smoke and fire render passes.
+    size: M
+    depends_on: ['RP-41']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 3 (2026-05-23). Wildfire returns as a live
+      mechanic after the room initially considered ruling it out;
+      Tyler clarified that lightning was the missing piece. _Heat
+      death is the long antagonist; lightning is the brief one._ Pairs
+      with RP-44 (winter geology) as the cosmology's two axes of motion
+      the steward cannot direct — slow egregoric reshaping in winter,
+      sudden lightning fire in summer. Scope: ignition + spread +
+      scorched-tile state + multi-year recovery. Fire weather
+      (humidity, wind direction) defer to spec. Open at spec:
+      lightning frequency and storm-state coupling (every storm vs
+      probabilistic); whether burnt flora produces gatherable
+      artifacts (ash, charred seeds — flag for future round if it
+      becomes a system).
+
+  - id: 'RP-43'
+    name: Thermogenic egregores
+    summary: >
+      Egregoric flora radiates heat in winter. New
+      EgregoreGenome.thermogenicRadius (or rolled into existing
+      allelopathy gradient — confirm at spec); effective-temperature
+      lift on tiles within radius during winter; flora dormancy check
+      reads the lifted temperature instead of raw weather.temperature.
+      Visible signal — adjacent flora not-yet-dormant in winter —
+      reuses existing color logic.
+    size: S
+    depends_on: ['RP-8a', 'RP-8b']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 3 (2026-05-23). Soft amendment to RP-8a / RP-8b
+      rather than reopening either for re-spec. _Fevers don't burn
+      down — they warm._ The egregore stops being a cold-survivor and
+      becomes a cold-refuser, a pocket of anti-entropy. The steward is
+      drawn toward the cosmologically-wrong thing for the
+      cosmologically-right reason (warmth in winter). Open at spec:
+      tuning the heat radius so the steward feels drawn but not saved
+      — close enough to feel warm should still be cosmologically
+      suspect. Drives winter geology (RP-44).
+
+  - id: 'RP-44'
+    name: Winter geology and ruin re-roll
+    summary: >
+      Once-per-year geological transition driven by egregoric
+      thermogenic activity from the prior winter. Surface new ruins in
+      unseen territory near strong rhizome activity; sink ruins that
+      have not been visited recently. Year 1 ruins hold key items
+      (camera, cellar key, foundational tools); year 2+ ruins are
+      roguelike accoutrements only (hats, chairs, journal pages,
+      brittle artifacts). Sunk ruins logged in the cellar Knot (`RP-37`)
+      — the cellar remembers what the prairie lets go. Cliffs may also
+      rise or fall on the same boundary (smaller scope decision).
+    size: L
+    depends_on: ['RP-41', 'RP-43', 'RP-37']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 3 (2026-05-23). Will need its own thinktank
+      round when next — this round names the shape and locks the
+      cosmology, not the spec. The egregores are the prairie's liver,
+      the organ that reshapes. The player cannot optimize against the
+      geology — no "skip the egregores so the ruins stay put"; tending
+      happens regardless. Steward's lived memory remains intact:
+      sinking is loss of small possibility, not progress. Time-
+      budgeting summers is the loop — careful stewards visit
+      everything within reach; dreamier ones pick one ruin and read it
+      slowly. Open at spec: boundary timing (winter→spring clean vs
+      mid-Revery dramatic — geology happening _while_ the steward is
+      in the dream); ruin interior source (pre-generated pool
+      underground vs runtime generation — latter is harder but
+      doctrinally cleaner); un-visitation threshold for sinking
+      (single tenure, multiple tenures, weighted). The expensive piece
+      is lifting `generateAllRuinInteriors` from genesis-time to
+      runtime; ruin sinking is cheap (tile-flip + interior
+      dereference).
+
+  - id: 'RP-45'
+    name: Seismographs
+    summary: >
+      Sibling sensor to the camera (`RP-23`). Same placement loop — pick
+      a tile, anchor a device, the device records events over time,
+      the steward returns and reads the record. Records the prior
+      winter's geological-thermal events: egregoric heat pulses,
+      rhizome reach, traces of ruin upwellings and sinkings. Surfaces
+      the egregoric rhizome layer to the player without ever rendering
+      it directly — the steward sees the trace of the pulse, not the
+      rhizome itself.
+    size: M
+    depends_on: ['RP-23', 'RP-44']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 3 (2026-05-23). Built as a slim variant of
+      RP-23's substrate, not a parallel system. _The naturalist has a
+      notebook, a camera, and now a needle on paper._ Cosmology gain:
+      sight is the steward's gaze (RP-38); cameras let the steward see
+      what happened where they weren't (RP-23); seismographs let the
+      steward _feel_ what happened where they weren't, and in winter,
+      what happened while they slept. Player-utility loop: last
+      winter's seismograph reading lets the careful steward budget
+      their summer — visit ruins under high-activity fields before
+      they sink. Defer until RP-23 ships.
+
+  - id: 'RP-46'
+    name: Auto-annotation of lineages
+    summary: >
+      The permacomputer auto-annotates lineages from existing records.
+      Observations like _survived winter ×3_, _mother of 9_, _scanned
+      1241_ are derived purely from genome, lifecycle, weather, and
+      Revery records — no authored content. Annotations attach to
+      lineage identity prefix (not to instances). Surfaced in the
+      naturalist's manual species pages (RP-6), family-tree hex grid
+      (RP-3), camera playback (RP-23), and end-of-Revery summary (RP-4).
+      Never a running log. First sighting attaches a minimal
+      _observed in year N_; full lineage annotations unlock on
+      `[v]`-hold sequencing.
+    size: M
+    depends_on: ['RP-3', 'RP-17', 'RP-6']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 4 (2026-05-23). Cosmological reframe: not GMO,
+      noticing — formalized. Implements the permacomputing principle
+      Round 9 of v6 already named (_the world is annotated by your
+      history_) as a function call instead of doctrine. Voice register:
+      instrument-terse in the overlay (`survived winter ×3 / mother of
+      9 / scanned 1241`); chronicle-event prose in the Revery summary.
+      Enriches RP-16 (tenure ends — predecessor record) without blocking
+      it. The permacomputer is the diegetic excuse for the steward not
+      having to keep a notebook.
+
+
+      v9 thinktank round 1 (2026-05-23). The auto-annotation
+      substrate is shared with `RP-50` (Knot per-year auto-derivation).
+      Lineage-as-target stays `RP-46`'s primary case; year-as-target
+      (via witness-union: steward, Emily, coyote, egregore) is the
+      sibling case under `RP-50`. The two specs should share a
+      `deriveAnnotations` foundation, not duplicate it. The witness-
+      union footprint helper introduced by `RP-50` is reusable by
+      `RP-46` wherever a lineage's record needs to query "what was
+      witnessed by any party" rather than "what the steward saw."
+
+  - id: 'RP-47'
+    name: Layer toggle system v2 (Record / Thermal / Rhizome)
+    summary: >
+      Formalized `[1]`/`[2]`/`[3]` keyboard overlays — stackable
+      independent toggles. `[1]` Record (lineage, annotations,
+      sequenced status, family-tree edges), `[2]` Thermal (egregoric
+      heat, dormancy boundaries, lightning/fire risk), `[3]` Rhizome
+      (root / mycelium / connectivity). Visual registers partitioned
+      per layer so they compose without collision: Record draws line
+      work; Thermal modulates background hue; Rhizome perturbs the
+      tile glyph. State held as `OverlayMask = { record, thermal,
+      rhizome }`. Includes Record's lineage-edge drawing on the
+      prairie itself — faint connecting lines between related flora
+      tiles within gaze radius, color-keyed by relation degree.
+      Absorbs and supersedes RP-17's overlay-registry seed.
+    size: L
+    depends_on: ['RP-17', 'RP-46', 'RP-43', 'RP-48']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 4 (2026-05-23). Reframe locked: each layer is
+      a sentence the prairie says about itself (_who is this / what is
+      it doing / what is it connected to_); the steward chooses how
+      many to read at once. Mutually-exclusive was Boon's first lean
+      and was over-corrected toward a clean diagram; stackable is
+      honest to the device. Independent visual registers are the
+      technical guarantee that overlapping layers stay legible.
+      Renaming: `[1]` is _Record_, not _metadata_ — the permacomputer
+      answers a question, it does not query a database. Thermal's
+      resonant window is the shoulder seasons (autumn-pressure-toward-
+      solstice; post-Revery residual heat). Open at spec: edge cost
+      gating, edge visual style (lean stolon-like per RP-17 precedent),
+      audio cue on toggle, voice boundary between overlay-terse and
+      summary prose.
+
+  - id: 'RP-48'
+    name: Rhizome layer (root / mycelium / connectivity)
+    summary: >
+      The `[3]` overlay's content — flora underground connectivity
+      rendered as glyph perturbation, never as a topology atlas.
+      Sparse and poetic. Mycorrhizal links between related flora,
+      visible only when the layer is toggled on. Resonates faintly
+      with seismograph reads (RP-45) and with winter geology (RP-44).
+      Visual register only; deliberately not min-maxable.
+    size: M
+    depends_on: ['RP-17']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v7 thinktank round 4 (2026-05-23). Calla's protection: if the
+      rhizome view shows connections plainly, players route around
+      it — must stay sparse and beautiful, not a utility map. The
+      cosmology gain: the steward gets the closest legible glimpse
+      of the prairie's underground without violating it. Delta's
+      note: rhizome should rumble faintly where the seismograph
+      will eventually take its readings — same substrate, different
+      instruments. Decoupled from RP-47 so the layer's content can be
+      spec'd independently from the overlay registry that hosts it.
+
+  - id: 'RP-50'
+    name: Knot per-year auto-derivation
+    summary: >
+      The Revery Knot's per-year material variation is auto-derived
+      from the year's prairie state at the autumn tying tick. The
+      derivation walks the union of four witness footprints: the
+      steward (gaze + memory), Emily (radius around the little
+      house), the coyote (its wander trail), and the egregore (its
+      patch extent — Gron's knowing). The result is a `materials`
+      bag cached on the year's `reveryKnotsInCellar` entry and
+      never recomputed. Surfaces in inventory glyph perturbation,
+      cellar hover (alongside `RP-22` chronicle text), and the manual
+      entry's per-year texture. The cellar hover is the surface
+      that teaches the steward what they missed.
+    size: M
+    depends_on: ['RP-36', 'RP-46']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v9 thinktank round 1 (2026-05-23). The cellar transforms from
+      memorial to revelation — across years the steward learns what
+      they missed (a wildfire on the northwest ridge they never
+      reached, an egregore that crept on the southern slope
+      unobserved). The revelation always arrives later, in a future
+      year's cellar visit; never in the year of the event. Witness
+      provenance is internal — the cellar reads events in the
+      prairie's voice, not "(coyote saw)" attribution. The cellar's
+      richness is not a function of the steward's diligence: Emily
+      watched, the coyote roamed, the egregore was; the cellar
+      fills regardless of how much the steward walked. Shares the
+      auto-annotation substrate with `RP-46` (lineage-as-target stays
+      primary; year-as-target is the sibling case). Resolves `RP-36`'s
+      open question on per-year variation — derived, not authored,
+      not curated. The room's earlier instinct toward a steward-
+      offering surface (provisional `#49`) was refused on
+      cosmological grounds (curation is the breeder in a smaller
+      coat); the `#49` id vacates the same way `#12` did in v7 R1.
+      _The Knot is the camera that does not know. The cellar is a
+      row of cameras, one per year, each one pointed back at the
+      prairie that made it._ Delta's line for the round: _the
+      cellar tells the steward what they missed across the unseen._
+      Open at spec: coyote wander-trail granularity (lean: every
+      tile, one bit per tile per year); Emily's footprint radius
+      (lean: 10 tiles); whether the cellar prose explicitly names
+      the gap or just renders the event (lean: no acknowledgment);
+      whether Gron's arrival contributes post-hoc (lean: no —
+      autumn-tied); event de-duplication across witnesses (lean:
+      single record per event, sourced from any witness); voice
+      constraint for metabolic / egregoric prose (per v6 R8 — _of-
+      but-not-of_ register, never _invasive_).
+
+
+      v10 thinktank round 1 (2026-05-23). The witness-footprint
+      substrate this entry establishes now has two surfaces, not
+      one. The cellar reads it as prose (delayed by N years, where
+      N is the years since the Knot was tied). The wisps in `RP-54`
+      render it as light (delayed by exactly one year, same-
+      season). The two specs should share a `WitnessFootprint`
+      foundation rather than duplicate the derivation. _Same data,
+      two surfaces — the cellar speaks across years, the wisp
+      speaks across one._
+
+  - id: 'RP-51'
+    name: Time stops in domestic structures
+    summary: >
+      A `pausesPlayerTime` flag on zone definitions. True for the
+      cellar (`RP-37`) and the little house (`RP-33`); false for the
+      cave and the ruins. While the steward is inside a paused-
+      structure zone, the daylight clock (`state.timeOfDay`) and
+      seasonal progression clock (`state.season`) do not advance.
+      The prairie's simulation tick continues at its normal rate —
+      bees, ghosts, coyote, flora lifecycle, weather. Re-entry to
+      the prairie does not snap-advance; the steward returns to
+      the moment they entered.
+    size: S
+    depends_on: ['RP-33', 'RP-37']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v9 thinktank round 2 (2026-05-23). Cosmological cut is
+      _domestic vs wild_: the homestead does not tick, the wild
+      does. The cellar's reason is _memory does not tick_ — the
+      cellar is the prairie's archive of itself; archives are not
+      present tense. The little house's reason is _home is the
+      place that does not tick for the steward_ — sleep continues
+      to advance time via the Revery mechanic, but non-sleep
+      visits do not cost daylight. The cave and ruins remain time-
+      flowing because they are the prairie's wild interior. Honors
+      v7 R2's lock (_the trees do not stop when no one is in the
+      forest_): only the steward's clock pauses; the prairie's
+      simulation tick continues at its normal rate. Compounds
+      with `RP-50` — Round 1 made the cellar a place of plural-
+      witness revelation, this round names what kind of space
+      that requires. Emily continues at the prairie's tick even
+      while the steward is in the little house — she is part of
+      the prairie's simulation, not the steward's clock. Open at
+      spec: which sub-clocks beyond `timeOfDay` and `season` need
+      audit (NPC dialogue cooldowns, etc. — lean: only the two
+      player-facing clocks pause); whether the pause should be
+      visually felt (light angle frozen at entry, ambient audio
+      held — lean: yes, subtly); whether exit cues the resumption
+      (lean: no); whether future domestic spaces inherit
+      automatically (lean: no — the principle is the test,
+      domestic vs wild, drawn deliberately per space).
+
+  - id: 'RP-52'
+    name: Holographic day/night derived from seasonalPhase
+    summary: >
+      Each season holds one day and one night, derived from
+      `seasonalPhase` via a pure function — `dayPhase(seasonalPhase)`
+      returning `{ phase: 'day' | 'dawn' | 'night' | 'dusk', t }`. A
+      `nightFraction(season)` table allocates the night/day split
+      per season — long winter nights, short summer nights,
+      intermediate spring and autumn. The night palette is a global
+      tint wash composing with the existing `seasonalWash` in
+      `filmGrainOverlay.ts`; multiply the night tint over the
+      seasonal tint, both derived from the same scalar. Composes
+      with v7 R2's two-layer fog — night dims the present layer,
+      not the memory layer. The steward's gaze radius compresses
+      during the seasonal night. No new clock, no new field on
+      `GameState`, no save-shape change.
+    size: S
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 1 (2026-05-23). The reframe is the
+      round: a wall-clock day cycle would tick faster than the
+      seasons it lives inside (`SEASONAL_PHASE_PERIOD_MS` is 20
+      minutes — five minutes per season), so days and nights are
+      holographic at the seasonal scale. Four days, four nights,
+      per year. _The prairie does not have nights. The year has
+      four._ The seasonal night cannot be opted out of — Revery
+      is the once-per-year solstice event, not a nightly sleep.
+      v9 R2's `pausesPlayerTime` flag pauses both the season
+      clock and the derived day/night phase in one stroke. The
+      egregore script-bearing tiles read sharpest at the diurnal-
+      by-seasonal compounding — the winter night is the year's
+      crispest reading of the of-but-not-of script. Amendment to
+      v2 R5: _the ecology that wakes when ours sleeps_ now reads
+      at both seasonal and seasonal-night scale. Open at spec:
+      `nightFraction(season)` values (lean: winter ~0.55, autumn
+      ~0.45, spring ~0.40, summer ~0.30; constraint — total
+      night per year should feel like events, not a quarter of
+      the session); whether dawn and dusk are their own palette
+      register (lean: yes — diurnal analog of v7 R4's shoulder-
+      season lock); whether the steward can carry a light source
+      (lean: no, never craftable — compressed gaze is part of
+      the night's texture); whether egregore tiles need an
+      explicit visibility boost during winter night or whether
+      layered tint math suffices (lean: audit at spec). _Heat
+      death is the antagonist; night is the antagonist's daily
+      face, made small and ritualized into four passes._
+
+  - id: 'RP-53'
+    name: Fireflies (native bioluminescence)
+    summary: >
+      Sparse particle pass keyed to tall grass and damp tiles,
+      emitting only during spring and summer nights (per `RP-52`'s
+      `dayPhase`). Ambient, no behavior, no interaction. Of-this-
+      Earth bioluminescence — the prairie speaking with its own
+      light when the sun isn't drowning it. Absent in autumn and
+      winter. One new render pass under
+      `src/engine/render/passes/`.
+    size: S
+    depends_on: ['RP-52']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 1 (2026-05-23). Fireflies are the calm
+      half of the night register, session-warming. _The night the
+      fireflies do not come is its own kind of cold_ — the
+      autumn and winter nights' absence is part of their meaning.
+      Kept sharply distinct from `RP-54` (will-o'-the-wisps) in
+      code, in render, and in lore; conflating the two would be
+      the same category mistake as letting the egregore wear a
+      coat. Manual entry uses the native voice register; lore
+      authoring is human-only per `docs/claude/manual.md`. Flag
+      for human lore author at spec time. Open at spec: density
+      cap; whether damp-tile emission also keys on recent
+      precipitation; whether fireflies cluster around the little
+      house's beacon.
+
+  - id: 'RP-54'
+    name: Will-o'-the-wisps (witness lights, same-season prior-year)
+    summary: >
+      Up to four wisps per year — one per seasonal night (per
+      `RP-52`'s `dayPhase`). Each wisp's drifting path encodes the
+      same-season slice of the prior year's footprint of one of
+      v9 R1's plural witnesses (coyote wander trail, egregore
+      patch perimeter, Emily's housebound circuit). The steward
+      may follow; the wisp dissolves at the end of its path on
+      schedule, whether or not the steward watched. Witness
+      provenance stays internal — the wisp does not announce
+      which witness sourced it. Live, one-year-delayed sibling
+      of the cellar's plural-witness revelation in `RP-50`; shares
+      the `WitnessFootprint` substrate with `RP-50`.
+    size: M
+    depends_on: ['RP-52', 'RP-50']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 1 (2026-05-23). The wisp is a
+      _summons_, not wallpaper — at one wisp per seasonal night
+      the tempo is up to four per year, each one an event. The
+      steward who follows a wisp is walking a same-season prior-
+      year witness-trail in real time; the cellar reads back the
+      same path in prose years later. _Same data, two surfaces —
+      the cellar speaks across years, the wisp speaks across one._
+      The cosmological constraint, unchanged: never the steward's
+      own footprint. The steward does not haunt the prairie. Open
+      at spec: how the witness is chosen per night (lean:
+      deterministic from year and season — whichever witness
+      covered the most tiles in that season's prior-year slice;
+      no wisp appears if no witness covered meaningfully);
+      whether the wisp has a sound (lean: near-silence, the wind
+      sounds different where it passes — calm-tech register per
+      v4 R9; no howl, no chime); whether the wisp can be "caught"
+      or interacted with (lean: always a few tiles ahead like
+      classical ignis fatuus; following is the only interaction;
+      the steward arrives where the wisp dissolved and may find
+      a trace — a scorched tile, a coyote print, a single
+      egregoric glyph — or nothing). Manual entry uses the
+      _of-but-not-of_ register (per v6 R8); never _invasive_
+      (CI-guarded ban). Lore authoring is human-only per
+      `docs/claude/manual.md`. Flag for human lore author at spec
+      time. _The wisps are the cellar's footnotes, ahead of time._
+
+  - id: 'RP-55'
+    name: Ownership-gated multiplayer handshake
+    summary: >
+      A per-purchase license token, issued by the storefront on
+      first launch (itch or Steam, format TBD per storefront — lean:
+      HMAC-signed payload with a per-storefront secret), is included
+      in the worker handshake on first connection and validated
+      worker-side before the Durable Object accepts the player.
+      Single-player runs entirely offline and has no token check.
+      `shared/src/protocol.ts` gains a token field on the connect
+      message; `worker/src/` gains a validation step; the client
+      persists the token in local storage on first successful entry.
+    size: S
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 2 (2026-05-23). The handshake is the only
+      seam where ownership is checked; DRM-free posture is preserved
+      because the desktop build runs without network presence at
+      all. Multiplayer is a free bonus on the purchased game, not a
+      separate product — never convert multiplayer into pay-to-play,
+      never gate single-player on the network. Open at spec: token
+      format and per-storefront secret rotation; what happens when
+      the worker rejects a token (silent fall-back to single-player
+      vs. a brief modal); whether the token also unlocks the
+      Cloudflare-hosted web build of the full game, or only the
+      desktop wrappers.
+
+  - id: 'RP-56'
+    name: Bounded free demo (first year of tenure)
+    summary: >
+      The first year of tenure is freely playable on the web
+      hosting and on itch/Steam demo channels. The second-year
+      solstice Revery transition prompts purchase to continue. The
+      demo's save persists across the upgrade — the player who buys
+      does not start over. Lean boundary: the first year (one full
+      seasonal cycle, twenty wall-clock minutes). The save uses the
+      same shape as the full game with a `demoModeUpgradedAt` field
+      stamped at purchase time; no separate demo state.
+    size: S
+    depends_on: ['RP-55']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 2 (2026-05-23). The bounded demo is the
+      arrival ritual — long enough to taste the cosmology, short
+      enough to invite commitment. The web demo runs at near-zero
+      marginal cost on the existing Cloudflare hosting and can
+      stay live indefinitely. Open at spec: exact boundary unit
+      (lean year, alt season too short, alt two-years too generous);
+      the wording of the purchase prompt at the second-year solstice
+      (must not break the cosmology's voice — the prairie does not
+      narrate itself); whether the demo also stops at a hard wall
+      mid-second-year if the player somehow skips the solstice.
+
+  - id: 'RP-57'
+    name: Desktop build pipeline (itch + Steam)
+    summary: >
+      Tauri-wrapped desktop builds for itch.io (DRM-free download)
+      and Steam (when feature-complete), plus the corresponding
+      storefront upload pipelines (itch butler, Steam SDK). All
+      three surfaces (web demo, itch full, Steam full) carry the
+      same build artifact pinned to the same release tag. No
+      platform-exclusive content ever.
+    size: M
+    depends_on: ['RP-55', 'RP-56']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v10 thinktank round 2 (2026-05-23). Tauri preferred over
+      Electron for footprint; the canvas + React renderer ports
+      cleanly to either. Open at spec: storefront launch order
+      (lean itch first, Steam later — itch rewards the artisanal
+      posture and lets the artifact establish at the right register
+      before the larger storefront sees it); price point (lean a
+      small whole number in the $7–$15 band; not $1.99 which insults
+      the work, not $30 which insults the audience); refund policy
+      (lean generous, no questions for the first hour of play, the
+      standard Steam shape); courtesy-key process (lean a quiet
+      email address grants a key, no public application form —
+      honors Tyler's FOSS lineage at the only seam where it can be
+      honored without breaking the price-the-artifact lock);
+      storefront verb (lean _Buy_ — the verb of stewardship stays
+      inside the game). Multiplayer infra cost projection deferred
+      separately — `RP-55` handles the gating mechanism; the
+      sustainability math is its own audit at launch scale.

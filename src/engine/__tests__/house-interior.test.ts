@@ -9,7 +9,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('precis #33 — house interior layout', () => {
+describe('RP-33 — house interior layout', () => {
   it('returns a 15 x 9 map with the deterministic furniture layout', () => {
     const r = createHouseInterior()
     expect(r.width).toBe(15)
@@ -57,7 +57,7 @@ describe('precis #33 — house interior layout', () => {
   })
 })
 
-describe('precis #33 — enter/exitHouse swap handlers', () => {
+describe('RP-33 — enter/exitHouse swap handlers', () => {
   it('enterHouse swaps active map to houseMap and sets currentZone', () => {
     const state = createTestState()
     state.currentZone = Zone.Overworld
@@ -84,7 +84,7 @@ describe('precis #33 — enter/exitHouse swap handlers', () => {
   })
 })
 
-describe('precis #33 — checkHouseTransition detection', () => {
+describe('RP-33 — checkHouseTransition detection', () => {
   it('schedules an enter transition when the player stands on or beside HouseEntrance', () => {
     const state = createTestState()
     state.currentZone = Zone.Overworld

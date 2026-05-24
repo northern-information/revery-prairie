@@ -1,4 +1,4 @@
-// Precis #4 — phenotype label resolver.
+// RP-4 — phenotype label resolver.
 //
 // Once per Revery, the player has been living with a prairie long enough that
 // one species' trait becomes legible. resolvePhenotypeLabel picks the species
@@ -7,7 +7,7 @@
 // the verdict is a hedged tri-bucket string keyed off the mean trait across
 // all currently-living flora of that species.
 //
-// See harness/specs/precis-4-the-revery.yaml revery-resolves-phenotype-label
+// See harness/specs/RP-4-the-revery.yaml revery-resolves-phenotype-label
 // for the contract.
 
 import { PHENOTYPE_AXES } from './constants'

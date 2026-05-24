@@ -12,7 +12,7 @@ app flow: `NamePrompt → GenesisScreen → GameScreen`. genesis runs its own rA
 
 14 epochs defined in `GENESIS_EPOCHS` in `genesis.ts` — each has `id`, `durationMs`, `mutate`, `renderTile`. epoch order is fixed; the renderer reads each epoch's `renderTile` while `mutate` accumulates terrain and soil state for that epoch's duration.
 
-genesis renders no HUD overlay. the canvas and (at the handoff) the full-screen `BootTitleCardOverlay` are the only on-screen elements during the simulation. the sidebar returns `null` during genesis; the bottom-bar does not mount. consumer-electronics gestures (boot animations, splash screens, loading bars, percentage indicators, year readouts) are banned by the diegetic test locked in precis-thinktank-v4 round 9 — the screen is silent under the derivation.
+genesis renders no HUD overlay. the canvas and (at the handoff) the full-screen `BootTitleCardOverlay` are the only on-screen elements during the simulation. the sidebar returns `null` during genesis; the bottom-bar does not mount. consumer-electronics gestures (boot animations, splash screens, loading bars, percentage indicators, year readouts) are banned by the diegetic test locked in backlog-thinktank-v4 round 9 — the screen is silent under the derivation.
 
 `civilizationRuins: CivilizationRuin[]` on GameState — data-only, set once from genesis result. aqueduct junctions inform cave entrance placement.
 
@@ -22,7 +22,7 @@ genesis renders no HUD overlay. the canvas and (at the handoff) the full-screen 
 - dev auto-skip: `?skipGenesis=true` URL param
 - tests: use `runAllMutations()` for a synchronous result, or omit `genesisResult` from `createGameState` to fall back to legacy terrain generation.
 
-### the diamond is the world — glaciers from the diamond tips (precis #30)
+### the diamond is the world — glaciers from the diamond tips (RP-30)
 
 glaciers advance from the diamond's top and bottom tips on screen — storage `(SPACE_BORDER, SPACE_BORDER)` and `(width − SPACE_BORDER − 1, height − SPACE_BORDER − 1)`. polar distance is measured along the rotated metric `u = (x − SB) + (y − SB)`, not along storage-`y`. the comment at `genesis.ts:1444` ("Glaciers advance from top and bottom") finally describes what the code does. glacial edge noise is keyed by the perpendicular coordinate `v = x − y + height − 1` so the organic lobe pattern runs perpendicular to the advance.
 

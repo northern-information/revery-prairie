@@ -176,7 +176,7 @@ describe('single bloom per event', () => {
   })
 })
 
-// Harvest bloom tests were deleted with the harvest mechanic in precis #1.
+// Harvest bloom tests were deleted with the harvest mechanic in RP-1.
 
 describe('coyote delivery bloom', () => {
   it('spawns bloom at player position when coyote delivers to backpack', () => {
@@ -299,7 +299,7 @@ describe('craft bloom', () => {
 })
 
 describe('character gift bloom', () => {
-  it('does not spawn bloom for moab — gift removed in precis #0', () => {
+  it('does not spawn bloom for moab — gift removed in RP-0', () => {
     const state = createTestState()
 
     giveCharacterGift(state, 'moab', 5000)

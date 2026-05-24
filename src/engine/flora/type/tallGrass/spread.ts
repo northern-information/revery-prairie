@@ -1,4 +1,4 @@
-// Precis #17 — tall grass spread config.
+// RP-17 — tall grass spread config.
 //
 // Andropogon gerardii spreads by rhizome — the slowest of the three
 // species and the only one that doesn't need pollinators. A tall-grass

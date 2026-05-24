@@ -139,7 +139,7 @@ describe('runAllMutations', () => {
     const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
-    // Precis #5 bumped starter ruin count from 3 to 5 (adding Wildflower
+    // RP-5 bumped starter ruin count from 3 to 5 (adding Wildflower
     // and TallGrass roles). Placement may fall short of 5 if the
     // candidate-cluster check fails repeatedly — accept any length up to 5.
     expect(result.ruins.length).toBeGreaterThanOrEqual(3)
@@ -365,7 +365,7 @@ describe('geological features', () => {
 
 describe('genesis-enhancements', () => {
   describe('chaotic aqueducts', () => {
-    it('produces up to 5 starter ruins across multiple seeds (precis #5)', { timeout: 30_000 }, () => {
+    it('produces up to 5 starter ruins across multiple seeds (RP-5)', { timeout: 30_000 }, () => {
       // Starter mode targets 5 ruins (clover/bee/coyote/wildflower/tallGrass)
       // in fixed role order. Candidate-cluster placement can fall short of 5
       // for some seeds; accept any length in [3, 5].
@@ -379,7 +379,7 @@ describe('genesis-enhancements', () => {
 
     it('still generates a non-empty aqueduct network with starter ruins', () => {
       const sim = getCachedSim42()
-      // The starter ruin set (precis #5: up to 5 ruins) produces a smaller
+      // The starter ruin set (RP-5: up to 5 ruins) produces a smaller
       // network than the previous 8-12 ruin baseline; we just assert
       // non-empty here. The complex-mode generator (future spec) will
       // scale this back up.
@@ -415,7 +415,7 @@ describe('genesis-enhancements', () => {
       for (let i = 0; i <= 9; i++) {
         GENESIS_EPOCHS[i].mutate(sim)
       }
-      // Under the rotated cardinal frame (precis-thinktank-v5 round 1) the
+      // Under the rotated cardinal frame (backlog-thinktank-v5 round 1) the
       // glacier front advances along u = x + y, so the perpendicular noise
       // axis is v = x - y. Lookups index by (x - y + sim.height - 1),
       // spanning [0, sim.width + sim.height - 2].
@@ -1508,7 +1508,7 @@ describe('multi-species flora post-process', () => {
   })
 })
 
-describe('starter ruin role allocation (precis #5)', () => {
+describe('starter ruin role allocation (RP-5)', () => {
   it('produces up to 5 ruins with roles [Clover, Bee, Coyote, Wildflower, TallGrass] in order', () => {
     const state = createGameState('PrecisFive', 20, 20)
     const ruins = state.civilizationRuins

@@ -119,7 +119,7 @@ describe('wildfire spread', () => {
   })
 })
 
-describe('burnt flora preserves identity through recovery (precis #3)', () => {
+describe('burnt flora preserves identity through recovery (RP-3)', () => {
   it('a flora tile that burns keeps its identity in the BurntRecovering entry', () => {
     const state = createTestState()
     clearAroundPlayer(state, 10)

@@ -37,7 +37,7 @@ describe('WIND_SCREEN_VECTORS', () => {
   })
 
   it('all eight directions have magnitude √2 in the rotated frame', () => {
-    // Under the rotated cardinal frame (precis-thinktank-v5 round 1) the
+    // Under the rotated cardinal frame (backlog-thinktank-v5 round 1) the
     // diamond is the world: cardinals point at the diamond's tips on screen
     // (axis-aligned screen vectors at magnitude √2) and ordinals align with
     // the storage axes (diagonal screen vectors at magnitude √2 split across
@@ -51,7 +51,7 @@ describe('WIND_SCREEN_VECTORS', () => {
   })
 })
 
-// Golden fixture for the rotated cardinal frame (precis-thinktank-v5 round 1).
+// Golden fixture for the rotated cardinal frame (backlog-thinktank-v5 round 1).
 // Pins each cardinal's (sx, sy) so the old frame cannot be reintroduced by
 // accident.
 describe('WIND_SCREEN_VECTORS rotated frame', () => {
@@ -82,7 +82,7 @@ describe('WIND_SCREEN_VECTORS rotated frame', () => {
 })
 
 // Golden fixture for the genesis polar metric in the rotated frame
-// (precis-thinktank-v5 round 1). Pins topDist = (x - SB) + (y - SB) so future
+// (backlog-thinktank-v5 round 1). Pins topDist = (x - SB) + (y - SB) so future
 // edits cannot regress to the old storage-y semantics.
 describe('genesis polar metric — rotated frame', () => {
   // Synthetic 100x100 sim with SPACE_BORDER = 5, playable side = 90.

@@ -23,7 +23,7 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   const { charWidth, charHeight } = metrics
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
   const bounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-  // Precis #38 — only sparkle on currently-visible or fully-discovered tiles.
+  // RP-38 — only sparkle on currently-visible or fully-discovered tiles.
   // The `effect` slot draws after the fog-mask pass (in world-overlay), so
   // sparkles would otherwise paint through the mask onto unseen prairie.
   const visibleSet = getLastVisibleSet()

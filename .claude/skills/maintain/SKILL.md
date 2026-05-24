@@ -15,7 +15,7 @@ This skill is read-only. Sub-agents run the **audit phase** of each child skill 
 The following `maintain-*` skills are composed:
 
 - `/maintain-harness` — spec/code drift, harness module test coverage
-- `/maintain-backlog` — `docs/precis-status.yaml` vs merged PRs and on-disk specs/plans
+- `/maintain-backlog` — `docs/backlog.yaml` vs merged PRs and on-disk specs/plans
 - `/maintain-manual` — manual lore gaps, dangling cross-refs, entry preview
 - `/maintain-tests` — vitest runtime, parallelization risks, coverage
 

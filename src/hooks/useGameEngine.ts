@@ -73,12 +73,12 @@ export const useGameEngine = (
     } else {
       gameState ??= createGameState(stewardName, viewportWidth, viewportHeight)
     }
-    // Precis #33 — the player's first spawn is inside the little house.
+    // RP-33 — the player's first spawn is inside the little house.
     // Fire immediately after createGameState so state.player and
     // state.currentZone reflect the house from frame 1; genesis renders
     // its own camera independent of state.player so this is safe.
     enterHouseAtTenureStart(gameState)
-    // Precis #33 — the falling-star spawn ceremony was removed; the
+    // RP-33 — the falling-star spawn ceremony was removed; the
     // spring-equinox meteor shower still fires via the cardinal
     // scheduler in tickMeteorShower, but without the steward-star
     // carve-out.

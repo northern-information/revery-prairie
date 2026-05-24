@@ -27,7 +27,7 @@ const formatRelativeTime = (scannedAt: number, now: number): string => {
   return hours === 1 ? '1 hour ago' : `${String(hours)} hours ago`
 }
 
-// Precis #6 — renders a stack of scanned specimen cards with prev/next paging.
+// RP-6 — renders a stack of scanned specimen cards with prev/next paging.
 // Each card shows the 8x8 hex grid plus a relative scan time. The stack
 // updates the displayed index when `initialIndex` changes (used to jump to
 // the just-scanned card on manual auto-open).

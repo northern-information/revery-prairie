@@ -33,7 +33,7 @@ behaviors:
 
   - id: weather-tick-drift
     description: >
-      tickWeather (precis #2 signature: tickWeather(state, dt))
+      tickWeather (RP-2 signature: tickWeather(state, dt))
       mutates state in place. Phenology drives the calendar — when
       state.currentZone is Overworld, state.seasonalPhase advances
       by dt / SEASONAL_PHASE_PERIOD_MS (mod 1); cave/ruin zones
@@ -101,7 +101,7 @@ behaviors:
       state.precipitationIntensity is a number in [0.0, 1.0] that
       ramps up when weather.sky is precipitating (Sky.Rain OR
       Sky.Snow) and ramps down when it is not. tickPrecipitationIntensity
-      (renamed from tickRainIntensity in precis #2) is called every
+      (renamed from tickRainIntensity in RP-2) is called every
       frame with the elapsed time delta. when the target sky is
       precipitating, intensity moves toward 1 by dt /
       RAIN_FADE_DURATION_MS; otherwise it moves toward 0 by the

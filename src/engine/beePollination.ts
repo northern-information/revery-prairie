@@ -1,4 +1,4 @@
-// Precis #17 — bee-mediated pollination engine.
+// RP-17 — bee-mediated pollination engine.
 //
 // Bees and monarchs carry a PollenBag ECS component (POLLEN_BAG_CAPACITY
 // loads, LIFO eviction, cross-species mixing allowed). This module runs

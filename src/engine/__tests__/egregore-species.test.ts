@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition, getEgregoreSpeciesDef } from '../egregore/species'
 import { EgregoreSpecies } from '../types'
 
-describe('EGREGORE_SPECIES registry (precis #8b)', () => {
+describe('EGREGORE_SPECIES registry (RP-8b)', () => {
   it('has exactly two entries — Allelopath and Spreader', () => {
     const ids = Object.keys(EGREGORE_SPECIES).sort()
     expect(ids).toEqual(['allelopath', 'spreader'])
@@ -33,7 +33,7 @@ describe('EGREGORE_SPECIES registry (precis #8b)', () => {
   })
 })
 
-describe('getEgregoreSpeciesAtPosition (precis #8b)', () => {
+describe('getEgregoreSpeciesAtPosition (RP-8b)', () => {
   it('returns the same species for the same (x, y) across calls', () => {
     const first = getEgregoreSpeciesAtPosition(7, 11)
     const second = getEgregoreSpeciesAtPosition(7, 11)

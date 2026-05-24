@@ -20,7 +20,7 @@ source_files:
   - src/harness/__tests__/serialization/schema.test.ts
   - src/engine/__tests__/oaks.test.ts
 dependencies:
-  - precis-6-naturalists-manual
+  - RP-6-naturalists-manual
   - angels
 
 behaviors:

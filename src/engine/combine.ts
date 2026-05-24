@@ -70,7 +70,7 @@ export const combineFromBackpack = (state: GameState, defIdA: string, defIdB: st
   const succeeded = recipe.execute(state)
   if (succeeded && isStewardSealRecipe(recipe)) {
     triggerStewardSeal(state, time ?? performance.now())
-    // Precis #17 — ceremony cast discovery is recorded here so the
+    // RP-17 — ceremony cast discovery is recorded here so the
     // recipes module stays free of any manual.ts import (avoids a
     // recipes ↔ manual circular import that broke the build).
     recordDiscovery(state, 'event:ceremony-cast')

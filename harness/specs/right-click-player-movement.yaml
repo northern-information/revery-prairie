@@ -88,7 +88,7 @@ behaviors:
       only interactions a left-click can trigger are:
       (1) advance an active dialog (existing behavior),
       (2) update the burn-line draft when `state.burnDrawMode` is true
-          (precis #9b, unchanged),
+          (RP-9b, unchanged),
       (3) execute an interactable's action *immediately* when the player
           already stands adjacent to it — for example, left-clicking a
           character one tile away advances dialog without any pathfinding.
@@ -205,7 +205,7 @@ edge_cases:
     description: 'Right-click during the genesis intro epochs (state.genesis active)'
     expected: 'Gated by isInputGated(state). No movement, no genesis completion.'
   - id: right-click-on-burn-draft-mode
-    description: 'Right-click while state.burnDrawMode is true (precis #9b)'
+    description: 'Right-click while state.burnDrawMode is true (RP-9b)'
     expected: 'Right-click still moves the player. The burn-line draft is left-click-only; right-click is not used to chain waypoints.'
   - id: schema-test-no-selection-fields
     description: 'EXPECTED_FIELDS in the schema test does not include selectedUnits, selectionBox, coyoteMode, coyotePath, unitCommands, or moveOrderMarkers'

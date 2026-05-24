@@ -6,7 +6,7 @@ import { registerPass } from '../passes'
 import type { CharMetrics, GameState } from '../../types'
 import type { RenderPass } from '../passes'
 
-// Precis #33 — soft warm glow around the little house fireplace. Only
+// RP-33 — soft warm glow around the little house fireplace. Only
 // active when the player is in the house interior; cheap to draw (one
 // radial gradient per Fireplace tile).
 const isActive = (state: GameState): boolean => state.currentZone === Zone.HouseInterior

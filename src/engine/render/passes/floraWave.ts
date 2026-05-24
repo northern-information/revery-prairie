@@ -10,7 +10,7 @@ import { getTierGrid, liftAt } from '../tierGrid'
 import type { CharMetrics, GameState, WaveEmission } from '../../types'
 import type { RenderPass } from '../passes'
 
-// Precis #17 — ceremony wave overlay.
+// RP-17 — ceremony wave overlay.
 //
 // Draws two surfaces:
 //  1. A faint hot-pink ring on the leading annulus of each active wave,

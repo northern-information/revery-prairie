@@ -1,5 +1,5 @@
 // Lint guard: the word "invasive" must not appear in any player-facing
-// string. Per v3 cosmology (precis #8a) the egregores are never named
+// string. Per v3 cosmology (RP-8a) the egregores are never named
 // to the player — "invasive" is the kind of label this game refuses.
 // NPCs use folk register ("the other clover", "the Far Garden"); the
 // player-facing surface stays innocent of the technical vocabulary.
@@ -46,7 +46,7 @@ const collectSourceFiles = (dir: string, accumulator: string[]): void => {
 const STRING_LITERAL_REGEX = /(['"`])((?:\\.|(?!\1)[^\\\n])*)\1/g
 const INVASIVE_WORD_REGEX = /\binvasive\b/i
 
-describe('lint: invasive word guard (precis #8a)', () => {
+describe('lint: invasive word guard (RP-8a)', () => {
   it('no string literal in src/ contains the word "invasive"', () => {
     const files: string[] = []
     collectSourceFiles(SRC_DIR, files)

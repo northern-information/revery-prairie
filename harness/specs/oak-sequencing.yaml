@@ -9,7 +9,7 @@ source_files:
   - src/engine/__tests__/oaks.test.ts
   - src/engine/__tests__/helpers.ts
 dependencies:
-  - precis-3-genetics-v1
+  - RP-3-genetics-v1
   - white-oak-landmarks
 
 behaviors:
@@ -76,7 +76,7 @@ behaviors:
       seedOaks and isValidOakPosition read state.overworldMap /
       state.overworldMapWidth / state.overworldMapHeight directly,
       NOT the active state.map / state.mapWidth / state.mapHeight
-      pair. Precis-33 placed the player inside the house at tenure
+      pair. RP-33 placed the player inside the house at tenure
       start, so when seedOaks runs at the genesis → gameplay handoff
       via finalizeGenesisHandoff, state.map points at the 15 × 9
       house interior. Reading the active map would produce

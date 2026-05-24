@@ -121,7 +121,7 @@ describe('water walkable', () => {
       expect(preview.some(p => p.pos.x === px && p.pos.y === py)).toBe(true)
     })
 
-    it('execute leaves water tiles unchanged and seeds the player tile (precis-17 ceremony)', () => {
+    it('execute leaves water tiles unchanged and seeds the player tile (RP-17 ceremony)', () => {
       const state = createTestState()
       clearAroundPlayer(state, 2)
       const px = state.player.x
@@ -164,5 +164,5 @@ describe('water walkable', () => {
   })
 
   // The harvest-adjacent-clover-from-water test was deleted with the
-  // harvest mechanic in precis #1.
+  // harvest mechanic in RP-1.
 })

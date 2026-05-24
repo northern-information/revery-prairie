@@ -223,7 +223,7 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
   const { player, map, mapWidth, mapHeight } = state
 
   // Pick vision radius based on zone. All three radii are equal today
-  // (precis #38 — "same eyes, indoors or out") but stay named separately
+  // (RP-38 — "same eyes, indoors or out") but stay named separately
   // so future tuning per zone is a one-line change.
   let radius: number
   if (state.currentZone === Zone.Ruin) {

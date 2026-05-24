@@ -71,7 +71,7 @@ behaviors:
     description: >
       While state.genesis is non-null, useMusic picks the overworld
       ambient track (ZONE_MUSIC[Zone.Overworld]) regardless of
-      state.currentZone. precis-33 places the steward inside the
+      state.currentZone. RP-33 places the steward inside the
       house at tenure start, so state.currentZone is HouseInterior
       from frame 1 — but the genesis cinematic plays the overworld
       ambient (the cinematic shows the prairie taking shape, not

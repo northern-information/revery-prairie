@@ -1,4 +1,4 @@
-// Precis #8b — Egregoric flora (mechanical biome).
+// RP-8b — Egregoric flora (mechanical biome).
 //
 // Inverse-phased lifecycle: egregores wake in Winter and sleep otherwise.
 // Mirrors src/engine/floraLifecycle.ts:140-162 with the season check

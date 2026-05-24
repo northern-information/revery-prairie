@@ -15,7 +15,7 @@ tasks:
 
   - id: genesis-year-helpers-delete
     title: Delete formatYearsAgo, getGenesisYear, and EPOCH_YEAR_RANGES from src/engine/genesis.ts; keep GENESIS_END_YEAR, formatYear, and getEpochProgress
-    spec_id: precis-27-strip-genesis-commentary
+    spec_id: RP-27-strip-genesis-commentary
     spec_sections:
       - year-helpers-deleted
     context_files:
@@ -31,7 +31,7 @@ tasks:
 
   - id: genesis-tests-prune
     title: Remove the formatYearsAgo describe block and its imports from src/engine/__tests__/genesis.test.ts; retain imports only if a surviving test still needs them
-    spec_id: precis-27-strip-genesis-commentary
+    spec_id: RP-27-strip-genesis-commentary
     spec_sections:
       - tests-pruned-or-rewritten
     context_files:
@@ -55,7 +55,7 @@ tasks:
 
   - id: bottom-bar-delete
     title: Delete src/components/GenesisBottomBar.tsx
-    spec_id: precis-27-strip-genesis-commentary
+    spec_id: RP-27-strip-genesis-commentary
     spec_sections:
       - genesis-renders-no-hud
     context_files:
@@ -71,7 +71,7 @@ tasks:
 
   - id: gamescreen-collapse-genesis-branch
     title: 'Drop GenesisBottomBar import in GameScreen.tsx; collapse the `state.genesis ? <GenesisBottomBar/> : <bottom-bar>` ternary to `{!state.genesis && <bottom-bar>}`'
-    spec_id: precis-27-strip-genesis-commentary
+    spec_id: RP-27-strip-genesis-commentary
     spec_sections:
       - genesis-renders-no-hud
     context_files:
@@ -88,7 +88,7 @@ tasks:
 
   - id: sidebar-drop-genesis-branch
     title: Remove the genesis-mode branch in Sidebar.tsx (Year/Epoch/progress-bar/skip-hint block); return null when state.genesis is non-null with epochIndex < GENESIS_EPOCHS.length; drop unused formatYearsAgo, getGenesisYear, getEpochProgress imports
-    spec_id: precis-27-strip-genesis-commentary
+    spec_id: RP-27-strip-genesis-commentary
     spec_sections:
       - genesis-renders-no-hud
     context_files:
@@ -107,7 +107,7 @@ tasks:
 
   - id: sidebar-genesis-null-test
     title: Add a regression test in Sidebar.test.tsx asserting Sidebar renders null when state.genesis is non-null with epochIndex < GENESIS_EPOCHS.length
-    spec_id: precis-27-strip-genesis-commentary
+    spec_id: RP-27-strip-genesis-commentary
     spec_sections:
       - tests-pruned-or-rewritten
     context_files:
@@ -130,7 +130,7 @@ tasks:
 
   - id: boot-title-card-comment-scrub
     title: Rewrite the BootTitleCardOverlay.tsx file-header comment to drop the "year readout" reference; describe the overlay as the genesis-to-gameplay handoff mask
-    spec_id: precis-27-strip-genesis-commentary
+    spec_id: RP-27-strip-genesis-commentary
     spec_sections:
       - title-card-comment-scrubbed
     context_files:
@@ -147,7 +147,7 @@ tasks:
 
   - id: stale-engine-comment-scrub
     title: Scrub any remaining references to "year readout", "GenesisBottomBar", or "genesis bottom bar" in src/engine/ comments
-    spec_id: precis-27-strip-genesis-commentary
+    spec_id: RP-27-strip-genesis-commentary
     spec_sections:
       - stale-comments-scrubbed
     context_files:
@@ -169,7 +169,7 @@ tasks:
 
   - id: docs-genesis-md-strip-hud-paragraph
     title: Remove the HUD paragraph from docs/claude/genesis.md and replace it with one sentence stating genesis renders no HUD overlay
-    spec_id: precis-27-strip-genesis-commentary
+    spec_id: RP-27-strip-genesis-commentary
     spec_sections:
       - docs-reframed
     context_files:

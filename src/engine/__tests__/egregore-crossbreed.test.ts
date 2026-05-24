@@ -13,7 +13,7 @@ const nativeBag = (): TraitBag => generateTraitBag('0123456789abcdef0123456789ab
 const egregoreGenome = (): EgregoreGenome =>
   generateEgregoreGenome(5, 7, 'TestSteward', { allelopathy: 0.8, spreadVelocity: 0.3 })
 
-describe('canCross — native × egregore refusal (precis #8b)', () => {
+describe('canCross — native × egregore refusal (RP-8b)', () => {
   it('returns true for two native TraitBags', () => {
     expect(canCross(nativeBag(), nativeBag())).toBe(true)
   })
@@ -38,7 +38,7 @@ describe('canCross — native × egregore refusal (precis #8b)', () => {
   })
 })
 
-describe('manual footnote — no compatible regions (precis #8b)', () => {
+describe('manual footnote — no compatible regions (RP-8b)', () => {
   it('does not append a footnote line when no native flora is discovered', () => {
     const state = createTestState()
     state.egregorePositions = [{ x: 5, y: 7 }]

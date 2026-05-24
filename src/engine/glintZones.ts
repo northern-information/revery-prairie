@@ -51,7 +51,7 @@ export const spawnGlintPatch = (state: GameState, birthTime: number): GlintPatch
   // Glint patches always live on the overworld map, even when the steward
   // is currently inside the house/cave/ruin. Reading state.map would pick
   // up the wrong dimensions (e.g. the 15x9 house interior at tenure start
-  // post-precis-33) and produce out-of-bounds indices.
+  // post-RP-33) and produce out-of-bounds indices.
   const map = state.overworldMap
   const mapWidth = state.overworldMapWidth
   const mapHeight = state.overworldMapHeight

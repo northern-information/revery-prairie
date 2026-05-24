@@ -88,7 +88,7 @@ describe('fog mask pass', () => {
       expect(fogMaskPass.isActive(state)).toBe(true)
     })
 
-    it('is active on overworld (precis #38)', () => {
+    it('is active on overworld (RP-38)', () => {
       const state = createTestState()
       state.currentZone = Zone.Overworld
       expect(fogMaskPass.isActive(state)).toBe(true)
@@ -143,7 +143,7 @@ describe('fog mask pass', () => {
       expect(fills.length).toBeLessThan(totalTilesInViewport * 4)
     })
 
-    it('masks unexplored tiles on overworld as well (precis #38)', () => {
+    it('masks unexplored tiles on overworld as well (RP-38)', () => {
       const state = createTestState()
       state.currentZone = Zone.Overworld
       // Fresh tenure — no prairie tiles explored yet. The fog-mask pass

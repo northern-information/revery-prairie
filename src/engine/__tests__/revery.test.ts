@@ -13,7 +13,7 @@ import { OmenKind, ReveryPhase, Season } from '../types'
 
 import { clearAroundPlayer, createTestState } from './helpers'
 
-describe('isReveryLocked (precis #4)', () => {
+describe('isReveryLocked (RP-4)', () => {
   it('returns false when state.revery is null', () => {
     const state = createTestState()
     expect(isReveryLocked(state)).toBe(false)
@@ -39,7 +39,7 @@ describe('isReveryLocked (precis #4)', () => {
   })
 })
 
-describe('initiateRevery (precis #4)', () => {
+describe('initiateRevery (RP-4)', () => {
   it('transitions null → Omen with snapshot captured', () => {
     const state = createTestState()
     initiateRevery(state, 5000, OmenKind.DistantMeteorite)
@@ -72,7 +72,7 @@ describe('initiateRevery (precis #4)', () => {
   })
 })
 
-describe('tickRevery (precis #4)', () => {
+describe('tickRevery (RP-4)', () => {
   it('Omen → Observing on next frame', () => {
     const state = createTestState()
     initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
@@ -111,7 +111,7 @@ describe('tickRevery (precis #4)', () => {
   })
 })
 
-describe('movePlayer is blocked during the Revery (precis #4)', () => {
+describe('movePlayer is blocked during the Revery (RP-4)', () => {
   it('returns false during Observing', () => {
     const state = createTestState()
     clearAroundPlayer(state, 3)
@@ -131,7 +131,7 @@ describe('movePlayer is blocked during the Revery (precis #4)', () => {
   })
 })
 
-describe('takeReverySnapshot (precis #4)', () => {
+describe('takeReverySnapshot (RP-4)', () => {
   it('captures per-species flora counts + egregore count + season', () => {
     const state = createTestState()
     state.weather.season = Season.Autumn

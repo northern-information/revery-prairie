@@ -39,7 +39,7 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   // but not as dark as cave walls — the off-key tile is foliage, just
   // not native foliage.
   [TileType.Egregore]: ['#26212E', '#28232F', '#241F2C', '#272131', '#251F2D'],
-  // Little house (precis #33). Warm-brown background palettes outside;
+  // Little house (RP-33). Warm-brown background palettes outside;
   // a single uniform floor color inside so the interior reads as one
   // continuous level.
   [TileType.HouseEntrance]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],

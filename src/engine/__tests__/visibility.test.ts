@@ -135,7 +135,7 @@ describe('fog of war', () => {
   })
 
   describe('getTileVisibility', () => {
-    it('returns unexplored for overworld tiles outside the visible/explored sets (precis #38)', () => {
+    it('returns unexplored for overworld tiles outside the visible/explored sets (RP-38)', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
@@ -427,7 +427,7 @@ describe('fog of war', () => {
       expect(hasFogOfWar(Zone.Ruin)).toBe(true)
     })
 
-    it('returns true for Overworld (precis #38)', () => {
+    it('returns true for Overworld (RP-38)', () => {
       expect(hasFogOfWar(Zone.Overworld)).toBe(true)
     })
   })
@@ -715,7 +715,7 @@ describe('fog of war', () => {
 
   })
 
-  describe('overworld fog of war (precis #38)', () => {
+  describe('overworld fog of war (RP-38)', () => {
     /**
      * Put the player onto a small cleared overworld pocket so vision tests
      * have predictable terrain underneath. `createTestState` already returns

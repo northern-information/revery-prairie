@@ -14,7 +14,7 @@ export interface FloraSpeciesDef {
   dormantColor: string
   displayName: string
   latinBinomial: string
-  // Precis #7 — species-level baseline attractiveness to bees, in [0, 1].
+  // RP-7 — species-level baseline attractiveness to bees, in [0, 1].
   // Combined with the per-plant `traits.pollinatorPreference` trait from #3
   // via getTileBeePreference. Clover stays at 1.0 to preserve historical
   // bee-prefers-clover behavior; wildflower and tall grass are nonzero so
@@ -28,7 +28,7 @@ export interface FloraSpeciesDef {
 // table — which only knows that the tile is "Flora" and not which species
 // occupies it.
 //
-// Per spec precis-1-multi-species-flora:
+// Per spec RP-1-multi-species-flora:
 //   - clover: existing `%` `#50C878` is preserved verbatim (the green prairie
 //     bloom). The TILE_COLORS entry for TileType.Flora matches.
 //   - wildflower: Purple Coneflower (Echinacea purpurea) renders as `*` in a
@@ -67,7 +67,7 @@ export const FLORA_SPECIES = {
 
 export const getFloraSpeciesDef = (species: FloraSpecies): FloraSpeciesDef => FLORA_SPECIES[species]
 
-// Precis #7 — per-tile bee preference.
+// RP-7 — per-tile bee preference.
 //
 // Returns the effective bee attractiveness of one map tile in [0, 1], blending
 // the species-level baseline with the per-plant `pollinatorPreference` trait

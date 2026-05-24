@@ -1,4 +1,4 @@
-// Precis #17 — per-species growth-preview helpers.
+// RP-17 — per-species growth-preview helpers.
 //
 // state.floraGrowthPreviews is Map<FloraSpecies, Set<string>>. Each
 // species owns its own pending-preview queue so wildflower previews do

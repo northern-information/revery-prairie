@@ -1,0 +1,114 @@
+plan:
+  id: RP-34-tenure-opens-in-little-house
+  title: 'Precis 34: The tenure opens in the little house — first-wake auto-dialog with Emily'
+  created: 2026-05-23
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-tenure-opened-field-and-first-wake-register
+    title: 'Add state.tenureOpened (boolean, init false) to GameState; export EMILY_DIALOG_FIRST_WAKE; gate getEmilyDialog on tenureOpened'
+    spec_id: RP-34-tenure-opens-in-little-house
+    spec_sections:
+      - tenure-opened-flag-initial-state
+      - first-wake-dialog-register
+      - get-emily-dialog-prefers-first-wake-when-active
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/characters.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/characters.ts
+    depends_on: []
+    verification:
+      - command: 'npx tsc -b --noEmit'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: add-first-wake-trigger-system
+    title: 'Add firstWakeTrigger TickSystem (gameplay phase, priority -18) to gameLoop.ts; opens Emily dialog and latches tenureOpened on first eligible frame'
+    spec_id: RP-34-tenure-opens-in-little-house
+    spec_sections:
+      - first-wake-auto-trigger
+      - first-wake-trigger-idempotent
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - add-tenure-opened-field-and-first-wake-register
+    verification:
+      - command: 'npx tsc -b --noEmit'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: update-schema-test-expected-fields
+    title: 'Add "tenureOpened" to EXPECTED_FIELDS in schema.test.ts (alphabetically sorted at runtime)'
+    spec_id: RP-34-tenure-opens-in-little-house
+    spec_sections:
+      - schema-test-includes-tenure-opened
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/state.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-tenure-opened-field-and-first-wake-register
+    verification:
+      - command: 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - test
+      - harness
+    skip: false
+
+  - id: regression-tests
+    title: 'Author RP-34 acceptance suite: register shape, getEmilyDialog gating, auto-trigger eligibility (genesis/bootTitleCard/zone/dialog/revery/zoneTransition gates), one-shot latch, edge cases (skip-genesis, close-and-no-retrigger, non-autumn season, pre-seeded tenureOpened)'
+    spec_id: RP-34-tenure-opens-in-little-house
+    spec_sections:
+      - tenure-opened-flag-initial-state
+      - first-wake-dialog-register
+      - get-emily-dialog-prefers-first-wake-when-active
+      - first-wake-auto-trigger
+      - first-wake-trigger-idempotent
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/state.ts
+      - src/engine/characters.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/RP-33-little-house-and-emily.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/RP-34-tenure-opens-in-little-house.test.ts
+    output_files:
+      - src/engine/__tests__/RP-34-tenure-opens-in-little-house.test.ts
+    depends_on:
+      - add-first-wake-trigger-system
+      - update-schema-test-expected-fields
+    verification:
+      - command: 'npx vitest run src/engine/__tests__/RP-34-tenure-opens-in-little-house.test.ts'
+      - command: 'npm run test'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - test
+      - engine
+    skip: false

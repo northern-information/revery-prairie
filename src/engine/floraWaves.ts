@@ -1,4 +1,4 @@
-// Precis #17 — ceremony wave engine.
+// RP-17 — ceremony wave engine.
 //
 // A bee+clover combine no longer stamps a 3x3 patch; it enqueues a
 // WaveEmission that paints clover outward in a cellNoise-jittered

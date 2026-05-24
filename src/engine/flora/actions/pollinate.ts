@@ -93,7 +93,7 @@ export const tickPollenDrift = (state: GameState, dt: number): void => {
 
 export const tickPollenEmit = (state: GameState, dt: number): void => {
   if (state.currentZone !== Zone.Overworld) return
-  // Seasonal dormancy (precis #2): winter flora is paused and emits no pollen.
+  // Seasonal dormancy (RP-2): winter flora is paused and emits no pollen.
   // Existing in-flight pollen continues to drift and age through tickPollenDrift.
   if (state.weather.season === Season.Winter) return
   if (pollinateRegistry.size === 0) return
@@ -117,7 +117,7 @@ export const tickPollenEmit = (state: GameState, dt: number): void => {
         if (state.pollen.length >= MAX_POLLEN) return
         if (state.map[ty]?.[tx]?.type !== tileType) continue
         if (profile.emitGate && !profile.emitGate(state, tx, ty)) continue
-        // Precis #7 — per-plant pollinatorPreference biases emission within
+        // RP-7 — per-plant pollinatorPreference biases emission within
         // ±50% of the species baseline (trait ∈ [0, 1]). Plants with high
         // preference visibly emit more pollen than siblings. Missing
         // lifecycle entries fall back to the unbiased rate.

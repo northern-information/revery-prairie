@@ -17,7 +17,7 @@ source_files:
 dependencies:
   - held-key-movement
   - pickup-hitbox
-  - precis-9b-torchbearer-behavior
+  - RP-9b-torchbearer-behavior
 
 # Context (2026-05):
 #   Driven by a keyboard interactions audit. Captures the bindings as they
@@ -31,7 +31,7 @@ dependencies:
 #   - The `b` toggle for burn-draw mode. The entire burnDrawMode +
 #     burnLineDraft mouse-authoring path is removed. lockedBurnLine,
 #     burnLineIndex, and Moab's walking infrastructure remain, dormant
-#     until the walk-with-Moab rework lands (see precis-9b notes).
+#     until the walk-with-Moab rework lands (see RP-9b notes).
 #   - The left-click pickup branch on ground items in useMouse. Pickup
 #     happens via the existing 3x3 Chebyshev auto-pickup on movement
 #     (pickup-hitbox spec). Clicking a ground-item tile pathfinds to that

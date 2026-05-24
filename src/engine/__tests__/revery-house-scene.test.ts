@@ -13,7 +13,7 @@ const findEmilyPos = (state: ReturnType<typeof createTestState>) => {
   return null
 }
 
-describe('precis #33 — Revery scene transition at Omen → Observing', () => {
+describe('RP-33 — Revery scene transition at Omen → Observing', () => {
   it('repositions the steward to the bed and Emily to the chair when confirm-in-house', () => {
     const state = createTestState()
     // Set up: in the house already, Emily entity at her idle position.
@@ -57,7 +57,7 @@ describe('precis #33 — Revery scene transition at Omen → Observing', () => {
   })
 })
 
-describe('precis #33 — Closing-phase revert', () => {
+describe('RP-33 — Closing-phase revert', () => {
   it('restores Emily to her idle position and resets emilyInvitation', () => {
     const state = createTestState()
     state.currentZone = Zone.HouseInterior

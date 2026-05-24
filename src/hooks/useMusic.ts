@@ -25,7 +25,7 @@ export const useMusic = (state: GameState): void => {
   const prevEnabledRef = useRef(state.audioEnabled)
   // Tracks whether genesis was active on the previous render so we can
   // crossfade the ambient track at the genesis-to-gameplay handoff
-  // (precis #33).
+  // (RP-33).
   const prevGenesisRef = useRef(state.genesis !== null)
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export const useMusic = (state: GameState): void => {
       return
     }
 
-    // Precis #33 — during genesis playback the player is conceptually in
+    // RP-33 — during genesis playback the player is conceptually in
     // the house but the cinematic plays the overworld ambient. Pick
     // overworld music whenever state.genesis is non-null, regardless of
     // currentZone. The zone-change effect below still fires at handoff

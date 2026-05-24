@@ -25,7 +25,7 @@ const placeFloraAt = (state: GameState, x: number, y: number, species: FloraSpec
   )
 }
 
-describe('getTileBeePreference (precis #7)', () => {
+describe('getTileBeePreference (RP-7)', () => {
   it('returns 0 for non-Flora tiles', () => {
     const state = createTestState()
     clearAroundPlayer(state, 5)

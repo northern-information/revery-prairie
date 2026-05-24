@@ -66,7 +66,7 @@ const isOakOccupied = (state: GameState, x: number, y: number): boolean => {
 
 export const isValidOakPosition = (state: GameState, anchorX: number, anchorY: number): boolean => {
   // Oaks live on the overworld map only. state.map may point at the
-  // cave or house interior at the moment of validation (precis #33).
+  // cave or house interior at the moment of validation (RP-33).
   const overworld = state.overworldMap
   for (let dy = -OAK_HALF; dy <= OAK_HALF; dy++) {
     for (let dx = -OAK_HALF; dx <= OAK_HALF; dx++) {
@@ -208,7 +208,7 @@ const tooCloseToExistingOak = (state: GameState, x: number, y: number): boolean 
 // Returns true when the candidate oak anchor is too close to Gron (the
 // central character) or to the house entrance. The footprint extends ±1
 // around the anchor, so the clearance is checked against that extended
-// bound. Precis #33 — the player spawns inside the house at tenure
+// bound. RP-33 — the player spawns inside the house at tenure
 // start; the overworld anchor we clear around is the house entrance,
 // not state.player.
 const tooCloseToHouseOrGron = (state: GameState, x: number, y: number): boolean => {

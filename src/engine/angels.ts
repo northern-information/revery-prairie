@@ -290,7 +290,7 @@ export const tickAngelCloverAura = (state: GameState, time: number): void => {
       if (isWaterTile(state, ox, oy)) continue
 
       // Angels grow clover specifically — wildflower and tall grass do not
-      // self-propagate in this PR. Pollinator routes are precis #7.
+      // self-propagate in this PR. Pollinator routes are RP-7.
       setMapTile(state, ox, oy, { type: TileType.Flora })
       const tileKey = posKey(ox, oy)
       const species = FloraSpecies.Clover

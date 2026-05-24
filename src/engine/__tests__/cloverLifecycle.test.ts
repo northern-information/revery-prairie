@@ -251,5 +251,5 @@ describe('seasonal dormancy', () => {
   })
 })
 
-// harvestClover and cutClover were deleted in precis #1.
-// Clover acquisition routes through ruin recovery (precis #5).
+// harvestClover and cutClover were deleted in RP-1.
+// Clover acquisition routes through ruin recovery (RP-5).

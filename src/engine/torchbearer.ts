@@ -1,4 +1,4 @@
-// Precis #9b — Torchbearer behavior pass. Moab the drip torchbearer
+// RP-9b — Torchbearer behavior pass. Moab the drip torchbearer
 // walks the burn line during Spring. The cycle is driven by season
 // transitions detected in tickTorchbearer:
 //   Winter → Spring: lockedBurnLine consumed (currently no source —

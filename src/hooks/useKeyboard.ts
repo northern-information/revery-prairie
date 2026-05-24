@@ -100,14 +100,14 @@ export const useKeyboard = ({
         if (!allowed) return
       }
 
-      // Precis #4 — Revery hard input lock. During Observing, every keypress
+      // RP-4 — Revery hard input lock. During Observing, every keypress
       // is swallowed. During Summary, any keypress dismisses the overlay and
       // advances to Closing (handled by the GameScreen-level dismiss listener
       // wired in Tier 8c — useKeyboard just returns early so gameplay keys
       // don't double-fire).
       if (state.revery?.active) return
 
-      // Precis #6 — scan-result modal hard input lock. The modal owns its
+      // RP-6 — scan-result modal hard input lock. The modal owns its
       // own keydown handler (dismiss after fully revealed); useKeyboard
       // returns early so gameplay keys, screen toggles, and Escape don't
       // race the modal's dismiss logic.
@@ -136,7 +136,7 @@ export const useKeyboard = ({
       // Key repeat is ignored so a held [f] doesn't re-trigger; the second
       // keydown falls through to the scan handler below, which also ignores
       // repeats. If no interaction fires, we fall through so the same press
-      // can begin a hold-to-scan (precis-6) when a scannable target exists.
+      // can begin a hold-to-scan (RP-6) when a scannable target exists.
       if ((e.key === 'f' || e.key === 'F') && !e.repeat) {
         // Divination panel owns [f] for tossing — don't interfere
         if (activeScreen === 'divination') return
@@ -200,7 +200,7 @@ export const useKeyboard = ({
       }
 
       // [x] — drop hovered inventory item to the ground. The cut-facing-
-      // clover branch was deleted in precis #1 (harvest and cut mechanics
+      // clover branch was deleted in RP-1 (harvest and cut mechanics
       // removed entirely; clover acquisition routes through ruin recovery).
       if (e.key === 'x' || e.key === 'X') {
         const hoveredId = itemInfoRef.current?.getCurrentId()
@@ -236,7 +236,7 @@ export const useKeyboard = ({
         return
       }
 
-      // Precis #17 — overlay view modes. [1] default, [2] family-tree
+      // RP-17 — overlay view modes. [1] default, [2] family-tree
       // lineage overlay (records the discovery on first press), [3]
       // placeholder for the future root/mycelium view (no-op — logs in
       // DEV but does not change overlayMode; a toast surface isn't in
@@ -255,7 +255,7 @@ export const useKeyboard = ({
       }
       if (e.key === '3') {
         // Placeholder for the root/mycelium overlay (reserved for a
-        // future precis). Consumed so it doesn't fall through to other
+        // future backlog item). Consumed so it doesn't fall through to other
         // handlers, but overlayMode is not changed. No toast surface
         // exists in the codebase yet; this becomes a visible "not yet"
         // hint once one lands.
@@ -276,7 +276,7 @@ export const useKeyboard = ({
         return
       }
 
-      // [f] — hold-to-scan flora with the permacomputer (precis #6).
+      // [f] — hold-to-scan flora with the permacomputer (RP-6).
       // Keydown begins a scan if there's a valid target nearby. Modal
       // blocks (system menu, dialog) suppress. Key repeat on a held f
       // is ignored — the original startTime stands.
@@ -328,7 +328,7 @@ export const useKeyboard = ({
       }
       if (axis) {
         e.preventDefault()
-        // Movement aborts an active scan — precis #6.
+        // Movement aborts an active scan — RP-6.
         if (state.scanInProgress) {
           state.scanInProgress = null
         }
@@ -348,7 +348,7 @@ export const useKeyboard = ({
 
   const handleKeyUp = useCallback(
     (e: KeyboardEvent) => {
-      // Precis #6 — scan-result modal owns input; gameplay keyup logic
+      // RP-6 — scan-result modal owns input; gameplay keyup logic
       // is suppressed while the modal is open.
       if (activeScreen === 'scan-result') return
 
@@ -358,7 +358,7 @@ export const useKeyboard = ({
         state.heldDirection = resolveHeldDirection(state.heldKeys)
       }
 
-      // [f] release — abort the scan (precis #6). Commit is auto-fired
+      // [f] release — abort the scan (RP-6). Commit is auto-fired
       // by the game loop once elapsed >= SCAN_DURATION_MS; releasing
       // early just clears the in-progress state and shows nothing.
       if (e.key === 'f' || e.key === 'F') {

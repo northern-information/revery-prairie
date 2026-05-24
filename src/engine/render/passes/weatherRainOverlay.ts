@@ -11,7 +11,7 @@ import type { CharMetrics, GameState } from '../../types'
 import type { RenderPass } from '../passes'
 
 // Gate strictly on Sky.Rain so the rain front does not double-draw during
-// snowfall (precis #2 routes winter humid weather to Sky.Snow, which has
+// snowfall (RP-2 routes winter humid weather to Sky.Snow, which has
 // its own overlay pass).
 const isActive = (state: GameState): boolean =>
   state.weather.sky === Sky.Rain && state.precipitationIntensity > 0 && state.currentZone === Zone.Overworld

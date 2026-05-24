@@ -1,4 +1,4 @@
-// Precis #9b — burn line overlay. Renders a deeper amber on the
+// RP-9b — burn line overlay. Renders a deeper amber on the
 // lockedBurnLine tiles Moab has not yet walked. Drawn at the 'effect'
 // slot so it composites above terrain but below screen overlays like
 // the selection box. The draft overlay was removed alongside the

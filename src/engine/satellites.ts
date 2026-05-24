@@ -23,10 +23,10 @@ import { TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
 
-// Precis #5 reintroduced wildflowerSeeds and tallGrassSeeds as
+// RP-5 reintroduced wildflowerSeeds and tallGrassSeeds as
 // DormantGarden vault payloads. milkweedSeeds is still absent. The
 // satellite seed-scatter mechanic remains a no-op pending the broader
-// seed taxonomy + planting interaction in precis #11.
+// seed taxonomy + planting interaction in RP-11.
 
 const PROTECTED_TILES = new Set<TileType>([
   TileType.Space,
@@ -173,9 +173,9 @@ const applyImpact = (state: GameState, center: Position, time: number): void => 
 /**
  * Seed-payload satellites had previously scattered Wildflower / Tall
  * Grass / Milkweed seed items into the crater zone. Two of the three
- * items returned in precis #5 (wildflowerSeeds, tallGrassSeeds) for the
+ * items returned in RP-5 (wildflowerSeeds, tallGrassSeeds) for the
  * DormantGarden vault payload — but the satellite scatter is still a
- * no-op pending the planting interaction landing in precis #11. Function
+ * no-op pending the planting interaction landing in RP-11. Function
  * kept (rather than removing the payloadType check at the call site) so
  * the routing surface stays intact.
  */

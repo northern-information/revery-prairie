@@ -17,13 +17,13 @@ tasks:
   # --- Tier 0: Doctrine + dashboard status ---
 
   - id: doctrine-status-update
-    title: 'Flip precis #14 from todo to in-progress in docs/precis-status.yaml. Set plan path to harness/plans/delete-event-log.yaml.'
+    title: 'Flip RP-14 from todo to in-progress in docs/backlog.yaml. Set plan path to harness/plans/delete-event-log.yaml.'
     spec_id: delete-event-log
     spec_sections: []
     context_files:
-      - docs/precis-status.yaml
+      - docs/backlog.yaml
     output_files:
-      - docs/precis-status.yaml
+      - docs/backlog.yaml
     depends_on: []
     verification: []
     repair: skip
@@ -410,5 +410,5 @@ tasks:
       - sweep
 
   # Final typecheck + lint + test handled by global_verification after the
-  # last task — no dedicated full-verify task is needed (matches precis-7's
+  # last task — no dedicated full-verify task is needed (matches RP-7's
   # pattern and keeps plan validation clean).

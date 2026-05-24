@@ -174,7 +174,7 @@ describe('terrain connectivity', () => {
       const pos = state.world.getComponent(eid, ComponentType.Position)
       const zone = state.world.getComponent(eid, ComponentType.EntityZone)
       if (!pos) continue
-      // Skip cave-zone entities and house-interior entities (precis #33 —
+      // Skip cave-zone entities and house-interior entities (RP-33 —
       // Emily lives at house-interior coordinates which don't map to
       // walkable overworld tiles).
       if (zone?.zone === Zone.Cave) continue

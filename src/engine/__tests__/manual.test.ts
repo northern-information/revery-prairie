@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest'
 describe('manual', () => {
   describe('MANUAL_ENTRIES registry', () => {
     it('has an entry for every non-hidden item definition', () => {
-      // The clover item is intentionally hidden from the manual in precis #1
+      // The clover item is intentionally hidden from the manual in RP-1
       // because the flora:clover species entry covers the same concept with
       // richer lore. The item still exists in the inventory.
       const hiddenItemIds = new Set(['clover'])

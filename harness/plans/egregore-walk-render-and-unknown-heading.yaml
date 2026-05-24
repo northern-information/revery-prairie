@@ -23,7 +23,7 @@ tasks:
       line 1742) already uses is applied. Do not introduce a helper —
       keep the change local to the two adjacent branches. Update the
       comment to note both branches apply the font swap.
-    spec_id: precis-8a-egregoric-thematic
+    spec_id: RP-8a-egregoric-thematic
     spec_sections:
       - egregore-tile-voynich-font-on-player-tile
       - walk-over-egregore-tile
@@ -99,7 +99,7 @@ tasks:
       themselves carry the cosmology color; reticle/side labels
       stay on gold/bee tokens across all variants so the
       viewfinder chrome reads consistent.
-    spec_id: precis-8a-egregoric-thematic
+    spec_id: RP-8a-egregoric-thematic
     spec_sections:
       - purple-gel-band-view-variant
     context_files:
@@ -135,7 +135,7 @@ tasks:
       complex for this PR, fall back to a focused unit test that
       exercises only the on-player-tile font-swap helper extracted
       from renderer.ts — but prefer the integration approach.
-    spec_id: precis-8a-egregoric-thematic
+    spec_id: RP-8a-egregoric-thematic
     spec_sections:
       - egregore-tile-voynich-font-on-player-tile
       - walk-over-egregore-tile
@@ -198,7 +198,7 @@ tasks:
           'bg-[#B080D0]' (NOT 'bg-bee')
       Keep the flora variant test that asserts everything is on
       gold/bee tokens intact.
-    spec_id: precis-8a-egregoric-thematic
+    spec_id: RP-8a-egregoric-thematic
     spec_sections:
       - purple-gel-band-view-variant
     context_files:

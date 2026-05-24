@@ -26,7 +26,7 @@ const MAX_PHASE_DT_MS = 100
 
 // ─── iso screen vectors ───────────────────────────────────────────────────────
 
-// Canonical source of truth in the rotated cardinal frame (precis-thinktank-v5
+// Canonical source of truth in the rotated cardinal frame (backlog-thinktank-v5
 // round 1). Maps wind FROM direction to screen drift vector. New cardinals
 // point at the diamond's tips on screen and project to axis-aligned screen
 // vectors; new ordinals point at the diamond's edges (the storage axes) and

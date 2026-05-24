@@ -113,7 +113,7 @@ deeper docs live in `docs/claude/`. read on demand for the system you're touchin
 | `rendering.md` | pass registry, cache contract, render slot order |
 | `multiplayer.md` | Cloudflare Worker + Durable Objects, wire protocol, deploy, local dev |
 | `map.md` | 147x147 grid layout, tile types, walkability |
-| `egregores.md` | precis #8a — Voynich-rendered "not-of-this-Earth" flora, EVA tokens, pierce words |
+| `egregores.md` | RP-8a — Voynich-rendered "not-of-this-Earth" flora, EVA tokens, pierce words |
 | `input.md` | mouse, click-to-move, cursor, keybindings |
 | `inventory.md` | spatial inventory, item types, recipes |
 | `manual.md` | in-game encyclopedia, discovery tracking, `MANUAL_LORE` |
@@ -123,11 +123,11 @@ deeper docs live in `docs/claude/`. read on demand for the system you're touchin
 | `state.md` | GameState field ownership conventions, EXPECTED_FIELDS |
 | `weather.md` | seasons, snow, dormancy, winter palette wash |
 | `flora.md` | clover / wildflower / tall grass species, six-stage lifecycle |
-| `genetics.md` | precis #3 — SHA256 identity, trait bag, crossing math, hex grid derivation |
-| `revery.md` | precis #4 — phase machine, omen detection, summary, phenotype labels, first-Revery egregoric advance |
+| `genetics.md` | RP-3 — SHA256 identity, trait bag, crossing math, hex grid derivation |
+| `revery.md` | RP-4 — phase machine, omen detection, summary, phenotype labels, first-Revery egregoric advance |
 | `genesis.md` | 15 epochs, steward-name seeding, soil health |
 | `audio.md` | ambient + dialog music layers |
 | `testing.md` | terrain prep, random mocking, schema allowlist, rain test setup |
 | `harness.md` | spec/plan format, harness commands, CI gate, Skip-Harness override |
-| `precis.md` | precis kanban TUI, status YAML, v3 doctrine |
+| `backlog.md` | backlog kanban TUI, status YAML, v3 doctrine |
 | `deprecated.md` | systems intentionally removed (reveries) |

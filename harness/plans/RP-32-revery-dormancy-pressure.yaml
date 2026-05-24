@@ -1,0 +1,505 @@
+plan:
+  id: RP-32-revery-dormancy-pressure
+  title: 'Revery dormancy pressure — pressure ramp, threshold trigger, summons sequence, Closing-phase egregoric commit, retire the three existing omen predicates'
+  created: 2026-05-22
+  # Cross-cutting: changes GameState shape (dormancyPressure, collapsedStewardTile)
+  # AND ReveryState shape (summons, summonsAudioCue, summonsCollapseTile) AND
+  # deletes detectOmen with all three predicates. The gameLoop call site is
+  # replaced. Schema serialization and revery state machine both touched —
+  # full suite required.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + docs status ---
+
+  - id: doctrine-status-update
+    title: >
+      Flip RP-32 from todo to in-progress in docs/backlog.yaml.
+      Set the spec and plan paths under the RP-32 entry. Add a paragraph to
+      the RP-32 notes naming the plan filename and the v6 round 6 amendment
+      that retires the three existing omen predicates. No new doctrine doc
+      needed — docs/claude/revery.md already covers the Revery state machine
+      and only needs a short paragraph under a "Dormancy pressure (RP-32)"
+      subhead describing the linear ramp, threshold, summons, and the
+      Closing-phase egregoric commit. Document state field ownership in
+      docs/claude/state.md: dormancyPressure (GameState top-level, written
+      by tickDormancyPressure each frame, reset at Revery close); summons /
+      summonsAudioCue / summonsCollapseTile (on ReveryState, written at
+      initiateRevery and the Omen → Observing transition); collapsedStewardTile
+      (GameState top-level, set at Omen → Observing, cleared at Closing).
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections: []
+    context_files:
+      - docs/backlog.yaml
+      - docs/claude/revery.md
+      - docs/claude/state.md
+    output_files:
+      - docs/backlog.yaml
+      - docs/claude/revery.md
+      - docs/claude/state.md
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: State shape + constants ---
+
+  - id: add-pressure-state-fields
+    title: >
+      Add `dormancyPressure: number` and `collapsedStewardTile: Position | null`
+      to GameState in src/engine/types.ts. Initialize both in createGameState
+      (src/engine/state.ts): dormancyPressure = 0, collapsedStewardTile = null.
+      Add both to EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - dormancy-pressure-field
+      - collapsed-tile-render-flag
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-revery-state-summons-fields
+    title: >
+      Extend ReveryState in src/engine/types.ts with three optional fields:
+      `summons?: boolean` (true when the Revery was triggered by the pressure-
+      ceiling path; absent / false for any other entry path), `summonsAudioCue?:
+      boolean` (flag set at Omen → Observing for future audio/render layers
+      to read), `summonsCollapseTile?: Position` (snapshot of the steward's
+      tile at summons time, used by the Closing-phase egregoric commit).
+      These are additive; no existing RP-4 callers need to change. Update
+      the ReveryState comment block to name RP-32 as the owner.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - threshold-trigger
+      - summons-sequence
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on:
+      - add-pressure-state-fields
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-pressure-constants
+    title: >
+      Add `REVERY_PRESSURE_RAMP_START` (= 0.5 — autumn equinox in seasonalPhase
+      space) and `REVERY_PRESSURE_RAMP_END` (= 0.75 — winter solstice) to
+      src/engine/constants.ts. Document each with one comment line referencing
+      the linear-ramp behavior. Do NOT delete REVERY_OMEN_STATIONARY_MS yet —
+      that happens in the omen-retirement task to keep the cleanup atomic with
+      the predicate deletion.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - pressure-linear-ramp
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on:
+      - add-revery-state-summons-fields
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 2: Pressure module (rewrite omen.ts) ---
+
+  - id: rewrite-omen-module-as-pressure
+    title: >
+      Rewrite src/engine/omen.ts entirely. Delete the three predicates
+      (bee-on-shoulder, distant-meteorite, cloud-passing-sun) and the
+      `detectOmen` function. Replace the module body with two exports:
+      (1) `tickDormancyPressure(state)` — applies the linear-ramp floor when
+      state.weather.season === Season.Autumn, gated by !state.revery,
+      !state.deepTime?.active, state.currentZone === Zone.Overworld, and the
+      REVERY_COOLDOWN_MS cooldown (preserve existing gates so back-to-back
+      Reveries are still blocked). The floor is computed as
+      `clamp01((seasonalPhase - REVERY_PRESSURE_RAMP_START) / (REVERY_PRESSURE_RAMP_END - REVERY_PRESSURE_RAMP_START))`;
+      dormancyPressure is set to max(prior, floor). (2)
+      `contributeDormancyPressure(state, amount)` — adds non-negative amount
+      to dormancyPressure, clamps to [0, 1]. Negative amounts clamp at the
+      add step (Math.max(0, amount)). Both functions are pure tick functions;
+      neither initiates the Revery (that is gameLoop's job per
+      `threshold-trigger`). Delete REVERY_OMEN_STATIONARY_MS from constants.ts
+      now that no caller reads it; leave `playerStationarySince` on GameState
+      untouched (other systems may read it). Update the module's header
+      comment to describe the new behavior.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - pressure-linear-ramp
+      - pressure-contribution-entry-point
+      - retire-existing-omen-predicates
+    context_files:
+      - src/engine/omen.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/omen.ts
+      - src/engine/constants.ts
+    depends_on:
+      - add-pressure-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: export-egregore-commit-helper
+    title: >
+      Export `commitEgregoreTiles` from src/engine/egregore/spread.ts (currently
+      file-local at spread.ts:124). No behavior change — only the export
+      keyword. This is consumed by the Closing-phase egregoric commit in
+      RP-32. Verify nothing else in the module needed to be file-local;
+      `getEgregoreSpeciesAtPosition` and `generateEgregoreGenome` callers are
+      already routed.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - closing-egregoric-commit
+    context_files:
+      - src/engine/egregore/spread.ts
+    output_files:
+      - src/engine/egregore/spread.ts
+    depends_on:
+      - rewrite-omen-module-as-pressure
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 3: Gron dialog + revery summons logic ---
+
+  - id: add-gron-solstice-summons-dialog
+    title: >
+      Add `GRON_DIALOG_SOLSTICE_SUMMONS: string[] = ['TODO: solstice summons dialog']`
+      to src/engine/characters.ts alongside the other GRON_DIALOG_* constants
+      (after line 119). Extend `getGronDialog(state)` to return
+      GRON_DIALOG_SOLSTICE_SUMMONS as the first condition checked when
+      `state.revery?.summons === true` and `state.revery.phase === ReveryPhase.Omen`.
+      The existing MainQuestPhase switch is preserved as the default branch.
+      Lore content is a single TODO placeholder per project doctrine
+      (feedback_no_write_lore) — humans author the real line later.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - gron-solstice-dialog
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - rewrite-omen-module-as-pressure
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: implement-summons-sequence-in-revery
+    title: >
+      Extend src/engine/revery.ts's tickRevery Omen-phase branch. Current
+      behavior at revery.ts:112-119 flips Omen → Observing and clears in-flight
+      intent. New behavior, gated on `r.summons === true`: also (1) set
+      `r.summonsAudioCue = true`; (2) capture `r.summonsCollapseTile = { x:
+      state.player.x, y: state.player.y }`; (3) set `state.collapsedStewardTile`
+      to the same Position snapshot (this is the GameState-level mirror that
+      downstream render passes will read); (4) find the Gron ECS entity via the
+      same query pattern as triggerStewardSeal (interaction.ts:533-538), pick
+      an adjacent walkable tile via pickAdjacentWalkableTile, and move Gron's
+      Position component via world.spatial.move (mirror interaction.ts:546-550);
+      (5) open a Gron dialog via the existing activeDialog pattern (mirror
+      interaction.ts:558-565). If the Gron entity is missing, skip steps 4-5
+      silently (no crash). If pickAdjacentWalkableTile returns null, skip the
+      teleport but still open the dialog at Gron's current position. After all
+      of the above, the existing Omen → Observing flip proceeds. The non-summons
+      branch (r.summons !== true) keeps the original behavior unchanged for
+      back-compat with RP-4.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - summons-sequence
+      - gron-solstice-dialog
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/interaction.ts
+      - src/engine/characters.ts
+      - src/engine/types.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on:
+      - add-gron-solstice-summons-dialog
+      - add-revery-state-summons-fields
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: implement-closing-egregoric-commit-and-reset
+    title: >
+      Extend src/engine/revery.ts's tickRevery Closing-phase branch
+      (revery.ts:148-153). After the existing `state.reveryCount += 1` and
+      `state.lastReveryEndTime = time` lines, but BEFORE `state.revery = null`:
+      (1) if `r.summons === true` and `r.summonsCollapseTile` is set, look up
+      the tile at that position and check it is dirt-eligible via the same
+      criteria candidateDirtNeighbors uses (the simplest check: the tile's type
+      is one of the eligible dirt types — read candidateDirtNeighbors's logic
+      from egregore/spread.ts and inline the predicate). If eligible, call the
+      now-exported commitEgregoreTiles(state, [r.summonsCollapseTile], time).
+      If not eligible, skip silently (no error). (2) Reset
+      `state.dormancyPressure = 0`. (3) Clear `state.collapsedStewardTile =
+      null`. Then proceed to `state.revery = null` as before. The non-summons
+      Closing branch (r.summons !== true) gets only the dormancyPressure reset
+      and the collapsedStewardTile clear; the egregoric commit is skipped.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - closing-egregoric-commit
+      - collapsed-tile-render-flag
+      - pressure-reset-on-close
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/egregore/spread.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/revery.ts
+    depends_on:
+      - implement-summons-sequence-in-revery
+      - export-egregore-commit-helper
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 4: gameLoop wiring ---
+
+  - id: wire-pressure-and-threshold-in-gameloop
+    title: >
+      Replace the detectOmen call site in src/engine/gameLoop.ts:805-806.
+      Current behavior: `const omen = detectOmen(state, time); if (omen)
+      initiateRevery(state, time, omen)`. New behavior: (1) call
+      tickDormancyPressure(state) every frame (the function self-gates on
+      season / zone / cooldown / no-active-revery); (2) if state.dormancyPressure
+      >= 1 AND state.revery === null, call initiateRevery(state, time,
+      OmenKind.CloudPassingSun) and immediately set state.revery!.summons =
+      true (the placeholder OmenKind preserves RP-4's ReveryState shape;
+      RP-36 will eventually specify a Revery Knot kind when wiring the
+      Knot pickup contribution). The tickRevery call on the next line is
+      unchanged. Also handle the safety reset: if seasonalPhase has just
+      crossed from Autumn into Winter (state.weather.season === Season.Winter
+      AND state.lastTickSeason !== Season.Winter — or use whatever season-
+      transition signal already exists; if none exists, compare against a
+      module-local lastSeason cache the same way state.lastSky works) AND
+      state.revery === null, reset state.dormancyPressure = 0. Remove the
+      detectOmen import.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - pressure-linear-ramp
+      - threshold-trigger
+      - dormancy-pressure-field
+      - retire-existing-omen-predicates
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/omen.ts
+      - src/engine/revery.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - rewrite-omen-module-as-pressure
+      - implement-closing-egregoric-commit-and-reset
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 5: Tests ---
+
+  - id: write-pressure-unit-tests
+    title: >
+      Create src/engine/__tests__/dormancy-pressure.test.ts. Mirror the test
+      style of revery.test.ts. Cover: tickDormancyPressure floor formula (test
+      seasonalPhase = 0.5 → 0, 0.625 → 0.5, 0.75 → 1.0, 0.4 → no change, 0.8
+      → 1 capped); gating (no change when season is Spring/Summer/Winter; no
+      change during deep time; no change while a Revery is active; no change
+      in non-Overworld zones; respects REVERY_COOLDOWN_MS); monotonic non-
+      decrease (pressure never decreases within a single autumn except via
+      explicit reset); contributeDormancyPressure clamping (positive add up
+      to ceiling, clamp at 1.0; negative add is a no-op via Math.max(0,
+      amount)). Use the standard test helpers from src/engine/__tests__/helpers
+      (clearAroundPlayer, createTestState). Random mocking via vi.spyOn per
+      project doctrine. NO direct field mutation in tests — use the public
+      tick function.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - dormancy-pressure-field
+      - pressure-linear-ramp
+      - pressure-contribution-entry-point
+    context_files:
+      - src/engine/omen.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/revery.test.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/dormancy-pressure.test.ts
+    depends_on:
+      - wire-pressure-and-threshold-in-gameloop
+    verification:
+      - npx vitest run src/engine/__tests__/dormancy-pressure.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: write-summons-sequence-unit-tests
+    title: >
+      Create src/engine/__tests__/revery-summons.test.ts. Mirror the test
+      style of revery.test.ts. Cover: summons=true triggers Gron teleport
+      (adjacent walkable tile chosen, world.spatial.move called); summons=true
+      opens activeDialog with characterId=gron, lineIndex=0; summons=true
+      sets summonsAudioCue and summonsCollapseTile; summons=true sets
+      state.collapsedStewardTile at Omen → Observing and clears at Closing;
+      getGronDialog returns GRON_DIALOG_SOLSTICE_SUMMONS during the summons
+      Omen phase; getGronDialog returns the existing MainQuestPhase branches
+      after the Revery closes; missing Gron entity does not crash;
+      pickAdjacentWalkableTile null does not crash and dialog still opens.
+      Closing-phase egregoric commit fires when collapse tile is dirt-eligible
+      (verify state.map[y][x].type === TileType.Egregore, egregorePositions
+      length +1, egregoreLifecycle gains the entry); commit is skipped
+      silently when the collapse tile becomes ineligible (mutate the tile to
+      e.g. TileType.Water during Observing and assert no commit at Closing).
+      dormancyPressure resets to 0 at Closing. Use the standard test helpers.
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - summons-sequence
+      - gron-solstice-dialog
+      - collapsed-tile-render-flag
+      - closing-egregoric-commit
+      - pressure-reset-on-close
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/characters.ts
+      - src/engine/egregore/spread.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/revery.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/revery-summons.test.ts
+    depends_on:
+      - wire-pressure-and-threshold-in-gameloop
+    verification:
+      - npx vitest run src/engine/__tests__/revery-summons.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: fill-acceptance-test-scaffold
+    title: >
+      Convert the it.todo placeholders in src/engine/__tests__/RP-32-revery-
+      dormancy-pressure.test.ts into real assertions. Each todo maps to a
+      behavior or edge case from harness/specs/RP-32-revery-dormancy-
+      pressure.yaml. Keep this file as a thin acceptance surface — detailed
+      branch coverage lives in dormancy-pressure.test.ts and revery-summons
+      .test.ts. The acceptance suite asserts: dormancyPressure initializes
+      to 0; ramp reaches 1 at solstice with zero contributions; Revery
+      initiates at threshold with summons=true; Gron dialog returns the
+      solstice line during summons Omen; collapse tile commits to
+      TileType.Egregore at Closing; pressure resets at Closing; resets at
+      Autumn → Winter without a Revery; the three retired predicates do
+      not fire (no bee-on-shoulder, no distant-meteorite, no cloud-passing-
+      sun detection at any frame — verify by importing the omen module and
+      asserting detectOmen is no longer exported).
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - dormancy-pressure-field
+      - pressure-linear-ramp
+      - threshold-trigger
+      - summons-sequence
+      - gron-solstice-dialog
+      - collapsed-tile-render-flag
+      - closing-egregoric-commit
+      - pressure-reset-on-close
+      - retire-existing-omen-predicates
+    context_files:
+      - src/engine/__tests__/RP-32-revery-dormancy-pressure.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/omen.ts
+      - src/engine/revery.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/RP-32-revery-dormancy-pressure.test.ts
+    depends_on:
+      - write-pressure-unit-tests
+      - write-summons-sequence-unit-tests
+    verification:
+      - npx vitest run src/engine/__tests__/RP-32-revery-dormancy-pressure.test.ts
+    repair: retry
+    tags:
+      - test
+
+  # --- Tier 6: Audit existing tests + cleanup ---
+
+  - id: audit-existing-omen-tests-and-revery-tests
+    title: >
+      Delete src/engine/__tests__/omen-detection.test.ts entirely — every
+      test in it asserts the behavior of one of the three retired predicates.
+      Update src/engine/__tests__/revery.test.ts: any test that calls
+      detectOmen directly or constructs a scenario expecting an omen-driven
+      Revery entry must be rewritten to use the pressure path (set
+      state.dormancyPressure = 1 directly or advance seasonalPhase to
+      solstice) or marked obsolete and deleted. Update
+      src/engine/__tests__/RP-4-the-revery.test.ts the same way — the
+      RP-4 acceptance suite predates RP-32; its omen-related cases
+      become pressure-related cases or are deleted with a comment pointing
+      to RP-32 as the new owner of the entry path. Preserve any test
+      that covers behavior unrelated to the omen surface (phenotype
+      resolution, egregoric first-Revery bump, summary diff, manual page
+      navigation, etc.).
+    spec_id: RP-32-revery-dormancy-pressure
+    spec_sections:
+      - retire-existing-omen-predicates
+      - threshold-trigger
+    context_files:
+      - src/engine/__tests__/omen-detection.test.ts
+      - src/engine/__tests__/revery.test.ts
+      - src/engine/__tests__/RP-4-the-revery.test.ts
+      - src/engine/omen.ts
+      - src/engine/revery.ts
+    output_files:
+      - src/engine/__tests__/revery.test.ts
+      - src/engine/__tests__/RP-4-the-revery.test.ts
+    depends_on:
+      - fill-acceptance-test-scaffold
+    verification:
+      - npx vitest run src/engine/__tests__/revery.test.ts
+      - npx vitest run src/engine/__tests__/RP-4-the-revery.test.ts
+    repair: retry
+    tags:
+      - test
+
+  # Full-suite verification runs via global_verification at the top of the
+  # plan (npm run typecheck / npm run test / npm run lint). No per-task
+  # verify-only task is needed.

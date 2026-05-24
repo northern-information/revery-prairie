@@ -67,7 +67,7 @@ describe('GelBandView', () => {
     expect(screen.getByTestId('gel-crop-br')).toBeTruthy()
   })
 
-  describe('egregore variant (precis #8a)', () => {
+  describe('egregore variant (RP-8a)', () => {
     it('marks the wrapper with data-variant="egregore"', () => {
       render(<GelBandView identity={identity} variant="egregore" />)
       const wrapper = screen.getByTestId('gel-band-view')

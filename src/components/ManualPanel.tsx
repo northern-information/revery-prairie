@@ -157,7 +157,7 @@ const EntryCard = ({
   const isRecipe = entry.sourceKind === 'recipe'
   const recipeResultKey = `${entry.id}:result`
 
-  // Precis #6 — flora entries are completely hidden until the species is
+  // RP-6 — flora entries are completely hidden until the species is
   // scanned via the permacomputer. Oak entries follow the same gate via
   // entity:oak discovery (recorded by commitScan).
   if (entry.id.startsWith('flora:') && !discovered) return null
@@ -199,7 +199,7 @@ const EntryCard = ({
       {/* Separator */}
       <div className="text-dim text-xs">{'----'}</div>
 
-      {/* Specimen stack — precis #6. Rendered above the lore for scanned
+      {/* Specimen stack — RP-6. Rendered above the lore for scanned
           flora entries. One card per unique specimen identity; player pages
           through. The stack opens to the latest card by default (the just-
           scanned one when the manual is auto-opened after commit). */}
@@ -226,7 +226,7 @@ const EntryCard = ({
         </div>
       )}
 
-      {/* Precis #4 — revealed phenotypes. Rendered below the lore for
+      {/* RP-4 — revealed phenotypes. Rendered below the lore for
           discovered flora entries when one or more (species, axis) pairs
           have been resolved by past Reveries. Section omitted entirely if
           the species has no revealed phenotypes. */}

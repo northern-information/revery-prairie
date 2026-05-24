@@ -53,7 +53,7 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
   }
 
   // Weather rain front (overworld only). Delegates to the rotated-frame
-  // helpers in tileWater.ts (precis-thinktank-v5 round 1) so the rain-aura
+  // helpers in tileWater.ts (backlog-thinktank-v5 round 1) so the rain-aura
   // boundary is sourced from the same math as isInRainFront.
   if (state.weather.sky === Sky.Rain && zone === Zone.Overworld) {
     const { axis, sign } = windToFrontAxis(state.weather.windDirection)
@@ -106,7 +106,7 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
     }
   }
 
-  // Precis #9b — burn line membership. Locked is what Moab will walk
+  // RP-9b — burn line membership. Locked is what Moab will walk
   // (or is walking) this Spring. The draft layer was removed in the
   // input-system-cleanup CR.
   if (zone === Zone.Overworld) {

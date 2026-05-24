@@ -6,11 +6,11 @@ referenced from `CLAUDE.md`. read when touching flora species, the lifecycle, po
 
 three flora species share `TileType.Flora`: clover (Trifolium repens, `%` green), wildflower / Purple Coneflower (Echinacea purpurea, `*` magenta), and tall grass / Big Bluestem (Andropogon gerardii, `"` tawny).
 
-per-species visual identity (glyph, color, displayName, latinBinomial) lives in `FLORA_SPECIES` in `src/engine/flora/species.ts`. the renderer reads glyph + healthy color from this registry via the `species` field on the floraLifecycle entry. wind-sway and pollen registries are keyed by tile type — they're shared across species. pollen emission is biased per plant by `traits.pollinatorPreference` (precis #7): `emitProb *= 0.5 + 0.5 * trait`. high-preference plants emit visibly more pollen than their siblings; winter dormancy still suppresses emission for all species.
+per-species visual identity (glyph, color, displayName, latinBinomial) lives in `FLORA_SPECIES` in `src/engine/flora/species.ts`. the renderer reads glyph + healthy color from this registry via the `species` field on the floraLifecycle entry. wind-sway and pollen registries are keyed by tile type — they're shared across species. pollen emission is biased per plant by `traits.pollinatorPreference` (RP-7): `emitProb *= 0.5 + 0.5 * trait`. high-preference plants emit visibly more pollen than their siblings; winter dormancy still suppresses emission for all species.
 
-genesis seeds clover via the epoch chain. wildflower and tall grass are scattered in `postProcessMultiSpeciesFlora` (6-10 patches each, 2-4 tiles per patch) on walkable dirt after the epoch chain runs. determinism is preserved — same steward name produces the same patch layout via `sim.rng`. all three species self-propagate at runtime via the precis #17 spread engine.
+genesis seeds clover via the epoch chain. wildflower and tall grass are scattered in `postProcessMultiSpeciesFlora` (6-10 patches each, 2-4 tiles per patch) on walkable dirt after the epoch chain runs. determinism is preserved — same steward name produces the same patch layout via `sim.rng`. all three species self-propagate at runtime via the backlog item #17 spread engine.
 
-## autonomous spread (precis #17)
+## autonomous spread (RP-17)
 
 all three species spread on their own via a single species-agnostic engine in `src/engine/flora/spread.ts`. each species ships a `SpeciesSpreadConfig` (`flora/type/<species>/spread.ts`) declaring growth chance, max-per-tick cap, winter dormancy, pollinator-adjacency requirement, and a `selectGrowthTargets(state, patches)` selector. the game loop calls `tickSpeciesSpread(state, time, config)` per species per scheduled interval. species-specific behavior lives only in the configs and selectors; the engine has no species-aware branches.
 
@@ -34,14 +34,14 @@ bees and monarchs carry a `PollenBag` ECS component (`POLLEN_BAG_CAPACITY = 4`, 
 
 note: `src/engine/flora/actions/pollinate.ts` (existing) governs visual pollen-particle drift driven by wind — unrelated to bee-mediated genetic crossing. don't conflate the two.
 
-clover-specific behaviors retained per precis #1:
+clover-specific behaviors retained per RP-1:
 
 - bee + clover recipe ingredient list checks for the `'clover'` item id, not any flora item
 - gron quest gate checks `containerHasItem(state.backpack, 'clover')` specifically
 - monarchs, angels prefer / grow on clover only (filtered via `floraLifecycle.species === 'clover'`)
 - the `floraGrowthPreviews` field only ever contains positions slated to become clover
 
-bees now route by per-tile preference (precis #7) — see `docs/claude/entities.md` for the routing rule and `getTileBeePreference` for the formula.
+bees now route by per-tile preference (RP-7) — see `docs/claude/entities.md` for the routing rule and `getTileBeePreference` for the formula.
 
 ## flora lifecycle
 
@@ -49,4 +49,4 @@ all three flora species share the same six-stage lifecycle. each tile needs ligh
 
 - overworld = light + rain water. cave = no light, no water.
 - brown stage recovers if conditions improve. blinkingRed and beyond = terminal.
-- natural death enriches soil. harvest and cut mechanics were deleted in precis #1 — clover acquisition routes through ruin recovery (precis #5).
+- natural death enriches soil. harvest and cut mechanics were deleted in RP-1 — clover acquisition routes through ruin recovery (RP-5).

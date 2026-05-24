@@ -27,12 +27,12 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 - `wasd` / arrow keys — movement (works with backpack open; closes the system menu; blocked when a text input is focused)
 - `shift` — toggle sprint (double movement speed, works with WASD and click-to-move)
 - `shift + right-click` — queue waypoints onto an existing path (RTS-style)
-- `f` — tap to interact: advance dialog, talk to adjacent character (coyote selects unit; first interaction with an angel stores its canto), unlock a facing locked door (or open the locked-gate dialog if no key), break a facing cave breakable wall, clear facing ruin debris. tap also doubles as the divination toss / result-close key inside `HexagramPanel`. hold to scan a flora / egregore / oak target with the permacomputer (precis #6).
+- `f` — tap to interact: advance dialog, talk to adjacent character (coyote selects unit; first interaction with an angel stores its canto), unlock a facing locked door (or open the locked-gate dialog if no key), break a facing cave breakable wall, clear facing ruin debris. tap also doubles as the divination toss / result-close key inside `HexagramPanel`. hold to scan a flora / egregore / oak target with the permacomputer (RP-6).
 - `x` — drop the currently hovered backpack item to the ground. only fires when an item is hovered in the pack. blocked during drag.
 - `tab` — toggle the prairie manual (blocked during deep-time Burning / Simulating)
 - `c` — toggle the divination screen. overworld only. blocked during dialog, while the system menu is open, and during deep-time Burning / Simulating.
 - `esc` — close active dialog, then close active screen, then open the system menu (hierarchical cascade)
-- `1` / `2` — overlay modes per precis #17 (Default / Family Tree). `3` is reserved.
+- `1` / `2` — overlay modes per RP-17 (Default / Family Tree). `3` is reserved.
 - `` ` `` — toggle dev panel (dev mode only). while open, all other game keys are blocked except backtick (close) and Escape (close).
 
 while a text input (`INPUT` / `TEXTAREA`) has focus, only `Escape` and `Tab` reach the game layer. Shift, WASD, and every other key go to the input field.

@@ -22,7 +22,7 @@ const placeFloraAt = (state: GameState, x: number, y: number, species: FloraSpec
   )
 }
 
-describe('resolvePhenotypeLabel (precis #4)', () => {
+describe('resolvePhenotypeLabel (RP-4)', () => {
   it('returns null when no flora species is discovered', () => {
     const state = createTestState()
     const result = resolvePhenotypeLabel(state, 0)

@@ -1,4 +1,4 @@
-// Precis #4 — The Revery summary overlay.
+// RP-4 — The Revery summary overlay.
 //
 // Renders bilingual ASCII + Voynich change log when state.revery.summaryReady
 // is true and state.revery.phase is Summary. Dismissed by any keypress

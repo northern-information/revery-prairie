@@ -28,7 +28,7 @@ const setupWinterOverworld = (state: GameState): void => {
   clearAroundPlayer(state, 6)
 }
 
-describe('tickEgregoreSpread — gating (precis #8b)', () => {
+describe('tickEgregoreSpread — gating (RP-8b)', () => {
   it('does not spread when season is not Winter', () => {
     const state = createTestState()
     setupWinterOverworld(state)
@@ -88,7 +88,7 @@ describe('tickEgregoreSpread — gating (precis #8b)', () => {
   })
 })
 
-describe('tickEgregoreSpread — throttle (precis #8b)', () => {
+describe('tickEgregoreSpread — throttle (RP-8b)', () => {
   it('spreads at most once per in-game year', () => {
     const state = createTestState()
     setupWinterOverworld(state)
@@ -112,7 +112,7 @@ describe('tickEgregoreSpread — throttle (precis #8b)', () => {
   })
 })
 
-describe('tickEgregoreSpread — placement (precis #8b)', () => {
+describe('tickEgregoreSpread — placement (RP-8b)', () => {
   it('places 1 or 2 tiles per spread', () => {
     const state = createTestState()
     setupWinterOverworld(state)
@@ -159,7 +159,7 @@ describe('tickEgregoreSpread — placement (precis #8b)', () => {
   })
 })
 
-describe('tickEgregoreSpread — invisible pollinator (precis #8b)', () => {
+describe('tickEgregoreSpread — invisible pollinator (RP-8b)', () => {
   it('does not spawn any pollen particles', () => {
     const state = createTestState()
     setupWinterOverworld(state)

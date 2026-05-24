@@ -1,4 +1,4 @@
-// Precis #4 — The Revery.
+// RP-4 — The Revery.
 //
 // Long-form ceremonial phase: omen-triggered entry, hard input lock, world
 // ticks through compressed-time winter, bilingual ASCII + Voynich summary,
@@ -6,7 +6,7 @@
 //
 // Phase machine: Omen → Observing → Summary → Closing → null.
 //
-// See harness/specs/precis-4-the-revery.yaml for the locked behaviors and
+// See harness/specs/RP-4-the-revery.yaml for the locked behaviors and
 // docs/claude/revery.md for the full doctrine summary.
 
 import { updateCamera } from './camera'
@@ -105,7 +105,7 @@ export const initiateRevery = (state: GameState, time: number, omenKind: OmenKin
 // gameLoop schedule, so the world genuinely passes through the winter.
 const REVERY_DURATION_YEARS = 1.0
 
-// Precis #32 — summons-sequence helper. When a Revery enters via the
+// RP-32 — summons-sequence helper. When a Revery enters via the
 // pressure-ceiling path (state.revery.summons === true), the Omen → Observing
 // transition runs this sequence before the standard transition logic. The
 // steward's tile is captured for the Closing-phase egregoric commit; Gron
@@ -116,7 +116,7 @@ const REVERY_DURATION_YEARS = 1.0
 const runSummonsSequence = (state: GameState, r: ReveryState): void => {
   if (r.summons !== true) return
   // Capture the steward's tile before any state mutation.
-  // Precis #33 — only meaningful when the steward is on the overworld at
+  // RP-33 — only meaningful when the steward is on the overworld at
   // Omen. If they're already inside the house (confirm-in-house path),
   // there is no overworld collapse tile to commit at Closing.
   const collapseTile = { x: state.player.x, y: state.player.y }
@@ -161,12 +161,12 @@ const runSummonsSequence = (state: GameState, r: ReveryState): void => {
   }
 }
 
-// Precis #33 — the Revery scene is always the house interior. Called at
+// RP-33 — the Revery scene is always the house interior. Called at
 // the Omen → Observing transition. Performs an immediate synchronous
 // zone swap if the steward is not already inside; then repositions the
 // steward to the bed and Emily to her chair. The existing fade between
 // Omen and Observing covers the visual gap. The collapse tile field
-// from precis #32 is preserved on r.summonsCollapseTile so Closing can
+// from RP-32 is preserved on r.summonsCollapseTile so Closing can
 // commit on the overworld map regardless of where the player ended up.
 const transitionToHouseScene = (state: GameState): void => {
   // Skip cleanly if the house buffers aren't initialized (defensive —
@@ -209,7 +209,7 @@ const transitionToHouseScene = (state: GameState): void => {
   updateCamera(state)
 }
 
-// Precis #39 — Post-Revery memory softening. On Revery exit the overworld
+// RP-39 — Post-Revery memory softening. On Revery exit the overworld
 // fullyDiscovered set drains so the walk back out of the little house has
 // shape again. overworldFogExplored is untouched — lived history persists,
 // memory dims. Cave memory is out of scope.
@@ -217,7 +217,7 @@ const applyPostReveryMemorySoftening = (state: GameState): void => {
   state.overworldFogDiscovered.clear()
 }
 
-// Precis #33 — Closing-phase revert. Restore Emily to her idle position
+// RP-33 — Closing-phase revert. Restore Emily to her idle position
 // and reset emilyInvitation so she can offer again next autumn. Steward
 // stays on the bed and walks off at their pace.
 const revertHouseScene = (state: GameState): void => {
@@ -241,17 +241,17 @@ const revertHouseScene = (state: GameState): void => {
 }
 
 // Per-frame state machine. Called by gameLoop AFTER the dormancy-pressure
-// tick (precis #32) and BEFORE input handlers, so the Omen → Observing
+// tick (RP-32) and BEFORE input handlers, so the Omen → Observing
 // transition is reflected before movePlayer / keyboard tick this frame.
 export const tickRevery = (state: GameState, _dt: number, time: number): void => {
   const r = state.revery
   if (!r?.active) return
 
   if (r.phase === ReveryPhase.Omen) {
-    // Precis #32 — summons sequence runs BEFORE the standard phase flip so
+    // RP-32 — summons sequence runs BEFORE the standard phase flip so
     // that getGronDialog sees phase === Omen when the dialog opens.
     runSummonsSequence(state, r)
-    // Precis #33 — Revery scene is always the little house. Skip the
+    // RP-33 — Revery scene is always the little house. Skip the
     // scene swap for non-summons Reveries (only used by legacy test
     // paths; production code only enters Revery via summons).
     if (r.summons === true) {
@@ -278,12 +278,12 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
       // pair for the most-discovered species. Re-resolving the same pair
       // OVERWRITES the prior verdict — no duplicates per pair.
       resolveAndCommitPhenotype(state, r)
-      // Egregoric advance. Precis #8b refactored this — the function
+      // Egregoric advance. RP-8b refactored this — the function
       // is always called, and the count varies by state.reveryCount:
-      // first Revery places 3 (preserves precis-4 contract); subsequent
+      // first Revery places 3 (preserves RP-4 contract); subsequent
       // Reveries place 6–9. state.reveryCount increments in Closing, so
       // it reflects the *current* Revery here.
-      // Precis #33 — state.map points at the house interior during the
+      // RP-33 — state.map points at the house interior during the
       // Revery scene. The egregoric advance operates on the OVERWORLD
       // map (it reads/writes existing egregore positions across the
       // prairie). Swap to overworldMap for the call, then restore.
@@ -308,9 +308,9 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
   if (r.phase === ReveryPhase.Closing) {
     state.reveryCount += 1
     state.lastReveryEndTime = time
-    // Precis #32 — Closing-phase egregoric commit. The collapse tile
+    // RP-32 — Closing-phase egregoric commit. The collapse tile
     // was captured at Omen on whatever map was active then; we must
-    // commit on the OVERWORLD map (precis #33 — when the steward
+    // commit on the OVERWORLD map (RP-33 — when the steward
     // confirms inside the house, the captured tile is on the house
     // floor and is silently skipped here; when the field-summons path
     // fires, the captured tile is on the overworld and is committed).
@@ -331,10 +331,10 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
         state.mapHeight = savedH
       }
     }
-    // Precis #33 — restore Emily to her idle position; reset
+    // RP-33 — restore Emily to her idle position; reset
     // emilyInvitation so the cycle can repeat next autumn.
     revertHouseScene(state)
-    // Precis #32 — pressure reset. Belt-and-suspenders with the Autumn →
+    // RP-32 — pressure reset. Belt-and-suspenders with the Autumn →
     // Winter safety reset in gameLoop. dormancyPressure must zero out so
     // the next autumn starts from baseline.
     state.dormancyPressure = 0
@@ -348,7 +348,7 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
 }
 
 // The egregoric advance logic moved to src/engine/egregore/spread.ts so
-// the stewardship-time and Revery-time paths share helpers (precis #8b).
+// the stewardship-time and Revery-time paths share helpers (RP-8b).
 
 // Resolve the per-Revery phenotype label and commit it to state.revealedPhenotypes.
 // Mutates revery.scheduledChanges to add the phenotype-revealed change record.

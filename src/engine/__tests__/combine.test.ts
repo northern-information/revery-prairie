@@ -93,7 +93,7 @@ describe('checkCombine', () => {
 })
 
 describe('combineFromBackpack', () => {
-  it('returns true and seeds a single clover at the player position (precis-17 ceremony)', () => {
+  it('returns true and seeds a single clover at the player position (RP-17 ceremony)', () => {
     const state = createTestState()
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)

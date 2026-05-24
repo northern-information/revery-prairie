@@ -1,7 +1,7 @@
-// Precis #8b — Egregoric flora (mechanical biome).
+// RP-8b — Egregoric flora (mechanical biome).
 //
 // Parallel genome type for egregoric flora. Distinct from the native
-// `TraitBag` shape from precis #3: egregores have trait axes natives lack
+// `TraitBag` shape from RP-3: egregores have trait axes natives lack
 // (allelopathy, spreadVelocity), and the `__kind` discriminator lets
 // `canCross` reject native × egregore pairs at the type-shape level. This
 // is the v3 doctrine "the cosmological boundary rendered as data shape."

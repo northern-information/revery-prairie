@@ -1,6 +1,6 @@
-// Precis #8b — shared position helpers for the egregoric biome.
+// RP-8b — shared position helpers for the egregoric biome.
 //
-// Extracted from src/engine/revery.ts (precis #4) so both the stewardship-
+// Extracted from src/engine/revery.ts (RP-4) so both the stewardship-
 // winter spread tick and the Revery-time advance can share the same
 // candidate-enumeration logic. The trailCentroid + Manhattan-sort logic
 // stays in revery.ts since it's revery-specific.
