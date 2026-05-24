@@ -71,6 +71,38 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
+  - id: oak-seeding-reads-overworld-map
+    description: >
+      seedOaks and isValidOakPosition read state.overworldMap /
+      state.overworldMapWidth / state.overworldMapHeight directly,
+      NOT the active state.map / state.mapWidth / state.mapHeight
+      pair. Precis-33 placed the player inside the house at tenure
+      start, so when seedOaks runs at the genesis → gameplay handoff
+      via finalizeGenesisHandoff, state.map points at the 15 × 9
+      house interior. Reading the active map would produce
+      out-of-bounds indices and reject every candidate. By dereferencing
+      the overworld buffers directly, oak placement remains a pure
+      overworld operation regardless of which zone the player happens
+      to be in. The clearance check that previously called
+      `tooCloseToSpawnOrGron` is renamed to `tooCloseToHouseOrGron`
+      and measures distance to state.houseEntranceOverworld instead
+      of state.player — the house entrance is the durable overworld
+      anchor for "where the player will be when they walk out,"
+      whereas state.player at seeding time points at an interior
+      tile and would give a useless clearance.
+    inputs:
+      - 'seedOaks(state, time) called during finalizeGenesisHandoff'
+      - 'state.overworldMap / overworldMapWidth / overworldMapHeight populated'
+      - 'state.houseEntranceOverworld populated'
+    outputs:
+      - 'every spawnOak call places onto the overworld map'
+      - 'no candidate anchor is rejected purely for being out of bounds on the active map'
+      - 'clearance ring centers on state.houseEntranceOverworld, not state.player'
+    state_changes:
+      - field: 'overworld entity placements'
+        effect: 'OAK_GENESIS_COUNT oaks scattered across the overworld with the documented clearance constraints'
+    determinism: probabilistic
+
   - id: schema-test-allows-no-new-gamestate-field
     description: >
       No new top-level GameState field is added by this feature. The

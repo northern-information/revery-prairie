@@ -13,6 +13,15 @@ import type { GameState } from './types'
 // ruin track does not bleed through when the player is in the overworld
 // (and vice versa).
 export const tickProximityMusic = (state: GameState): void => {
+  // During genesis the player is sitting at the overworld map center
+  // next to Gron — close enough that his proximity track would play
+  // over the genesis ambient. The cinematic shouldn't have NPC music.
+  // Skip proximity while genesis is mid-playback; the regular ambient
+  // (overworld.mp3) plays unobstructed.
+  if (state.genesis) {
+    updateProximityMusic([])
+    return
+  }
   const samples: ProximityEmitterSample[] = []
   const px = state.player.x
   const py = state.player.y

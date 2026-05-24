@@ -20,7 +20,7 @@ describe('precis #33 — the little house and Emily', () => {
     const state = setup()
     expect(state.currentZone).toBe(Zone.HouseInterior)
     expect(state.player).toEqual(state.houseEntranceInterior)
-    expect(state.playerFacing).toBe('up')
+    expect(state.playerFacing).toBe('left')
   })
 
   it('GameState shape includes the new house + Emily fields; playerSpawn is gone', () => {

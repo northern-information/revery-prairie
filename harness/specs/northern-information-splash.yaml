@@ -85,20 +85,37 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: pointer-events-block-underlying-input-during-splash
+  - id: click-or-key-skips-splash
     description: >
-      The splash root uses `pointer-events: auto` (the default — no
-      `pointer-events-none` class) so clicks and key events that
-      would otherwise reach the `NamePrompt` input or
-      `NetworkConnect` controls die at the splash backdrop. The
-      splash itself has no click/key handlers. This prevents the
-      player from typing their steward name while the colophon is
-      still on screen.
+      The splash root carries `cursor-pointer` and a click handler;
+      a document-level `keydown` listener is registered for the
+      lifetime of the component. Either a click on the backdrop
+      OR any keydown immediately starts the splash fade-out (via
+      `onFadeOutStart`) and then fires `onComplete` so the splash
+      unmounts — short-circuiting the triangle-wave timer. The skip
+      idempotency is enforced by `completedRef`: once skip has
+      fired, additional clicks or keydowns are no-ops. The same
+      gesture also primes the AudioContext via the
+      first-gesture-primer in audio-system, so genesis ambient
+      becomes audible from this same first interaction. Underlying
+      controls (NamePrompt input, NetworkConnect buttons) do not
+      receive the skip gesture because the splash backdrop sits
+      above them (z-50, pointer-events: auto) — the click is
+      consumed by the backdrop handler, not the underlying form.
+      Once the splash unmounts, focus and pointer events reach the
+      underlying form normally.
     inputs:
-      - 'user clicks or types while splash opacity > 0'
+      - 'user clicks anywhere on the splash backdrop'
+      - 'user presses any key while the splash is visible'
     outputs:
-      - 'NamePrompt input does not receive focus or keystrokes; NetworkConnect buttons do not fire'
-    state_changes: []
+      - 'onFadeOutStart and onComplete fire exactly once'
+      - 'splash unmounts'
+      - 'audio context is primed via the audio-system first-gesture-primer'
+    state_changes:
+      - field: 'completedRef.current'
+        effect: 'set to true on first skip; subsequent gestures are no-ops'
+      - field: 'fadeOutStartedRef.current'
+        effect: 'set to true on first skip; onFadeOutStart fires exactly once'
     determinism: deterministic
 
   - id: splash-plays-once-per-page-load

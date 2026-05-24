@@ -37,6 +37,24 @@ export const NorthernInformationSplash = ({
   const completedRef = useRef(false)
   const imgRef = useRef<HTMLImageElement | null>(null)
 
+  // Click or any key to skip — also primes the audio context (browsers
+  // require a user gesture to unlock playback).
+  useEffect(() => {
+    const skip = (): void => {
+      if (completedRef.current) return
+      if (!fadeOutStartedRef.current) {
+        fadeOutStartedRef.current = true
+        onFadeOutStart()
+      }
+      completedRef.current = true
+      onComplete()
+    }
+    document.addEventListener('keydown', skip, { once: true })
+    return () => {
+      document.removeEventListener('keydown', skip)
+    }
+  }, [onFadeOutStart, onComplete])
+
   useEffect(() => {
     let alive = true
     const loop = (): void => {
@@ -71,11 +89,22 @@ export const NorthernInformationSplash = ({
     if (imgRef.current) imgRef.current.style.visibility = 'hidden'
   }
 
+  const handleClick = (): void => {
+    if (completedRef.current) return
+    if (!fadeOutStartedRef.current) {
+      fadeOutStartedRef.current = true
+      onFadeOutStart()
+    }
+    completedRef.current = true
+    onComplete()
+  }
+
   return (
     <div
       data-panel="northern-information-splash"
-      className="film-grain-overlay-strong fixed inset-0 z-50 flex items-center justify-center bg-black"
+      className="film-grain-overlay-strong fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black"
       style={{ opacity: alpha }}
+      onClick={handleClick}
     >
       <img
         ref={imgRef}

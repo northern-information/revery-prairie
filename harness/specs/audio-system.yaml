@@ -151,6 +151,38 @@ behaviors:
         effect: 'listener function stored for cleanup'
     determinism: deterministic
 
+  - id: first-gesture-primer
+    description: >
+      At module load, before any safeStart call, the audio module
+      registers a document-level pointerdown + keydown listener (both
+      `{ once: true, capture: true }`) that primes the AudioContext
+      on the player's first interaction. The handler creates the
+      context if it has not yet been created, calls
+      audioCtx.resume() when the context is suspended, and fires any
+      queued pendingResume callback so an in-flight track can start
+      without waiting for the next safeStart attempt. The primer
+      self-disarms after firing (via `once: true` plus an internal
+      `audioPrimed` guard) so subsequent gestures pass through
+      unimpeded. Genesis playback requires no input from the player,
+      so without the primer the AudioContext would stay suspended
+      until the player happens to click something in-game — the
+      primer makes the genesis ambient audible from the first
+      gesture (typically dismissing the NorthernInformationSplash).
+      safeStart's per-track resume path remains the fallback for any
+      sequencing that races the primer (e.g. a setAmbient call that
+      fires before any gesture occurs).
+    inputs:
+      - 'audio module loads (imported)'
+      - 'document receives any pointerdown or keydown event'
+    outputs:
+      - 'on first gesture: AudioContext exists and is running; pendingResume callback (if any) has fired'
+    state_changes:
+      - field: '(module) audioPrimed'
+        effect: 'flips false → true on first gesture; the listeners self-remove via { once: true }'
+      - field: '(module) pendingResume'
+        effect: 'cleared by firing the queued callback, if any'
+    determinism: deterministic
+
 edge_cases:
   - id: race-condition-fast-zone-switch
     description: 'player switches zones twice before the first buffer finishes loading'

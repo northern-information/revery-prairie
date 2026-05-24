@@ -65,12 +65,15 @@ const isOakOccupied = (state: GameState, x: number, y: number): boolean => {
 }
 
 export const isValidOakPosition = (state: GameState, anchorX: number, anchorY: number): boolean => {
+  // Oaks live on the overworld map only. state.map may point at the
+  // cave or house interior at the moment of validation (precis #33).
+  const overworld = state.overworldMap
   for (let dy = -OAK_HALF; dy <= OAK_HALF; dy++) {
     for (let dx = -OAK_HALF; dx <= OAK_HALF; dx++) {
       const x = anchorX + dx
       const y = anchorY + dy
-      if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
-      const tile = state.map[y][x].type
+      if (!isInBounds(x, y, state.overworldMapWidth, state.overworldMapHeight)) return false
+      const tile = overworld[y][x].type
       if (!isWalkableTile(tile)) return false
       if (tile === TileType.Sand) return false
       if (isReservedForStructure(tile)) return false
@@ -202,16 +205,19 @@ const tooCloseToExistingOak = (state: GameState, x: number, y: number): boolean 
   return false
 }
 
-// Returns true when the candidate oak anchor is too close to the player spawn
-// or to Gron (the central character). The footprint extends ±1 around the
-// anchor, so the clearance is checked against that extended bound.
-const tooCloseToSpawnOrGron = (state: GameState, x: number, y: number): boolean => {
-  const pdx = Math.abs(x - state.player.x)
-  const pdy = Math.abs(y - state.player.y)
+// Returns true when the candidate oak anchor is too close to Gron (the
+// central character) or to the house entrance. The footprint extends ±1
+// around the anchor, so the clearance is checked against that extended
+// bound. Precis #33 — the player spawns inside the house at tenure
+// start; the overworld anchor we clear around is the house entrance,
+// not state.player.
+const tooCloseToHouseOrGron = (state: GameState, x: number, y: number): boolean => {
+  const pdx = Math.abs(x - state.houseEntranceOverworld.x)
+  const pdy = Math.abs(y - state.houseEntranceOverworld.y)
   if (Math.max(pdx, pdy) < OAK_PLAYER_CLEARANCE) return true
-  // Gron lives at the centre tile of the map (createGameState).
-  const gronX = Math.floor(state.mapWidth / 2)
-  const gronY = Math.floor(state.mapHeight / 2)
+  // Gron lives at the centre tile of the overworld map.
+  const gronX = Math.floor(state.overworldMapWidth / 2)
+  const gronY = Math.floor(state.overworldMapHeight / 2)
   const gdx = Math.abs(x - gronX)
   const gdy = Math.abs(y - gronY)
   if (Math.max(gdx, gdy) < OAK_PLAYER_CLEARANCE) return true
@@ -223,16 +229,18 @@ export const seedOaks = (state: GameState, time: number): number => {
   let attempts = 0
   // Anchor must be at least OAK_HALF tiles from any edge so the footprint
   // stays inside the playable area (avoids isValidOakPosition rejecting on
-  // out-of-bounds and wasting attempts).
+  // out-of-bounds and wasting attempts). Always seed on the overworld
+  // map (state.map may point at the house interior at genesis-handoff
+  // time when called from finalizeGenesisHandoff).
   const xMin = SPACE_BORDER + OAK_HALF
-  const xMax = state.mapWidth - SPACE_BORDER - OAK_HALF - 1
+  const xMax = state.overworldMapWidth - SPACE_BORDER - OAK_HALF - 1
   const yMin = SPACE_BORDER + OAK_HALF
-  const yMax = state.mapHeight - SPACE_BORDER - OAK_HALF - 1
+  const yMax = state.overworldMapHeight - SPACE_BORDER - OAK_HALF - 1
   while (placed < OAK_GENESIS_COUNT && attempts < OAK_GENESIS_ATTEMPTS_MAX) {
     attempts++
     const x = xMin + Math.floor(Math.random() * (xMax - xMin + 1))
     const y = yMin + Math.floor(Math.random() * (yMax - yMin + 1))
-    if (tooCloseToSpawnOrGron(state, x, y)) continue
+    if (tooCloseToHouseOrGron(state, x, y)) continue
     if (tooCloseToExistingOak(state, x, y)) continue
     if (!isValidOakPosition(state, x, y)) continue
     spawnOak(state, x, y, time)

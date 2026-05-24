@@ -3,7 +3,8 @@ import { useEffect, useRef } from 'react'
 import { setAmbient, setAudioEnabled, startDialogMusic, stopAll, stopDialogMusic, ZONE_MUSIC } from '@/engine/audio'
 import { getCharacterDefinition } from '@/engine/characters'
 import { ComponentType } from '@/engine/ecs/types'
-import type { GameState, Zone } from '@/engine/types'
+import { Zone } from '@/engine/types'
+import type { GameState } from '@/engine/types'
 
 // Returns true if the named character's entity carries a MusicEmitter.
 // Dialog music is suppressed for such characters — the proximity track
@@ -22,6 +23,10 @@ export const useMusic = (state: GameState): void => {
   const prevCharIdRef = useRef<string | null>(null)
   const dialogStartedRef = useRef(false)
   const prevEnabledRef = useRef(state.audioEnabled)
+  // Tracks whether genesis was active on the previous render so we can
+  // crossfade the ambient track at the genesis-to-gameplay handoff
+  // (precis #33).
+  const prevGenesisRef = useRef(state.genesis !== null)
 
   useEffect(() => {
     const zone = state.currentZone
@@ -33,8 +38,8 @@ export const useMusic = (state: GameState): void => {
       prevEnabledRef.current = audioEnabled
       setAudioEnabled(audioEnabled)
       if (audioEnabled) {
-        // Restart ambient for current zone
-        setAmbient(ZONE_MUSIC[zone])
+        // Restart ambient for current zone (or overworld during genesis).
+        setAmbient(state.genesis ? ZONE_MUSIC[Zone.Overworld] : ZONE_MUSIC[zone])
       }
     }
 
@@ -44,10 +49,18 @@ export const useMusic = (state: GameState): void => {
       return
     }
 
-    // Handle zone change
-    if (zone !== prevZoneRef.current) {
+    // Precis #33 — during genesis playback the player is conceptually in
+    // the house but the cinematic plays the overworld ambient. Pick
+    // overworld music whenever state.genesis is non-null, regardless of
+    // currentZone. The zone-change effect below still fires at handoff
+    // (state.genesis flips to null), crossfading to the zone track.
+    const wantedAmbient = state.genesis ? ZONE_MUSIC[Zone.Overworld] : ZONE_MUSIC[zone]
+
+    // Handle zone (or genesis-state) change
+    if (zone !== prevZoneRef.current || (state.genesis !== null) !== prevGenesisRef.current) {
       prevZoneRef.current = zone
-      setAmbient(ZONE_MUSIC[zone])
+      prevGenesisRef.current = state.genesis !== null
+      setAmbient(wantedAmbient)
     }
 
     // Handle dialog open/close

@@ -73,9 +73,10 @@ export const useGameEngine = (
     } else {
       gameState ??= createGameState(stewardName, viewportWidth, viewportHeight)
     }
-    // Precis #33 — production hook places the player inside the little
-    // house at tenure start. Tests calling createGameState directly
-    // keep the legacy overworld start so existing assertions hold.
+    // Precis #33 — the player's first spawn is inside the little house.
+    // Fire immediately after createGameState so state.player and
+    // state.currentZone reflect the house from frame 1; genesis renders
+    // its own camera independent of state.player so this is safe.
     enterHouseAtTenureStart(gameState)
     // Precis #33 — the falling-star spawn ceremony was removed; the
     // spring-equinox meteor shower still fires via the cardinal

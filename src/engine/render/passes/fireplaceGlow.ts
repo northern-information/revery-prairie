@@ -34,8 +34,10 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
       const cx = px
       const cy = py - charHeight / 2
       const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius)
-      gradient.addColorStop(0, pulseColor)
-      gradient.addColorStop(0.4, hexWithAlpha(pulseColor, 0.4))
+      // Glow intensity reduced 80% from initial pass — was visually
+      // blinding at full strength. Tweak by adjusting these alpha stops.
+      gradient.addColorStop(0, hexWithAlpha(pulseColor, 0.2))
+      gradient.addColorStop(0.4, hexWithAlpha(pulseColor, 0.08))
       gradient.addColorStop(1, hexWithAlpha(pulseColor, 0))
       ctx.fillStyle = gradient
       ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2)
