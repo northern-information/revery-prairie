@@ -12,16 +12,15 @@ behaviors:
   - id: namespaced-entry-ids
     description: >
       every manual entry id uses sourceKind:name format. items use
-      item:<id>, characters use character:<id>, reveries use
-      revery:<id>, recipes use recipe:<key>, controls use
-      control:<key>, world entities use entity:<id>, zones use
-      zone:<id>, events use event:<id>. genesis uses event:genesis.
-      control entries use sourceKind 'manual-only' (not 'control')
-      because they have no discovery tracking and are always visible.
-      this eliminates ambiguity and aligns entry ids with the existing
-      unlockKey convention.
+      item:<id>, characters use character:<id>, recipes use
+      recipe:<key>, controls use control:<key>, world entities use
+      entity:<id>, zones use zone:<id>, events use event:<id>.
+      genesis uses event:genesis. control entries use sourceKind
+      'manual-only' (not 'control') because they have no discovery
+      tracking and are always visible. this eliminates ambiguity and
+      aligns entry ids with the existing unlockKey convention.
     inputs:
-      - 'ITEM_DEFINITIONS, CHARACTER_DEFINITIONS, REVERY_DEFINITIONS, WORLD_ENTITY_DEFINITIONS, RECIPES, KEYBINDINGS, MANUAL_ONLY_ENTRIES, genesis entry'
+      - 'ITEM_DEFINITIONS, CHARACTER_DEFINITIONS, WORLD_ENTITY_DEFINITIONS, RECIPES, KEYBINDINGS, MANUAL_ONLY_ENTRIES, genesis entry'
     outputs:
       - 'MANUAL_ENTRIES keyed by namespaced ids'
     state_changes: []
@@ -29,15 +28,14 @@ behaviors:
 
   - id: lore-key-alignment
     description: >
-      MANUAL_LORE keys match entry ids exactly. buildReveryEntries
-      looks up MANUAL_LORE[`revery:${def.id}`] (fixing a bug where
-      fire and water lore silently failed because the lookup used
-      bare def.id). all other builders use the same namespaced
-      pattern for their lore lookups.
+      MANUAL_LORE keys match entry ids exactly. each builder looks up
+      MANUAL_LORE[`<sourceKind>:${def.id}`] using the same namespaced
+      pattern that the entry ids use, so lore lookups never silently
+      miss because of a key mismatch.
     inputs:
       - 'MANUAL_LORE object, builder functions'
     outputs:
-      - 'lore correctly resolved for all entries including fire and water reveries'
+      - 'lore correctly resolved for all entries via the namespaced lookup'
     state_changes: []
     determinism: deterministic
 

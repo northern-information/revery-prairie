@@ -161,8 +161,8 @@ behaviors:
     description: >
       All current and future item acquisition paths must call
       spawnPickupBloom. This is a project convention documented in
-      CLAUDE.md. Any new code that adds items to the backpack, grants
-      reveries, or otherwise gives the player something must spawn a
+      CLAUDE.md. Any new code that adds items to the backpack, opens
+      a zone, or otherwise gives the player something must spawn a
       bloom at the player position.
     inputs:
       - 'any new acquisition path added in the future'

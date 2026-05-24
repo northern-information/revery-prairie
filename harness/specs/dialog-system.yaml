@@ -64,7 +64,7 @@ behaviors:
   - id: dialog-advance
     description: >
       advanceDialog(state, time?) handles [f] press during dialog.
-      returns { continuing: boolean; gift: ReveryDefinition | null }.
+      returns { continuing: boolean; gift: GiftAnnouncement | null }.
       if typing is not done, reveals the full line immediately and
       returns { continuing: true, gift: null }. if transitioning,
       ignores the press and returns { continuing: true, gift: null }.
@@ -80,7 +80,7 @@ behaviors:
     inputs:
       - '[f] pressed during active dialog, optional time'
     outputs:
-      - '{ continuing: boolean, gift: ReveryDefinition | null }'
+      - '{ continuing: boolean, gift: GiftAnnouncement | null }'
     state_changes:
       - field: activeDialog
         effect: 'typing completed, or transition started, or set to null'
@@ -93,29 +93,27 @@ behaviors:
       when advanceDialog reaches the last line and closes the dialog,
       it checks the gift state for the character. if giftsReceived
       does not contain the characterId, calls giveCharacterGift to
-      deliver the initial gift and returns { continuing: false,
-      gift: ReveryDefinition | null }. if the initial gift was
+      deliver the initial item gift and returns { continuing: false,
+      gift: GiftAnnouncement | null }. if the initial gift was
       already received and the character has a postGift defined and
       postGiftActionsCompleted does not contain the characterId,
       calls givePostGift and adds characterId to
       postGiftActionsCompleted, returning { continuing: false,
-      gift: ReveryDefinition | null }. if neither condition applies,
+      gift: GiftAnnouncement | null }. if neither condition applies,
       returns { continuing: false, gift: null }.
     inputs:
       - 'dialog reaches last line and closes'
     outputs:
-      - '{ continuing: false, gift: ReveryDefinition | null }'
+      - '{ continuing: false, gift: GiftAnnouncement | null }'
     state_changes:
       - field: activeDialog
         effect: 'set to null'
       - field: giftsReceived
         effect: 'characterId added if initial gift given'
-      - field: reveries
-        effect: 'revery id pushed if gift is a revery'
       - field: postGiftActionsCompleted
         effect: 'characterId added if postGift given'
       - field: manualDiscoveries
-        effect: 'revery and gift event discoveries recorded'
+        effect: 'item gift discoveries recorded'
     determinism: deterministic
 
   - id: dialog-transition
@@ -136,26 +134,28 @@ behaviors:
   - id: character-gift-delivery
     description: >
       giveCharacterGift(state, characterId, time?) checks if the
-      character definition has a gift and if it has not already been
-      received. for revery gifts, pushes the revery id to state.reveries,
-      auto-assigns to the action bar, adds characterId to
-      giftsReceived, records manual discoveries, and spawns a
-      pickupBloom at the player position when time is provided
-      (per universal-pickup-bloom convention). returns the
-      ReveryDefinition or null. called by advanceDialog on dialog
-      completion, not during interactWithCharacter. tracked in
-      state.giftsReceived so each character gives their gift once.
+      character definition has a `gift` of kind 'item' and the gift
+      has not already been received. when both hold, the item is
+      added to the backpack via the standard pickup path, the
+      characterId is added to giftsReceived, the corresponding
+      `item:<id>` discovery is recorded, and a pickupBloom is spawned
+      at the player position when time is provided (per
+      universal-pickup-bloom convention). returns a
+      GiftAnnouncement describing the item, or null when no gift
+      applies. called by advanceDialog on dialog completion, not
+      during interactWithCharacter. tracked in state.giftsReceived
+      so each character delivers their gift once.
     inputs:
-      - 'characterId with a gift defined, gift not yet received, optional time'
+      - 'characterId with an item gift defined, gift not yet received, optional time'
     outputs:
-      - 'ReveryDefinition if gift is a revery, null otherwise'
+      - 'GiftAnnouncement when an item gift was delivered, null otherwise'
     state_changes:
-      - field: reveries
-        effect: 'revery id pushed'
+      - field: backpack
+        effect: 'gift item added'
       - field: giftsReceived
         effect: 'characterId added'
       - field: manualDiscoveries
-        effect: 'revery and gift event discoveries recorded'
+        effect: 'item:<id> recorded for the delivered item'
       - field: world
         effect: 'pickupBloom entity spawned at player position when time is provided'
     determinism: deterministic
@@ -163,23 +163,26 @@ behaviors:
   - id: post-gift-delivery
     description: >
       givePostGift(state, characterId, time?) checks if the character
-      definition has a postGift field. for revery postGifts, pushes
-      the revery id to state.reveries, auto-assigns to the action
-      bar, records manual discoveries, and spawns a pickupBloom at
-      the player position when time is provided. called by
-      advanceDialog on dialog completion when the initial gift has
-      already been received and postGiftActionsCompleted does not
-      contain the characterId. one-time per character via
-      postGiftActionsCompleted.
+      definition has a `postGift` of kind 'item' and the post-gift
+      has not already been delivered (characterId not in
+      postGiftActionsCompleted). when both hold, the item is added to
+      the backpack, characterId is added to postGiftActionsCompleted,
+      the corresponding `item:<id>` discovery is recorded, and a
+      pickupBloom is spawned at the player position when time is
+      provided. called by advanceDialog on dialog completion when
+      the initial gift has already been received. one-time per
+      character via postGiftActionsCompleted.
     inputs:
-      - 'characterId with a postGift defined, postGift not yet completed, optional time'
+      - 'characterId with an item postGift defined, postGift not yet delivered, optional time'
     outputs:
-      - 'ReveryDefinition if postGift is a revery, null otherwise'
+      - 'GiftAnnouncement when a post-gift item was delivered, null otherwise'
     state_changes:
-      - field: reveries
-        effect: 'revery id pushed'
+      - field: backpack
+        effect: 'post-gift item added'
+      - field: postGiftActionsCompleted
+        effect: 'characterId added'
       - field: manualDiscoveries
-        effect: 'revery and deep-time event discoveries recorded'
+        effect: 'item:<id> recorded for the delivered item'
       - field: world
         effect: 'pickupBloom entity spawned at player position when time is provided'
     determinism: deterministic

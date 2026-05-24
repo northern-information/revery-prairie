@@ -21,35 +21,24 @@ dependencies:
   - shooting-stars
 
 behaviors:
-  - id: deep-time-revery-definition
+  - id: deep-time-initiation
     description: >
-      new revery registered in REVERIES with id deep-time. castStyle
-      is a new value deepTime. castDurationMs is 0 (effect is
-      immediate — the simulation takes over). cooldownMs is Infinity
-      (one-shot, no recast). glyphs are hourglass-like characters.
-      glyphColor is white.
+      initiateDeepTime(state, time) is the deep-time entry point. it
+      sets state.deepTime.active to true, records the start
+      timestamp, converts the player glyph to ghost glyph (ö) and
+      color to white, disables player movement input (WASD and
+      click-to-move ignored when deepTime phase is burning or
+      simulating — zoom controls remain active), removes all
+      character and ghost entities from the ECS world, and stops
+      meteorite/shooting star spawning. there is no production
+      trigger for initiateDeepTime — the player-cast trigger surface
+      was removed when RP-0-reclaim-revery deleted the action bar.
+      The function is currently invoked only by deep-time tests.
+      Treat the rest of this spec as describing the mechanic that
+      runs once initiateDeepTime is invoked, not a player-facing
+      flow.
     inputs:
-      - 'player equips deep-time revery to action bar and presses slot key'
-    outputs:
-      - 'castStyle deepTime triggers the deep time sequence'
-    state_changes:
-      - field: manualDiscoveries
-        effect: 'revery:deep-time recorded'
-    determinism: deterministic
-
-  - id: deep-time-cast-initiation
-    description: >
-      when the player casts the deep-time revery, the game enters deep
-      time mode. the cast handler in actionBar.ts detects castStyle
-      deepTime and calls initiateDeepTime(state). this function sets
-      state.deepTime.active to true, records the start timestamp,
-      converts the player glyph to ghost glyph (ö) and color to white,
-      disables player movement input (WASD and click-to-move ignored
-      when deepTime phase is burning or simulating — zoom controls
-      remain active), removes all character and ghost entities from
-      the ECS world, and stops meteorite/shooting star spawning.
-    inputs:
-      - 'player activates action bar slot containing deep-time revery'
+      - 'initiateDeepTime(state, time) is called'
     outputs:
       - 'player rendered as ghost glyph ö in white'
       - 'all characters and ghosts removed from map'
@@ -71,8 +60,6 @@ behaviors:
         effect: 'set to null'
       - field: path
         effect: 'set to null'
-      - field: actionBar
-        effect: 'all slots cleared (no more casting)'
     determinism: deterministic
 
   - id: deep-time-burning-phase
@@ -211,27 +198,10 @@ behaviors:
         effect: 'new field on GameState, null by default'
     determinism: deterministic
 
-  - id: deep-time-manual-entry
-    description: >
-      deep-time revery auto-generates a manual entry via existing
-      ITEM_DEFINITIONS/REVERY_DEFINITIONS registry. a manual-only entry
-      for the deep time event is added to MANUAL_ONLY_ENTRIES.
-    inputs:
-      - 'player casts the deep-time revery'
-    outputs:
-      - 'manual entry visible in prairie manual'
-    state_changes:
-      - field: manualDiscoveries
-        effect: 'event:deep-time recorded on cast'
-    determinism: deterministic
-
 edge_cases:
-  - id: cast-in-cave
-    description: 'player casts deep-time revery while in the cave zone'
+  - id: initiate-in-cave
+    description: 'initiateDeepTime is called while the player is in the cave zone'
     expected: 'deep time initiates normally. cave map is the active map during simulation. overworld map also simulates via dual-zone tick system.'
-  - id: deep-time-revery-dropped-on-ground
-    description: 'player drops the deep-time revery item without casting it'
-    expected: 'revery becomes a ground item. player can pick it up later.'
   - id: sparse-clover-survives-burn
     description: 'isolated clover patches far from ignition points survive the initial burn phase'
     expected: 'fire only reaches clover within wildfire BFS range of ignition points. distant clover survives to face the 1000-year simulation.'
@@ -249,10 +219,8 @@ edge_cases:
     expected: 'zoom works normally so player can watch simulation at different scales'
 
 failure_conditions:
-  - trigger: 'deep-time revery cast while deepTime is already active'
-    expected: 'no-op. action bar is cleared on initiation so this cannot happen in normal play.'
-  - trigger: 'player somehow has no deep-time revery (e.g. test setup)'
-    expected: 'standard action bar validation prevents casting an unequipped revery'
+  - trigger: 'initiateDeepTime called while deepTime is already active'
+    expected: 'no-op — the function early-returns when state.deepTime.active is already true'
   - trigger: 'game loop ticks during deep time with destroyed character entities'
     expected: 'character behavior tick skips gracefully when no characters exist in ECS'
 
