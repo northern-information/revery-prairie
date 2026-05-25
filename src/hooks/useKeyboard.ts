@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
@@ -48,16 +48,24 @@ export const useKeyboard = ({
 }: UseKeyboardOptions) => {
   const [activeScreen, setActiveScreenRaw] = useState<PermacomputerScreen>(null)
 
+  // Read the mutable singleton through a ref per CLAUDE.md convention.
+  // `state` itself is stable across renders, but the ref makes the handlers
+  // tolerant to any future change that breaks that guarantee, and lets the
+  // callbacks omit `state` from their dep arrays.
+  const stateRef = useRef(state)
+  stateRef.current = state
+
   const setActiveScreen = useCallback(
     (screen: PermacomputerScreen | ((prev: PermacomputerScreen) => PermacomputerScreen)) => {
-      state.panelOpenMoveCount = 0
+      stateRef.current.panelOpenMoveCount = 0
       setActiveScreenRaw(screen)
     },
-    [state]
+    []
   )
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      const state = stateRef.current
       // When a text input has focus, only allow Escape and Tab through
       const tag = (document.activeElement as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA') {
@@ -339,11 +347,12 @@ export const useKeyboard = ({
         }
       }
     },
-    [state, refreshUI, activeScreen, setActiveScreen, itemInfoRef, isDraggingRef]
+    [refreshUI, activeScreen, setActiveScreen, itemInfoRef, isDraggingRef]
   )
 
   const handleKeyUp = useCallback(
     (e: KeyboardEvent) => {
+      const state = stateRef.current
       // RP-6 — scan-result modal owns input; gameplay keyup logic
       // is suppressed while the modal is open.
       if (activeScreen === 'scan-result') return
@@ -364,7 +373,7 @@ export const useKeyboard = ({
         }
       }
     },
-    [state, refreshUI, activeScreen]
+    [refreshUI, activeScreen]
   )
 
   useEffect(() => {

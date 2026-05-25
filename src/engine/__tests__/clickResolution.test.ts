@@ -1,10 +1,6 @@
 import { expandClickTile, tileHasClickable } from '../clickResolution'
 import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
+import { describe, expect, it } from 'vitest'
 
 describe('tileHasClickable', () => {
   it('returns true for the player tile', () => {

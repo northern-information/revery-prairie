@@ -1296,18 +1296,23 @@ const readSource = async (relativePath: string): Promise<string> => {
 
 describe('phase-based system filtering', () => {
   it('no genesis guards remain in game loop system bodies', async () => {
-    const source = await readSource('../gameLoop.ts')
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const systemsDir = path.resolve(__dirname, '../systems')
+    const files = fs.readdirSync(systemsDir).filter(f => f.endsWith('.ts'))
 
-    const fnBodies = source.split(/\n/)
-    let inGenesisSystem = false
     let genesisGuardCount = 0
+    for (const file of files) {
+      const source = fs.readFileSync(path.join(systemsDir, file), 'utf-8')
+      const lines = source.split(/\n/)
+      let inGenesisSystem = false
+      for (const line of lines) {
+        if (line.includes("id: 'genesis'")) inGenesisSystem = true
+        if (inGenesisSystem && line.includes('},')) inGenesisSystem = false
 
-    for (const line of fnBodies) {
-      if (line.includes("id: 'genesis'")) inGenesisSystem = true
-      if (inGenesisSystem && line.includes('},')) inGenesisSystem = false
-
-      if (!inGenesisSystem && line.includes('if (state.genesis) return')) {
-        genesisGuardCount++
+        if (!inGenesisSystem && line.includes('if (state.genesis) return')) {
+          genesisGuardCount++
+        }
       }
     }
 
@@ -1315,7 +1320,7 @@ describe('phase-based system filtering', () => {
   })
 
   it('TickSystem interface includes phase field', async () => {
-    const source = await readSource('../gameLoop.ts')
+    const source = await readSource('../systems/types.ts')
     expect(source).toContain("phase?: 'genesis' | 'gameplay' | 'always'")
   })
 
