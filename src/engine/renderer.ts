@@ -209,7 +209,6 @@ const _groundItemMap = new Map<string, { definitionId: string; glinting?: boolea
 const _previewMap = new Map<string, { char: string; color: string; isValid: boolean }>()
 const _pathPositions = new Set<string>()
 const _waypointPositions = new Set<string>()
-const _devPaintPositions = new Set<string>()
 const _satelliteMap = new Map<string, { char: string; color: string }>()
 const _satelliteImpactMap = new Map<string, { char: string; color: string }>()
 const _shootingStarMap = new Map<string, { char: string; color: string }>()
@@ -429,7 +428,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   _previewMap.clear()
   _pathPositions.clear()
   _waypointPositions.clear()
-  _devPaintPositions.clear()
   _satelliteMap.clear()
   _satelliteImpactMap.clear()
   _shootingStarMap.clear()
@@ -457,7 +455,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const previewMap = _previewMap
   const pathPositions = _pathPositions
   const waypointPositions = _waypointPositions
-  const devPaintPositions = _devPaintPositions
   const satelliteMap = _satelliteMap
   const satelliteImpactMap = _satelliteImpactMap
   const shootingStarMap = _shootingStarMap
@@ -623,22 +620,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   if (renderPathOverlay) {
     for (const w of state.pathWaypoints) {
       waypointPositions.add(posKey(w.x, w.y))
-    }
-  }
-
-  // Populate dev paint preview positions
-  let devPaintTileType: string | null = null
-  if (state.devPaintPreview) {
-    const { x1, y1, x2, y2 } = state.devPaintPreview
-    const minX = Math.max(0, Math.min(x1, x2))
-    const maxX = Math.min(state.mapWidth - 1, Math.max(x1, x2))
-    const minY = Math.max(0, Math.min(y1, y2))
-    const maxY = Math.min(state.mapHeight - 1, Math.max(y1, y2))
-    devPaintTileType = state.devPaintPreview.tileType ?? null
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        devPaintPositions.add(posKey(x, y))
-      }
     }
   }
 
@@ -1550,32 +1531,11 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         }
       }
 
-      // Dev paint preview: show target tile type with pink background
-      if (devPaintPositions.has(tileKey)) {
-        if (devPaintTileType) {
-          char = TILE_CHARS[devPaintTileType as keyof typeof TILE_CHARS] ?? '?'
-          color = TILE_COLORS[devPaintTileType as keyof typeof TILE_COLORS] ?? '#ffffff'
-        }
-        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, ACTION_COLOR)
-        ctx.fillStyle = color
-        ctx.fillText(char, px, pyLift)
-        continue
-      }
-
-      // Dev entity preview: show glyph with pink background at hovered tile
-      if (mx === state.devEntityPreview?.x && my === state.devEntityPreview?.y) {
-        drawCellHighlight(ctx, px, pyLift, charWidth, charHeight, ACTION_COLOR)
-        ctx.fillStyle = state.devEntityPreview.color
-        ctx.fillText(state.devEntityPreview.char, px, pyLift)
-        continue
-      }
-
       // Angel group highlight: if cursor or facingEntity is on any tile in this
       // angel's body, highlight ALL body tiles pink
       const angelGroup = angelTileToGroup.get(tileKey)
       const isAngelGroupHighlighted =
         angelGroup !== undefined &&
-        !state.devPanelOpen &&
         (Boolean(state.cursorTile && angelGroup.has(posKey(state.cursorTile.x, state.cursorTile.y))) ||
           Boolean(state.facingEntityPos && angelGroup.has(posKey(state.facingEntityPos.x, state.facingEntityPos.y))) ||
           Boolean(
@@ -1588,7 +1548,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       const oakGroup = oakTileToGroup.get(tileKey)
       const isOakGroupHighlighted =
         oakGroup !== undefined &&
-        !state.devPanelOpen &&
         (Boolean(state.cursorTile && oakGroup.has(posKey(state.cursorTile.x, state.cursorTile.y))) ||
           Boolean(state.facingEntityPos && oakGroup.has(posKey(state.facingEntityPos.x, state.facingEntityPos.y))) ||
           Boolean(
@@ -1598,9 +1557,9 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
       // Resolve highlight state without ctx side effects so the deferred
       // path can capture it and the inline path can apply it.
-      // Invalid preview tiles (e.g. red X for lightning targeting) and the
-      // dev panel suppress entity/target inversion.
-      const highlightSuppressed = (previewTile !== undefined && !previewTile.isValid) || state.devPanelOpen
+      // Invalid preview tiles (e.g. red X for lightning targeting) suppress
+      // entity/target inversion.
+      const highlightSuppressed = previewTile !== undefined && !previewTile.isValid
       const highlight =
         !highlightSuppressed &&
         (isAngelGroupHighlighted || isOakGroupHighlighted || isFacingEntity || isPendingTarget)

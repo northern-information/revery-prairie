@@ -16,7 +16,6 @@ source_files:
   - src/engine/gameLoop.ts
   - src/engine/deepTime.ts
   - src/engine/drag.ts
-  - src/engine/devPanel.ts
   - src/engine/movement.ts
   - src/engine/ecs/types.ts
   - src/engine/render/passes/index.ts

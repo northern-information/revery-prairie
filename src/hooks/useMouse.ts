@@ -161,7 +161,6 @@ export const useMouse = ({
         return
       }
 
-      if (state.devPanelOpen) return
       if (activeScreenRef.current === 'system') return
       if (isDeepTimeLocked(state)) return
       if (isInputGated(state)) return
@@ -207,7 +206,6 @@ export const useMouse = ({
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault()
 
-      if (state.devPanelOpen) return
       if (activeScreenRef.current === 'system') return
       if (isDeepTimeLocked(state)) return
       if (isInputGated(state)) return

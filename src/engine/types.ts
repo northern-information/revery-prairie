@@ -578,9 +578,6 @@ export interface GameState {
   overworldFogDiscovered: Set<string>
   autoHidePanels: boolean
   panelOpenMoveCount: number
-  devPanelOpen: boolean
-  devPaintPreview: { x1: number; y1: number; x2: number; y2: number; tileType: string } | null
-  devEntityPreview: { x: number; y: number; char: string; color: string } | null
   multiplayerSession: MultiplayerSession | null
   remotePlayers: Map<string, RemotePlayer>
   // RP-6 — naturalist's manual scan-to-discover.
