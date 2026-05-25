@@ -11,6 +11,7 @@ import {
   tossThreeCoins,
 } from '@/engine/hexagram'
 import { recordDiscovery } from '@/engine/manual'
+import { playClick, playHover } from '@/engine/sfx'
 import type { CastResult, HexagramDefinition, HexagramLine, LineType } from '@/engine/hexagram'
 import type { GameState } from '@/engine/types'
 
@@ -116,8 +117,10 @@ const HexagramCompendium = ({ state, onBack }: { state: GameState; onBack: () =>
                   isSelected ? 'bg-pink/20 border-pink border' : 'border-border-dim hover:border-pink/50 border'
                 }`}
                 onClick={() => {
+                  playClick()
                   handleSelect(h)
                 }}
+                onMouseEnter={playHover}
                 title={divined ? `#${String(h.id)} ${h.name}` : `#${String(h.id)} ???`}
               >
                 <MiniFigure lines={h.lines} dimmed={!divined} />
@@ -199,6 +202,7 @@ export const HexagramPanel = ({ state, onClose, refreshUI, initialView }: Hexagr
       if (e.key === 'f' || e.key === 'F' || e.key === 'Enter') {
         e.preventDefault()
         e.stopPropagation()
+        playClick()
         if (phase === 'tossing') {
           doToss()
         } else {

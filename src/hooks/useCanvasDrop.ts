@@ -8,6 +8,7 @@ import { removeItem } from '@/engine/inventory'
 import { getBlockedPositions } from '@/engine/movement'
 import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'
+import { playDrop, playPlace } from '@/engine/sfx'
 import { TileType } from '@/engine/types'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from '@/engine/zone'
 import type { DragState } from '@/engine/drag'
@@ -127,6 +128,7 @@ export const useCanvasDrop = ({
           removeItem(container, itemUid)
           placeMeteoriteAt(state, mx, my, performance.now())
           spawnClickTarget(state, mx, my, performance.now())
+          playPlace()
           refreshUI()
           return
         }
@@ -145,6 +147,7 @@ export const useCanvasDrop = ({
           state.world.addComponent(ge, ComponentType.PickupExemption, {})
         }
         spawnClickTarget(state, mx, my, performance.now())
+        playDrop()
         refreshUI()
       }
 

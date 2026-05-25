@@ -1,3 +1,5 @@
+import { playClick, playHover } from '@/engine/sfx'
+
 interface CloseButtonProps {
   onClick: () => void
   label?: string
@@ -7,7 +9,11 @@ export const CloseButton = ({ onClick, label = 'Close' }: CloseButtonProps) => (
   <button
     type="button"
     className="text-dim hover:text-pink absolute top-0 right-0 px-4 py-3 text-sm"
-    onClick={onClick}
+    onClick={() => {
+      playClick()
+      onClick()
+    }}
+    onMouseEnter={playHover}
     aria-label={label}
   >
     x
@@ -53,7 +59,15 @@ export const TextButton = ({
   <button
     type="button"
     className={`${variant === 'primary' ? 'text-text' : 'text-dim'} border-border/50 hover:border-pink hover:text-pink rounded border px-2 py-1 text-left text-xs transition-colors ${className ?? ''}`}
-    onClick={onClick}
+    onClick={() => {
+      if (disabled) return
+      playClick()
+      onClick()
+    }}
+    onMouseEnter={() => {
+      if (disabled) return
+      playHover()
+    }}
     title={title}
     disabled={disabled}
     data-testid={dataTestId}
@@ -75,7 +89,11 @@ export const Tab = ({ active, onClick, children, ...rest }: TabProps) => (
     className={`px-2 py-1.5 text-xs transition-colors ${
       active ? 'bg-pink text-bg' : 'text-dim hover:bg-permacomputer-dim hover:text-text'
     }`}
-    onClick={onClick}
+    onClick={() => {
+      playClick()
+      onClick()
+    }}
+    onMouseEnter={playHover}
     data-testid={rest['data-testid']}
   >
     {children}

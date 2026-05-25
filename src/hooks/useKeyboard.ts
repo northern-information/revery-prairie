@@ -18,6 +18,7 @@ import {
 } from '@/engine/interaction'
 import { recordDiscovery } from '@/engine/manual'
 import { selectScanTarget } from '@/engine/scan'
+import { playClick } from '@/engine/sfx'
 import { DeepTimePhase, OverlayMode, Zone } from '@/engine/types'
 import { isInputGated } from '@/engine/zoneTransition'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
@@ -107,17 +108,21 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, isDraggingRef }: Us
       if (e.key === 'Escape') {
         if (state.activeDialog) {
           state.activeDialog = null
+          playClick()
           refreshUI()
           return
         }
         if (activeScreen === 'system') {
+          playClick()
           setActiveScreen(null)
           return
         }
         if (activeScreen !== null) {
+          playClick()
           setActiveScreen(null)
           return
         }
+        playClick()
         setActiveScreen('system')
         return
       }
@@ -131,6 +136,7 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, isDraggingRef }: Us
         // Divination panel owns [f] for tossing — don't interfere
         if (activeScreen === 'divination') return
         if (state.activeDialog) {
+          playClick()
           advanceDialog(state, performance.now())
           refreshUI()
           return
@@ -231,6 +237,7 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, isDraggingRef }: Us
         e.preventDefault()
         if (activeScreen === 'system') return
         if (deepTimeBlocking) return
+        playClick()
         setActiveScreen(activeScreen === 'manual' ? null : 'manual')
         return
       }
@@ -268,9 +275,11 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, isDraggingRef }: Us
         if (deepTimeBlocking) return
         if (state.currentZone !== Zone.Overworld) return
         if (activeScreen === 'divination') {
+          playClick()
           setActiveScreen(null)
           return
         }
+        playClick()
         setActiveScreen('divination')
         return
       }

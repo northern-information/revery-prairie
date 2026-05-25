@@ -68,6 +68,10 @@ let audioPrimed = false
 const primeAudioOnFirstGesture = (): void => {
   if (audioPrimed) return
   audioPrimed = true
+  // jsdom-based UI tests fire synthetic gestures without a Web Audio
+  // implementation. Skip the prime in that case so the listener doesn't
+  // raise a ReferenceError.
+  if (typeof AudioContext === 'undefined') return
   const audioCtx = getContext()
   if (audioCtx.state === 'suspended') {
     void audioCtx.resume().catch(() => {
@@ -538,6 +542,11 @@ export const setAudioEnabled = (value: boolean): void => {
 // disabled; buffer fetch errors fail silently (same pattern as ambient).
 export const playSfx = (url: string): void => {
   if (!audioEnabled) return
+  // node-based test runs (engine/harness suites) have no Web Audio
+  // implementation. Treat the absence of AudioContext as a no-op so
+  // recipes/components that fire SFX inline can still be exercised
+  // headlessly without each call site needing its own mock.
+  if (typeof AudioContext === 'undefined') return
 
   const audioCtx = getContext()
   // Self-resume the AudioContext if it is still suspended. Without

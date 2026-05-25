@@ -1,6 +1,7 @@
 import { Tab } from './PanelPrimitives'
 
 import { canCast } from '@/engine/hexagram'
+import { playClick, playHover } from '@/engine/sfx'
 import type { GameState } from '@/engine/types'
 import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 
@@ -67,7 +68,11 @@ export const PermacomputerShell = ({
           <button
             type="button"
             className="text-permacomputer hover:text-pink px-2 py-1.5 text-xs transition-colors"
-            onClick={onClose}
+            onClick={() => {
+              playClick()
+              onClose()
+            }}
+            onMouseEnter={playHover}
             title="close permacomputer"
           >
             ⚙
