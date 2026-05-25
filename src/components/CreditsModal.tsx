@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import type { Credit } from '@/engine/credits'
+import { playClick, playHover } from '@/engine/sfx'
 
 interface CreditsModalProps {
   credits: readonly Credit[]
@@ -83,7 +84,11 @@ export const CreditsModal = ({ credits, onClose }: CreditsModalProps) => {
           <button
             type="button"
             className="text-dim hover:text-pink text-sm"
-            onClick={onClose}
+            onClick={() => {
+              playClick()
+              onClose()
+            }}
+            onMouseEnter={playHover}
             aria-label="Close credits"
           >
             x

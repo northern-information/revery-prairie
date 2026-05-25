@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { GelBandView } from './GelBandView'
 
+import { playClick, playHover } from '@/engine/sfx'
 import type { ScannedSpecimen } from '@/engine/types'
 
 interface SpecimenStackProps {
@@ -68,7 +69,13 @@ export const SpecimenStack = ({ specimens, initialIndex }: SpecimenStackProps) =
       <div className="text-dim flex items-center gap-2 text-[10px]" data-testid="specimen-stack-header">
         <button
           type="button"
-          onClick={goPrev}
+          onClick={() => {
+            playClick()
+            goPrev()
+          }}
+          onMouseEnter={() => {
+            if (total > 1) playHover()
+          }}
           disabled={total <= 1}
           className="hover:text-text disabled:opacity-30"
           aria-label="Previous specimen"
@@ -80,7 +87,13 @@ export const SpecimenStack = ({ specimens, initialIndex }: SpecimenStackProps) =
         </span>
         <button
           type="button"
-          onClick={goNext}
+          onClick={() => {
+            playClick()
+            goNext()
+          }}
+          onMouseEnter={() => {
+            if (total > 1) playHover()
+          }}
           disabled={total <= 1}
           className="hover:text-text disabled:opacity-30"
           aria-label="Next specimen"

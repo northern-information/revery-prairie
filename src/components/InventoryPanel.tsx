@@ -4,6 +4,7 @@ import { SectionHeader } from './PanelPrimitives'
 
 import { autoSort } from '@/engine/inventory'
 import { RecipeKind } from '@/engine/recipes'
+import { playClick, playHover } from '@/engine/sfx'
 import { useCanvasDrop } from '@/hooks/useCanvasDrop'
 import { useInventoryDrag } from '@/hooks/useInventoryDrag'
 import type { ItemInfoHandle } from './ItemInfo'
@@ -138,9 +139,11 @@ export const InventoryPanel = ({
           type="button"
           className="text-dim hover:text-pink px-1 text-left"
           onClick={() => {
+            playClick()
             autoSort(state.backpack)
             refreshUI()
           }}
+          onMouseEnter={playHover}
         >
           sort
         </button>

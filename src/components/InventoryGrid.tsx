@@ -4,6 +4,7 @@ import { COIN_DULL_COLOR, COIN_POP_DURATION_MS, INVENTORY_CELL_SIZE } from '@/en
 import { buildOccupancyGrid } from '@/engine/inventory'
 import { getDefinition } from '@/engine/items'
 import { combineIcon } from '@/engine/recipes'
+import { playClick, playHover } from '@/engine/sfx'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { DragState } from '@/engine/drag'
 import type { Container } from '@/engine/types'
@@ -46,6 +47,7 @@ export const InventoryGrid = ({
   containerRef.current = container
   const dragStateRef = useRef(dragState)
   dragStateRef.current = dragState
+  const lastHoverUidRef = useRef<string | null>(null)
 
   const occupancy = buildOccupancyGrid(
     container,
@@ -77,6 +79,7 @@ export const InventoryGrid = ({
       )
       const uid = occ[pos.y]?.[pos.x]
       if (uid) {
+        playClick()
         onStartDrag(uid, containerId)
       }
     },
@@ -112,6 +115,7 @@ export const InventoryGrid = ({
       if (!pos) {
         itemInfoRef.current?.clear()
         onItemHover?.(null)
+        lastHoverUidRef.current = null
         return
       }
 
@@ -122,13 +126,19 @@ export const InventoryGrid = ({
         if (item) {
           itemInfoRef.current?.show(item.definitionId, item.uid)
           onItemHover?.(item.definitionId)
+          if (lastHoverUidRef.current !== uid) {
+            playHover()
+            lastHoverUidRef.current = uid
+          }
         } else {
           itemInfoRef.current?.clear()
           onItemHover?.(null)
+          lastHoverUidRef.current = null
         }
       } else {
         itemInfoRef.current?.clear()
         onItemHover?.(null)
+        lastHoverUidRef.current = null
       }
     },
     [getGridPos, onUpdatePreview, containerId, itemInfoRef, onItemHover]
@@ -149,6 +159,7 @@ export const InventoryGrid = ({
     if (!dragStateRef.current) {
       itemInfoRef.current?.clear()
       onItemHover?.(null)
+      lastHoverUidRef.current = null
     }
   }, [itemInfoRef, onItemHover])
 

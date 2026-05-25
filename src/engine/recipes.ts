@@ -7,6 +7,7 @@ import { removeItem } from './inventory'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { isInBounds, posKey } from './position'
+import { playLoadFilm, playPlace } from './sfx'
 import { FloraSpecies, TileType } from './types'
 
 import type { GameState, Position, WaveEmission } from './types'
@@ -116,6 +117,7 @@ export const RECIPES: Recipe[] = [
       state.activeWaves.push(wave)
 
       spawnBeeOrMonarch(state, cx, cy)
+      playPlace()
       // Note: event:ceremony-cast discovery is recorded by the
       // combine/drag layer (which already imports manual.ts) — keeping
       // it out of recipes.ts avoids the recipes ↔ manual circular import.
@@ -149,6 +151,7 @@ export const RECIPES: Recipe[] = [
       if (filmRemaining > 0) return false
       removeItem(state.backpack, filmRoll.uid)
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
+      playLoadFilm()
       return true
     },
   },

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { SectionHeader } from './PanelPrimitives'
 
+import { playHover } from '@/engine/sfx'
+
 interface CantosScreenProps {
   cantos: string[]
 }
@@ -68,6 +70,7 @@ export const CantosScreen = ({ cantos }: CantosScreenProps) => {
                   }}
                   onMouseEnter={() => {
                     setHoveredIndex(i)
+                    playHover()
                   }}
                   onMouseLeave={() => {
                     setHoveredIndex(null)

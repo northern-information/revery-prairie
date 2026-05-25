@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { TimeLapsePlayback } from './TimeLapsePlayback'
 
 import { identityForFrame } from '@/engine/timeLapse'
+import { playClick, playHover } from '@/engine/sfx'
 import { CameraSubject } from '@/engine/types'
 import type { GameState, TimeLapseFrame } from '@/engine/types'
 
@@ -68,8 +69,10 @@ export const PhotographAlbumPanel = ({ state }: PhotographAlbumPanelProps) => {
                 data-testid={`album-row-${String(i)}`}
                 type="button"
                 onClick={() => {
+                  playClick()
                   setActiveIndex(i)
                 }}
+                onMouseEnter={playHover}
                 className="text-text hover:bg-bee/10 hover:border-bee/40 flex w-full items-center justify-between rounded border border-transparent p-2 text-left"
               >
                 <span className="text-text text-sm">{subjectLabel(frame.subject)}</span>
