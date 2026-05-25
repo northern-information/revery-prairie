@@ -73,22 +73,6 @@ export const useKeyboard = ({
         return
       }
 
-      // Dev panel: backtick toggles, Escape closes, block all other game keys
-      if (state.devPanelOpen) {
-        if (e.key === '`' && import.meta.env.DEV) {
-          state.devPanelOpen = false
-          refreshUI()
-          return
-        }
-        if (e.key === 'Escape') {
-          state.devPanelOpen = false
-          refreshUI()
-          return
-        }
-        // Block all other game controls while dev panel is active
-        return
-      }
-
       if (e.key === 'Shift') {
         state.sprinting = !state.sprinting
         return
@@ -245,13 +229,6 @@ export const useKeyboard = ({
         if (activeScreen === 'system') return
         if (deepTimeBlocking) return
         setActiveScreen(activeScreen === 'manual' ? null : 'manual')
-        return
-      }
-
-      // Toggle dev panel (dev only)
-      if (e.key === '`' && import.meta.env.DEV) {
-        state.devPanelOpen = !state.devPanelOpen
-        refreshUI()
         return
       }
 

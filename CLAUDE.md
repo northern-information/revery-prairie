@@ -28,7 +28,7 @@ use the exact patch version (e.g. `24.13.0`), never a range or major-only (`^24`
 two distinct layers — keep them separate:
 
 - **`src/engine/`** — pure TypeScript. no React imports. mutable game state, canvas rendering, input mapping, camera logic. the rendering target is ASCII-on-iso permanently — no sprite swap planned.
-- **`src/components/` + `src/hooks/`** — React UI. overlays (inventory, dialog, dev panel, bottom bar) and the canvas bridge.
+- **`src/components/` + `src/hooks/`** — React UI. overlays (inventory, dialog, bottom bar) and the canvas bridge.
 
 the canvas runs a `requestAnimationFrame` loop that reads game state by reference. React re-renders on movement and UI interactions via `refreshUI()`.
 

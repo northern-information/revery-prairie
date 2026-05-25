@@ -3,7 +3,6 @@ import { AmbientInstruments } from './AmbientInstruments'
 import { BootTitleCardOverlay } from './BootTitleCardOverlay'
 import { CantosScreen } from './CantosScreen'
 import { CoyoteScreen } from './CoyoteScreen'
-import { DevPanel } from './DevPanel'
 import { DialogBox } from './DialogBox'
 import { DragCursor } from './DragCursor'
 import { GameCanvas } from './GameCanvas'
@@ -246,9 +245,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           viewportWidth={state.viewportWidth}
           viewportHeight={state.viewportHeight}
         />
-      )}
-      {import.meta.env.DEV && state.devPanelOpen && (
-        <DevPanel state={state} refreshUI={refreshUI} metricsRef={metricsRef} />
       )}
       <BootTitleCardOverlay state={state} />
       <ScanProgressBar state={state} activeScreen={activeScreen} />

@@ -33,7 +33,6 @@ left-hand keyboard layout (modern roguelike standard). WASD movement + surroundi
 - `c` — toggle the divination screen. overworld only. blocked during dialog, while the system menu is open, and during deep-time Burning / Simulating.
 - `esc` — close active dialog, then close active screen, then open the system menu (hierarchical cascade)
 - `1` / `2` — overlay modes per RP-17 (Default / Family Tree). `3` is reserved.
-- `` ` `` — toggle dev panel (dev mode only). while open, all other game keys are blocked except backtick (close) and Escape (close).
 
 while a text input (`INPUT` / `TEXTAREA`) has focus, only `Escape` and `Tab` reach the game layer. Shift, WASD, and every other key go to the input field.
 
