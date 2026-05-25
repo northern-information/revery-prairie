@@ -156,7 +156,9 @@ export const useGameEngine = (
       client.off('peer-left', onPeerLeft)
       client.off('status-change', onStatusChange)
     }
-  }, [multiplayer, state, refreshUI])
+    // `state` is the mutable singleton owned by this hook; its identity is
+    // stable across renders, so it does not belong in the dep array.
+  }, [multiplayer, refreshUI])
 
   return {
     state,
