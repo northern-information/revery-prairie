@@ -233,8 +233,7 @@ export const useMouse = ({
       // Shift + right-click chains the new tile onto the existing path as
       // a queued waypoint (RTS-style). Without an existing path, shift
       // behaves the same as a plain right-click.
-      const canChain =
-        e.shiftKey && state.path !== null && state.path.length > 0 && state.pathWaypoints.length > 0
+      const canChain = e.shiftKey && state.path !== null && state.path.length > 0 && state.pathWaypoints.length > 0
       if (canChain) {
         const lastWaypoint = state.pathWaypoints[state.pathWaypoints.length - 1]
         if (lastWaypoint.x === target.x && lastWaypoint.y === target.y) return

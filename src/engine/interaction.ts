@@ -1,6 +1,5 @@
 import { storeAngelCanto } from './angels'
 import { EMILY_DIALOG, getCharacterDefinition, getCharacterDialog } from './characters'
-import { contributeDormancyPressure } from './omen'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { RuinRole } from './genesisTypes'
@@ -8,9 +7,10 @@ import { findFitPosition, placeItem } from './inventory'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
-import { archivePlacedCameraFrames } from './timeLapse'
+import { contributeDormancyPressure } from './omen'
 import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
 import { invalidateMapCache } from './tileBgCache'
+import { archivePlacedCameraFrames } from './timeLapse'
 import { MainQuestPhase, MoabState, Season, TileType, Zone } from './types'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
@@ -330,11 +330,7 @@ export const tickDialogTyping = (state: GameState, now: number): void => {
 
 export { DIALOG_TRANSITION_MS }
 
-export const giveCharacterGift = (
-  state: GameState,
-  characterId: string,
-  _time?: number
-): GiftAnnouncement | null => {
+export const giveCharacterGift = (state: GameState, characterId: string, _time?: number): GiftAnnouncement | null => {
   const def = getCharacterDefinition(characterId)
   if (!def.gift) return null
   if (state.giftsReceived.has(characterId)) return null
@@ -342,11 +338,7 @@ export const giveCharacterGift = (
   return null
 }
 
-export const givePostGift = (
-  _state: GameState,
-  characterId: string,
-  _time?: number
-): GiftAnnouncement | null => {
+export const givePostGift = (_state: GameState, characterId: string, _time?: number): GiftAnnouncement | null => {
   const def = getCharacterDefinition(characterId)
   if (!def.postGift) return null
   // Item postGifts — deferred to a later feature.

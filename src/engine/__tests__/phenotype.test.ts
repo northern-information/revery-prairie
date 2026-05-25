@@ -1,17 +1,22 @@
-import { describe, expect, it } from 'vitest'
-
-import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { FLORA_SPECIES } from '../flora/species'
+import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { resolvePhenotypeLabel } from '../phenotype'
 import { posKey } from '../position'
 import { FloraSpecies, TileType } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState, PhenotypeAxis } from '../types'
 
-const placeFloraAt = (state: GameState, x: number, y: number, species: FloraSpecies, trait: number, axis: PhenotypeAxis = 'bloomTiming'): void => {
+const placeFloraAt = (
+  state: GameState,
+  x: number,
+  y: number,
+  species: FloraSpecies,
+  trait: number,
+  axis: PhenotypeAxis = 'bloomTiming'
+): void => {
   state.map[y][x] = { type: TileType.Flora }
   const identity = generateGenesisIdentity(FLORA_SPECIES[species].latinBinomial, 1, posKey(x, y))
   const traits = generateTraitBag(identity)

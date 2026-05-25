@@ -2,13 +2,11 @@
 // Downloads the kreativekorp Voynich Unicode font (CC0) into
 // public/fonts/voynich.ttf. The font file is gitignored — every contributor
 // runs this once. See docs/claude/egregores.md and public/fonts/README.md.
-
-import { mkdir, writeFile, stat } from 'node:fs/promises'
+import { mkdir, stat, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const FONT_URL =
-  'https://raw.githubusercontent.com/kreativekorp/voynich-unicode/master/Voynich/VoynichUnicode.ttf'
+const FONT_URL = 'https://raw.githubusercontent.com/kreativekorp/voynich-unicode/master/Voynich/VoynichUnicode.ttf'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(here, '..')

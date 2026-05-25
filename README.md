@@ -99,26 +99,26 @@ Start each feature by checking the dashboard's NEXT column, then run `/new-featu
 
 ## Commands
 
-| Command                   | Description                              |
-| ------------------------- | ---------------------------------------- |
-| `npm run dev`             | Start dev server                         |
-| `npm run build`           | Type-check + production build            |
-| `npm run typecheck`       | Type-check only, no build                |
-| `npm run lint`            | ESLint (strict, type-checked)            |
-| `npm run format`          | Prettier write                           |
-| `npm run format:check`    | Prettier check                           |
-| `npm run test`            | Run tests once                           |
-| `npm run test:watch`      | Run tests in watch mode                  |
-| `npm run test:engine`     | Engine tests only                        |
-| `npm run test:components` | Component tests only                     |
-| `npm run test:harness`    | Harness tests only                       |
-| `npm run verify`          | Type-check + lint + test                 |
-| `npm run preview`         | Preview production build                 |
-| `npm run deploy`          | Build + ship to Cloudflare (multiplayer) |
-| `npm run spec:validate`   | Validate harness specs                   |
-| `npm run harness:run`     | Execute a harness plan                   |
-| `npm run harness:check`   | Detect spec-code drift                   |
-| `npm run backlog`         | Terminal kanban for the backlog item backlog   |
+| Command                   | Description                                  |
+| ------------------------- | -------------------------------------------- |
+| `npm run dev`             | Start dev server                             |
+| `npm run build`           | Type-check + production build                |
+| `npm run typecheck`       | Type-check only, no build                    |
+| `npm run lint`            | ESLint (strict, type-checked)                |
+| `npm run format`          | Prettier write                               |
+| `npm run format:check`    | Prettier check                               |
+| `npm run test`            | Run tests once                               |
+| `npm run test:watch`      | Run tests in watch mode                      |
+| `npm run test:engine`     | Engine tests only                            |
+| `npm run test:components` | Component tests only                         |
+| `npm run test:harness`    | Harness tests only                           |
+| `npm run verify`          | Type-check + lint + test                     |
+| `npm run preview`         | Preview production build                     |
+| `npm run deploy`          | Build + ship to Cloudflare (multiplayer)     |
+| `npm run spec:validate`   | Validate harness specs                       |
+| `npm run harness:run`     | Execute a harness plan                       |
+| `npm run harness:check`   | Detect spec-code drift                       |
+| `npm run backlog`         | Terminal kanban for the backlog item backlog |
 
 ## License
 

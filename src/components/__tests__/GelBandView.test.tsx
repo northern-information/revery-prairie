@@ -144,9 +144,7 @@ describe('GelBandView', () => {
         const offsets: number[] = []
         for (let r = 0; r < HEX_GRID_SIZE; r++) {
           for (let c = 0; c < HEX_GRID_SIZE; c++) {
-            const cell = container.querySelector<HTMLElement>(
-              `[data-testid="gel-band-cell-${String(r)}-${String(c)}"]`,
-            )
+            const cell = container.querySelector<HTMLElement>(`[data-testid="gel-band-cell-${String(r)}-${String(c)}"]`)
             if (cell) offsets.push(parseFloat(cell.style.marginLeft))
           }
         }

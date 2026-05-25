@@ -8,19 +8,18 @@ import {
 } from '../../constants'
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey } from '../../position'
-
-import type { GenesisEpoch, GenesisMeteorStreak, GenesisSimState } from '../../genesisTypes'
-
 import {
   BRIGHT_GREEN_COLORS,
+  clamp,
   DIRT_COLORS,
   GREEN_COLORS,
-  clamp,
   renderLowlandWater,
   renderSpace,
   renderVegetation,
   tileHash,
 } from '../shared'
+
+import type { GenesisEpoch, GenesisMeteorStreak, GenesisSimState } from '../../genesisTypes'
 
 /** Generate a meteorite streak targeting a specific land position. */
 const createMeteorStreak = (

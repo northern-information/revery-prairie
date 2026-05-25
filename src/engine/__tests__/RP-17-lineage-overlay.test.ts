@@ -11,14 +11,13 @@
 //     entry.identity.slice(0, 8))
 
 import { commitFloraPreviews } from '../flora/spread'
-import { setMapTile } from '../map'
-import { posKey } from '../position'
 import { getGrowthPreviewSet } from '../floraGrowthPreviews'
 import { generateGenesisIdentity, generateTraitBag } from '../genetics'
+import { setMapTile } from '../map'
+import { posKey } from '../position'
 import { FloraSpecies, OverlayMode, TileType } from '../types'
-
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearArea, createTestState } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { describe, expect, it } from 'vitest'
 
 const placeFlora = (
@@ -26,13 +25,10 @@ const placeFlora = (
   x: number,
   y: number,
   species: FloraSpecies,
-  identitySuffix?: string,
+  identitySuffix?: string
 ): void => {
   setMapTile(state, x, y, { type: TileType.Flora })
-  state.floraLifecycle.set(
-    posKey(x, y),
-    createTestFloraEntry({ posKey: identitySuffix ?? posKey(x, y), species }),
-  )
+  state.floraLifecycle.set(posKey(x, y), createTestFloraEntry({ posKey: identitySuffix ?? posKey(x, y), species }))
 }
 
 describe('overlayMode default', () => {

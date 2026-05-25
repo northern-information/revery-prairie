@@ -20,19 +20,18 @@
 // If this test gets noisy on CI, raise the budget rather than skip the
 // test — it's the only guard against accidental algorithmic blow-up.
 
+import { tickPollination } from '../beePollination'
+import { tickSpeciesSpread } from '../flora/spread'
 import { CLOVER_SPREAD_CONFIG } from '../flora/type/clover/spread'
 import { TALLGRASS_SPREAD_CONFIG } from '../flora/type/tallGrass/spread'
 import { WILDFLOWER_SPREAD_CONFIG } from '../flora/type/wildflower/spread'
-import { tickPollination } from '../beePollination'
 import { tickFloraLifecycle } from '../floraLifecycle'
 import { tickFloraWaves } from '../floraWaves'
-import { tickSpeciesSpread } from '../flora/spread'
 import { setMapTile } from '../map'
 import { posKey } from '../position'
 import { FloraSpecies, TileType, Zone } from '../types'
-
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { createBeeEntity, createBeehiveEntity, createTestState } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { describe, expect, it } from 'vitest'
 
 // Smaller fixture than the spec's 5000 flora / 200 ticks. The spec's

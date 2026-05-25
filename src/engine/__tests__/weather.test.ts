@@ -385,7 +385,7 @@ describe('seasonal wash', () => {
 
   it('SEASON_WASH_ANCHORS holds exactly four entries at distinct cardinal phases', () => {
     expect(SEASON_WASH_ANCHORS).toHaveLength(4)
-    const phases = SEASON_WASH_ANCHORS.map((a) => a.phase)
+    const phases = SEASON_WASH_ANCHORS.map(a => a.phase)
     expect(phases).toEqual([0.0, 0.25, 0.5, 0.75])
   })
 

@@ -3,7 +3,6 @@ import { ComponentType } from '../ecs/types'
 import { createGameLoop } from '../gameLoop'
 import { posKey } from '../position'
 import { FloraSpecies, TileType, Zone } from '../types'
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import {
   clearAroundPlayer,
   createBeeEntity,
@@ -11,6 +10,7 @@ import {
   createGroundItemEntity,
   createTestState,
 } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { describe, expect, it, vi } from 'vitest'
 
 describe('registry mechanics', () => {

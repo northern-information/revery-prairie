@@ -328,14 +328,8 @@ describe('genesis camera centering', () => {
     const playerY = Math.floor(SIM_HEIGHT / 2)
     const { cameraX, cameraY } = computeGenesisCamera(SIM_WIDTH, SIM_HEIGHT, viewportWidth, viewportHeight)
 
-    const expectedCameraX = Math.max(
-      0,
-      Math.min(playerX - Math.floor(viewportWidth / 2), SIM_WIDTH - viewportWidth)
-    )
-    const expectedCameraY = Math.max(
-      0,
-      Math.min(playerY - Math.floor(viewportHeight / 2), SIM_HEIGHT - viewportHeight)
-    )
+    const expectedCameraX = Math.max(0, Math.min(playerX - Math.floor(viewportWidth / 2), SIM_WIDTH - viewportWidth))
+    const expectedCameraY = Math.max(0, Math.min(playerY - Math.floor(viewportHeight / 2), SIM_HEIGHT - viewportHeight))
     expect(cameraX).toBe(expectedCameraX)
     expect(cameraY).toBe(expectedCameraY)
   })

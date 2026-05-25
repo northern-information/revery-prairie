@@ -1,18 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
-import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
-import { FLORA_SPECIES } from '../flora/species'
 import {
   MAX_POLLEN,
   registerFloraPollinate,
   tickPollenEmit,
   unregisterFloraPollinate,
 } from '../flora/actions/pollinate'
+import { FLORA_SPECIES } from '../flora/species'
+import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { posKey } from '../position'
 import { FloraSpecies, Season, TileType } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { FloraPollinateProfile, GameState } from '../types'
 

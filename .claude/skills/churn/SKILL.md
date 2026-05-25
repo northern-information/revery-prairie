@@ -7,7 +7,7 @@ arg: optional — `skip` to surface the next candidate instead of the top one
 
 # /churn
 
-Setup wrapper that removes the "what's next?" decision. Reads `docs/backlog.yaml`, auto-picks one *new* item to start, asks you the route (feature vs change), and hands off to the right harness skill with the backlog item summary as the description.
+Setup wrapper that removes the "what's next?" decision. Reads `docs/backlog.yaml`, auto-picks one _new_ item to start, asks you the route (feature vs change), and hands off to the right harness skill with the backlog item summary as the description.
 
 `/churn` only suggests **new** work — never in-progress or suspected-in-flight items. The user already knows what's in flight (their active worktrees and open PRs); they don't need `/churn` to redirect them to finish it. Finishing in-flight work is a separate session-management concern, not a queueing decision.
 
@@ -25,7 +25,7 @@ Field shape and the "NEXT = all deps shipped" rule are defined in `tools/backlog
 
 ### 1b. Detect suspected-in-flight work from git/gh state
 
-YAML status can lag reality — a worktree or PR can exist before the `todo → in-progress` flip lands, or after the flip got reverted. We detect this not to *pick* in-flight items (we never do), but to (i) exclude them from the NEXT pool so we don't propose starting fresh on something that already has a worktree, and (ii) emit a stale-branch warning when a `shipped` item has lingering artifacts.
+YAML status can lag reality — a worktree or PR can exist before the `todo → in-progress` flip lands, or after the flip got reverted. We detect this not to _pick_ in-flight items (we never do), but to (i) exclude them from the NEXT pool so we don't propose starting fresh on something that already has a worktree, and (ii) emit a stale-branch warning when a `shipped` item has lingering artifacts.
 
 Gather signals from two layers (external name-based, and per-worktree file-based) and join them against the backlog ids loaded in step 1.
 
@@ -65,7 +65,7 @@ Use `git -C <path>` so each scan runs against the worktree, not the main checkou
   - YAML `todo` + any backlog-id evidence (external or internal). YAML lags reality.
   - Branch matches the regex but the worktree has no internal-scan evidence → still treat as in-flight (`branch-only`); the user may want to finish or abandon it manually.
 - `staleIds` — ids to warn about:
-  - YAML `shipped` + any backlog-id evidence — *unless* the only evidence for that worktree is `thinktank:`, in which case the worktree is doing legitimate non-backlog doc work; suppress the warning.
+  - YAML `shipped` + any backlog-id evidence — _unless_ the only evidence for that worktree is `thinktank:`, in which case the worktree is doing legitimate non-backlog doc work; suppress the warning.
 
 Thinktank-only evidence with no branch-name match → ignore for backlog-id purposes. No YAML match → ignore (not a backlog item).
 
@@ -117,7 +117,7 @@ Suggested session name — run `/rename RP-{id}-{slug}` to label this session in
 
 Use `AskUserQuestion` with two options:
 
-- `/new-feature` — adds new behavior to the game *(Recommended)*
+- `/new-feature` — adds new behavior to the game _(Recommended)_
 - `/change-request` — modifies existing documented behavior
 
 Backlog items are roadmap features, so `/new-feature` is the default. The "Other" affordance lets the user pick `/bug-report` or `/quick-fix` on the rare occasion that a backlog item item turns out to be a fix in disguise.
@@ -146,20 +146,20 @@ Invoke the chosen skill via the `Skill` tool, passing the synthesized descriptio
 
 ## Anti-rationalizations
 
-| Excuse the agent will tell itself | Rebuttal |
-| --- | --- |
-| "Finishing in-flight work should win over starting new work — I'll surface the in-flight item." | No. `/churn` is for picking *new* work to start. The user already sees their worktrees and open PRs; they don't need `/churn` to nag them about finishing. Surfacing in-flight as the pick treats finishing as a queueing decision, which it isn't. |
-| "The user said 'don't make me decide' — skip the routing question too." | The route (feature vs change) is a product decision the user wants to keep. `/churn` removes the *picking* decision, not the *scoping* one. |
-| "I'll delegate the flip to the downstream worktree to keep main clean." | No. The flip must land on main *before* handoff so parallel `/churn` runs see the item as claimed. The collision risk outranks the worktree-purity preference for this one-line status edit. |
-| "Main isn't clean — I'll stash and proceed." | No. Abort and surface the dirty state to the user. Auto-stashing hides in-flight work and the recovery is not obvious. |
-| "This backlog item is huge — I'll suggest carving it into a slice." | The user explicitly opted out of scoping prompts. Pass the summary through verbatim. The downstream skill's own clarifying questions will surface scope if needed. |
-| "I'll search merged PRs to confirm `shipped` deps are really shipped." | The YAML is the source of truth for status. `/maintain-backlog` reconciles against PRs — don't duplicate that work here. |
-| "The downstream skill always re-asks for a description — I'll skip steps 3–6." | The presented block is your evidence to the user that the right item was picked, and the flip on main is what prevents collisions. Without steps 3–4 they can't redirect; without step 5 a parallel `/churn` will collide. Keep all four steps. |
-| "An in-flight item has YAML `todo` — I'll fix the YAML during 1b." | No. `/churn` doesn't pick in-flight items, so it doesn't need to flip their YAML status either. Leave the mismatch alone — the worktree where that work lives will reconcile its own YAML when it's done. Only the picked item's YAML gets touched, in step 5. |
-| "I'll `git fetch` before checking remote branches so the signal is fresh." | No. Fetching can be slow and has side effects on the user's local state. Use what's already there and note potential staleness if it matters. |
-| "The branch name already identifies the backlog id — skip the internal file scan." | The branch name is a hint, not proof. A renamed branch, a typo'd branch, or a branch where someone started a different backlog item after creating the worktree all break the regex assumption. The spec/plan filenames embed the id directly; scan them. |
-| "I'll `cd` into each worktree to run the diff." | No. Use `git -C <path>` so each command operates on the worktree without changing the session's working directory. `cd`-ing into a worktree mid-scan and forgetting to `cd` back leaves later commands operating on the wrong tree. |
-| "The worktree has thinktank changes only — flag it." | No. Thinktank rounds don't map to a backlog id, so there's nothing to flag. Treat thinktank-only evidence as a "this worktree is alive" marker that suppresses the stale warning, nothing more. |
+| Excuse the agent will tell itself                                                               | Rebuttal                                                                                                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Finishing in-flight work should win over starting new work — I'll surface the in-flight item." | No. `/churn` is for picking _new_ work to start. The user already sees their worktrees and open PRs; they don't need `/churn` to nag them about finishing. Surfacing in-flight as the pick treats finishing as a queueing decision, which it isn't.            |
+| "The user said 'don't make me decide' — skip the routing question too."                         | The route (feature vs change) is a product decision the user wants to keep. `/churn` removes the _picking_ decision, not the _scoping_ one.                                                                                                                    |
+| "I'll delegate the flip to the downstream worktree to keep main clean."                         | No. The flip must land on main _before_ handoff so parallel `/churn` runs see the item as claimed. The collision risk outranks the worktree-purity preference for this one-line status edit.                                                                   |
+| "Main isn't clean — I'll stash and proceed."                                                    | No. Abort and surface the dirty state to the user. Auto-stashing hides in-flight work and the recovery is not obvious.                                                                                                                                         |
+| "This backlog item is huge — I'll suggest carving it into a slice."                             | The user explicitly opted out of scoping prompts. Pass the summary through verbatim. The downstream skill's own clarifying questions will surface scope if needed.                                                                                             |
+| "I'll search merged PRs to confirm `shipped` deps are really shipped."                          | The YAML is the source of truth for status. `/maintain-backlog` reconciles against PRs — don't duplicate that work here.                                                                                                                                       |
+| "The downstream skill always re-asks for a description — I'll skip steps 3–6."                  | The presented block is your evidence to the user that the right item was picked, and the flip on main is what prevents collisions. Without steps 3–4 they can't redirect; without step 5 a parallel `/churn` will collide. Keep all four steps.                |
+| "An in-flight item has YAML `todo` — I'll fix the YAML during 1b."                              | No. `/churn` doesn't pick in-flight items, so it doesn't need to flip their YAML status either. Leave the mismatch alone — the worktree where that work lives will reconcile its own YAML when it's done. Only the picked item's YAML gets touched, in step 5. |
+| "I'll `git fetch` before checking remote branches so the signal is fresh."                      | No. Fetching can be slow and has side effects on the user's local state. Use what's already there and note potential staleness if it matters.                                                                                                                  |
+| "The branch name already identifies the backlog id — skip the internal file scan."              | The branch name is a hint, not proof. A renamed branch, a typo'd branch, or a branch where someone started a different backlog item after creating the worktree all break the regex assumption. The spec/plan filenames embed the id directly; scan them.      |
+| "I'll `cd` into each worktree to run the diff."                                                 | No. Use `git -C <path>` so each command operates on the worktree without changing the session's working directory. `cd`-ing into a worktree mid-scan and forgetting to `cd` back leaves later commands operating on the wrong tree.                            |
+| "The worktree has thinktank changes only — flag it."                                            | No. Thinktank rounds don't map to a backlog id, so there's nothing to flag. Treat thinktank-only evidence as a "this worktree is alive" marker that suppresses the stale warning, nothing more.                                                                |
 
 ## Exit criterion
 

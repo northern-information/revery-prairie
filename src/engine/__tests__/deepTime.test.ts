@@ -66,7 +66,6 @@ describe('deep time', () => {
       const afterCount = getCharacterEntities(state).length
       expect(afterCount).toBe(0)
     })
-
   })
 
   describe('burning phase', () => {

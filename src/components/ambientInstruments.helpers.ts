@@ -1,5 +1,5 @@
-import { MAX_WIND_SPEED } from '@/engine/weather/wind'
 import { Season } from '@/engine/types'
+import { MAX_WIND_SPEED } from '@/engine/weather/wind'
 import type { WindDirection } from '@/engine/types'
 
 // Rotation in degrees from "up" (N) for each rotated cardinal. The

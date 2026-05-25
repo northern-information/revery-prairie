@@ -11,8 +11,6 @@ import { ComponentType } from '../ecs/types'
 import { getGrowthPreviewSet } from '../floraGrowthPreviews'
 import { posKey } from '../position'
 import { FloraSpecies, TileType } from '../types'
-
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import {
   clearArea,
   createBeeEntity,
@@ -22,6 +20,7 @@ import {
   getBeehiveEntities,
   getGroundItemEntities,
 } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { CloverPatch } from '../clover'

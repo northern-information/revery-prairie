@@ -1,12 +1,10 @@
-import { describe, expect, it } from 'vitest'
-
 import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
 import { posKey } from '../position'
 import { initiateRevery, tickRevery } from '../revery'
 import { OmenKind, ReveryPhase, TileType, Zone } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 

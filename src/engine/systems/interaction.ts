@@ -2,8 +2,8 @@ import { tickDeepTime } from '../deepTime'
 import { tickDialogTransition, tickDialogTyping } from '../interaction'
 import { DeepTimePhase } from '../types'
 
-import type { GameLoopCallbacks, TickSystem } from './types'
 import type { GameState } from '../types'
+import type { GameLoopCallbacks, TickSystem } from './types'
 
 export const interactionSystems = (callbacks: GameLoopCallbacks): TickSystem[] => [
   {

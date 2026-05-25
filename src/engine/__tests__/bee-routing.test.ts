@@ -1,14 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
-
 import { ComponentType } from '../ecs/types'
 import { tickBees } from '../entities'
-import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { FLORA_SPECIES } from '../flora/species'
+import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { posKey } from '../position'
 import { FloraSpecies, TileType } from '../types'
-
 import { clearAroundPlayer, createBeeEntity, createTestState } from './helpers'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { GameState } from '../types'
 

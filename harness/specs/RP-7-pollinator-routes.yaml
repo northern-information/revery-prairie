@@ -116,7 +116,7 @@ behaviors:
 
 edge_cases:
   - id: bee-on-non-walkable-island
-    description: 'Bee is in a position where every ordinal neighbor is non-walkable (shouldn''t happen in normal play but possible during dev)'
+    description: "Bee is in a position where every ordinal neighbor is non-walkable (shouldn't happen in normal play but possible during dev)"
     expected: 'Total weight is 0; bee does not move this tick; no crash'
   - id: flora-tile-no-lifecycle-entry
     description: 'A tile is map[y][x].type === TileType.Flora but state.floraLifecycle has no entry for posKey(x, y) (mid-construction state)'

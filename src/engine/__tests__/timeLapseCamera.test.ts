@@ -1,18 +1,16 @@
-import { describe, expect, it } from 'vitest'
-
-import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
-
-import { completeGenesis } from '../genesis'
-import { createGameState } from '../state'
 import { combineFromBackpack } from '../combine'
 import { FRAMES_PER_TUBE, SEASONAL_PHASE_PERIOD_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { dropItem } from '../entities'
-import { tryPlacedCameraInteraction, packUpPlaybackCamera } from '../interaction'
-import { ITEM_DEFINITIONS, getDefinition } from '../items'
+import { completeGenesis } from '../genesis'
+import { packUpPlaybackCamera, tryPlacedCameraInteraction } from '../interaction'
 import { findFitPosition, placeItem } from '../inventory'
+import { getDefinition, ITEM_DEFINITIONS } from '../items'
+import { createGameState } from '../state'
 import { archivePlacedCameraFrames, captureCells, createPlacedCamera, recordCameraSubjectEvent } from '../timeLapse'
 import { CameraSubject, ItemCategory, TileType, Zone } from '../types'
+import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState, ItemInstance } from '../types'
 

@@ -24,12 +24,7 @@ export const CRATER_COLORS = ['#8B4513', '#7A3B10', '#6B320D', '#5C290A', '#4D20
 // flicker faster than the rest of the scene reads as. STAR_DENSITY = 12
 // also matches gameplay (was 5 here, which painted twice as many stars
 // as the gameplay-renderer's space tiles — now they match).
-export const renderSpace = (
-  sim: GenesisSimState,
-  key: string,
-  h: number,
-  time: number
-): GenesisTileRender[] | null => {
+export const renderSpace = (sim: GenesisSimState, key: string, h: number, time: number): GenesisTileRender[] | null => {
   if (sim.landMask.has(key)) return null
   if (h % 12 === 0) {
     const starChars = ['.', '+', '*']

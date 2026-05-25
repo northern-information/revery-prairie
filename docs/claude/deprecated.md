@@ -4,7 +4,7 @@ referenced from `CLAUDE.md`. read when you encounter a reference to one of these
 
 ## reveries
 
-deleted in RP-0 (Reclaim Revery). the four player-cast spells (fire, water, earth, lightning, deep-time) are gone, the action bar is gone, and the `r` / `1-4` keybinds are gone. the `lightning.ts` and `deepTime.ts` simulation kernels remain — they are reused by RP-4 (the long-form Revery phase) and #9 (Controlled Burn). the word *Revery* is reserved for the long-form phase only — see `docs/backlog-thinktank-v3.md`.
+deleted in RP-0 (Reclaim Revery). the four player-cast spells (fire, water, earth, lightning, deep-time) are gone, the action bar is gone, and the `r` / `1-4` keybinds are gone. the `lightning.ts` and `deepTime.ts` simulation kernels remain — they are reused by RP-4 (the long-form Revery phase) and #9 (Controlled Burn). the word _Revery_ is reserved for the long-form phase only — see `docs/backlog-thinktank-v3.md`.
 
 ## falling-star player spawn ceremony
 

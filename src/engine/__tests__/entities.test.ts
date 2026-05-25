@@ -355,7 +355,6 @@ describe('pickUpGroundItems', () => {
       vi.restoreAllMocks()
     }
   })
-
 })
 
 describe('pickup exemption (just-dropped items)', () => {

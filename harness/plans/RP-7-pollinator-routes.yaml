@@ -218,7 +218,7 @@ tasks:
   # --- Tier 5: Wire the test stub ---
 
   - id: fill-in-spec-test-stub
-    title: 'Replace the it.todo placeholders in src/engine/__tests__/RP-7-pollinator-routes.test.ts with thin integration assertions that exercise each behavior end-to-end: bee picks high-preference neighbor more often, isBeeNearFood is true for non-clover flora, pollen bias produces more particles from high-trait plant. The detailed unit tests live in tileBeePreference.test.ts, bee-routing.test.ts, and pollen-emit-bias.test.ts — this file is the spec''s acceptance surface.'
+    title: "Replace the it.todo placeholders in src/engine/__tests__/RP-7-pollinator-routes.test.ts with thin integration assertions that exercise each behavior end-to-end: bee picks high-preference neighbor more often, isBeeNearFood is true for non-clover flora, pollen bias produces more particles from high-trait plant. The detailed unit tests live in tileBeePreference.test.ts, bee-routing.test.ts, and pollen-emit-bias.test.ts — this file is the spec's acceptance surface."
     spec_id: RP-7-pollinator-routes
     spec_sections:
       - species-bee-preference-baseline

@@ -278,7 +278,7 @@ edge_cases:
     description: 'state.wind.smoothSpeed somehow exceeds MAX_WIND_SPEED'
     expected: 'windSpeedLabel returns "gale" — the function clamps high values to the top band rather than returning undefined or a fifth-from-top default'
   - id: seasonal-phase-wraps-past-final-bookmark
-    description: 'seasonalPhase is in [0.75, 1.0) — between Winter Solstice and the next year''s Spring Equinox'
+    description: "seasonalPhase is in [0.75, 1.0) — between Winter Solstice and the next year's Spring Equinox"
     expected: 'almanacState returns nextBookmark "Spring Equinox" and progress = (phase - 0.75) / 0.25, a continuous fill across the final quarter of the year'
   - id: seasonal-phase-exactly-on-bookmark
     description: 'seasonalPhase is exactly 0.0, 0.25, 0.5, or 0.75'
@@ -288,7 +288,7 @@ edge_cases:
     expected: 'gameplay bottom-bar does not mount; AmbientInstruments is not mounted; genesis renders no HUD'
   - id: rotated-cardinal-frame-locked
     description: 'the rotated-cardinal frame from RP-30 is the only frame the vane reads'
-    expected: 'AmbientInstruments does not translate state.weather.windDirection through any rotation matrix or remap table — it reads the enum directly and uses VANE_ROTATION_DEG for visual rotation only. If RP-30''s frame is reverted, this component automatically reverts with it.'
+    expected: "AmbientInstruments does not translate state.weather.windDirection through any rotation matrix or remap table — it reads the enum directly and uses VANE_ROTATION_DEG for visual rotation only. If RP-30's frame is reverted, this component automatically reverts with it."
   - id: moon-phase-completes-multiple-cycles-per-year
     description: 'seasonalPhase advances from 0 to 1 over one in-game year'
     expected: 'moonPhase(seasonalPhase) completes ~12.37 cycles in the same span — for seasonalPhase = 1/LUNATIONS_PER_YEAR the moon is back at new (within bucket-rounding tolerance)'

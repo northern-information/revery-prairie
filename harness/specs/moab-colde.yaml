@@ -66,7 +66,7 @@ behaviors:
     inputs:
       - 'Player facing Moab, [f] pressed'
     outputs:
-      - "activeDialog set to the register chosen by getMoabDialog"
+      - 'activeDialog set to the register chosen by getMoabDialog'
     state_changes:
       - field: activeDialog
         effect: "set to { characterId: 'moab', lineIndex: 0 }"

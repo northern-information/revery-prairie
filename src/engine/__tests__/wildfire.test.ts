@@ -1,12 +1,12 @@
 import { WATER_MAX, WILDFIRE_MAX_SPREAD } from '../constants'
-
-const SMALL_MAX_SPREAD = 7
 import { spreadWildfire } from '../lightning'
 import { posKey } from '../position'
 import { FloraSpecies, TileType } from '../types'
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createTestState } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { describe, expect, it } from 'vitest'
+
+const SMALL_MAX_SPREAD = 7
 
 describe('wildfire spread', () => {
   describe('forced origin ignition', () => {
@@ -18,7 +18,7 @@ describe('wildfire spread', () => {
       state.map[y][x] = { type: TileType.Flora }
       state.floraLifecycle.set(
         posKey(x, y),
-        createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+        createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover })
       )
       state.tileWater.set(posKey(x, y), WATER_MAX)
 
@@ -40,7 +40,7 @@ describe('wildfire spread', () => {
           state.map[y][x] = { type: TileType.Flora }
           state.floraLifecycle.set(
             posKey(x, y),
-            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover })
           )
           state.tileWater.set(posKey(x, y), 0)
         }
@@ -66,7 +66,7 @@ describe('wildfire spread', () => {
             state.map[y][x] = { type: TileType.Flora }
             state.floraLifecycle.set(
               posKey(x, y),
-              createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+              createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover })
             )
             state.tileWater.set(posKey(x, y), 0)
           }
@@ -98,7 +98,7 @@ describe('wildfire spread', () => {
           state.map[y][x] = { type: TileType.Flora }
           state.floraLifecycle.set(
             posKey(x, y),
-            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover }),
+            createTestFloraEntry({ posKey: posKey(x, y), species: FloraSpecies.Clover })
           )
           state.tileWater.set(posKey(x, y), 0)
         }

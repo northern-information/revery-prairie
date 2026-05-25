@@ -7,15 +7,14 @@
 //   - cross-species bag mixing → matching-species prime only
 //   - prime priority → most-recently-pushed matching load wins
 
+import { tickPollination } from '../beePollination'
 import { POLLEN_BAG_CAPACITY } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { setMapTile } from '../map'
-import { tickPollination } from '../beePollination'
 import { posKey } from '../position'
 import { FloraSpecies, TileType, Zone } from '../types'
-
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createBeeEntity, createBeehiveEntity, createTestState } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { describe, expect, it } from 'vitest'
 
 import type { PollenLoad } from '../types'
@@ -25,15 +24,12 @@ const placeFloraTileAt = (
   x: number,
   y: number,
   species: FloraSpecies,
-  identitySuffix: string,
+  identitySuffix: string
 ): void => {
   setMapTile(state, x, y, { type: TileType.Flora })
   // Synthesize a distinct identity by passing the suffix as posKey to the
   // helper — every test tile gets its own identity even if x/y collide.
-  state.floraLifecycle.set(
-    posKey(x, y),
-    createTestFloraEntry({ posKey: identitySuffix, species }),
-  )
+  state.floraLifecycle.set(posKey(x, y), createTestFloraEntry({ posKey: identitySuffix, species }))
 }
 
 const getBag = (state: ReturnType<typeof createTestState>, eid: number): { loads: PollenLoad[] } => {

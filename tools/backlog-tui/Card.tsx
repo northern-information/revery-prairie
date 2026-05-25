@@ -1,4 +1,5 @@
 import { Box, Text } from 'ink'
+
 import type { DerivedStatus, Feature } from './data.js'
 
 interface CardProps {

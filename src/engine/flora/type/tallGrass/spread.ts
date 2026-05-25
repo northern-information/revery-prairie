@@ -9,14 +9,10 @@
 // Cross-species isolation: this module must not import from
 // flora/type/clover/ or flora/type/wildflower/.
 
-import {
-  TALLGRASS_BASE_GROWTH_CHANCE,
-  TALLGRASS_MAX_GROWTH_PER_TICK,
-} from '@/engine/constants'
-import type { SelectGrowthTargets, SpeciesSpreadConfig } from '@/engine/flora/spreadConfig'
+import { TALLGRASS_BASE_GROWTH_CHANCE, TALLGRASS_MAX_GROWTH_PER_TICK } from '@/engine/constants'
 import { CARDINAL, isInBounds, posKey } from '@/engine/position'
 import { FloraSpecies, TileType } from '@/engine/types'
-
+import type { SelectGrowthTargets, SpeciesSpreadConfig } from '@/engine/flora/spreadConfig'
 import type { Position } from '@/engine/types'
 
 const getPatchSeed = (tiles: Set<string>): string => {

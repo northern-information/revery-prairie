@@ -10,16 +10,14 @@
 // Knot). This spec covers the pressure substrate, threshold, summons
 // sequence, Gron arrival, collapse tile, and the Closing-phase egregoric
 // commit.
-import { describe, expect, it } from 'vitest'
-
-import { REVERY_PRESSURE_RAMP_END, REVERY_COOLDOWN_MS } from '../constants'
+import { REVERY_COOLDOWN_MS, REVERY_PRESSURE_RAMP_END } from '../constants'
 import { createCharacterEntity } from '../entities'
 import * as omenModule from '../omen'
 import { contributeDormancyPressure, tickDormancyPressure } from '../omen'
 import { initiateRevery, tickRevery } from '../revery'
 import { OmenKind, ReveryPhase, Season, TileType, Zone } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 

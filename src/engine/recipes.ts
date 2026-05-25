@@ -98,7 +98,7 @@ export const RECIPES: Recipe[] = [
           species: FloraSpecies.Clover,
           identity: seedTileIdentity,
           traits: generateTraitBag(seedTileIdentity),
-        }),
+        })
       )
 
       const wave: WaveEmission = {

@@ -4,7 +4,6 @@ import { SCAN_DURATION_MS } from '@/engine/constants'
 import { selectScanTarget } from '@/engine/scan'
 import { DeepTimePhase } from '@/engine/types'
 import { isInputGated } from '@/engine/zoneTransition'
-
 import type { GameState } from '@/engine/types'
 import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 

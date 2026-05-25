@@ -1,8 +1,4 @@
 import { CHARACTER_DEFINITIONS, removeCharacterDefinition } from './characters'
-import { sha256Async, sha256Sync } from './crypto'
-import { FLORA_SPECIES } from './flora/species'
-import { createFloraLifecycleEntry } from './floraLifecycleEntry'
-import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import {
   ANGEL_AURA_KINDS,
   ANGEL_AURA_RADIUS,
@@ -18,7 +14,11 @@ import {
   ANGEL_SPAWN_JITTER_MS,
   SPACE_BORDER,
 } from './constants'
+import { sha256Async, sha256Sync } from './crypto'
 import { ComponentType } from './ecs/types'
+import { FLORA_SPECIES } from './flora/species'
+import { createFloraLifecycleEntry } from './floraLifecycleEntry'
+import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
@@ -51,7 +51,9 @@ export const generateAngelHashAsync = async (
   encounterCount: number
 ): Promise<string> => {
   try {
-    return (await sha256Async(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`)).toUpperCase()
+    return (
+      await sha256Async(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`)
+    ).toUpperCase()
   } catch {
     return generateAngelHash(stewardName, spawnX, spawnY, encounterCount)
   }
@@ -304,7 +306,7 @@ export const tickAngelCloverAura = (state: GameState, time: number): void => {
           species,
           identity,
           traits: generateTraitBag(identity),
-        }),
+        })
       )
       data.lastCloverGrowTime = time
       break

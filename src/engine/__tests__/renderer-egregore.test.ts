@@ -135,5 +135,4 @@ describe('renderer egregore tile under player', () => {
     const questionMarkCalls = spy.fillTextCalls.filter(c => c.text === '?')
     expect(questionMarkCalls).toEqual([])
   })
-
 })

@@ -50,8 +50,8 @@ behaviors:
     inputs:
       - 'codebase after RP-1 lands'
     outputs:
-      - "TileType.Clover does not exist"
-      - "TileType.Flora exists and is the type of every clover, wildflower, and tall grass tile"
+      - 'TileType.Clover does not exist'
+      - 'TileType.Flora exists and is the type of every clover, wildflower, and tall grass tile'
     state_changes: []
     determinism: deterministic
 
@@ -64,8 +64,8 @@ behaviors:
     inputs:
       - 'codebase after RP-1 lands'
     outputs:
-      - "CloverStage and CloverLifecycleState do not exist as identifiers"
-      - "FloraStage and FloraLifecycleState exist"
+      - 'CloverStage and CloverLifecycleState do not exist as identifiers'
+      - 'FloraStage and FloraLifecycleState exist'
     state_changes: []
     determinism: deterministic
 
@@ -250,7 +250,7 @@ behaviors:
       - 'codebase after RP-1 lands'
     outputs:
       - 'cutClover does not exist'
-      - "pressing [x] with no hovered item does nothing facing a flora tile"
+      - 'pressing [x] with no hovered item does nothing facing a flora tile'
     state_changes: []
     determinism: deterministic
 
@@ -264,7 +264,7 @@ behaviors:
     inputs:
       - 'codebase after RP-1 lands'
     outputs:
-      - "ITEM_DEFINITIONS has no entries for wildflowerSeeds, tallGrassSeeds, or milkweedSeeds"
+      - 'ITEM_DEFINITIONS has no entries for wildflowerSeeds, tallGrassSeeds, or milkweedSeeds'
       - 'no manual entry references these item ids'
     state_changes: []
     determinism: deterministic
@@ -331,7 +331,7 @@ behaviors:
     inputs:
       - 'manual UI opens'
     outputs:
-      - "three life-category entries — Clover (Trifolium repens), Purple Coneflower (Echinacea purpurea), Big Bluestem (Andropogon gerardii)"
+      - 'three life-category entries — Clover (Trifolium repens), Purple Coneflower (Echinacea purpurea), Big Bluestem (Andropogon gerardii)'
     state_changes:
       - field: manualDiscoveries
         effect: 'discovery keys remain per-species and are recorded the first time each species appears in the player view'

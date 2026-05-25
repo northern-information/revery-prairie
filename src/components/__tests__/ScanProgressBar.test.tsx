@@ -18,7 +18,12 @@ describe('ScanProgressBar', () => {
     it('renders the "Sequencing..." label when scanInProgress is non-null', () => {
       const state = createTestState()
       clearAroundPlayer(state, 2)
-      state.scanInProgress = { kind: 'flora', target: { x: 0, y: 0 }, species: FloraSpecies.Clover, startTime: performance.now() }
+      state.scanInProgress = {
+        kind: 'flora',
+        target: { x: 0, y: 0 },
+        species: FloraSpecies.Clover,
+        startTime: performance.now(),
+      }
       render(<ScanProgressBar state={state} activeScreen={null} />)
       expect(screen.getByTestId('scan-progress-bar')).toBeInTheDocument()
       expect(screen.getByText('Sequencing...')).toBeInTheDocument()

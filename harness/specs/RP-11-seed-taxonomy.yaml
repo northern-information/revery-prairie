@@ -179,7 +179,7 @@ behaviors:
       a pickup bloom fires at the planting tile. The function returns
       true.
     inputs:
-      - "player drops wildflowerSeeds or tallGrassSeeds from the backpack while standing adjacent to a Dirt tile"
+      - 'player drops wildflowerSeeds or tallGrassSeeds from the backpack while standing adjacent to a Dirt tile'
     outputs:
       - 'the Dirt tile becomes TileType.Flora'
       - "state.floraLifecycle.get(posKey(x,y)).identity === the seed's genome.identity"
@@ -363,7 +363,7 @@ failure_conditions:
     expected: 'integration test fails — the pickup transfer path is broken'
   - trigger: 'Dropping wildflowerSeeds onto an adjacent Dirt tile leaves the tile as Dirt'
     expected: 'integration test fails — drop-to-plant is wired incorrectly'
-  - trigger: "Two playthroughs with the same steward name produce a different genome.identity for the same ruin/vault slot"
+  - trigger: 'Two playthroughs with the same steward name produce a different genome.identity for the same ruin/vault slot'
     expected: 'determinism test fails — vault-spawn genome is not stable across runs'
   - trigger: "ITEM_DEFINITIONS['wildflowerSeeds'].category is still ItemCategory.Flora"
     expected: 'category test fails — recategorization was missed'

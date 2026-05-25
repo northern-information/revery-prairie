@@ -3,13 +3,11 @@
 // one-shot latch behavior, and onRefreshUI side effect. Emily's dialog
 // content is a single unified register asserted in emily-invitation.test.ts;
 // the first-wake auto-trigger reuses that register.
-import { describe, expect, it, vi } from 'vitest'
-
 import { createGameLoop } from '../gameLoop'
 import { createGameState } from '../state'
 import { Season, Zone } from '../types'
-
 import { createTestState } from './helpers'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { ReveryState } from '../types'
 

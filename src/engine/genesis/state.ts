@@ -11,21 +11,18 @@ import {
 } from '../constants'
 import { FLORA_SPECIES } from '../flora/species'
 import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
-import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { RuinGenerationMode } from '../genesisTypes'
+import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { rebuildGlintZones, seedGlintPatches } from '../glintZones'
 import { seedOaks } from '../oaks'
 import { posKey } from '../position'
 import { seedTenureStartFieldCamera } from '../timeLapse'
 import { FloraSpecies, TileType } from '../types'
-
-import type { FloraLifecycleState } from '../types'
-
-import type { GenesisEpoch, GenesisResult, GenesisSimState } from '../genesisTypes'
-import type { GameState, Tile } from '../types'
-
 import { GENESIS_EPOCHS } from './epochs'
 import { clamp } from './shared'
+
+import type { GenesisEpoch, GenesisResult, GenesisSimState } from '../genesisTypes'
+import type { FloraLifecycleState, GameState, Tile } from '../types'
 
 export { GENESIS_EPOCHS } from './epochs'
 
@@ -163,7 +160,7 @@ export const extractGenesisResult = (sim: GenesisSimState): GenesisResult => ({
  */
 export const postProcessMultiSpeciesFlora = (
   sim: GenesisSimState,
-  genesisSeed: number,
+  genesisSeed: number
 ): Map<string, FloraLifecycleState> => {
   const lifecycle = new Map<string, FloraLifecycleState>()
 
@@ -183,7 +180,7 @@ export const postProcessMultiSpeciesFlora = (
           species,
           identity,
           traits: generateTraitBag(identity),
-        }),
+        })
       )
     }
   }
@@ -269,7 +266,7 @@ export const postProcessMultiSpeciesFlora = (
           species,
           identity,
           traits: generateTraitBag(identity),
-        }),
+        })
       )
     }
   }

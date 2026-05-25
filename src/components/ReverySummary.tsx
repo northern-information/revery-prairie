@@ -7,7 +7,6 @@
 import { EGREGORE_GLYPHS } from '@/engine/egregore'
 import { FLORA_SPECIES } from '@/engine/flora/species'
 import { ReveryPhase } from '@/engine/types'
-
 import type { ReveryChange, ReveryState } from '@/engine/types'
 
 interface ReverySummaryProps {
@@ -19,7 +18,7 @@ interface ReverySummaryProps {
 // so the same Revery always renders the same line.
 const renderVoynichLine = (count: number, seed: number): string => {
   const glyphs: string[] = []
-  let h = (seed | 0) || 1
+  let h = seed | 0 || 1
   for (let i = 0; i < count; i++) {
     // xorshift32-ish
     h ^= h << 13

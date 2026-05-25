@@ -1,17 +1,9 @@
-import { describe, expect, it } from 'vitest'
-
 import { REVERY_YEARS_PER_FRAME } from '../constants'
 import { movePlayer } from '../movement'
-import {
-  advanceReveryToClosing,
-  initiateRevery,
-  isReveryLocked,
-  takeReverySnapshot,
-  tickRevery,
-} from '../revery'
+import { advanceReveryToClosing, initiateRevery, isReveryLocked, takeReverySnapshot, tickRevery } from '../revery'
 import { OmenKind, ReveryPhase, Season } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 describe('isReveryLocked (RP-4)', () => {
   it('returns false when state.revery is null', () => {

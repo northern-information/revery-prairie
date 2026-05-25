@@ -3,9 +3,8 @@ import { tickDormancyPressure } from './omen'
 import { tickProximityMusic } from './proximityMusic'
 import { initiateRevery, tickRevery } from './revery'
 import { commitScan } from './scan'
-import { OmenKind, Season, Zone } from './types'
-
 import { AUTO_HIDE_THRESHOLD, createDefaultSystems } from './systems'
+import { OmenKind, Season, Zone } from './types'
 
 import type { GameLoopCallbacks, TickSystem } from './systems/types'
 import type { GameState } from './types'
@@ -145,11 +144,7 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
     // Revery firing, zero dormancyPressure so it does not linger into the
     // following autumn. Should not normally occur (the ramp guarantees
     // ceiling at solstice), but documents the invariant.
-    if (
-      prevSeason === Season.Autumn &&
-      state.weather.season === Season.Winter &&
-      state.revery === null
-    ) {
+    if (prevSeason === Season.Autumn && state.weather.season === Season.Winter && state.revery === null) {
       state.dormancyPressure = 0
     }
     prevSeason = state.weather.season

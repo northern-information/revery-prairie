@@ -5,16 +5,15 @@
 // (character, infrastructure, weather), dismiss, dialog registers,
 // manual entries.
 
-import { ComponentType } from '../ecs/types'
 import { getCharacterDialog } from '../characters'
-import { posKey } from '../position'
-import { setMapTile } from '../map'
+import { ComponentType } from '../ecs/types'
 import { advanceDialog } from '../interaction'
-import { MOAB_PACE_MS, checkBurnLineRefusal, tickTorchbearer } from '../torchbearer'
+import { setMapTile } from '../map'
+import { posKey } from '../position'
+import { checkBurnLineRefusal, MOAB_PACE_MS, tickTorchbearer } from '../torchbearer'
 import { MoabState, Season, TileType, Zone } from '../types'
+import { createCharacterTestEntity, createTestState, getCharacterEntities } from './helpers'
 import { beforeEach, describe, expect, it } from 'vitest'
-
-import { createTestState, createCharacterTestEntity, getCharacterEntities } from './helpers'
 
 import type { GameState, Position } from '../types'
 
@@ -352,12 +351,7 @@ describe('torchbearer (RP-9b)', () => {
 
     it('no register contains contractions', () => {
       const contraction = /\b\w+'(t|s|re|ll|ve|d|m)\b/i
-      const states: MoabState[] = [
-        MoabState.Idle,
-        MoabState.Walking,
-        MoabState.Refusing,
-        MoabState.Dismissed,
-      ]
+      const states: MoabState[] = [MoabState.Idle, MoabState.Walking, MoabState.Refusing, MoabState.Dismissed]
       const seasons: Season[] = [Season.Winter, Season.Spring, Season.Summer, Season.Autumn]
       for (const ms of states) {
         for (const s of seasons) {

@@ -11,7 +11,15 @@
 // has any entry (including 0), the filmRoll+camera recipe is rejected
 // in recipes.ts.
 
-import { BEE_CHAR, BEE_COLOR, MONARCH_CHAR, MONARCH_COLOR, SEASONAL_PHASE_PERIOD_MS, TILE_CHARS, TILE_COLORS } from './constants'
+import {
+  BEE_CHAR,
+  BEE_COLOR,
+  MONARCH_CHAR,
+  MONARCH_COLOR,
+  SEASONAL_PHASE_PERIOD_MS,
+  TILE_CHARS,
+  TILE_COLORS,
+} from './constants'
 import { sha256Sync } from './crypto'
 import { ComponentType } from './ecs/types'
 import { FLORA_SPECIES } from './flora/species'
@@ -110,7 +118,7 @@ export const recordCameraSubjectEvent = (
   x: number,
   y: number,
   subject: CameraSubject,
-  now: number,
+  now: number
 ): void => {
   if (state.placedCameras.length === 0) return
 
@@ -262,10 +270,7 @@ export const seedTenureStartFieldCamera = (state: GameState): void => {
   } as GameState
   const baseline = captureCells(overworldState, placementTile.x, placementTile.y)
 
-  const buildSeasonFrame = (
-    season: 'spring' | 'summer' | 'autumn' | 'winter',
-    recordedAt: number,
-  ): TimeLapseFrame => {
+  const buildSeasonFrame = (season: 'spring' | 'summer' | 'autumn' | 'winter', recordedAt: number): TimeLapseFrame => {
     const palette = SEASONAL_OAK_PALETTE[season]
     const cells = baseline.map((cell, idx) => {
       const off = FRAME_OFFSETS_3X3[idx]

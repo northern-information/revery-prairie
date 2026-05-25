@@ -16,8 +16,8 @@ import {
 } from '../monarch'
 import { posKey } from '../position'
 import { FloraSpecies, Sky, TileType, Zone } from '../types'
-import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { clearAroundPlayer, createTestState } from './helpers'
+import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { Entity } from '../ecs/types'

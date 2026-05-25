@@ -499,12 +499,7 @@ export const FIRST_REVERY_EGREGORE_COUNT = 3
 export const STONE_CIRCLE_RADIUS = 8
 // Ordered axes the phenotype label rotates through, by reveryCount %
 // PHENOTYPE_AXES.length. Order is the trait-bag insertion order in #3.
-export const PHENOTYPE_AXES = [
-  'bloomTiming',
-  'coldTolerance',
-  'droughtResponse',
-  'pollinatorPreference',
-] as const
+export const PHENOTYPE_AXES = ['bloomTiming', 'coldTolerance', 'droughtResponse', 'pollinatorPreference'] as const
 
 // coyote companion
 export const COYOTE_CHAR = 'C'
@@ -607,4 +602,3 @@ export const FIRE_TICK_MS = 200
 export const FIREPLACE_CHARS = ['^', '~', '*'] as const
 export const FIREPLACE_COLOR_A = '#FF8C42'
 export const FIREPLACE_COLOR_B = '#FFD56B'
-

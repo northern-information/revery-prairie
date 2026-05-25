@@ -94,22 +94,22 @@ Append the round to the target doc just above the `## Verification` section if o
 For every new `#NN` item in the round's `### Tracked as` section, append an entry to `features:` in `docs/backlog.yaml`. **Field order is locked** (per the header comment in the YAML) — match it exactly:
 
 ```yaml
-  - id: 'NN'
-    name: Title (matches the round's "Tracked as" line)
-    summary: >
-      Block-scalar prose, ~3–6 lines, wrapped narrow. Describe the mechanic
-      itself, not its motivation. Motivation goes in notes.
-    size: XS|S|M|L
-    depends_on: ['NN', 'NN']   # or [] if none
-    status: todo
-    spec: null
-    plan: null
-    pr: null
-    notes: >
-      Block-scalar prose. Always start with the thinktank reference:
-      "v{N} thinktank round {R} ({YYYY-MM-DD})." Then capture the round's
-      reasoning — the line the room locked, which character's worry
-      shaped the scope, any open questions deferred to spec.
+- id: 'NN'
+  name: Title (matches the round's "Tracked as" line)
+  summary: >
+    Block-scalar prose, ~3–6 lines, wrapped narrow. Describe the mechanic
+    itself, not its motivation. Motivation goes in notes.
+  size: XS|S|M|L
+  depends_on: ['NN', 'NN'] # or [] if none
+  status: todo
+  spec: null
+  plan: null
+  pr: null
+  notes: >
+    Block-scalar prose. Always start with the thinktank reference:
+    "v{N} thinktank round {R} ({YYYY-MM-DD})." Then capture the round's
+    reasoning — the line the room locked, which character's worry
+    shaped the scope, any open questions deferred to spec.
 ```
 
 Rules:

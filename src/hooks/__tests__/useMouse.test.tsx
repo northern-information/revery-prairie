@@ -1,9 +1,9 @@
+import { useRef } from 'react'
 import { useMouse } from '../useMouse'
 import { act, renderHook } from '@testing-library/react'
-import { useRef } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createTestState, clearAroundPlayer } from '@/engine/__tests__/helpers'
+import { clearAroundPlayer, createTestState } from '@/engine/__tests__/helpers'
 import { TileType } from '@/engine/types'
 import type { CharMetrics, GameState } from '@/engine/types'
 

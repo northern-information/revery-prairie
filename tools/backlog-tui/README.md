@@ -38,11 +38,11 @@ You can still edit `docs/backlog.yaml` directly:
 
 ```yaml
 - id: '0'
-  status: shipped     # todo | in-progress | shipped
-  spec: harness/specs/reclaim-revery.yaml   # optional
-  plan: harness/plans/reclaim-revery.yaml   # optional
-  pr: 'https://github.com/.../pull/123'     # optional
-  notes: 'anything you want to remember'    # optional
+  status: shipped # todo | in-progress | shipped
+  spec: harness/specs/reclaim-revery.yaml # optional
+  plan: harness/plans/reclaim-revery.yaml # optional
+  pr: 'https://github.com/.../pull/123' # optional
+  notes: 'anything you want to remember' # optional
 ```
 
 The `NEXT` column is computed — any `todo` whose dependencies are all `shipped`. Don't set `status: next` by hand.

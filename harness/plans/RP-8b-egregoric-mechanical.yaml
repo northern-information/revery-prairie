@@ -33,7 +33,7 @@ tasks:
   # --- Tier 1: Types + state shape ---
 
   - id: add-egregore-types-and-state-fields
-    title: 'Add EgregoreSpecies const ({ Allelopath: ''allelopath'', Spreader: ''spreader'' } as const) + type alias to src/engine/types.ts. Add EgregoreActivityStage const ({ Active: ''active'', Dormant: ''dormant'' } as const) + type alias. Add EgregoreActivityState interface { stage: EgregoreActivityStage; stageStartTime: number; species: EgregoreSpecies; genome: EgregoreGenome }. Extend GameState with `egregoreLifecycle: Map<string, EgregoreActivityState>` and `lastEgregoreSpreadYear: number`. Update createGameState in src/engine/state.ts to initialize egregoreLifecycle to a new Map() and lastEgregoreSpreadYear to -1. Add both fields to EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts. EgregoreGenome is imported from src/engine/genetics/egregore.ts (forward reference resolved when that task lands; declare the import path now, fail typecheck if missing — that''s expected during incremental implementation).'
+    title: "Add EgregoreSpecies const ({ Allelopath: 'allelopath', Spreader: 'spreader' } as const) + type alias to src/engine/types.ts. Add EgregoreActivityStage const ({ Active: 'active', Dormant: 'dormant' } as const) + type alias. Add EgregoreActivityState interface { stage: EgregoreActivityStage; stageStartTime: number; species: EgregoreSpecies; genome: EgregoreGenome }. Extend GameState with `egregoreLifecycle: Map<string, EgregoreActivityState>` and `lastEgregoreSpreadYear: number`. Update createGameState in src/engine/state.ts to initialize egregoreLifecycle to a new Map() and lastEgregoreSpreadYear to -1. Add both fields to EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts. EgregoreGenome is imported from src/engine/genetics/egregore.ts (forward reference resolved when that task lands; declare the import path now, fail typecheck if missing — that's expected during incremental implementation)."
     spec_id: RP-8b-egregoric-mechanical
     spec_sections:
       - egregore-lifecycle-state-on-gamestate
@@ -57,7 +57,7 @@ tasks:
   # --- Tier 2: Genetics — EgregoreGenome + canCross predicate ---
 
   - id: add-egregore-genome-and-cross-predicate
-    title: 'Implement src/engine/genetics/egregore.ts: export EgregoreGenome interface { __kind: ''egregore''; identity: string; allelopathy: number; spreadVelocity: number } and generateEgregoreGenome(x, y, stewardName) which produces an identity SHA256 (reuse the RP-3 identity-string helper from src/engine/genetics/index.ts), then derives allelopathy and spreadVelocity in [0, 1] by reading two pairs of bytes from the hash. The function takes a species-bias parameter ({ allelopathy, spreadVelocity }) — the final trait value is the mean of the hash-derived value and the species bias. Add canCross(a: TraitBag | EgregoreGenome, b: TraitBag | EgregoreGenome): boolean to src/engine/genetics/index.ts. The predicate returns false when either argument has __kind === ''egregore''; returns true otherwise. Treat missing __kind as native (TraitBag default). Export canCross from the genetics index.'
+    title: "Implement src/engine/genetics/egregore.ts: export EgregoreGenome interface { __kind: 'egregore'; identity: string; allelopathy: number; spreadVelocity: number } and generateEgregoreGenome(x, y, stewardName) which produces an identity SHA256 (reuse the RP-3 identity-string helper from src/engine/genetics/index.ts), then derives allelopathy and spreadVelocity in [0, 1] by reading two pairs of bytes from the hash. The function takes a species-bias parameter ({ allelopathy, spreadVelocity }) — the final trait value is the mean of the hash-derived value and the species bias. Add canCross(a: TraitBag | EgregoreGenome, b: TraitBag | EgregoreGenome): boolean to src/engine/genetics/index.ts. The predicate returns false when either argument has __kind === 'egregore'; returns true otherwise. Treat missing __kind as native (TraitBag default). Export canCross from the genetics index."
     spec_id: RP-8b-egregoric-mechanical
     spec_sections:
       - egregore-genome-and-cross-predicate
@@ -146,7 +146,7 @@ tasks:
   # --- Tier 6: Lifecycle ticker ---
 
   - id: implement-egregore-lifecycle-ticker
-    title: 'Implement src/engine/egregore/lifecycle.ts. Export tickEgregoreLifecycle(state: GameState, time: number): void. Iterate every entry in state.egregoreLifecycle. When state.weather.season === Season.Winter and entry.stage === ''dormant'', set stage to ''active'' and update stageStartTime. When season !== Winter and entry.stage === ''active'', set stage to ''dormant'' and update stageStartTime. No debounce. Mirrors src/engine/floraLifecycle.ts lines 140–162 with inverted season check. Register the ticker as a gameLoop system in src/engine/gameLoop.ts with id ''egregore-lifecycle'', intervalMs identical to CLOVER_LIFECYCLE_TICK_MS, priority 52.'
+    title: "Implement src/engine/egregore/lifecycle.ts. Export tickEgregoreLifecycle(state: GameState, time: number): void. Iterate every entry in state.egregoreLifecycle. When state.weather.season === Season.Winter and entry.stage === 'dormant', set stage to 'active' and update stageStartTime. When season !== Winter and entry.stage === 'active', set stage to 'dormant' and update stageStartTime. No debounce. Mirrors src/engine/floraLifecycle.ts lines 140–162 with inverted season check. Register the ticker as a gameLoop system in src/engine/gameLoop.ts with id 'egregore-lifecycle', intervalMs identical to CLOVER_LIFECYCLE_TICK_MS, priority 52."
     spec_id: RP-8b-egregoric-mechanical
     spec_sections:
       - egregore-lifecycle-inverse-phased
@@ -170,11 +170,11 @@ tasks:
   # --- Tier 7: Spread (stewardship + revery refactor) ---
 
   - id: implement-egregore-spread
-    title: 'Implement src/engine/egregore/spread.ts with two exports:
+    title: "Implement src/engine/egregore/spread.ts with two exports:
       (1) tickEgregoreSpread(state: GameState, time: number): void. Early-returns at four gates in order: state.weather.season !== Season.Winter; state.currentZone !== Zone.Overworld; state.deepTime !== null; state.revery !== null. After gates, computes currentYear = Math.floor(state.seasonalPhase + (state.year ?? 0)) — if state.year does not exist, use a stable monotonic year proxy derived from total elapsed time. If currentYear === state.lastEgregoreSpreadYear, return. Otherwise: set state.lastEgregoreSpreadYear = currentYear; enumerate candidates via candidateDirtNeighbors(state); if empty, return; pick 1 or 2 positions deterministically via a hash of (stewardName, currentYear, candidate.x, candidate.y) — sort candidates by the hash, take the first 1 or 2 based on the parity of (hash mod 3). For each placed position: write state.map[y][x] = { type: TileType.Egregore }; append to state.egregorePositions; add an egregoreLifecycle entry (stage=Active since season is Winter, species + genome deterministic per position).
       (2) advanceEgregoreInRevery(state: GameState): Position[]. Replaces the existing advanceEgregoreFirstRevery in revery.ts. ALWAYS callable (no reveryCount gate inside). Count = state.reveryCount === 0 ? 3 : 6 + (state.reveryCount % 4). Reuses candidateDirtNeighbors + trailCentroid + manhattan sort from the existing first-Revery implementation. For each placed position: write the tile, append to egregorePositions, add an egregoreLifecycle entry (stage=Active).
-      Register tickEgregoreSpread in src/engine/gameLoop.ts as system ''egregore-spread'' with intervalMs 30000 (30s wall-clock; the year-throttle is the real gate).
-      Delete the old advanceEgregoreFirstRevery export from revery.ts; update revery.ts:138 to call advanceEgregoreInRevery unconditionally (drop the `state.reveryCount === 0` gate at the call site). The function''s own count logic produces the same 3-tile behavior on the first Revery, preserving the RP-4 contract.'
+      Register tickEgregoreSpread in src/engine/gameLoop.ts as system 'egregore-spread' with intervalMs 30000 (30s wall-clock; the year-throttle is the real gate).
+      Delete the old advanceEgregoreFirstRevery export from revery.ts; update revery.ts:138 to call advanceEgregoreInRevery unconditionally (drop the `state.reveryCount === 0` gate at the call site). The function's own count logic produces the same 3-tile behavior on the first Revery, preserving the RP-4 contract."
     spec_id: RP-8b-egregoric-mechanical
     spec_sections:
       - egregore-stewardship-spread
@@ -206,7 +206,8 @@ tasks:
   # --- Tier 8: Manual footnote ---
 
   - id: add-manual-incompatibility-footnote
-    title: 'Add getEgregoreIncompatibilityFootnote(x, y): string[] to src/engine/egregore.ts. Returns 3–5 EVA tokens drawn from the existing EVA_TOKENS allowlist via tileHash-derived selection (different hash bucket than the body sampler so the footnote is distinguishable from body tokens — e.g. shift the bucket by a constant). The number of tokens is deterministic per (x, y) — (tileHash >> 4) % 3 + 3. Add an engineering-only comment in egregore.ts noting the curated translation is "no compatible regions" — the English string is NEVER returned or rendered.
+    title:
+      'Add getEgregoreIncompatibilityFootnote(x, y): string[] to src/engine/egregore.ts. Returns 3–5 EVA tokens drawn from the existing EVA_TOKENS allowlist via tileHash-derived selection (different hash bucket than the body sampler so the footnote is distinguishable from body tokens — e.g. shift the bucket by a constant). The number of tokens is deterministic per (x, y) — (tileHash >> 4) % 3 + 3. Add an engineering-only comment in egregore.ts noting the curated translation is "no compatible regions" — the English string is NEVER returned or rendered.
       Update src/engine/manual.ts getEgregoreManualEntries: for each egregore manual entry being built, append a footnote line containing the tokens from getEgregoreIncompatibilityFootnote — but only when hasAnyNativeFloraDiscovery(state) returns true. hasAnyNativeFloraDiscovery is a new helper in manual.ts: iterate state.manualDiscoveries, return true if any entry id starts with ''flora:''.
       The footnote tokens render in the Voynich typeface, like the body. The line is appended after the body and after any existing Latin pierce — it is the last line of the entry.'
     spec_id: RP-8b-egregoric-mechanical
@@ -230,7 +231,7 @@ tasks:
   # --- Tier 9: Tests ---
 
   - id: tests-egregore-species
-    title: 'Write src/engine/__tests__/egregore-species.test.ts. Cover: EGREGORE_SPECIES has exactly two entries with the documented trait biases; getEgregoreSpeciesAtPosition is deterministic per (x, y); two calls with the same coords return the same species; different positions can return different species; the species distribution across a grid is balanced (e.g. for a 64x64 grid, both species appear). Use vi.spyOn(Math, ''random'') only if needed (no randomness should be involved — all selection is deterministic from coords).'
+    title: "Write src/engine/__tests__/egregore-species.test.ts. Cover: EGREGORE_SPECIES has exactly two entries with the documented trait biases; getEgregoreSpeciesAtPosition is deterministic per (x, y); two calls with the same coords return the same species; different positions can return different species; the species distribution across a grid is balanced (e.g. for a 64x64 grid, both species appear). Use vi.spyOn(Math, 'random') only if needed (no randomness should be involved — all selection is deterministic from coords)."
     spec_id: RP-8b-egregoric-mechanical
     spec_sections:
       - egregore-species-registry

@@ -1,8 +1,8 @@
 import { ComponentType } from '../ecs/types'
 import { dropItem, pickUpGroundItems } from '../entities'
 import { FLORA_SPECIES } from '../flora/species'
-import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { nameToSeed } from '../genesis'
+import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { placeItem } from '../inventory'
 import { posKey } from '../position'
 import { FloraSpecies, FloraStage, TileType } from '../types'
@@ -17,7 +17,7 @@ const makeWildflowerGenome = (state: GameState): FloraGenome => {
   const identity = generateGenesisIdentity(
     FLORA_SPECIES[FloraSpecies.Wildflower].latinBinomial,
     genesisSeed,
-    'ruin:0:vault:0',
+    'ruin:0:vault:0'
   )
   return { identity, traits: generateTraitBag(identity) }
 }
@@ -111,7 +111,7 @@ describe('seed planting (drop-on-dirt)', () => {
     const identity = generateGenesisIdentity(
       FLORA_SPECIES[FloraSpecies.TallGrass].latinBinomial,
       genesisSeed,
-      'ruin:0:vault:0',
+      'ruin:0:vault:0'
     )
     const genome: FloraGenome = { identity, traits: generateTraitBag(identity) }
     const seedItem = placeItem(state.backpack, 'tallGrassSeeds', 0, 0)

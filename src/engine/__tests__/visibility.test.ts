@@ -332,7 +332,6 @@ describe('fog of war', () => {
         vi.restoreAllMocks()
       }
     })
-
   })
 
   describe('fog persists across cave visits', () => {
@@ -712,7 +711,6 @@ describe('fog of war', () => {
         vi.restoreAllMocks()
       }
     })
-
   })
 
   describe('overworld fog of war (RP-38)', () => {
@@ -863,7 +861,9 @@ describe('fog of war', () => {
         const visibleAfter = computeZoneVisibility(state)
         expect(visibleAfter.has(playerTile)).toBe(false)
         expect(state.overworldFogDiscovered.has(playerTile)).toBe(true)
-        expect(getTileVisibility(state, ...playerTile.split(',').map(Number) as [number, number], visibleAfter)).toBe('fullyDiscovered')
+        expect(getTileVisibility(state, ...(playerTile.split(',').map(Number) as [number, number]), visibleAfter)).toBe(
+          'fullyDiscovered'
+        )
       } finally {
         vi.restoreAllMocks()
       }

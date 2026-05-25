@@ -1,17 +1,17 @@
-import { render } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
-
 import { AmbientInstruments } from '../AmbientInstruments'
 import {
-  LUNATIONS_PER_YEAR,
   almanacState,
+  LUNATIONS_PER_YEAR,
   moonPhase,
   moonPhaseLabel,
   windSpeedLabel,
 } from '../ambientInstruments.helpers'
+import { render } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
+
 import { Season, Sky, WindDirection } from '@/engine/types'
-import type { GameState } from '@/engine/types'
 import { MAX_WIND_SPEED } from '@/engine/weather/wind'
+import type { GameState } from '@/engine/types'
 
 const stubState = (overrides: {
   windDirection?: WindDirection
@@ -134,7 +134,9 @@ describe('AmbientInstruments — render', () => {
   })
 
   it('renders the cardinal letter and wind-speed label for the vane row', () => {
-    const { getByText } = render(<AmbientInstruments state={stubState({ windDirection: WindDirection.NE, smoothSpeed: 12 })} />)
+    const { getByText } = render(
+      <AmbientInstruments state={stubState({ windDirection: WindDirection.NE, smoothSpeed: 12 })} />
+    )
     expect(getByText(/NE\s+brisk/)).not.toBeNull()
   })
 

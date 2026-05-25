@@ -1,5 +1,3 @@
-import type { GenesisEpoch } from '../../genesisTypes'
-
 import { cosmicFormation } from './01-cosmicFormation'
 import { landAccretion } from './02-landAccretion'
 import { tectonicUplift } from './03-tectonicUplift'
@@ -15,6 +13,8 @@ import { warmPeriod } from './12-warmPeriod'
 import { riseOfCivilizations } from './13-riseOfCivilizations'
 import { fallOfCivilizations } from './14-fallOfCivilizations'
 import { presentDay } from './15-presentDay'
+
+import type { GenesisEpoch } from '../../genesisTypes'
 
 // Preserve the source-file's GENESIS_EPOCHS playback order exactly:
 // cosmicFormation, landAccretion, lavaEra, crustCooling, tectonicUplift,

@@ -1,22 +1,16 @@
 // Spec acceptance tests for RP-7 (Pollinator routes & preference).
 // Detailed unit tests live in tileBeePreference.test.ts, bee-routing.test.ts,
 // and pollen-emit-bias.test.ts. This file is the spec's acceptance surface.
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
 import { ComponentType } from '../ecs/types'
 import { tickBees } from '../entities'
-import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
+import { registerFloraPollinate, tickPollenEmit, unregisterFloraPollinate } from '../flora/actions/pollinate'
 import { FLORA_SPECIES, getTileBeePreference } from '../flora/species'
-import {
-  registerFloraPollinate,
-  tickPollenEmit,
-  unregisterFloraPollinate,
-} from '../flora/actions/pollinate'
+import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { posKey } from '../position'
 import { FloraSpecies, TileType } from '../types'
-
 import { clearAroundPlayer, createBeeEntity, createTestState } from './helpers'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { FloraPollinateProfile, GameState } from '../types'
 

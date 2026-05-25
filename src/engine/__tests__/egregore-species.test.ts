@@ -1,7 +1,6 @@
-import { describe, expect, it } from 'vitest'
-
 import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition, getEgregoreSpeciesDef } from '../egregore/species'
 import { EgregoreSpecies } from '../types'
+import { describe, expect, it } from 'vitest'
 
 describe('EGREGORE_SPECIES registry (RP-8b)', () => {
   it('has exactly two entries — Allelopath and Spreader', () => {

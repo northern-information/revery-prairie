@@ -1,7 +1,7 @@
 import { tickDormantGardenDecay } from '../ruins'
 
-import type { TickSystem } from './types'
 import type { GameState } from '../types'
+import type { TickSystem } from './types'
 
 export const ruinSystems = (): TickSystem[] => [
   {

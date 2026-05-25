@@ -7,7 +7,6 @@
 // is winter."
 
 import { EgregoreActivityStage, Season } from '@/engine/types'
-
 import type { GameState } from '@/engine/types'
 
 export const tickEgregoreLifecycle = (state: GameState, time: number): void => {

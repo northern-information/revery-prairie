@@ -1,17 +1,16 @@
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey } from '../../position'
-
-import type { GenesisEpoch } from '../../genesisTypes'
-
 import {
-  DIRT_COLORS,
-  ROCK_COLORS,
   applyWindwardLeewardBias,
   clamp,
+  DIRT_COLORS,
   renderLowlandWater,
   renderSpace,
+  ROCK_COLORS,
   tileHash,
 } from '../shared'
+
+import type { GenesisEpoch } from '../../genesisTypes'
 
 export const emergenceOfLife: GenesisEpoch = {
   id: GenesisEpochId.EmergenceOfLife,

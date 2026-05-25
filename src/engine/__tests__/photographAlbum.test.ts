@@ -1,10 +1,8 @@
-import { describe, expect, it } from 'vitest'
-
-import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
-
 import { completeGenesis } from '../genesis'
 import { createGameState } from '../state'
 import { CameraSubject, Zone } from '../types'
+import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState, PlacedCamera, TimeLapseCell } from '../types'
 
@@ -46,9 +44,7 @@ describe('photograph album', () => {
       ],
     }
     state.placedCameras.push(placed)
-    state.cameraArchive.set('cam-1', [
-      { recordedAt: 5, subject: CameraSubject.MonarchVisit, cells: fakeCells() },
-    ])
+    state.cameraArchive.set('cam-1', [{ recordedAt: 5, subject: CameraSubject.MonarchVisit, cells: fakeCells() }])
 
     // Recreate the GameScreen onDismiss migration logic.
     const archive = state.cameraArchive.get('cam-1') ?? []

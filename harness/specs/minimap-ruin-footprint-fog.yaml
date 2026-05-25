@@ -58,7 +58,7 @@ edge_cases:
       civilization ruins exist on the prairie outside the spawn FOV.
       The minimap must show no footprint colour at any of those
       positions.
-    expected: 'getVisibleRuinFootprints returns an empty array (or only tiles within the spawn FOV if a ruin happens to overlap the player''s starting visible set).'
+    expected: "getVisibleRuinFootprints returns an empty array (or only tiles within the spawn FOV if a ruin happens to overlap the player's starting visible set)."
   - id: partially-explored-ruin
     description: >
       The steward has walked over only one tile of a 5-tile ruin
@@ -72,13 +72,13 @@ edge_cases:
       `state.currentZone !== Zone.Overworld`. The minimap may render
       the current interior, but the prairie ruin layer is not the
       relevant structure layer here.
-    expected: 'getVisibleRuinFootprints returns an empty array. The interior''s structure layers (cave entrance, ruin entrance, etc.) are handled by other code paths.'
+    expected: "getVisibleRuinFootprints returns an empty array. The interior's structure layers (cave entrance, ruin entrance, etc.) are handled by other code paths."
 
 failure_conditions:
   - trigger: 'drawStructures iterates state.civilizationRuins and calls drawIsoTile for every footprint position without a per-tile fog gate'
     expected: 'Pre-fix behavior; the spec is violated. The steward sees every ruin on the minimap immediately on spawn, regardless of whether they have walked near any of them.'
   - trigger: 'A future structure layer is added to drawStructures that bypasses the fog gate'
-    expected: 'Same class of bug. The named getVisibleRuinFootprints helper and this spec''s regression test should catch the regression pattern; new structure layers should mirror the helper''s gating.'
+    expected: "Same class of bug. The named getVisibleRuinFootprints helper and this spec's regression test should catch the regression pattern; new structure layers should mirror the helper's gating."
 
 verification:
   test_file: src/components/__tests__/Minimap.test.tsx

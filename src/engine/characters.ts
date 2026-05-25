@@ -163,11 +163,7 @@ const getGronDialog = (state: GameState): string[] => {
 // Folk-Coldë voice rules: no contractions, statements not questions, no
 // direct address by title, no editorial affect. Every register's last
 // line is the RP-8a egregore refusal, preserved verbatim.
-const MOAB_DIALOG_WINTER: string[] = [
-  '...',
-  'The line waits.',
-  'The other clover. We do not grow that.',
-]
+const MOAB_DIALOG_WINTER: string[] = ['...', 'The line waits.', 'The other clover. We do not grow that.']
 
 const MOAB_DIALOG_SPRING: string[] = [
   'The thaw.',

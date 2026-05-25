@@ -1,9 +1,7 @@
 import { useState } from 'react'
-
 import { TimeLapsePlayback } from './TimeLapsePlayback'
 
 import { identityForFrame } from '@/engine/timeLapse'
-
 import { CameraSubject } from '@/engine/types'
 import type { GameState, TimeLapseFrame } from '@/engine/types'
 
@@ -72,7 +70,7 @@ export const PhotographAlbumPanel = ({ state }: PhotographAlbumPanelProps) => {
                 onClick={() => {
                   setActiveIndex(i)
                 }}
-                className="text-text hover:bg-bee/10 flex w-full items-center justify-between rounded border border-transparent p-2 text-left hover:border-bee/40"
+                className="text-text hover:bg-bee/10 hover:border-bee/40 flex w-full items-center justify-between rounded border border-transparent p-2 text-left"
               >
                 <span className="text-text text-sm">{subjectLabel(frame.subject)}</span>
                 <span className="text-dim text-xs italic">

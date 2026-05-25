@@ -375,7 +375,7 @@ export const pollinate = (state: GameState, center: Position): boolean => {
       species,
       identity,
       traits: generateTraitBag(identity),
-    }),
+    })
   )
   return true
 }

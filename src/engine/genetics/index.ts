@@ -11,7 +11,22 @@
 // visible grid in #6 derives from this exact rule and must stay stable
 // across game versions.
 
+// --- Cross-genome compatibility (RP-8b) ---
+//
+// The v3 doctrine: native × egregore crossbreeding is impossible — the
+// trait bags do not align (egregores have axes natives lack). Modeled as
+// a `__kind` discriminator on `EgregoreGenome`: if either operand is
+// flagged egregoric, the cross is refused. Native `TraitBag` carries no
+// `__kind` field, so the discriminator is the type-shape boundary.
+//
+// canCross is exported here (not from egregore.ts) so callers anywhere
+// in the codebase can refuse a cross without importing the egregore
+// module directly.
+
+import { isEgregoreGenome } from './egregore'
+
 import { sha256Sync } from '@/engine/crypto'
+import type { EgregoreGenome } from './egregore'
 
 // --- Types ---
 
@@ -112,7 +127,9 @@ export const crossTraitBags = (parentA: TraitBag, parentB: TraitBag, rng: () => 
   const draws: Record<PhenotypeAxis, number> = {
     bloomTiming: clamp01((parentA.bloomTiming + parentB.bloomTiming) / 2 + gaussian(rng, PHENOTYPE_NOISE_SIGMA)),
     coldTolerance: clamp01((parentA.coldTolerance + parentB.coldTolerance) / 2 + gaussian(rng, PHENOTYPE_NOISE_SIGMA)),
-    droughtResponse: clamp01((parentA.droughtResponse + parentB.droughtResponse) / 2 + gaussian(rng, PHENOTYPE_NOISE_SIGMA)),
+    droughtResponse: clamp01(
+      (parentA.droughtResponse + parentB.droughtResponse) / 2 + gaussian(rng, PHENOTYPE_NOISE_SIGMA)
+    ),
     pollinatorPreference: clamp01(
       (parentA.pollinatorPreference + parentB.pollinatorPreference) / 2 + gaussian(rng, PHENOTYPE_NOISE_SIGMA)
     ),
@@ -145,21 +162,6 @@ export const crossTraitBags = (parentA: TraitBag, parentB: TraitBag, rng: () => 
   }
 }
 
-// --- Cross-genome compatibility (RP-8b) ---
-//
-// The v3 doctrine: native × egregore crossbreeding is impossible — the
-// trait bags do not align (egregores have axes natives lack). Modeled as
-// a `__kind` discriminator on `EgregoreGenome`: if either operand is
-// flagged egregoric, the cross is refused. Native `TraitBag` carries no
-// `__kind` field, so the discriminator is the type-shape boundary.
-//
-// canCross is exported here (not from egregore.ts) so callers anywhere
-// in the codebase can refuse a cross without importing the egregore
-// module directly.
-
-import { isEgregoreGenome } from './egregore'
-
-import type { EgregoreGenome } from './egregore'
 export type { EgregoreGenome } from './egregore'
 export { generateEgregoreGenome, isEgregoreGenome } from './egregore'
 

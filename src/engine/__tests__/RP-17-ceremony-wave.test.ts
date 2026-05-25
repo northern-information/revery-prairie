@@ -17,7 +17,6 @@ import { setMapTile } from '../map'
 import { posKey } from '../position'
 import { RECIPES } from '../recipes'
 import { FloraSpecies, TileType } from '../types'
-
 import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -232,7 +231,7 @@ describe('tickFloraWaves completion (no memory leak)', () => {
       prairieRecipe.execute(state)
       // Run the wave to completion before the next cast.
       for (let i = 0; i < CEREMONY_WAVE_RADIUS * 3; i++) {
-        tickFloraWaves(state, ((cast * 100) + i + 1) * (CEREMONY_WAVE_TICK_MS + 1))
+        tickFloraWaves(state, (cast * 100 + i + 1) * (CEREMONY_WAVE_TICK_MS + 1))
       }
     }
     expect(state.activeWaves).toHaveLength(0)

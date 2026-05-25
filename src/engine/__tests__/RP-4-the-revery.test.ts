@@ -9,17 +9,15 @@
 // RP-32-revery-dormancy-pressure.test.ts and dormancy-pressure
 // unit tests. The remaining tests below cover non-omen Revery behavior
 // that survives unchanged.
-import { describe, expect, it } from 'vitest'
-
-import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { FLORA_SPECIES } from '../flora/species'
+import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { movePlayer } from '../movement'
-import { initiateRevery, isReveryLocked, tickRevery } from '../revery'
 import { posKey } from '../position'
+import { initiateRevery, isReveryLocked, tickRevery } from '../revery'
 import { FloraSpecies, OmenKind, ReveryPhase, Sky, TileType } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 

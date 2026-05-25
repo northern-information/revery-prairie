@@ -10,15 +10,13 @@
 //     POLLEN_BURST_DURATION_MS window. Even with rendering fixed, the
 //     ECS would grow without bound across repeated ceremony casts.
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
-
 import { POLLEN_BURST_DURATION_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { createGameLoop } from '../gameLoop'
 import { RECIPES } from '../recipes'
 import { Zone } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const prairieRecipe = RECIPES[0]
 

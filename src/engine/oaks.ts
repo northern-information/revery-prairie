@@ -119,11 +119,7 @@ export const spawnOak = (state: GameState, anchorX: number, anchorY: number, tim
 // Single bold glyph per tile — no sub-pixel overlays. The user reported the
 // previous overlay-heavy approach read as a pile of sticks; this version
 // trusts the iso silhouette to do the work.
-export const getOakRenderTile = (
-  dx: number,
-  dy: number,
-  isDormant: boolean
-): { char: string; color: string } => {
+export const getOakRenderTile = (dx: number, dy: number, isDormant: boolean): { char: string; color: string } => {
   const isoRow = dx + dy
   const isoCol = dx - dy
 

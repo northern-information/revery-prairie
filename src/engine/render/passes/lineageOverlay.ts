@@ -86,7 +86,7 @@ const drawEdge = (
   state: GameState,
   metrics: CharMetrics,
   fromKey: string,
-  toKey: string,
+  toKey: string
 ): void => {
   const [fxStr, fyStr] = fromKey.split(',')
   const [txStr, tyStr] = toKey.split(',')

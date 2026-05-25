@@ -15,10 +15,10 @@
 // On arrival: zone reverts to Cave at caveNpcSpot, moabState → Idle.
 
 import { ComponentType } from './ecs/types'
+import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { findPath } from './pathfinding'
 import { posKey } from './position'
-import { recordDiscovery } from './manual'
 import { MoabState, Season, TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'

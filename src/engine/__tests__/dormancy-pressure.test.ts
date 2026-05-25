@@ -1,14 +1,8 @@
-import { describe, expect, it } from 'vitest'
-
-import {
-  REVERY_COOLDOWN_MS,
-  REVERY_PRESSURE_RAMP_END,
-  REVERY_PRESSURE_RAMP_START,
-} from '../constants'
+import { REVERY_COOLDOWN_MS, REVERY_PRESSURE_RAMP_END, REVERY_PRESSURE_RAMP_START } from '../constants'
 import { contributeDormancyPressure, tickDormancyPressure } from '../omen'
 import { OmenKind, ReveryPhase, Season, Sky, Zone } from '../types'
-
 import { createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState, ReverySnapshot } from '../types'
 

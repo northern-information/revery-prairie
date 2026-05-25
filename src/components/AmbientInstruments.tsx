@@ -1,14 +1,14 @@
-import { Sky } from '@/engine/types'
-import type { GameState } from '@/engine/types'
-
 import {
-  SEASON_LABEL,
-  VANE_ROTATION_DEG,
   almanacState,
   moonPhase,
   moonPhaseLabel,
+  SEASON_LABEL,
+  VANE_ROTATION_DEG,
   windSpeedLabel,
 } from './ambientInstruments.helpers'
+
+import { Sky } from '@/engine/types'
+import type { GameState } from '@/engine/types'
 
 interface AmbientInstrumentsProps {
   state: GameState
@@ -195,12 +195,7 @@ const MoonGlyph = ({ phaseName }: { phaseName: string }) => {
   const litWidth = r * 2 * recipe.fill
   const litX = recipe.side === 'right' ? cx : cx - litWidth
   return (
-    <svg
-      width={GLYPH_SIZE}
-      height={GLYPH_SIZE}
-      viewBox="0 0 16 16"
-      aria-hidden="true"
-    >
+    <svg width={GLYPH_SIZE} height={GLYPH_SIZE} viewBox="0 0 16 16" aria-hidden="true">
       <defs>
         <clipPath id={`moon-clip-${recipe.side ?? 'none'}-${String(recipe.fill)}`}>
           <rect x={litX} y={cy - r} width={litWidth} height={r * 2} />
@@ -253,12 +248,7 @@ const sectorPath = (progress: number): string => {
 }
 
 const AlmanacGlyph = ({ progress }: { progress: number }) => (
-  <svg
-    width={GLYPH_SIZE}
-    height={GLYPH_SIZE}
-    viewBox="0 0 16 16"
-    aria-hidden="true"
-  >
+  <svg width={GLYPH_SIZE} height={GLYPH_SIZE} viewBox="0 0 16 16" aria-hidden="true">
     <circle cx="8" cy="8" r={DIAL_RADIUS} fill="none" stroke="currentColor" strokeWidth={STROKE} />
     <path d={sectorPath(progress)} fill="currentColor" />
   </svg>

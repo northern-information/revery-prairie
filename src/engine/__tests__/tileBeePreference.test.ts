@@ -1,12 +1,10 @@
-import { describe, expect, it } from 'vitest'
-
-import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { FLORA_SPECIES, getTileBeePreference } from '../flora/species'
+import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
 import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { posKey } from '../position'
 import { FloraSpecies, TileType } from '../types'
-
 import { clearAroundPlayer, createTestState } from './helpers'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
 

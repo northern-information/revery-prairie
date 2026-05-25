@@ -1,20 +1,15 @@
 import { watch } from 'node:fs'
 import { resolve } from 'node:path'
-import { Box, Text, useApp, useInput, useStdout } from 'ink'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { groupByColumn, loadFeatures, STATUS_COLUMNS, WRITABLE_STATUSES } from './data.js'
 import { DetailPane } from './DetailPane.js'
-import { Kanban } from './Kanban.js'
-import {
-  groupByColumn,
-  loadFeatures,
-  STATUS_COLUMNS,
-  WRITABLE_STATUSES,
-  type DerivedStatus,
-  type Feature,
-  type Status,
-} from './data.js'
 import { moveFeatureAndOpenPr, openUrl } from './git.js'
-import { scanInFlight, type InFlightScan } from './scan.js'
+import { Kanban } from './Kanban.js'
+import { scanInFlight } from './scan.js'
+import { Box, Text, useApp, useInput, useStdout } from 'ink'
+
+import type { DerivedStatus, Feature, Status } from './data.js'
+import type { InFlightScan } from './scan.js'
 
 const YAML_REL = 'docs/backlog.yaml'
 const YAML_PATH = resolve(process.cwd(), YAML_REL)
@@ -32,9 +27,7 @@ const tryLoad = (): LoadState => {
   }
 }
 
-const firstNonEmptyColumn = (
-  groups: Record<DerivedStatus, Feature[]>,
-): DerivedStatus | null => {
+const firstNonEmptyColumn = (groups: Record<DerivedStatus, Feature[]>): DerivedStatus | null => {
   if (groups.next.length > 0) return 'next'
   for (const col of STATUS_COLUMNS) {
     if (groups[col].length > 0) return col
@@ -63,10 +56,7 @@ const STATUS_LABEL: Record<Status, string> = {
   shipped: 'shipped',
 }
 
-type ScanState =
-  | { kind: 'idle' }
-  | { kind: 'scanning' }
-  | { kind: 'done'; scan: InFlightScan }
+type ScanState = { kind: 'idle' } | { kind: 'scanning' } | { kind: 'done'; scan: InFlightScan }
 
 export const App = () => {
   const { exit } = useApp()
@@ -98,7 +88,7 @@ export const App = () => {
   const locate = useMemo(() => {
     if (!groups || !selectedId) return null
     for (const col of STATUS_COLUMNS) {
-      const idx = groups[col].findIndex((f) => f.id === selectedId)
+      const idx = groups[col].findIndex(f => f.id === selectedId)
       if (idx !== -1) return { column: col, index: idx }
     }
     return null
@@ -155,7 +145,7 @@ export const App = () => {
     }
   }, [reload])
 
-  const selected = locate && groups ? groups[locate.column][locate.index] ?? null : null
+  const selected = locate && groups ? (groups[locate.column][locate.index] ?? null) : null
 
   useInput((input, key) => {
     if (input === 'q' || (key.ctrl && input === 'c')) {
@@ -275,7 +265,7 @@ export const App = () => {
     }
 
     if (key.return || input === ' ') {
-      setExpanded((e) => !e)
+      setExpanded(e => !e)
       return
     }
   })
@@ -304,9 +294,7 @@ export const App = () => {
   const nextPick = groups.next[0]
 
   const promotedCount = scan
-    ? load.features.filter(
-        (f) => f.status === 'todo' && scan.byId.has(f.id) && !scan.branchOnly.has(f.id),
-      ).length
+    ? load.features.filter(f => f.status === 'todo' && scan.byId.has(f.id) && !scan.branchOnly.has(f.id)).length
     : 0
   const staleCount = scan?.stale.length ?? 0
   const thinktankCount = scan?.unmappedThinktank.length ?? 0
@@ -315,16 +303,12 @@ export const App = () => {
     <Box flexDirection="column" padding={1} width={termWidth}>
       <Box>
         <Text bold>Precis dashboard</Text>
-        <Text dimColor>  ·  </Text>
+        <Text dimColor> · </Text>
         <Text>{`${shipped}/${total} shipped`}</Text>
-        <Text dimColor>  ·  </Text>
+        <Text dimColor> · </Text>
         <Text color="cyan">{`${nextCount} unblocked`}</Text>
-        <Text dimColor>  ·  next pick: </Text>
-        {nextPick ? (
-          <Text color="cyan">{`#${nextPick.id} ${nextPick.name}`}</Text>
-        ) : (
-          <Text dimColor>—</Text>
-        )}
+        <Text dimColor> · next pick: </Text>
+        {nextPick ? <Text color="cyan">{`#${nextPick.id} ${nextPick.name}`}</Text> : <Text dimColor>—</Text>}
       </Box>
       <Box>
         <Text dimColor>scan: </Text>
@@ -333,12 +317,8 @@ export const App = () => {
         ) : scanState.kind === 'done' ? (
           <>
             <Text color="green">ok</Text>
-            {promotedCount > 0 ? (
-              <Text color="magenta">{`  ·  ${promotedCount} promoted *`}</Text>
-            ) : null}
-            {staleCount > 0 ? (
-              <Text color="red">{`  ·  ${staleCount} stale !`}</Text>
-            ) : null}
+            {promotedCount > 0 ? <Text color="magenta">{`  ·  ${promotedCount} promoted *`}</Text> : null}
+            {staleCount > 0 ? <Text color="red">{`  ·  ${staleCount} stale !`}</Text> : null}
             {thinktankCount > 0 ? (
               <Text dimColor>{`  ·  ${thinktankCount} thinktank-only worktree${thinktankCount === 1 ? '' : 's'}`}</Text>
             ) : null}
@@ -365,13 +345,13 @@ export const App = () => {
 
       {scan && scan.stale.length > 0 ? (
         <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="red" paddingX={1}>
-          <Text color="red" bold>Stale worktrees / branches detected:</Text>
-          {scan.stale.map((id) => {
+          <Text color="red" bold>
+            Stale worktrees / branches detected:
+          </Text>
+          {scan.stale.map(id => {
             const ev = scan.byId.get(id)
             const sources = ev ? evidenceSummary(ev) : ''
-            return (
-              <Text key={id} dimColor>{`  #${id} — ${sources}`}</Text>
-            )
+            return <Text key={id} dimColor>{`  #${id} — ${sources}`}</Text>
           })}
           <Text dimColor>Run /git-cleanup to clear them.</Text>
         </Box>
@@ -380,9 +360,7 @@ export const App = () => {
       <ModeOverlay mode={mode} selected={selected} />
 
       <Box marginTop={1}>
-        <Text dimColor>
-          [←→] column   [↑↓] card   [enter] expand   [m] move   [r] reload   [q] quit
-        </Text>
+        <Text dimColor>[←→] column [↑↓] card [enter] expand [m] move [r] reload [q] quit</Text>
       </Box>
     </Box>
   )
@@ -392,7 +370,7 @@ const evidenceSummary = (ev: import('./scan.js').IdEvidence): string => {
   const parts: string[] = []
   if (ev.worktrees.length > 0) parts.push(`${ev.worktrees.length} worktree(s)`)
   if (ev.remoteBranches.length > 0) parts.push(`${ev.remoteBranches.length} remote-branch(es)`)
-  if (ev.openPrs.length > 0) parts.push(`PR ${ev.openPrs.map((n) => `#${n}`).join(', ')}`)
+  if (ev.openPrs.length > 0) parts.push(`PR ${ev.openPrs.map(n => `#${n}`).join(', ')}`)
   if (ev.specs.length > 0) parts.push(`${ev.specs.length} spec edit(s)`)
   if (ev.plans.length > 0) parts.push(`${ev.plans.length} plan edit(s)`)
   if (ev.yamlFlips.length > 0) parts.push(`${ev.yamlFlips.length} yaml flip(s)`)
@@ -414,18 +392,14 @@ const ModeOverlay = ({ mode, selected }: ModeOverlayProps) => {
         <Box marginTop={1}>
           {WRITABLE_STATUSES.map((s, i) => (
             <Box key={s} marginRight={2}>
-              <Text
-                color={i === mode.cursor ? 'cyan' : undefined}
-                bold={i === mode.cursor}
-                inverse={i === mode.cursor}
-              >
+              <Text color={i === mode.cursor ? 'cyan' : undefined} bold={i === mode.cursor} inverse={i === mode.cursor}>
                 {` ${STATUS_LABEL[s]} `}
               </Text>
             </Box>
           ))}
         </Box>
         <Box marginTop={1}>
-          <Text dimColor>[←→] choose   [enter] confirm   [esc] cancel</Text>
+          <Text dimColor>[←→] choose [enter] confirm [esc] cancel</Text>
         </Box>
       </Box>
     )
@@ -436,13 +410,14 @@ const ModeOverlay = ({ mode, selected }: ModeOverlayProps) => {
       <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
         <Text>
           Move <Text bold>{`${mode.featureId}`}</Text> to{' '}
-          <Text bold color="yellow">{mode.target}</Text>?
+          <Text bold color="yellow">
+            {mode.target}
+          </Text>
+          ?
         </Text>
-        <Text dimColor>
-          This creates a worktree, commits the YAML change, pushes, and opens a draft PR.
-        </Text>
+        <Text dimColor>This creates a worktree, commits the YAML change, pushes, and opens a draft PR.</Text>
         <Box marginTop={1}>
-          <Text dimColor>[y]es   [n]o   [esc] cancel</Text>
+          <Text dimColor>[y]es [n]o [esc] cancel</Text>
         </Box>
       </Box>
     )
@@ -453,7 +428,10 @@ const ModeOverlay = ({ mode, selected }: ModeOverlayProps) => {
       <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
         <Text>
           Moving <Text bold>{`${mode.featureId}`}</Text> to{' '}
-          <Text bold color="yellow">{mode.target}</Text>…
+          <Text bold color="yellow">
+            {mode.target}
+          </Text>
+          …
         </Text>
         <Text dimColor>fetching, branching, committing, pushing, opening PR…</Text>
       </Box>
@@ -461,30 +439,26 @@ const ModeOverlay = ({ mode, selected }: ModeOverlayProps) => {
   }
 
   return (
-    <Box
-      marginTop={1}
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={mode.ok ? 'green' : 'red'}
-      paddingX={1}
-    >
+    <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor={mode.ok ? 'green' : 'red'} paddingX={1}>
       {mode.ok ? (
         <>
-          <Text color="green" bold>Move shipped.</Text>
+          <Text color="green" bold>
+            Move shipped.
+          </Text>
           {mode.url ? (
             <Text>{`PR: ${mode.url}`}</Text>
           ) : (
             <Text dimColor>PR created but the URL was not captured. Check `gh pr list`.</Text>
           )}
           <Box marginTop={1}>
-            <Text dimColor>
-              {mode.url ? '[o] open in browser   ' : ''}[enter] dismiss
-            </Text>
+            <Text dimColor>{mode.url ? '[o] open in browser   ' : ''}[enter] dismiss</Text>
           </Box>
         </>
       ) : (
         <>
-          <Text color="red" bold>Move failed.</Text>
+          <Text color="red" bold>
+            Move failed.
+          </Text>
           <Text>{mode.error ?? 'unknown error'}</Text>
           {mode.log.length > 0 && (
             <Box marginTop={1} flexDirection="column">

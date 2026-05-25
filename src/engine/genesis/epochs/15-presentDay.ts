@@ -11,10 +11,9 @@ import {
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey, tileHash as rendererTileHash } from '../../position'
 import { TileType } from '../../types'
+import { BUILDING_CHARS, clamp, CRATER_COLORS, enforceConnectivity } from '../shared'
 
 import type { GenesisEpoch, GenesisTileRender } from '../../genesisTypes'
-
-import { BUILDING_CHARS, CRATER_COLORS, clamp, enforceConnectivity } from '../shared'
 
 export const presentDay: GenesisEpoch = {
   id: GenesisEpochId.PresentDay,

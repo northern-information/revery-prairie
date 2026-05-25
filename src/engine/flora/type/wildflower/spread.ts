@@ -9,15 +9,11 @@
 // flora/type/clover/ or flora/type/tallGrass/ — the engine in
 // flora/spread.ts is the only shared substrate.
 
-import {
-  WILDFLOWER_BASE_GROWTH_CHANCE,
-  WILDFLOWER_MAX_GROWTH_PER_TICK,
-} from '@/engine/constants'
+import { WILDFLOWER_BASE_GROWTH_CHANCE, WILDFLOWER_MAX_GROWTH_PER_TICK } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
-import type { SelectGrowthTargets, SpeciesSpreadConfig } from '@/engine/flora/spreadConfig'
 import { CARDINAL, isInBounds, posKey } from '@/engine/position'
 import { FloraSpecies, TileType, Zone } from '@/engine/types'
-
+import type { SelectGrowthTargets, SpeciesSpreadConfig } from '@/engine/flora/spreadConfig'
 import type { GameState, Position } from '@/engine/types'
 
 const POLLINATOR_RADIUS = 3

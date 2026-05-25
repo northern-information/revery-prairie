@@ -1,9 +1,9 @@
 import { checkHouseTransition, createHouseInterior, enterHouse, exitHouse } from '../house'
 import { TileType, Zone } from '../types'
-
-import type { ZoneTransition } from '../types'
 import { createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import type { ZoneTransition } from '../types'
 
 afterEach(() => {
   vi.restoreAllMocks()

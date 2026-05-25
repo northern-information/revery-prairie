@@ -3,21 +3,21 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { dropItem } from '@/engine/entities'
 import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import { keyToScreenAxis, resolveHeldDirection } from '@/engine/heldKeys'
-import { recordDiscovery } from '@/engine/manual'
-import { selectScanTarget } from '@/engine/scan'
 import {
   advanceDialog,
   breakWall,
   clearRuinDebris,
   getAdjacentCharacter,
   interactWithCharacter,
-  tryPlacedCameraInteraction,
   isFacingLockedDoor,
   openLockedGateDialog,
   pickUpFacingOrStandingPlacedMeteorite,
+  tryPlacedCameraInteraction,
   unlockRuinDoor,
   updateFacingEntity,
 } from '@/engine/interaction'
+import { recordDiscovery } from '@/engine/manual'
+import { selectScanTarget } from '@/engine/scan'
 import { DeepTimePhase, OverlayMode, Zone } from '@/engine/types'
 import { isInputGated } from '@/engine/zoneTransition'
 import type { ItemInfoHandle } from '@/components/ItemInfo'
@@ -40,12 +40,7 @@ interface UseKeyboardOptions {
   isDraggingRef: React.RefObject<boolean>
 }
 
-export const useKeyboard = ({
-  state,
-  refreshUI,
-  itemInfoRef,
-  isDraggingRef,
-}: UseKeyboardOptions) => {
+export const useKeyboard = ({ state, refreshUI, itemInfoRef, isDraggingRef }: UseKeyboardOptions) => {
   const [activeScreen, setActiveScreenRaw] = useState<PermacomputerScreen>(null)
 
   // Read the mutable singleton through a ref per CLAUDE.md convention.

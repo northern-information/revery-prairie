@@ -1,20 +1,19 @@
 import { SPACE_BORDER } from '../../constants'
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey } from '../../position'
-
-import type { GenesisEpoch } from '../../genesisTypes'
-
 import {
-  COAST_INLAND_BIAS_PENALTY,
-  COAST_INLAND_BIAS_RADIUS,
   applyWindwardLeewardBias,
   clamp,
+  COAST_INLAND_BIAS_PENALTY,
+  COAST_INLAND_BIAS_RADIUS,
   dist,
   renderDirt,
   renderLowlandWater,
   renderSpace,
   tileHash,
 } from '../shared'
+
+import type { GenesisEpoch } from '../../genesisTypes'
 
 export const warmPeriod: GenesisEpoch = {
   id: GenesisEpochId.WarmPeriod,
@@ -298,7 +297,7 @@ export const warmPeriod: GenesisEpoch = {
       const bottomNoise = sim.glacialEdgeNoise.bottom[vIdx] ?? 0
       const effectiveTopDepth = glacialDepth + topNoise
       const effectiveBottomDepth = glacialDepth + bottomNoise
-      const topDist = (x - SPACE_BORDER) + (ty - SPACE_BORDER)
+      const topDist = x - SPACE_BORDER + (ty - SPACE_BORDER)
       const bottomDist = playableU - 2 - topDist
       const minDist = topDist < bottomDist ? topDist : bottomDist
       const effectiveDepth = topDist < bottomDist ? effectiveTopDepth : effectiveBottomDepth

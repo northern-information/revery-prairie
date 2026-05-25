@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { computeIsoLayout, getPlayerCenter, MINIMAP_CSS_SIZE, projectIso } from './minimapProjection'
+import { getVisibleRuinFootprints, isTileExplored } from './minimapStructures'
 
 import { getCharacterDefinition } from '@/engine/characters'
 import { TILE_COLORS } from '@/engine/constants'
@@ -8,7 +9,7 @@ import { posKey } from '@/engine/position'
 import { TileType, Zone } from '@/engine/types'
 import { getLastVisibleSet, getTileVisibility, hasFogOfWar } from '@/engine/visibility'
 import type { IsoLayout } from './minimapProjection'
-import type { GameState, Position, Tile } from '@/engine/types'
+import type { GameState, Tile } from '@/engine/types'
 import type { TileVisibility } from '@/engine/visibility'
 
 const PLAYER_MARKER_COLOR = '#ff69b4'
@@ -90,33 +91,6 @@ const buildOverworldCache = (state: GameState, layout: IsoLayout): HTMLCanvasEle
 
   drawTileLayer(ctx, state, layout, null)
   return offscreen
-}
-
-const isTileExplored = (state: GameState, x: number, y: number, visibleSet: Set<string> | null): boolean => {
-  if (!hasFogOfWar(state.currentZone)) return true
-  const vis = getTileVisibility(state, x, y, visibleSet ?? new Set())
-  return vis !== 'unexplored'
-}
-
-// Returns the ruin building-footprint tiles that should render on the
-// minimap this frame, filtered by per-tile fog state. Exported so the
-// fog-gating predicate is testable in isolation; drawStructures
-// delegates here so future structure-layer additions cannot bypass the
-// gate by copy-paste.
-export const getVisibleRuinFootprints = (
-  state: GameState,
-  visibleSet: Set<string> | null
-): Position[] => {
-  if (state.currentZone !== Zone.Overworld) return []
-  const out: Position[] = []
-  for (const ruin of state.civilizationRuins) {
-    for (const pos of ruin.buildingFootprints) {
-      if (isTileExplored(state, pos.x, pos.y, visibleSet)) {
-        out.push(pos)
-      }
-    }
-  }
-  return out
 }
 
 const drawStructures = (

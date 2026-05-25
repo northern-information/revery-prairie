@@ -6,7 +6,7 @@ referenced from `CLAUDE.md`. read when touching click-to-move, pathfinding, curs
 
 click-to-move via A\* pathfinding. right-click a walkable tile → player walks there tile-by-tile (100ms per step via `tickPath()`). path stored as `state.path: Position[] | null`. keyboard input cancels the current path.
 
-right-click is the only mouse button that moves the player. left-click never sets `state.path`. left-click on a character or interactable that is *already adjacent* fires the interaction immediately (e.g. advancing dialog) without any pathfinding; left-click on anything farther away is a no-op. to reach a far interactable, right-click to walk over and press the interact key.
+right-click is the only mouse button that moves the player. left-click never sets `state.path`. left-click on a character or interactable that is _already adjacent_ fires the interaction immediately (e.g. advancing dialog) without any pathfinding; left-click on anything farther away is a no-op. to reach a far interactable, right-click to walk over and press the interact key.
 
 shift + right-click queues a waypoint onto the active path (RTS-style). the new segment is `findPath(lastWaypoint, clickedTile)` appended to `state.path`; `state.pathWaypoints` gains the new tile. shift without an active path behaves as a plain right-click.
 

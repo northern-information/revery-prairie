@@ -1,11 +1,8 @@
-import { Box, Text } from 'ink'
 import { Card } from './Card.js'
-import {
-  COLUMN_LABEL,
-  STATUS_COLUMNS,
-  type DerivedStatus,
-  type Feature,
-} from './data.js'
+import { COLUMN_LABEL, STATUS_COLUMNS } from './data.js'
+import { Box, Text } from 'ink'
+
+import type { DerivedStatus, Feature } from './data.js'
 import type { InFlightScan } from './scan.js'
 
 interface KanbanProps {
@@ -42,7 +39,7 @@ export const Kanban = ({ groups, selectedColumn, selectedIndex, termWidth, scan 
 
   return (
     <Box flexDirection="row" width={termWidth - 2}>
-      {STATUS_COLUMNS.map((col) => {
+      {STATUS_COLUMNS.map(col => {
         const items = groups[col]
         const isActiveColumn = col === selectedColumn
         return (

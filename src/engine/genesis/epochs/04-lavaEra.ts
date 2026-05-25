@@ -1,10 +1,9 @@
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey } from '../../position'
 import { smoothNoiseSeeded } from '../../terrain'
+import { clamp, dist, fbmWarp2D, generateLandMask, lerp, renderSpace, tileHash } from '../shared'
 
 import type { GenesisEpoch } from '../../genesisTypes'
-
-import { clamp, dist, fbmWarp2D, generateLandMask, lerp, renderSpace, tileHash } from '../shared'
 
 export const lavaEra: GenesisEpoch = {
   id: GenesisEpochId.LavaEra,

@@ -42,11 +42,7 @@ export const sampleLattice = (
 }
 
 // Three-octave fBm with domain warp. Returns [-1, 1] range.
-export const fbmWarp2D = (
-  width: number,
-  height: number,
-  rng: () => number
-): ((x: number, y: number) => number) => {
+export const fbmWarp2D = (width: number, height: number, rng: () => number): ((x: number, y: number) => number) => {
   const baseCell = 14
   const lat0 = buildValueLattice(width, height, baseCell, rng)
   const lat1 = buildValueLattice(width, height, baseCell / 2, rng)

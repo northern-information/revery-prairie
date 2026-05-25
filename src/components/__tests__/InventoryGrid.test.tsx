@@ -1,8 +1,8 @@
 import { createRef } from 'react'
+import { InventoryGrid } from '../InventoryGrid'
 import { render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { InventoryGrid } from '../InventoryGrid'
 import { COIN_POP_DURATION_MS } from '@/engine/constants'
 import { placeItem } from '@/engine/inventory'
 import { createGameState } from '@/engine/state'

@@ -542,29 +542,29 @@ edge_cases:
 failure_conditions:
   - trigger: "grep for 'invasive' in any player-facing string (dialog arrays, manual lore, item names) returns at least one match"
     expected: 'CI fails — the no-invasive rule was violated'
-  - trigger: "TileType.Egregore is missing from the TileType enum"
+  - trigger: 'TileType.Egregore is missing from the TileType enum'
     expected: 'CI fails — egregore tile type was not added'
-  - trigger: "A new game produces zero egregore tiles after genesis"
+  - trigger: 'A new game produces zero egregore tiles after genesis'
     expected: 'CI fails — genesis placement is broken'
   - trigger: "An egregore manual entry uses a Latin binomial format like 'Egregora invasiva', or renders any EVA name line as the entry header"
     expected: 'CI fails — egregores are not-of-this-Earth and have no name. The header is the glyph alone.'
-  - trigger: "The Voynich font file is missing from the bundled assets at the time `npm run build` runs, or the @font-face declaration is absent from src/styles/index.css"
+  - trigger: 'The Voynich font file is missing from the bundled assets at the time `npm run build` runs, or the @font-face declaration is absent from src/styles/index.css'
     expected: 'CI fails — the Voynich font is now a load-required asset; missing it is a build-time failure, not a runtime degraded mode.'
-  - trigger: "EGREGORE_GLYPHS deviates from the locked 8-code-point set (U+F166, U+F174, U+F182, U+F1B4, U+F12A, U+F1A1, U+F1B1, U+F1FD) without an explicit spec update"
+  - trigger: 'EGREGORE_GLYPHS deviates from the locked 8-code-point set (U+F166, U+F174, U+F182, U+F1B4, U+F12A, U+F1A1, U+F1B1, U+F1FD) without an explicit spec update'
     expected: 'CI fails — the 8-glyph alphabet is locked across all egregoric content'
-  - trigger: "EGREGORE_GLYPHS contains any of U+F120, U+F1A0, U+F220, U+F2A0"
+  - trigger: 'EGREGORE_GLYPHS contains any of U+F120, U+F1A0, U+F220, U+F2A0'
     expected: 'CI fails — these PUA slots are mapped in the font cmap but render as empty glyphs'
-  - trigger: "EVA_TOKENS contains any code point outside U+F121..U+F2FF, or any code point in the empty-PUA blocklist"
+  - trigger: 'EVA_TOKENS contains any code point outside U+F121..U+F2FF, or any code point in the empty-PUA blocklist'
     expected: 'CI fails — EVA token bodies must render as Voynich glyphs, not Latin letters or empty boxes'
-  - trigger: "selectScanTarget does not return an egregore variant for an on-tile or cardinally-adjacent TileType.Egregore"
+  - trigger: 'selectScanTarget does not return an egregore variant for an on-tile or cardinally-adjacent TileType.Egregore'
     expected: 'CI fails — egregore F-hold scan plumbing is incomplete'
-  - trigger: "state.egregoreSpecimens is missing from EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts"
+  - trigger: 'state.egregoreSpecimens is missing from EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts'
     expected: 'CI fails — serialization schema test will not exercise the new field'
-  - trigger: "GelBandView renders the egregore variant with gold/bee gel bands (band slot not swapped to violet)"
+  - trigger: 'GelBandView renders the egregore variant with gold/bee gel bands (band slot not swapped to violet)'
     expected: 'CI fails — only the band color must swap for the egregore variant; reticle and side labels must stay gold/bee'
-  - trigger: "GelBandView renders the egregore variant with violet reticle borders or violet side-label text"
+  - trigger: 'GelBandView renders the egregore variant with violet reticle borders or violet side-label text'
     expected: 'CI fails — reticle (gel-crop-*) and side labels (gel-side-label-left, gel-edge-code) must remain on the gold/bee tokens across both variants'
-  - trigger: "The renderer draws the player-tile branch glyph with the default monospace font when state.map[player.y][player.x].type === TileType.Egregore"
+  - trigger: 'The renderer draws the player-tile branch glyph with the default monospace font when state.map[player.y][player.x].type === TileType.Egregore'
     expected: 'CI fails — the on-player-tile path must apply the Voynich font swap; a PUA fallback glyph ("?" / empty box) at the player position is a regression'
 
 verification:

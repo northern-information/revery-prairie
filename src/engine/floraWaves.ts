@@ -68,11 +68,7 @@ const isPaintableTile = (state: GameState, x: number, y: number): boolean => {
 // currentRadius-1 are also eligible if cellNoise pulls them in (only
 // happens for tiles inside the boundary, so already-painted tiles are
 // re-evaluated harmlessly — the isPaintableTile gate rejects them).
-const isInThisAnnulus = (
-  wave: WaveEmission,
-  x: number,
-  y: number,
-): boolean => {
+const isInThisAnnulus = (wave: WaveEmission, x: number, y: number): boolean => {
   const d = chebyshevDistance(x, y, wave.cx, wave.cy)
   if (d === wave.currentRadius) {
     return cellNoise(wave.seedIdentity, x, y) >= JITTER_PAINT_THRESHOLD

@@ -1,8 +1,5 @@
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey } from '../../position'
-
-import type { GenesisEpoch } from '../../genesisTypes'
-
 import {
   applyWindwardLeewardBias,
   renderDirt,
@@ -11,6 +8,8 @@ import {
   renderVegetation,
   tileHash,
 } from '../shared'
+
+import type { GenesisEpoch } from '../../genesisTypes'
 
 export const regrowth: GenesisEpoch = {
   id: GenesisEpochId.Regrowth,
