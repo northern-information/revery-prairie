@@ -62,10 +62,15 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
   // input lock means useKeyboard early-returns during Observing+Summary, so
   // we attach a separate listener that only fires on Summary phase. After
   // the keypress the Revery transitions to Closing → null on the next tick.
+  // Reads state via a ref per CLAUDE.md convention for handlers that touch
+  // the mutable singleton.
+  const stateRef = useRef(state)
+  stateRef.current = state
   useEffect(() => {
     const handleKeydown = (): void => {
-      if (state.revery?.phase === ReveryPhase.Summary && state.revery.summaryReady) {
-        advanceReveryToClosing(state)
+      const s = stateRef.current
+      if (s.revery?.phase === ReveryPhase.Summary && s.revery.summaryReady) {
+        advanceReveryToClosing(s)
         refreshUI()
       }
     }
@@ -73,7 +78,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
     return () => {
       window.removeEventListener('keydown', handleKeydown)
     }
-  }, [state, refreshUI])
+  }, [refreshUI])
 
   const itemInfoRef = useRef<ItemInfoHandle>(null)
   const metricsRef = useRef<CharMetrics | null>(null)
