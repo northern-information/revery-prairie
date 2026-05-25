@@ -14,7 +14,6 @@ source_files:
   - src/engine/manual.ts
   - src/engine/worldEntities.ts
   - src/engine/interaction.ts
-  - src/engine/devPanel.ts
   - src/components/ManualPanel.tsx
   - src/hooks/useKeyboard.ts
   - src/harness/__tests__/serialization/schema.test.ts

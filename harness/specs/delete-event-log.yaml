@@ -7,7 +7,6 @@ source_files:
   - src/components/InventoryPanel.tsx
   - src/components/HexagramPanel.tsx
   - src/components/GameCanvas.tsx
-  - src/components/DevPanel.tsx
   - src/components/CreditsModal.tsx
 dependencies: []
 
