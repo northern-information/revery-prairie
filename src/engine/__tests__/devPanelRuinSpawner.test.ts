@@ -11,7 +11,7 @@ import {
 import { createWorld } from '../ecs/world'
 import { posKey } from '../position'
 import { RuinArchetype, TileType, Zone } from '../types'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { GameState, RuinInterior } from '../types'
 
@@ -30,10 +30,6 @@ const makeOverworldState = (): GameState => {
     rivers: new Set<string>(),
   } as GameState
 }
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
 
 describe('dev panel ruin spawner', () => {
   describe('preset metadata', () => {
@@ -99,10 +95,14 @@ describe('dev panel ruin spawner', () => {
 
     it('resolves "random" glyph to a member of ENTRANCE_GLYPHS at drop time', () => {
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      const state = makeOverworldState()
-      spawnDevRuin(state, { x: 5, y: 6 }, RuinArchetype.DormantGarden, RUIN_GLYPH_RANDOM)
-      const expected = ENTRANCE_GLYPHS[Math.floor(0.5 * ENTRANCE_GLYPHS.length)]
-      expect(state.ruinInteriors[0].glyph).toBe(expected)
+      try {
+        const state = makeOverworldState()
+        spawnDevRuin(state, { x: 5, y: 6 }, RuinArchetype.DormantGarden, RUIN_GLYPH_RANDOM)
+        const expected = ENTRANCE_GLYPHS[Math.floor(0.5 * ENTRANCE_GLYPHS.length)]
+        expect(state.ruinInteriors[0].glyph).toBe(expected)
+      } finally {
+        vi.restoreAllMocks()
+      }
     })
 
     it('assigns ruinIndex sequentially across multiple drops', () => {

@@ -3,13 +3,9 @@ import { advanceDialog, interactWithCharacter, tickDialogTyping } from '../inter
 import { createGameState, enterHouseAtTenureStart } from '../state'
 import { Season } from '../types'
 import { createTestState } from './helpers'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import type { GameState } from '../types'
-
-afterEach(() => {
-  vi.restoreAllMocks()
-})
 
 const setSeason = (state: ReturnType<typeof createTestState>, season: Season) => {
   state.weather.season = season
