@@ -1,10 +1,9 @@
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey } from '../../position'
+import { clamp, renderDirt, renderSpace, tileHash } from '../shared'
 
 import type { GenesisEpoch, TectonicAxis } from '../../genesisTypes'
 import type { Position } from '../../types'
-
-import { clamp, renderDirt, renderSpace, tileHash } from '../shared'
 
 export const tectonicUplift: GenesisEpoch = {
   id: GenesisEpochId.TectonicUplift,

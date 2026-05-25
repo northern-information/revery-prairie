@@ -1,8 +1,7 @@
 import { GenesisEpochId } from '../../genesisTypes'
+import { dist, tileHash } from '../shared'
 
 import type { GenesisEpoch } from '../../genesisTypes'
-
-import { dist, tileHash } from '../shared'
 
 export const landAccretion: GenesisEpoch = {
   id: GenesisEpochId.LandAccretion,

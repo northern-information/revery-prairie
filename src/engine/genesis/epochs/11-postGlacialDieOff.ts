@@ -1,9 +1,8 @@
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey } from '../../position'
+import { clamp, renderDirt, renderLowlandWater, renderSpace, runHydraulicErosion, tileHash } from '../shared'
 
 import type { GenesisEpoch } from '../../genesisTypes'
-
-import { clamp, renderDirt, renderLowlandWater, renderSpace, runHydraulicErosion, tileHash } from '../shared'
 
 export const postGlacialDieOff: GenesisEpoch = {
   id: GenesisEpochId.PostGlacialDieOff,

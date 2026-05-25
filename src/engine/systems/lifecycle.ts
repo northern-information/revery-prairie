@@ -1,10 +1,10 @@
+import { ZONE_TRANSITION_FADE_IN_MS, ZONE_TRANSITION_FADE_OUT_MS, ZONE_TRANSITION_HOLD_MS } from '../constants'
 import { completeGenesis, finalizeGenesisHandoff, GENESIS_EPOCHS, tickGenesis } from '../genesis'
 import { Season, Zone } from '../types'
-import { ZONE_TRANSITION_FADE_IN_MS, ZONE_TRANSITION_FADE_OUT_MS, ZONE_TRANSITION_HOLD_MS } from '../constants'
 import { tickZoneTransition } from '../zoneTransition'
 
-import type { GameLoopCallbacks, TickSystem } from './types'
 import type { GameState } from '../types'
+import type { GameLoopCallbacks, TickSystem } from './types'
 
 export const lifecycleSystems = (callbacks: GameLoopCallbacks): TickSystem[] => [
   {

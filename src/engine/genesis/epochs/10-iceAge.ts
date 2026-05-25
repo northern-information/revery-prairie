@@ -2,10 +2,9 @@ import { SPACE_BORDER } from '../../constants'
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey } from '../../position'
 import { smoothNoiseSeeded } from '../../terrain'
+import { clamp, renderDirt, renderLowlandWater, renderSpace, renderVegetation, tileHash } from '../shared'
 
 import type { GenesisEpoch } from '../../genesisTypes'
-
-import { clamp, renderDirt, renderLowlandWater, renderSpace, renderVegetation, tileHash } from '../shared'
 
 export const iceAge: GenesisEpoch = {
   id: GenesisEpochId.IceAge,
@@ -44,7 +43,7 @@ export const iceAge: GenesisEpoch = {
       const [xStr, yStr] = key.split(',')
       const x = Number(xStr)
       const y = Number(yStr)
-      const topDist = (x - SPACE_BORDER) + (y - SPACE_BORDER)
+      const topDist = x - SPACE_BORDER + (y - SPACE_BORDER)
       const bottomDist = playableU - 2 - topDist
 
       // Is this tile in the glacial zone?
@@ -161,7 +160,7 @@ export const iceAge: GenesisEpoch = {
       const bottomNoise = sim.glacialEdgeNoise.bottom[vIdx] ?? 0
       const effectiveTopDepth = glacialDepth + topNoise
       const effectiveBottomDepth = glacialDepth + bottomNoise
-      const topDist = (x - SPACE_BORDER) + (ty - SPACE_BORDER)
+      const topDist = x - SPACE_BORDER + (ty - SPACE_BORDER)
       const bottomDist = playableU - 2 - topDist
       const minDist = topDist < bottomDist ? topDist : bottomDist
       const effectiveDepth = topDist < bottomDist ? effectiveTopDepth : effectiveBottomDepth
@@ -194,7 +193,7 @@ export const iceAge: GenesisEpoch = {
       const ty = Number(yStr)
       const playableU = sim.width + sim.height - 2 * SPACE_BORDER
       const glacialDepth = Math.floor(playableU * 0.25)
-      const topDist = (x - SPACE_BORDER) + (ty - SPACE_BORDER)
+      const topDist = x - SPACE_BORDER + (ty - SPACE_BORDER)
       const bottomDist = playableU - 2 - topDist
       const minDist = Math.min(topDist, bottomDist)
       // Water freezes at the same rate as glacier advance but reaches slightly further

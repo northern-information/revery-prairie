@@ -2,12 +2,7 @@ import { Zone } from '@/engine/types'
 import { getTileVisibility, hasFogOfWar } from '@/engine/visibility'
 import type { GameState, Position } from '@/engine/types'
 
-export const isTileExplored = (
-  state: GameState,
-  x: number,
-  y: number,
-  visibleSet: Set<string> | null
-): boolean => {
+export const isTileExplored = (state: GameState, x: number, y: number, visibleSet: Set<string> | null): boolean => {
   if (!hasFogOfWar(state.currentZone)) return true
   const vis = getTileVisibility(state, x, y, visibleSet ?? new Set())
   return vis !== 'unexplored'

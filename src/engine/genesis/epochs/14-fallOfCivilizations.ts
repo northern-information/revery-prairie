@@ -1,25 +1,22 @@
 import {
+  SAND_COLORS,
   SATELLITE_CRATER_DEPTH_CENTER,
   SATELLITE_CRATER_DEPTH_EDGE,
   SATELLITE_CRATER_DEPTH_RING,
   SATELLITE_HEAD_COLORS,
   SATELLITE_SOIL_DAMAGE,
   SATELLITE_TRAIL_COLORS,
-  SAND_COLORS,
   WATER_SAND_BORDER_MAX,
   WATER_SAND_PASS_CHANCES,
 } from '../../constants'
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey, tileHash as rendererTileHash } from '../../position'
 import { TileType } from '../../types'
-
-import type { GenesisEpoch, GenesisSatelliteCrash, GenesisSimState, GenesisTileRender } from '../../genesisTypes'
-
 import {
   BUILDING_CHARS,
   CIV_COLORS,
-  CRATER_COLORS,
   clamp,
+  CRATER_COLORS,
   dist,
   lerp,
   renderDirt,
@@ -27,6 +24,8 @@ import {
   renderVegetation,
   tileHash,
 } from '../shared'
+
+import type { GenesisEpoch, GenesisSatelliteCrash, GenesisSimState, GenesisTileRender } from '../../genesisTypes'
 
 const SATELLITE_CRASH_RADIUS = 2 // 5x5 zone
 const SATELLITE_CRASH_MIN = 3

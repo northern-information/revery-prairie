@@ -2,11 +2,10 @@ import { SOIL_HEALTH_MAX, SPACE_BORDER } from '../../constants'
 import { posKey } from '../../position'
 import { smoothNoiseSeeded } from '../../terrain'
 import { TileType } from '../../types'
+import { clamp } from './math'
 
 import type { GenesisSimState } from '../../genesisTypes'
 import type { Tile } from '../../types'
-
-import { clamp } from './math'
 
 // Steepest-descent hydraulic erosion micropass.
 // For each land tile, find the lowest of 8 neighbors. If neighbor is lower,

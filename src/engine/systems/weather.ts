@@ -4,8 +4,8 @@ import { MOAB_PACE_MS, tickTorchbearer } from '../torchbearer'
 import { tickPrecipitationIntensity, tickWeather } from '../weather'
 import { tickWind } from '../weather/wind'
 
-import type { GameLoopCallbacks, TickSystem } from './types'
 import type { GameState } from '../types'
+import type { GameLoopCallbacks, TickSystem } from './types'
 
 export const weatherSystems = (callbacks: GameLoopCallbacks): TickSystem[] => [
   {

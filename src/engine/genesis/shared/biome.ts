@@ -1,8 +1,7 @@
 import { SOIL_HEALTH_MAX } from '../../constants'
+import { clamp } from './math'
 
 import type { GenesisSimState } from '../../genesisTypes'
-
-import { clamp } from './math'
 
 // Apply windward/leeward biome bias derived from sim.tectonicAxes.
 // Prevailing wind blows from +x. For each land tile, find the nearest

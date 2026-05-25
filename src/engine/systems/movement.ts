@@ -3,8 +3,8 @@ import { pickUpGroundItems } from '../entities'
 import { movePlayer, tickPath } from '../movement'
 import { DeepTimePhase } from '../types'
 
-import type { GameLoopCallbacks, TickSystem } from './types'
 import type { GameState } from '../types'
+import type { GameLoopCallbacks, TickSystem } from './types'
 
 export const AUTO_HIDE_THRESHOLD = 5
 

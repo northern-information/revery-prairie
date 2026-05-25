@@ -1,9 +1,8 @@
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey } from '../../position'
+import { clamp, dist, lerp, renderSpace, ROCK_COLORS, tileHash } from '../shared'
 
 import type { GenesisEpoch } from '../../genesisTypes'
-
-import { ROCK_COLORS, clamp, dist, lerp, renderSpace, tileHash } from '../shared'
 
 export const crustCooling: GenesisEpoch = {
   id: GenesisEpochId.CrustCooling,

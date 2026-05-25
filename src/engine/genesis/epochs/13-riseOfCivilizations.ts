@@ -1,9 +1,6 @@
 import { SPACE_BORDER } from '../../constants'
 import { GenesisEpochId, RuinGenerationMode, RuinRole } from '../../genesisTypes'
 import { posKey } from '../../position'
-
-import type { CivilizationRuin, GenesisEpoch, GenesisTileRender } from '../../genesisTypes'
-
 import {
   BOX_CROSS,
   BOX_DOUBLE_H,
@@ -24,6 +21,8 @@ import {
   renderVegetation,
   tileHash,
 } from '../shared'
+
+import type { CivilizationRuin, GenesisEpoch, GenesisTileRender } from '../../genesisTypes'
 
 export const riseOfCivilizations: GenesisEpoch = {
   id: GenesisEpochId.RiseOfCivilizations,

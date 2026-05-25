@@ -1,9 +1,8 @@
 import { GenesisEpochId } from '../../genesisTypes'
 import { posKey } from '../../position'
+import { buildLowlandWaterMask, clamp, renderSpace, ROCK_COLORS, runHydraulicErosion, tileHash } from '../shared'
 
 import type { GenesisEpoch } from '../../genesisTypes'
-
-import { ROCK_COLORS, buildLowlandWaterMask, clamp, renderSpace, runHydraulicErosion, tileHash } from '../shared'
 
 export const firstWater: GenesisEpoch = {
   id: GenesisEpochId.FirstWater,

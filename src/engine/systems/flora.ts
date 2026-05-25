@@ -16,8 +16,8 @@ import { tickFloraWaves } from '../floraWaves'
 import { tickTileWater } from '../tileWater'
 import { Zone } from '../types'
 
-import type { TickSystem } from './types'
 import type { GameState } from '../types'
+import type { TickSystem } from './types'
 
 export const floraSystems = (): TickSystem[] => [
   {
