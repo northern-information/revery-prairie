@@ -360,9 +360,7 @@ export const createGameState = (
     genesis: genesisData,
     bootTitleCard: null,
     zoneTransition: null,
-    angelCantos: [],
     nextAngelSpawnTime: 60_000, // first angel after ~60s
-    angelEncounterCount: 0,
     angelFlashTime: 0,
     coyoteCargo: null,
     ruinInteriors: generateAllRuinInteriors(genesisData.ruins),

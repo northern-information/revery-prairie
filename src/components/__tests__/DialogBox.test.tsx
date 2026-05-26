@@ -38,29 +38,25 @@ describe('DialogBox', () => {
     expect(dialogRoot.className).not.toMatch(/-translate-x-1\/2/)
   })
 
-  it('renders angel hash grid for angel characters', () => {
-    render(
-      <DialogBox
-        characterName="Angel"
-        line="abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-        typingIndex={10}
-        typingDone={false}
-        isAngel
-      />
-    )
+  it('renders spoken line in serif font at gold (#ffd700)', () => {
+    render(<DialogBox characterName="Moab" line="hello traveler" typingIndex={14} typingDone={false} />)
 
-    expect(screen.getByTestId('angel-hash-grid')).toBeTruthy()
+    const line = screen.getByTestId('dialog-line')
+    expect(line.className).toMatch(/font-serif/)
+    expect(line.style.color).toBe('rgb(255, 215, 0)')
+  })
+
+  it('renders locked-gate line with the same gold-serif treatment', () => {
+    render(<DialogBox characterName="gate" line="The gate is locked." typingIndex={19} typingDone={false} />)
+
+    const line = screen.getByTestId('dialog-line')
+    expect(line.className).toMatch(/font-serif/)
+    expect(line.style.color).toBe('rgb(255, 215, 0)')
   })
 
   it('has fixed height to prevent size jumping between lines', () => {
     const { container } = render(
-      <DialogBox
-        characterName="Angel"
-        line="abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-        typingIndex={64}
-        typingDone={false}
-        isAngel
-      />
+      <DialogBox characterName="Moab" line="any line" typingIndex={8} typingDone={false} />
     )
 
     const dialogRoot = container.firstElementChild as HTMLElement

@@ -12,7 +12,7 @@ the TraitBag has four phenotype axes — `bloomTiming`, `coldTolerance`, `drough
 
 `hashToHexGrid(identity)` derives an 8×8 grid of nibble values: `grid[row][col] = parseInt(identity[row * 8 + col], 16)`. **the mapping is locked forever** — every plant's grid in #6's manual derives from this rule and must stay stable across game versions.
 
-`sha256Sync` + `sha256Async` live in `src/engine/crypto.ts` (shared with `angels.ts`). they're byte-identical to the original angels.ts impl; do not modify the hash mixing routine or angel cantos in saved games will drift.
+`sha256Sync` + `sha256Async` live in `src/engine/crypto.ts`. they're byte-identical to the original angels.ts impl; do not modify the hash mixing routine or saved flora identities will drift.
 
 ## construction discipline
 

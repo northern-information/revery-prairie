@@ -78,8 +78,6 @@ export interface ComponentDataMap {
   [ComponentType.AngelData]: {
     auraKind: 'rain' | 'bees' | 'clover'
     spawnTime: number
-    cantoStored: boolean
-    encounterCount: number
     seed: number
     lastBeeSpawnTime: number
     lastCloverGrowTime: number

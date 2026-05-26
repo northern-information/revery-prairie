@@ -56,27 +56,12 @@ const resolveClickTarget = (
   const clickedCharacterEid = state.world.spatial
     .at(tile.x, tile.y)
     .find(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'character')
-  let clickedCharacterIdentity =
+  const clickedCharacterIdentity =
     clickedCharacterEid !== undefined
       ? state.world.getComponent(clickedCharacterEid, ComponentType.CharacterIdentity)
       : null
 
-  let clickedBodyPositions: { x: number; y: number }[] | null = null
-  if (!clickedCharacterIdentity) {
-    const tileKey = posKey(tile.x, tile.y)
-    for (const eid of state.world.query(
-      ComponentType.AngelData,
-      ComponentType.MultiPosition,
-      ComponentType.CharacterIdentity
-    )) {
-      const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
-      if (multi?.positions.some(p => posKey(p.x, p.y) === tileKey)) {
-        clickedCharacterIdentity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-        clickedBodyPositions = multi.positions
-        break
-      }
-    }
-  }
+  const clickedBodyPositions: { x: number; y: number }[] | null = null
   const clickedInteractableTile = !clickedCharacterIdentity && isInteractableAt(state, tile.x, tile.y)
 
   if (clickedCharacterIdentity || clickedInteractableTile) {

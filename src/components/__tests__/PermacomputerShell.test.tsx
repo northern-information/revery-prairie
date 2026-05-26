@@ -100,19 +100,6 @@ describe('PermacomputerShell', () => {
       expect(screen.getByTestId('tab-coyote')).toBeInTheDocument()
     })
 
-    it('hides CANTOS tab when angelCantos is empty', () => {
-      renderShell()
-      expect(screen.queryByTestId('tab-cantos')).not.toBeInTheDocument()
-    })
-
-    it('shows CANTOS tab once at least one canto is received', () => {
-      const state = buildState(s => {
-        s.angelCantos.push('first-canto')
-      })
-      renderShell({}, state)
-      expect(screen.getByTestId('tab-cantos')).toBeInTheDocument()
-    })
-
     it('no longer renders REVERIES tab (action bar deleted in RP-0)', () => {
       renderShell()
       expect(screen.queryByTestId('tab-reveries')).not.toBeInTheDocument()
@@ -144,14 +131,12 @@ describe('PermacomputerShell', () => {
       expect(screen.getByTestId('tab-system')).toBeInTheDocument()
 
       expect(screen.queryByTestId('tab-divination')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('tab-cantos')).not.toBeInTheDocument()
       expect(screen.queryByTestId('tab-coyote')).not.toBeInTheDocument()
       expect(screen.queryByTestId('tab-reveries')).not.toBeInTheDocument()
     })
 
     it('renders all visible tabs in canonical order', () => {
       const state = buildState(s => {
-        s.angelCantos.push('canto-a')
         s.manualDiscoveries.add('event:rescue-coyote')
         for (let i = 0; i < 3; i++) {
           const uid = `coin-${String(i)}`
@@ -164,7 +149,6 @@ describe('PermacomputerShell', () => {
       const order = [
         screen.getByTestId('tab-manual'),
         screen.getByTestId('tab-divination'),
-        screen.getByTestId('tab-cantos'),
         screen.getByTestId('tab-coyote'),
         screen.getByTestId('tab-system'),
       ]

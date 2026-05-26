@@ -561,9 +561,7 @@ export interface GameState {
   genesis: GenesisSimState | null
   bootTitleCard: BootTitleCard | null
   zoneTransition: ZoneTransition | null
-  angelCantos: string[]
   nextAngelSpawnTime: number
-  angelEncounterCount: number
   angelFlashTime: number
   coyoteCargo: string | null
   ruinInteriors: RuinInterior[]
