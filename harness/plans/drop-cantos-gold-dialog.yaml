@@ -1,0 +1,168 @@
+plan:
+  id: drop-cantos-gold-dialog
+  title: 'Drop angel cantos entirely; switch character dialog body to gold serif'
+  created: '2026-05-26'
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: remove-canto-state-and-types
+    title: 'Remove angelCantos, angelEncounterCount, cantoStored fields from GameState, AngelData, types, state init, and schema allowlist'
+    spec_id: angels
+    spec_sections:
+      - angel-spawning
+      - angel-no-interaction
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/ecs/types.ts
+      - src/engine/angels.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/ecs/types.ts
+      - src/engine/angels.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: remove-canto-engine-functions
+    title: 'Delete storeAngelCanto and generateAngelHash from angels.ts; remove their call sites and the angel branch in interactWithCharacter/getAdjacentCharacter; remove sha256 wiring from crypto.ts comments'
+    spec_id: angels
+    spec_sections:
+      - angel-no-interaction
+    context_files:
+      - src/engine/angels.ts
+      - src/engine/interaction.ts
+      - src/engine/crypto.ts
+    output_files:
+      - src/engine/angels.ts
+      - src/engine/interaction.ts
+      - src/engine/crypto.ts
+    depends_on:
+      - remove-canto-state-and-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: remove-canto-manual-entry
+    title: 'Remove event:angel-canto from MANUAL_LORE, MANUAL_ENTRIES, and any crossRefs pointing to it'
+    spec_id: angels
+    spec_sections:
+      - angel-no-interaction
+    context_files:
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: remove-cantos-screen-and-tab
+    title: 'Delete CantosScreen.tsx and its test; remove the cantos entry from PermacomputerShell tabs; remove the cantos branch in GameScreen; remove cantos from the PermacomputerScreen union in useKeyboard.ts'
+    spec_id: permacomputer-tab-visibility
+    spec_sections:
+      - tab-gating
+      - hidden-tab-not-clickable
+      - live-gate-evaluation
+    context_files:
+      - src/components/CantosScreen.tsx
+      - src/components/__tests__/CantosScreen.test.tsx
+      - src/components/PermacomputerShell.tsx
+      - src/components/__tests__/PermacomputerShell.test.tsx
+      - src/components/GameScreen.tsx
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/components/PermacomputerShell.tsx
+      - src/components/__tests__/PermacomputerShell.test.tsx
+      - src/components/GameScreen.tsx
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - remove-canto-state-and-types
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/PermacomputerShell.test.tsx
+    repair: retry
+    tags: [component]
+
+  - id: gold-serif-dialog-body
+    title: 'Style the spoken-line text in DialogBox with --font-serif and color #ffd700; remove isAngel prop and HashGrid path; update GameScreen to stop passing isAngel'
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - gold-serif-body
+      - props-simplified
+    context_files:
+      - src/components/DialogBox.tsx
+      - src/components/__tests__/DialogBox.test.tsx
+      - src/components/GameScreen.tsx
+      - src/styles/index.css
+    output_files:
+      - src/components/DialogBox.tsx
+      - src/components/__tests__/DialogBox.test.tsx
+      - src/components/GameScreen.tsx
+    depends_on:
+      - remove-canto-state-and-types
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/DialogBox.test.tsx
+    repair: retry
+    tags: [component]
+
+  - id: update-angels-tests
+    title: 'Remove canto-related tests from angels.test.ts (storeAngelCanto, FIFO grid, hash storage on first encounter, repeated-walk-through canto-once); add a regression that interactWithCharacter does nothing when standing under an angel'
+    spec_id: angels
+    spec_sections:
+      - angel-no-interaction
+    context_files:
+      - src/engine/__tests__/angels.test.ts
+      - src/engine/interaction.ts
+      - src/engine/angels.ts
+    output_files:
+      - src/engine/__tests__/angels.test.ts
+    depends_on:
+      - remove-canto-engine-functions
+    verification:
+      - npx vitest run src/engine/__tests__/angels.test.ts
+    repair: retry
+    tags: [test]
+
+  - id: update-dialog-tests
+    title: 'Add DialogBox regression tests: spoken-line uses --font-serif and #ffd700; isAngel prop and HashGrid path no longer exist; locked-gate text uses the same gold-serif treatment'
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - gold-serif-body
+      - props-simplified
+    context_files:
+      - src/components/DialogBox.tsx
+      - src/components/__tests__/DialogBox.test.tsx
+    output_files:
+      - src/components/__tests__/DialogBox.test.tsx
+    depends_on:
+      - gold-serif-dialog-body
+    verification:
+      - npx vitest run src/components/__tests__/DialogBox.test.tsx
+    repair: retry
+    tags: [test]
+
+  - id: update-claude-md-docs
+    title: 'Update docs/claude/entities.md to remove the canto/dialog sentence from the angels bullet'
+    spec_id: angels
+    spec_sections:
+      - angel-no-interaction
+    context_files:
+      - docs/claude/entities.md
+    output_files:
+      - docs/claude/entities.md
+    depends_on: []
+    verification: []
+    repair: retry
+    tags: [docs]

@@ -17,12 +17,7 @@ source_files:
   - src/engine/interaction.ts
   - src/engine/state.ts
   - src/engine/movement.ts
-  - src/components/PermacomputerShell.tsx
-  - src/components/CantosScreen.tsx
-  - src/components/DialogBox.tsx
-  - src/hooks/useKeyboard.ts
   - src/engine/__tests__/angels.test.ts
-  - src/components/__tests__/CantosScreen.test.tsx
 dependencies:
   - player-movement
 
@@ -52,6 +47,13 @@ behaviors:
       - field: angelFlashTime
         effect: 'set to current time to trigger screen flash'
     determinism: probabilistic
+
+  # NOTE: angel-dialog-trigger, angel-hash-grid-display, angel-cantos-storage,
+  # cantos-tab, and angel-click-to-interact were removed when the cantos
+  # system was dropped. Angels are now purely environmental — they spawn,
+  # drift, emit auras, and despawn. The player cannot open dialog with an
+  # angel by [f] or by walking adjacent; the [f]-on-angel branch in
+  # getAdjacentCharacter is removed.
 
   - id: angel-drifting
     description: >
@@ -208,81 +210,6 @@ behaviors:
         effect: 'new entry added for converted tile with Healthy stage'
     determinism: probabilistic
 
-  - id: angel-dialog-trigger
-    description: >
-      When the player walks under (occupies any tile within) the angel's
-      9x9 body, dialog is triggered automatically. The angel speaks a single
-      line: a sha256 hash string unique to this angel. Dialog can be
-      triggered repeatedly — every walk-under opens the same dialog with
-      the same hash. The canto is only stored on the first encounter.
-      Dialog uses the standard dialog panel system. Angel body tiles
-      highlight pink on cursor hover, consistent with other interactable
-      characters.
-    inputs:
-      - 'Player position overlaps any of the angel MultiPosition tiles'
-      - 'No active dialog already open'
-    outputs:
-      - 'activeDialog set with angel character identity'
-      - 'Dialog panel shows sha256 hash as 8x8 grid in Times New Roman'
-    state_changes:
-      - field: activeDialog
-        effect: 'set with angel characterId, single line of sha256 text'
-      - field: angelCantos
-        effect: 'hash string appended on first encounter only'
-      - field: angelEncounterCount
-        effect: 'incremented on first encounter only'
-      - field: manualDiscoveries
-        effect: 'event:angel-canto recorded on first canto received'
-    determinism: deterministic
-
-  - id: angel-hash-grid-display
-    description: >
-      The 64-character sha256 hash is displayed as an 8x8 grid of single
-      hex characters in both the dialog box and the permacomputer cantos
-      screen. The grid uses Times New Roman font at a size slightly larger
-      than the surrounding monospace text, giving it a strange, tablet-like
-      quality — like receiving the ten commandments. In the dialog box, the
-      hash grid replaces the single-line text display. In the cantos screen,
-      each cell shows a single hex character (not 4-char truncation). The
-      full hash is shown on hover as before.
-    inputs:
-      - 'Angel dialog opens or cantos tab is viewed'
-    outputs:
-      - '8x8 grid of hex characters rendered in Times New Roman'
-    state_changes: []
-    determinism: deterministic
-
-  - id: angel-cantos-storage
-    description: >
-      Sha256 hashes from angel encounters are stored in state.angelCantos
-      as an ordered array of strings. Maximum capacity is 64 entries (8x8
-      grid). When the grid is full, new cantos overwrite the oldest entry
-      (FIFO). Each canto is a full 64-character hex string. A canto is only
-      stored on the first encounter with each angel — repeated interactions
-      with the same angel do not add duplicate cantos.
-    inputs:
-      - 'First angel dialog with a given angel completes'
-    outputs:
-      - 'Hash added to angelCantos array'
-    state_changes:
-      - field: angelCantos
-        effect: 'new hash string pushed; if length > 64, first entry shifted off'
-    determinism: deterministic
-
-  - id: cantos-tab
-    description: >
-      The "CANTOS" tab in the PermacomputerShell displays angel cantos as
-      an 8x8 grid where each cell shows a single hex character from the
-      hash in Times New Roman font, slightly larger than surrounding text.
-      Empty cells are rendered as dim placeholders. The full hash is shown
-      on hover or focus. The grid evokes a stone tablet aesthetic.
-    inputs:
-      - 'User navigates to CANTOS tab in permacomputer'
-    outputs:
-      - '8x8 grid of canto hashes rendered in panel with Times New Roman'
-    state_changes: []
-    determinism: deterministic
-
   - id: angel-despawn
     description: >
       Angels despawn after ANGEL_LIFESPAN_MS (configurable, ~120 seconds).
@@ -306,9 +233,9 @@ behaviors:
   - id: angel-movement-blocking
     description: >
       Angels block player movement. All 9x9 body tiles are impassable.
-      Angel body tiles are added to getBlockedPositions. The player must
-      approach an angel and press [f] to interact. Click-to-move pathfinding
-      routes around angel body tiles.
+      Angel body tiles are added to getBlockedPositions. Click-to-move
+      pathfinding routes around angel body tiles. Angels cannot be
+      interacted with via [f] — see angel-no-interaction.
     inputs:
       - 'Player attempts to move onto angel-occupied tile'
     outputs:
@@ -316,30 +243,20 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: angel-character-definition
+  - id: angel-no-interaction
     description: >
-      Each angel type (rain, bees, clover) has a CharacterDefinition
-      registered dynamically on spawn. The name uses "Angel of X" format
-      (e.g. "Angel of Rain", "Angel of Bees", "Angel of Clover"). The
-      definition includes a glyph for the dialog header and the
-      sha256 dialog line. Definition is removed on despawn.
+      Angels do not open dialog. The [f] interaction key, when pressed
+      near an angel, treats the angel as non-interactable —
+      getAdjacentCharacter does not return angel entities, and
+      interactWithCharacter has no angel branch. Right-click on an angel
+      body tile does nothing. Angels are environmental presences only;
+      their auras affect the world but they cannot be spoken to.
     inputs:
-      - 'Angel spawns'
-    outputs:
-      - 'CharacterDefinition registered in CHARACTER_DEFINITIONS'
-    state_changes: []
-    determinism: deterministic
-
-  - id: angel-click-to-interact
-    description: >
-      Right-clicking any angel body tile pathfinds the player to the
-      nearest adjacent walkable tile and triggers dialog on arrival.
-      Angel tiles remain cursorable but no visual highlight is applied
-      on hover.
-    inputs:
+      - 'Player presses [f] while adjacent to or standing under an angel'
       - 'Player right-clicks an angel body tile'
     outputs:
-      - 'Click-to-interact pathfinds and opens dialog on arrival'
+      - 'No dialog opens'
+      - 'No state changes'
     state_changes: []
     determinism: deterministic
 
@@ -348,10 +265,6 @@ edge_cases:
     description: 'All candidate spawn tiles are blocked or too close to player'
     expected: 'Spawn is skipped, nextAngelSpawnTime reset with jitter'
 
-  - id: angel-full-cantos-grid
-    description: 'Player has 64 cantos and encounters another angel'
-    expected: 'Oldest canto is removed (FIFO), new canto takes last position'
-
   - id: angel-drift-into-water
     description: 'Angel drifts toward a pond or river tile'
     expected: 'Drift validation rejects the move; angel stays in place'
@@ -359,10 +272,6 @@ edge_cases:
   - id: angel-tween-during-zone-transition
     description: 'Player enters cave while angel body is mid-tween'
     expected: 'clearMovementTweens removes the angel tween component along with the player tween; on overworld return, body renders at integer Position with no carry-over interpolation'
-
-  - id: angel-dialog-during-tween
-    description: 'Player walks under tweening angel and opens dialog mid-tween'
-    expected: 'Tween completes normally over its remaining duration; subsequent drift ticks are frozen by the active-dialog check until dialog closes'
 
   - id: angel-despawn-during-tween
     description: 'ANGEL_LIFESPAN_MS elapses while body is mid-tween'
@@ -380,14 +289,6 @@ edge_cases:
     description: 'Deep time begins while angel is active'
     expected: 'Angel is destroyed at deep time start; no new angels spawn during deep time'
 
-  - id: angel-dialog-while-ghost-dialog
-    description: 'Player walks under angel while already in dialog with a ghost'
-    expected: 'Angel dialog does not trigger; existing dialog takes priority'
-
-  - id: angel-repeated-walk-through
-    description: 'Player walks through angel body multiple times during same spawn'
-    expected: 'Dialog triggers every time; canto stored only on first encounter'
-
   - id: angel-flash-during-cave
     description: 'Angel spawns or despawns while player is in cave'
     expected: 'Flash does not render; angel exists on overworld only'
@@ -396,10 +297,6 @@ edge_cases:
     description: 'Gold aura overlaps with rain aura, clover, or other terrain'
     expected: 'Gold fillRect renders behind tile chars; does not interfere with rain overlay or other effects'
 
-  - id: angel-hash-grid-odd-length
-    description: 'Hash string is not exactly 64 characters for some reason'
-    expected: 'Grid renders available characters; remaining cells show dim placeholder'
-
   - id: angel-spawn-probability-bounds
     description: 'Angel spawn has 0% chance when no valid tile exists at least 30 tiles from player'
     expected: 'Spawn attempt exits early after max attempts; nextAngelSpawnTime reset with jitter'
@@ -407,9 +304,6 @@ edge_cases:
 failure_conditions:
   - trigger: 'Angel spawn position calculation selects space or sand tile'
     expected: 'Tile validation rejects non-dirt/clover tiles; spawn retries or defers'
-
-  - trigger: 'sha256 hash generation produces duplicate for same steward'
-    expected: 'Extremely unlikely (2^256 space) but cantos array accepts duplicates'
 
   - trigger: 'Angel Aura component missing on tick'
     expected: 'Aura tick silently skips; no crash'

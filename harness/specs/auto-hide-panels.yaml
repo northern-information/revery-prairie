@@ -39,7 +39,7 @@ behaviors:
     inputs:
       - 'state.autoHidePanels is true'
       - 'state.panelOpenMoveCount >= 5 after a successful move'
-      - 'a non-system panel is open (activeScreen is pack, manual, divination, cantos, or coyote)'
+      - 'a non-system panel is open (activeScreen is pack, manual, divination, or coyote)'
     outputs:
       - 'onAutoHidePanel callback fires'
       - 'activeScreen set to null in React'
