@@ -43,22 +43,26 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: gold-serif-body
+  - id: permacomputer-serif-body
     description: >
       The character dialog body text renders in the project serif
-      stack (--font-serif, Libre Baskerville) and is colored gold
-      (#ffd700). The character-name header and advance button keep
-      their existing styles — only the spoken line itself uses the
-      gold-serif treatment. The serif body sits on the same
+      stack (--font-serif, Libre Baskerville) at the permacomputer
+      color token (--color-permacomputer / text-permacomputer,
+      #8b7355) — the same color as the "Permacomputer online" status
+      footer. The spoken line is rendered at text-lg (larger than the
+      surrounding xs chrome) and centered horizontally. The
+      character-name header and advance button keep their existing
+      styles — only the spoken line itself uses the
+      permacomputer-serif treatment. The body sits on the same
       semi-transparent black background as before and remains within
       the existing fixed-size dialog container; no layout or sizing
-      changes. Locked-gate dialog ("The gate is locked.") uses the
-      same gold-serif treatment since it routes through the same
-      DialogBox component.
+      changes to the outer box. Locked-gate dialog ("The gate is
+      locked.") uses the same treatment since it routes through the
+      same DialogBox component.
     inputs:
       - 'activeDialog is non-null with a character or gate speaker'
     outputs:
-      - 'dialog body text rendered in Libre Baskerville serif at #ffd700'
+      - 'dialog body text rendered in Libre Baskerville serif at text-permacomputer, text-lg, text-center'
     state_changes: []
     determinism: deterministic
 

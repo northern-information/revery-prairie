@@ -38,20 +38,23 @@ describe('DialogBox', () => {
     expect(dialogRoot.className).not.toMatch(/-translate-x-1\/2/)
   })
 
-  it('renders spoken line in serif font at gold (#ffd700)', () => {
+  it('renders spoken line in centered serif font with permacomputer color', () => {
     render(<DialogBox characterName="Moab" line="hello traveler" typingIndex={14} typingDone={false} />)
 
     const line = screen.getByTestId('dialog-line')
     expect(line.className).toMatch(/font-serif/)
-    expect(line.style.color).toBe('rgb(255, 215, 0)')
+    expect(line.className).toMatch(/text-permacomputer/)
+    expect(line.className).toMatch(/text-center/)
+    expect(line.className).toMatch(/text-lg/)
   })
 
-  it('renders locked-gate line with the same gold-serif treatment', () => {
+  it('renders locked-gate line with the same permacomputer-serif treatment', () => {
     render(<DialogBox characterName="gate" line="The gate is locked." typingIndex={19} typingDone={false} />)
 
     const line = screen.getByTestId('dialog-line')
     expect(line.className).toMatch(/font-serif/)
-    expect(line.style.color).toBe('rgb(255, 215, 0)')
+    expect(line.className).toMatch(/text-permacomputer/)
+    expect(line.className).toMatch(/text-center/)
   })
 
   it('has fixed height to prevent size jumping between lines', () => {
