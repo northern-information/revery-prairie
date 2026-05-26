@@ -527,7 +527,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (!inZone(eid)) continue
     // Angels render as a 9x9 body via angelMap with a shared per-group
     // tween offset applied at deferred-entity flush time. They must not
-    // also appear as a single tweening glyph here, or the dialog portrait
+    // also appear as a single tweening glyph here, or the dialog-header
     // 'O' would drift across the body during a drift.
     if (state.world.getComponent(eid, ComponentType.AngelData) !== undefined) continue
     const tween = state.world.getComponent(eid, ComponentType.MovementTween)

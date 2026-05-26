@@ -2,7 +2,6 @@ import { SectionHeader, TextButton } from './PanelPrimitives'
 
 interface DialogBoxProps {
   characterName: string
-  portrait?: string
   line: string
   typingIndex: number
   typingDone: boolean
@@ -40,7 +39,6 @@ const HashGrid = ({ hash, revealCount }: { hash: string; revealCount: number }) 
 
 export const DialogBox = ({
   characterName,
-  portrait,
   line,
   typingIndex,
   typingDone,
@@ -49,13 +47,6 @@ export const DialogBox = ({
   onAdvance,
 }: DialogBoxProps) => (
   <div className="text-text fixed top-1/2 right-0 left-0 z-30 mx-auto flex h-[240px] w-[65vw] max-w-[min(800px,calc(100vw-1rem))] -translate-y-1/2 flex-col items-center bg-black/85 px-6 py-4 font-mono text-xs">
-    {portrait && (
-      <img
-        src={portrait}
-        alt={`portrait of ${characterName.toLowerCase()}`}
-        className="h-32 w-32 shrink-0 [image-rendering:pixelated]"
-      />
-    )}
     <div className="flex min-w-0 flex-1 flex-col self-stretch">
       <SectionHeader className="shrink-0">{characterName}</SectionHeader>
       {isAngel ? (

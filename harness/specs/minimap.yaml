@@ -66,7 +66,7 @@ behaviors:
       footprints (from `state.civilizationRuins`) render in a warm
       tan when the player is in the overworld zone. Character ECS
       entities with Position + CharacterIdentity render as small
-      filled blocks in the character's portrait/glyph color when
+      filled blocks in the character's glyph color when
       their EntityZone matches the current zone. Structures render
       at the same scale as tiles (no enlargement). The order is
       tiles → ruin footprints → cave entrances → characters →

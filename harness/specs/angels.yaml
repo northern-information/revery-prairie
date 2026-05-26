@@ -321,7 +321,7 @@ behaviors:
       Each angel type (rain, bees, clover) has a CharacterDefinition
       registered dynamically on spawn. The name uses "Angel of X" format
       (e.g. "Angel of Rain", "Angel of Bees", "Angel of Clover"). The
-      definition includes a glyph for the dialog portrait area and the
+      definition includes a glyph for the dialog header and the
       sha256 dialog line. Definition is removed on despawn.
     inputs:
       - 'Angel spawns'

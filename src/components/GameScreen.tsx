@@ -227,7 +227,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           return (
             <DialogBox
               characterName={def.name}
-              portrait={def.portrait}
               line={line}
               typingIndex={state.activeDialog.typingIndex}
               typingDone={state.activeDialog.typingDone}

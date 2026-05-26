@@ -104,10 +104,7 @@ behaviors:
       dialog is opened with characterId 'coyote', lineIndex 0,
       typingIndex 0, typingDone false, transitioning false,
       transitionStartTime 0. The coyote character definition's dialog
-      array provides the lines, which are: ['Awoo!', 'Awoo!']. The
-      coyote character definition also has portrait set to '/gron.gif'
-      as a deliberate placeholder until a coyote portrait asset is
-      authored — this is an intentional placeholder, not a typo.
+      array provides the lines, which are: ['Awoo!', 'Awoo!'].
     inputs:
       - 'player becomes cardinally adjacent to the trapped coyote with mainQuestPhase === AwaitingCoyote and currentZone === Ruin in a Coyote-role ruin'
     outputs:
@@ -129,14 +126,11 @@ behaviors:
     description: >
       The CHARACTERS.coyote entry in src/engine/characters.ts has its
       dialog field set to ['Awoo!', 'Awoo!'] (was previously empty).
-      A portrait field is added, set to '/gron.gif' as a deliberate
-      placeholder until a coyote portrait asset is created. The
-      glyph 'C' and glyphColor '#D4A054' remain unchanged.
+      The glyph 'C' and glyphColor '#D4A054' remain unchanged.
     inputs:
       - 'getCharacterDefinition("coyote") is called'
     outputs:
       - 'returned definition has dialog equal to ["Awoo!", "Awoo!"]'
-      - "returned definition has portrait equal to '/gron.gif'"
       - "returned definition has glyph 'C' and glyphColor '#D4A054'"
     state_changes: []
     determinism: deterministic
@@ -207,7 +201,7 @@ failure_conditions:
   - trigger: 'Player faces and clears a single collapseBarrier tile.'
     expected: 'All three collapseBarrier tiles convert to RuinFloor atomically; a crumble TimedEffect entity is created with MultiPosition over the collapseBarrier tiles; a pickupBloom is spawned at the player position.'
   - trigger: 'Rescue fires (player becomes adjacent to coyote after clearing the barrier).'
-    expected: "state.activeDialog is set to the coyote dialog descriptor; the coyote definition's dialog returns ['Awoo!', 'Awoo!']; the coyote definition's portrait is '/gron.gif'; mainQuestPhase advances to Gathering; pickupBloom and 'Rescued Coyote!' toast fire as before."
+    expected: "state.activeDialog is set to the coyote dialog descriptor; the coyote definition's dialog returns ['Awoo!', 'Awoo!']; mainQuestPhase advances to Gathering; pickupBloom and 'Rescued Coyote!' toast fire as before."
 
 verification:
   test_file: src/engine/__tests__/trapped-coyote-stays-put.test.ts

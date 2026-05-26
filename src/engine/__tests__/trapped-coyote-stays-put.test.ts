@@ -296,15 +296,10 @@ describe('collapse barrier clears atomically', () => {
   })
 })
 
-describe('coyote character definition has placeholder awoo dialog and gron portrait', () => {
+describe('coyote character definition has placeholder awoo dialog', () => {
   it('coyote dialog is two awoo lines', () => {
     const def = getCharacterDefinition('coyote')
     expect(def.dialog).toEqual(['Awoo!', 'Awoo!'])
-  })
-
-  it('coyote portrait is /gron.gif as a deliberate placeholder', () => {
-    const def = getCharacterDefinition('coyote')
-    expect(def.portrait).toBe('/gron.gif')
   })
 
   it('coyote glyph and color are unchanged', () => {

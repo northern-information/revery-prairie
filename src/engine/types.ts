@@ -185,7 +185,6 @@ export interface CharacterDefinition {
   title?: string
   glyph: string
   glyphColor: string
-  portrait?: string
   dialog: string[]
   music?: string
   gift?: { kind: 'item'; id: string }

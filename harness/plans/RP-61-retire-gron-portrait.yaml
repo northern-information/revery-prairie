@@ -1,0 +1,308 @@
+plan:
+  id: RP-61-retire-gron-portrait
+  title: 'Retire the Gron portrait and the `portrait` field — delete /gron.gif, remove portrait? from CharacterEntry/CharacterDefinition, drop the DialogBox/GameScreen prop, sweep tests'
+  created: '2026-05-25'
+  # Pure deletion, no replacement. Per v11 thinktank round 2: the prairie speaks
+  # one visual language and no character has an animated portrait. Strategy
+  # mirrors delete-event-log: delete the source-of-truth field on CharacterEntry
+  # first, let typecheck cascade through the dependent surfaces (the two
+  # character entries that set it, the DialogBox prop, the GameScreen prop pass,
+  # the four test files that assert on it, the harness assets test that
+  # iterates char.portrait). Asset deletion is the last destructive step before
+  # the sweep.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: doctrine-status-update
+    title: 'Flip RP-61 from todo to in-progress in docs/backlog.yaml. Set plan path to harness/plans/RP-61-retire-gron-portrait.yaml.'
+    spec_id: dialog-box-presentation
+    spec_sections: []
+    context_files:
+      - docs/backlog.yaml
+    output_files:
+      - docs/backlog.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  - id: strip-portrait-from-character-types
+    title: >
+      Remove `portrait?: string` from `CharacterEntry` in
+      src/engine/characters.ts (line 11) and from `CharacterDefinition` in
+      src/engine/types.ts (line 188). The optional field is deleted entirely
+      — no rename, no replacement, no shim.
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - props-simplified
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/characters.ts
+      - src/engine/types.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - 'grep -n "portrait" src/engine/characters.ts src/engine/types.ts && exit 1 || exit 0'
+    repair: retry
+    tags:
+      - engine
+
+  - id: strip-portrait-from-character-entries
+    title: >
+      Remove `portrait: '/gron.gif',` from the gron entry
+      (src/engine/characters.ts ~line 24) and from the coyote entry
+      (~line 54). Coyote's was a copy-paste placeholder per the v11 thinktank;
+      it dies with the field. Glyph, glyphColor, dialog, music remain
+      untouched on both characters.
+    spec_id: trapped-coyote-stays-put
+    spec_sections:
+      - coyote-character-definition-awoo
+    context_files:
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - strip-portrait-from-character-types
+    verification:
+      - 'grep -n "portrait\\|gron.gif" src/engine/characters.ts && exit 1 || exit 0'
+    repair: retry
+    tags:
+      - engine
+
+  - id: dialogbox-drop-portrait-prop
+    title: >
+      In src/components/DialogBox.tsx: remove `portrait?: string` from the
+      `DialogBoxProps` interface (line 5), drop `portrait` from the
+      destructured signature (line 43), and delete the `{portrait && <img
+      .../>}` conditional block (lines 52-58). The component layout is
+      already `flex-col`; removing the `<img>` leaves the existing
+      header / body / advance stack intact. No restructuring needed.
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - minimal-chrome
+      - props-simplified
+    context_files:
+      - src/components/DialogBox.tsx
+    output_files:
+      - src/components/DialogBox.tsx
+    depends_on:
+      - strip-portrait-from-character-types
+    verification:
+      - 'grep -n "portrait" src/components/DialogBox.tsx && exit 1 || exit 0'
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+
+  - id: gamescreen-drop-portrait-prop-pass
+    title: >
+      In src/components/GameScreen.tsx (~line 230): remove
+      `portrait={def.portrait}` from the DialogBox prop pass. The
+      surrounding props (characterName, line, typingIndex, etc.) are
+      preserved.
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - gamescreen-positioning-cleanup
+    context_files:
+      - src/components/GameScreen.tsx
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on:
+      - dialogbox-drop-portrait-prop
+    verification:
+      - 'grep -n "portrait" src/components/GameScreen.tsx && exit 1 || exit 0'
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - components
+
+  - id: dialogbox-test-drop-portrait-cases
+    title: >
+      In src/components/__tests__/DialogBox.test.tsx: remove the test
+      `renders portrait when provided` (lines 41-46, which used the fake
+      `/portraits/moab.png` path) and the test `renders portrait at 128x128
+      when provided` (lines 79-82, which used `/gron.gif`). Both tests
+      asserted on a prop that no longer exists. Preserve every other test
+      in the file (descender tests, layout tests, advance-button tests).
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - props-simplified
+    context_files:
+      - src/components/__tests__/DialogBox.test.tsx
+    output_files:
+      - src/components/__tests__/DialogBox.test.tsx
+    depends_on:
+      - dialogbox-drop-portrait-prop
+    verification:
+      - 'grep -n "portrait" src/components/__tests__/DialogBox.test.tsx && exit 1 || exit 0'
+      - npx vitest run src/components/__tests__/DialogBox.test.tsx
+    repair: retry
+    tags:
+      - tests
+      - components
+
+  - id: characters-test-drop-portrait-assertion
+    title: >
+      In src/engine/__tests__/characters.test.ts: remove the test `includes
+      the portrait path for gron` (lines 13-15) which asserts
+      `def.portrait === '/gron.gif'`. Preserve any other tests in the file
+      (name, glyph, dialog assertions for the rest of the cast).
+    spec_id: trapped-coyote-stays-put
+    spec_sections:
+      - coyote-character-definition-awoo
+    context_files:
+      - src/engine/__tests__/characters.test.ts
+    output_files:
+      - src/engine/__tests__/characters.test.ts
+    depends_on:
+      - strip-portrait-from-character-entries
+    verification:
+      - 'grep -n "portrait\\|gron.gif" src/engine/__tests__/characters.test.ts && exit 1 || exit 0'
+      - npx vitest run src/engine/__tests__/characters.test.ts
+    repair: retry
+    tags:
+      - tests
+      - engine
+
+  - id: coyote-test-drop-portrait-describe-block
+    title: >
+      In src/engine/__tests__/trapped-coyote-stays-put.test.ts (lines
+      299-307): remove the `describe('coyote character definition has
+      placeholder awoo dialog and gron portrait', …)` block — specifically
+      the `coyote portrait is /gron.gif as a deliberate placeholder` test.
+      If the describe block contained only the portrait test, delete the
+      describe wrapper too. If it contained other tests (awoo dialog
+      assertions), preserve them and only drop the portrait `it(...)`.
+      Rename the describe header if it still mentions "gron portrait."
+    spec_id: trapped-coyote-stays-put
+    spec_sections:
+      - coyote-character-definition-awoo
+      - coyote-runs-to-player-and-opens-dialog-on-rescue
+    context_files:
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+    output_files:
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+    depends_on:
+      - strip-portrait-from-character-entries
+    verification:
+      - 'grep -n "portrait\\|gron.gif" src/engine/__tests__/trapped-coyote-stays-put.test.ts && exit 1 || exit 0'
+      - npx vitest run src/engine/__tests__/trapped-coyote-stays-put.test.ts
+    repair: retry
+    tags:
+      - tests
+      - engine
+
+  - id: harness-assets-drop-portrait-describe-block
+    title: >
+      In src/harness/__tests__/assets/references.test.ts (lines 18-26):
+      remove the entire `describe('character portraits', …)` block that
+      iterates `char.portrait` and asserts each portrait file exists in
+      `public/`. The block can no longer compile once `portrait` is removed
+      from `CharacterDefinition`. Preserve any other describe blocks in the
+      file (other asset categories).
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - props-simplified
+    context_files:
+      - src/harness/__tests__/assets/references.test.ts
+    output_files:
+      - src/harness/__tests__/assets/references.test.ts
+    depends_on:
+      - strip-portrait-from-character-types
+    verification:
+      - 'grep -n "portrait" src/harness/__tests__/assets/references.test.ts && exit 1 || exit 0'
+      - npx vitest run src/harness/__tests__/assets/references.test.ts
+    repair: retry
+    tags:
+      - tests
+      - harness
+
+  - id: renderer-comment-strip-portrait-mention
+    title: >
+      In src/engine/renderer.ts (~line 530): the comment includes the
+      phrase "or the dialog portrait" as part of a description of where a
+      tweening glyph might appear. Strip the "or the dialog portrait"
+      phrase — the dialog box no longer has a portrait surface. Preserve
+      the rest of the comment. Code is unchanged; this is doc-only.
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - minimal-chrome
+    context_files:
+      - src/engine/renderer.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - dialogbox-drop-portrait-prop
+    verification:
+      - 'grep -n "dialog portrait\\|portrait area" src/engine/renderer.ts && exit 1 || exit 0'
+    repair: retry
+    tags:
+      - engine
+      - docs
+
+  - id: delete-gron-gif-asset
+    title: >
+      Delete `public/gron.gif`. Use `git rm public/gron.gif`. After the
+      DialogBox prop and the character entries are gone, this is the last
+      reference's tombstone — the file is no longer reachable from any
+      source path.
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - props-simplified
+    context_files:
+      - public/gron.gif
+    output_files:
+      - public/gron.gif
+    depends_on:
+      - strip-portrait-from-character-entries
+      - dialogbox-drop-portrait-prop
+      - gamescreen-drop-portrait-prop-pass
+      - harness-assets-drop-portrait-describe-block
+    verification:
+      - 'test ! -e public/gron.gif'
+    repair: retry
+    tags:
+      - delete
+      - asset
+
+  - id: straggler-sweep
+    title: >
+      Catch-all sweep. Run `grep -rn "gron.gif" src/ public/ harness/` and
+      `grep -rn "char.*portrait\\|portrait?: string\\|portrait=" src/` —
+      both must return zero matches. If matches remain in production code,
+      repair in place by removing the surviving reference. Documentation in
+      docs/ may legitimately reference Gron's portrait historically (the
+      v11 thinktank doc); do not touch docs/. The yaml file
+      docs/backlog.yaml may mention `/gron.gif` inside the RP-61 summary
+      describing what we deleted — also out of scope. The grep is bounded
+      to src/, public/, harness/.
+    spec_id: dialog-box-presentation
+    spec_sections:
+      - props-simplified
+      - minimal-chrome
+    failure_conditions:
+      - 'a documentation reference to the historical portrait surface is removed by mistake (docs/ is out of scope)'
+    context_files:
+      - src
+      - public
+      - harness
+    output_files:
+      - src/components/GameScreen.tsx
+    depends_on:
+      - delete-gron-gif-asset
+      - renderer-comment-strip-portrait-mention
+      - dialogbox-test-drop-portrait-cases
+      - characters-test-drop-portrait-assertion
+      - coyote-test-drop-portrait-describe-block
+    verification:
+      - 'grep -rn "gron.gif" src/ public/ harness/ && exit 1 || exit 0'
+      - 'grep -rn "portrait?: string\\|portrait=" src/ harness/ && exit 1 || exit 0'
+    repair: retry
+    tags:
+      - sweep

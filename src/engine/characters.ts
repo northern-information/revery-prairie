@@ -8,7 +8,6 @@ interface CharacterEntry {
   title?: string
   glyph: string
   glyphColor: string
-  portrait?: string
   dialog: string[]
   music?: string
   gift?: { kind: 'item'; id: string }
@@ -21,7 +20,6 @@ const CHARACTERS = {
     name: 'Gron',
     glyph: 'G',
     glyphColor: '#FFFFFF',
-    portrait: '/gron.gif',
     // The runtime dispatcher in getCharacterDialog overrides this field for
     // Gron based on state.mainQuestPhase. The static fallback below is the
     // 'awaiting-coyote' opener — preserved for callers that don't route
@@ -51,7 +49,6 @@ const CHARACTERS = {
     name: 'Coyote',
     glyph: 'C',
     glyphColor: '#D4A054',
-    portrait: '/gron.gif',
     dialog: ['Awoo!', 'Awoo!'],
   },
   gate: {

@@ -2377,3 +2377,76 @@ features:
       scope: RP-11 (seeds, drop-on-dirt-to-plant) migrating to
       sow-from-in-hand — room's lean is follow-up spec, ship RP-59
       for meteorites and camera first.
+  - id: 'RP-61'
+    name: Retire Gron portrait and the portrait field
+    summary: >
+      Delete `/gron.gif` from `public/` and remove the `portrait?:
+      string` field from `CharacterEntry` in `src/engine/characters.ts`
+      and `CharacterDefinition` in `src/engine/types.ts`. Drop the
+      `portrait?` prop from `DialogBox` and update the test fixtures
+      at `src/components/__tests__/DialogBox.test.tsx`,
+      `src/engine/__tests__/characters.test.ts`,
+      `src/engine/__tests__/trapped-coyote-stays-put.test.ts`, and the
+      `describe('character portraits')` block in
+      `src/harness/__tests__/assets/references.test.ts`. Also remove
+      `portrait={def.portrait}` from `src/components/GameScreen.tsx`
+      and strip the "dialog portrait" phrase from the comment at
+      `src/engine/renderer.ts`. Coyote's copy-paste `/gron.gif`
+      reference dies with the field. Update the six harness specs
+      that mention portrait: `dialog-box-presentation`,
+      `trapped-coyote-stays-put`, `dialog-descender-clipping`,
+      `angels`, `ruin-locked-door`, `minimap`.
+    size: S
+    depends_on: []
+    status: in-progress
+    spec: null
+    plan: harness/plans/RP-61-retire-gron-portrait.yaml
+    pr: null
+    notes: >
+      v11 thinktank round 2 (2026-05-25). The seed: Tyler noticed
+      `/gron.gif` is the only non-ASCII/canvas asset in the game,
+      felt asymmetric to the prairie (which has no equivalent), and
+      admitted Gron was a years-old asset slotted in from a previous
+      project. The room corrected two facts mid-round: Emily is the
+      first character the steward meets (not Gron), and Gate is not
+      a character but an overloaded interactable. With Emily already
+      carrying the threshold cosmologically without a portrait, the
+      asymmetry resolved toward removal. Astrid's line: _listen to
+      what the hand will not make_ — Tyler's lack of excitement to
+      make more portraits is the cosmology speaking through the
+      hand. Delta's frame-break: the gif is inheritance from a
+      previous project, not an art-direction choice; one visual
+      language, no faces. Calla traced the "evocative" feeling to
+      novelty rather than the animation itself — extending it would
+      have killed exactly the thing Tyler liked about it. The lock:
+      the prairie has no portraits, no character does either. Scope
+      note: the round's "one-line conventions note in CLAUDE.md"
+      bullet was dropped during change-request scoping per Tyler's
+      preference — we don't keep a list of things we don't do unless
+      the rule is very specific.
+  - id: 'RP-62'
+    name: Gate is not a character
+    summary: >
+      The locked-gate interactable at `src/engine/characters.ts:57-62`
+      is routed through the `Character` system (glyph `#`, single
+      dialog line "The gate is locked.") because `[f]`-to-talk was
+      the easiest path. Spec out whether `Character` should be split
+      into `Character` (named persons with dialog) and `Interactable`
+      (things that respond to `[f]` with a line), or whether Gate
+      should move to a different system entirely. Not blocking on
+      RP-61.
+    size: XS
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 2 (2026-05-25). Surfaced by Boon during
+      the portrait-retirement audit and elevated by Delta as a
+      clue: the fact that a locked door is implemented as a
+      `Character` is the system telling us the `Character` type is
+      overloaded — it currently means "anything you can press `[f]`
+      on and get a line back from." Deferred to its own round/spec
+      so it does not bloat the portrait retirement. Open at spec:
+      split the type, or move Gate to a wholly different system?

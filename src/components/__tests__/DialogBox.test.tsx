@@ -38,15 +38,6 @@ describe('DialogBox', () => {
     expect(dialogRoot.className).not.toMatch(/-translate-x-1\/2/)
   })
 
-  it('renders portrait when provided', () => {
-    render(
-      <DialogBox characterName="Moab" portrait="/portraits/moab.png" line="hello" typingIndex={5} typingDone={false} />
-    )
-
-    const img = screen.getByAltText('portrait of moab')
-    expect(img).toBeTruthy()
-  })
-
   it('renders angel hash grid for angel characters', () => {
     render(
       <DialogBox
@@ -74,14 +65,6 @@ describe('DialogBox', () => {
 
     const dialogRoot = container.firstElementChild as HTMLElement
     expect(dialogRoot.className).toMatch(/h-\[240px\]/)
-  })
-
-  it('renders portrait at 128x128 when provided', () => {
-    render(<DialogBox characterName="Gron" portrait="/gron.gif" line="hello" typingIndex={5} typingDone={false} />)
-
-    const img = screen.getByAltText('portrait of gron')
-    expect(img.className).toMatch(/h-32/)
-    expect(img.className).toMatch(/w-32/)
   })
 
   it('shows [F] Next button when typing is done and not last line', () => {

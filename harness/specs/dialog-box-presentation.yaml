@@ -30,16 +30,16 @@ behaviors:
   - id: minimal-chrome
     description: >
       dialog box has no visible border and no close button. background
-      is semi-transparent black (bg-black/85). the portrait (if present)
-      renders centered above the text in a stacked layout (flex-col).
-      character name renders above the dialog text in the existing
-      lowercase style. advance button uses TextButton component from
-      PanelPrimitives, centered at bottom of dialog box. shows
-      '[F] Next' or '[F] Close' text.
+      is semi-transparent black (bg-black/85). character name renders
+      above the dialog text in the existing lowercase style. advance
+      button uses TextButton component from PanelPrimitives, centered
+      at bottom of dialog box. shows '[F] Next' or '[F] Close' text.
+      no character has an animated portrait — the dialog box renders a
+      single visual register for every speaker.
     inputs:
       - 'activeDialog is non-null'
     outputs:
-      - 'dialog box with stacked portrait layout and TextButton advance control'
+      - 'dialog box with stacked flex-col layout (header, body, advance) and TextButton advance control'
     state_changes: []
     determinism: deterministic
 
@@ -58,7 +58,7 @@ behaviors:
 
   - id: props-simplified
     description: >
-      DialogBox props: characterName, portrait, line, typingIndex,
+      DialogBox props: characterName, line, typingIndex,
       typingDone, isAngel, isLastLine (optional), onAdvance (optional).
       position props (top, left) were removed — the component is
       fixed-positioned via CSS. onAdvance callback drives the
@@ -93,12 +93,6 @@ edge_cases:
   - id: very-long-line
     description: 'dialog line exceeds the visible area of the short box'
     expected: 'text overflows hidden — lines should be authored to fit, but overflow is clipped not scrolled'
-  - id: portrait-and-angel
-    description: 'angel character with a portrait defined'
-    expected: 'portrait renders centered above the HashGrid in a stacked layout'
-  - id: no-portrait
-    description: 'character without a portrait (e.g. ghosts)'
-    expected: 'text area takes full width, no empty space on the left'
 
 failure_conditions:
   - trigger: 'DialogBox rendered with no activeDialog (should never happen)'
