@@ -1,4 +1,3 @@
-import { storeAngelCanto } from './angels'
 import { EMILY_DIALOG, getCharacterDefinition, getCharacterDialog } from './characters'
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
@@ -31,13 +30,8 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
   ) {
     return true
   }
-  // Angel body tiles — not in spatial index, check MultiPosition
+  // Oak body tiles — 3x3 MultiPosition, not in spatial
   const key = posKey(x, y)
-  for (const eid of state.world.query(ComponentType.AngelData, ComponentType.MultiPosition)) {
-    const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
-    if (multi?.positions.some(p => posKey(p.x, p.y) === key)) return true
-  }
-  // Oak body tiles — same pattern as angels (3x3 MultiPosition, not in spatial)
   for (const eid of state.world.query(ComponentType.OakData, ComponentType.MultiPosition)) {
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
     if (multi?.positions.some(p => posKey(p.x, p.y) === key)) return true
@@ -123,28 +117,6 @@ export const getAdjacentCharacter = (
     if (character) return character
   }
 
-  // Check angel body tiles — player can be adjacent to or standing under
-  const checkTiles = [
-    { x: px, y: py }, // standing under
-    { x: px + DIRECTIONS[state.playerFacing].x, y: py + DIRECTIONS[state.playerFacing].y }, // facing
-    ...CARDINAL.map(cd => ({ x: px + cd.x, y: py + cd.y })), // adjacent
-  ]
-  for (const eid of state.world.query(
-    ComponentType.AngelData,
-    ComponentType.MultiPosition,
-    ComponentType.CharacterIdentity
-  )) {
-    const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
-    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-    const pos = state.world.getComponent(eid, ComponentType.Position)
-    if (!multi || !identity || !pos) continue
-    const bodyKeys = new Set(multi.positions.map(p => posKey(p.x, p.y)))
-    for (const t of checkTiles) {
-      if (bodyKeys.has(posKey(t.x, t.y))) {
-        return { definitionId: identity.definitionId, pos: { x: pos.x, y: pos.y } }
-      }
-    }
-  }
   return null
 }
 
@@ -172,11 +144,6 @@ export const interactWithCharacter = (
     typingDone: false,
     transitioning: false,
     transitionStartTime: 0,
-  }
-
-  // Store angel canto on first interaction with this angel
-  if (character.definitionId.startsWith('angel-')) {
-    storeAngelCanto(state, character.definitionId)
   }
 
   return { opened: true, gift: null, coyoteToggled: false }

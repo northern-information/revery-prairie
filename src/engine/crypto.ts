@@ -1,10 +1,10 @@
 // Shared hash utilities for deterministic identity generation.
-// Used by angels (hash cantos) and genetics (flora identity).
+// Used by genetics (flora identity).
 //
 // IMPORTANT: sha256Sync is NOT real SHA-256 — it's a deterministic
 // 32-bit FNV-style mixing routine that produces a 64-char hex string.
-// Do not modify the constants or mixing logic; angel cantos in saved
-// games depend on byte-identical output.
+// Do not modify the constants or mixing logic; saved flora identities
+// depend on byte-identical output.
 
 export const sha256Sync = (message: string): string => {
   let h0 = 0x6a09e667

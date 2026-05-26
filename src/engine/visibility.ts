@@ -1,4 +1,5 @@
-import { CAVE_VISION_RADIUS, DISCOVERY_RADIUS, OVERWORLD_VISION_RADIUS, RUIN_VISION_RADIUS } from './constants'
+import { ANGEL_AURA_RADIUS, CAVE_VISION_RADIUS, DISCOVERY_RADIUS, OVERWORLD_VISION_RADIUS, RUIN_VISION_RADIUS } from './constants'
+import { ComponentType } from './ecs/types'
 import { isInBounds, posKey } from './position'
 import { TileType, Zone } from './types'
 
@@ -257,6 +258,30 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
         const ey = entrance.y + dy
         if (isInBounds(ex, ey, mapWidth, mapHeight)) {
           visible.add(posKey(ex, ey))
+        }
+      }
+    }
+  }
+
+  // Standing inside an angel's aura reveals the entire aura circle —
+  // the angel's gaze lights up the field around it for the steward.
+  // Reveal is symmetric with player FOV: tiles enter `visible` for the
+  // current frame and are promoted to fullyDiscovered below.
+  if (state.currentZone === Zone.Overworld) {
+    const r2 = ANGEL_AURA_RADIUS * ANGEL_AURA_RADIUS
+    for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
+      const pos = state.world.getComponent(eid, ComponentType.Position)
+      if (!pos) continue
+      const pdx = player.x - pos.x
+      const pdy = player.y - pos.y
+      if (pdx * pdx + pdy * pdy > r2) continue
+      for (let dy = -ANGEL_AURA_RADIUS; dy <= ANGEL_AURA_RADIUS; dy++) {
+        for (let dx = -ANGEL_AURA_RADIUS; dx <= ANGEL_AURA_RADIUS; dx++) {
+          if (dx * dx + dy * dy > r2) continue
+          const tx = pos.x + dx
+          const ty = pos.y + dy
+          if (!isInBounds(tx, ty, mapWidth, mapHeight)) continue
+          visible.add(posKey(tx, ty))
         }
       }
     }

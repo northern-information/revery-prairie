@@ -127,9 +127,6 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
     lore: 'Failing mechanical devices from both this world and beyond. Who knows what you might find?',
   },
   'event:angel': { lore: 'Flaming orreries of eyes encrusted in feather and wheel.' },
-  'event:angel-canto': {
-    lore: 'It is said their choirs are arranged in fractals and have sung the cantos since time immemorial.',
-  },
   // Events — flora
   'event:clover-growth': {
     lore: 'When bees settle on a clover patch, the clover begins to grow in spiraling patterns across the dirt. The more bees tend a patch, the faster it spreads.',
@@ -540,17 +537,6 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     glyphColor: '#FFFFFF',
     unlockKey: 'event:angel',
     sourceKind: 'event',
-    crossRefs: ['event:angel-canto'],
-  },
-  {
-    id: 'event:angel-canto',
-    name: 'Angel Canto',
-    category: ManualCategory.Celestial,
-    glyph: '#',
-    glyphColor: '#E8E8FF',
-    unlockKey: 'event:angel-canto',
-    sourceKind: 'event',
-    crossRefs: ['event:angel'],
   },
   {
     id: 'event:satellite-impact',

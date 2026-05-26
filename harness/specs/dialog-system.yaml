@@ -26,10 +26,10 @@ behaviors:
       that toggled coyote mode via [f]; it is no longer used (coyote
       mode is controlled via the permacomputer panel), but the
       field remains in the return type for backward compatibility.
-      coyote and angel characters take alternate paths: coyote
-      adjacency records the character discovery and returns without
-      opening dialog; angels store their canto on first interaction
-      before the dialog opens.
+      coyote adjacency records the character discovery and returns
+      without opening dialog. Angels are not returned by
+      getAdjacentCharacter at all — they are environmental presences
+      with no dialog (see angels:angel-no-interaction).
     inputs:
       - 'player adjacent to a character entity, [f] pressed'
     outputs:
@@ -38,7 +38,7 @@ behaviors:
       - field: activeDialog
         effect: 'initialized with character dialog state'
       - field: manualDiscoveries
-        effect: 'character discovery recorded; angel canto stored on first interaction'
+        effect: 'character discovery recorded'
     determinism: deterministic
 
   - id: dialog-typing

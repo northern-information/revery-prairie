@@ -7,7 +7,6 @@ source_files:
   - src/components/GameScreen.tsx
 dependencies:
   - coyote-companion
-  - angels
   - hexagram-casting
   - main-questline-foundation
 behaviors:
@@ -17,11 +16,10 @@ behaviors:
       condition is satisfied by the current GameState. MANUAL is
       always visible. DIVINATION is visible when canCast(state) is
       true — i.e. the player currently has at least 3 glinting coins
-      in their backpack. CANTOS is visible when
-      state.angelCantos.length is greater than 0. COYOTE is visible
-      when state.manualDiscoveries has 'event:rescue-coyote'. tab
-      order is preserved: MANUAL, DIVINATION, CANTOS, COYOTE —
-      hidden tabs are skipped without leaving a gap.
+      in their backpack. COYOTE is visible when
+      state.manualDiscoveries has 'event:rescue-coyote'. tab
+      order is preserved: MANUAL, DIVINATION, COYOTE — hidden tabs
+      are skipped without leaving a gap.
     inputs:
       - 'GameState passed to PermacomputerShell as a prop'
     outputs:
@@ -33,7 +31,7 @@ behaviors:
     description: >
       a tab that is hidden cannot be activated via the shell UI because
       its button is not rendered. there is no keybinding that opens
-      the COYOTE, CANTOS, or DIVINATION screens directly —
+      the COYOTE or DIVINATION screens directly —
       tab clicks are the only entry point. if external code sets
       activeScreen to a hidden tab's value, the shell still renders
       its tab bar without that tab (the content area continues to
@@ -52,9 +50,9 @@ behaviors:
       acquires their third glinting coin, DIVINATION appears on the
       next refreshUI without requiring the panel to be re-opened.
       symmetrically, if the player drops or consumes coins so that
-      fewer than 3 remain, DIVINATION disappears. CANTOS and COYOTE
-      use one-way gates (cantos and rescue discovery are append-only),
-      so once visible they stay visible.
+      fewer than 3 remain, DIVINATION disappears. COYOTE uses a
+      one-way gate (rescue discovery is append-only), so once visible
+      it stays visible.
     inputs:
       - 'GameState mutates a field that affects a gating predicate'
       - 'refreshUI fires'
@@ -70,15 +68,12 @@ edge_cases:
   - id: coyote-tab-after-cave-transition
     description: 'player rescues coyote, then transitions between overworld and cave/ruin zones'
     expected: "COYOTE tab remains visible across zone transitions because manualDiscoveries.has('event:rescue-coyote') is set once and never cleared."
-  - id: cantos-after-first-angel-gift
-    description: 'player completes their first angel dialog and receives a canto'
-    expected: 'CANTOS tab becomes visible on the next render. order is preserved (between DIVINATION and COYOTE).'
   - id: all-optional-tabs-hidden
-    description: 'fresh game, no coins picked up, no angels met, no coyote rescued'
-    expected: 'tab bar shows MANUAL only. DIVINATION, CANTOS, COYOTE are hidden.'
+    description: 'fresh game, no coins picked up, no coyote rescued'
+    expected: 'tab bar shows MANUAL only. DIVINATION and COYOTE are hidden.'
 
 failure_conditions:
-  - trigger: 'shell receives a state where every gating predicate is false (no coins, no cantos, no rescue)'
+  - trigger: 'shell receives a state where every gating predicate is false (no coins, no rescue)'
     expected: 'MANUAL tab renders. no crash. no console error.'
   - trigger: 'activeScreen is set to a hidden tab via external code or stale React state'
     expected: 'shell renders the tab bar without that tab. content area is owned by GameScreen and is unaffected. no crash.'

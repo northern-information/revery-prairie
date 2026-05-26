@@ -43,27 +43,39 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: angel-dialog-preserved
+  - id: permacomputer-serif-body
     description: >
-      angel dialog retains the HashGrid rendering within the new
-      box layout. the 8x8 hash grid displays inside the same
-      wide-short bottom-center box. no behavioral changes to
-      angel dialog — only the container shape and position change.
+      The character dialog body text renders in the project serif
+      stack (--font-serif, Libre Baskerville) at the permacomputer
+      color token (--color-permacomputer / text-permacomputer,
+      #8b7355) — the same color as the "Permacomputer online" status
+      footer. The spoken line is rendered at text-lg (larger than the
+      surrounding xs chrome) and centered horizontally. The
+      character-name header and advance button keep their existing
+      styles — only the spoken line itself uses the
+      permacomputer-serif treatment. The body sits on the same
+      semi-transparent black background as before and remains within
+      the existing fixed-size dialog container; no layout or sizing
+      changes to the outer box. Locked-gate dialog ("The gate is
+      locked.") uses the same treatment since it routes through the
+      same DialogBox component.
     inputs:
-      - 'activeDialog with angel character'
+      - 'activeDialog is non-null with a character or gate speaker'
     outputs:
-      - 'HashGrid rendered inside the fromsoft-style box'
+      - 'dialog body text rendered in Libre Baskerville serif at text-permacomputer, text-lg, text-center'
     state_changes: []
     determinism: deterministic
 
   - id: props-simplified
     description: >
       DialogBox props: characterName, line, typingIndex,
-      typingDone, isAngel, isLastLine (optional), onAdvance (optional).
+      typingDone, isLastLine (optional), onAdvance (optional).
       position props (top, left) were removed — the component is
-      fixed-positioned via CSS. onAdvance callback drives the
-      TextButton advance control. isLastLine toggles button text
-      between '[F] Next' and '[F] Close'.
+      fixed-positioned via CSS. The isAngel prop was removed when
+      cantos were dropped (see angels:angel-no-interaction); angels
+      no longer open dialog so the HashGrid branch is gone. onAdvance
+      callback drives the TextButton advance control. isLastLine
+      toggles button text between '[F] Next' and '[F] Close'.
     inputs:
       - 'DialogBox rendered by GameScreen'
     outputs:

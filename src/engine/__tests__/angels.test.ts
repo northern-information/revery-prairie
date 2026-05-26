@@ -1,13 +1,11 @@
 import {
   destroyAllAngels,
-  generateAngelHash,
   spawnAngel,
   tickAngelBeeAura,
   tickAngelCloverAura,
   tickAngelDrift,
   tickAngelLifespan,
 } from '../angels'
-import { getCharacterDefinition } from '../characters'
 import {
   ANGEL_AURA_RADIUS,
   ANGEL_BEE_SPAWN_INTERVAL_MS,
@@ -17,10 +15,8 @@ import {
   SPACE_BORDER,
 } from '../constants'
 import { ComponentType } from '../ecs/types'
-import { interactWithCharacter, isInteractableAt } from '../interaction'
-import { getBlockedPositions } from '../movement'
+import { interactWithCharacter } from '../interaction'
 import { clearMovementTweens } from '../movementTween'
-import { isWalkableTile, posKey } from '../position'
 import { TileType, Zone } from '../types'
 import { createTestState } from './helpers'
 import { describe, expect, it, vi } from 'vitest'
@@ -123,7 +119,7 @@ describe('angel spawning', () => {
     expect(state.world.getComponent(eid, ComponentType.AngelData)).toBeTruthy()
     expect(state.world.getComponent(eid, ComponentType.EntityTag)).toBe('angel')
     expect(state.world.getComponent(eid, ComponentType.EntityZone)).toEqual({ zone: Zone.Overworld })
-    expect(state.world.getComponent(eid, ComponentType.CharacterIdentity)).toBeTruthy()
+    expect(state.world.getComponent(eid, ComponentType.CharacterIdentity)).toBeUndefined()
 
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
     expect(multi?.positions).toHaveLength(ANGEL_BODY_SIZE * ANGEL_BODY_SIZE)
@@ -137,16 +133,6 @@ describe('angel spawning', () => {
     expect(state.angelFlashTime).toBe(1000)
   })
 
-  it('uses Angel of X naming', () => {
-    const state = createAngelTestState()
-
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const identity = requireComponent(state.world.getComponent(eid, ComponentType.CharacterIdentity))
-    const def = getCharacterDefinition(identity.definitionId)
-    expect(def.name).toMatch(/^Angel of (Rain|Bees|Clover)$/)
-  })
 })
 
 describe('angel drifting', () => {
@@ -394,169 +380,38 @@ describe('angel aura - clover', () => {
   })
 })
 
-describe('angel dialog via [e] interaction', () => {
-  it('opens dialog when player is adjacent to angel body', () => {
+describe('angel non-interaction', () => {
+  it('does not open dialog when player stands under angel body', () => {
     const state = createAngelTestState()
     spawnAngel(state, 1000)
 
     const eid = getAngelEntities(state)[0]
     const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
 
-    // Move player adjacent to the first body tile
+    state.player.x = multi.positions[0].x
+    state.player.y = multi.positions[0].y
+
+    const result = interactWithCharacter(state)
+
+    expect(result.opened).toBe(false)
+    expect(state.activeDialog).toBeNull()
+  })
+
+  it('does not open dialog when player is adjacent to angel body', () => {
+    const state = createAngelTestState()
+    spawnAngel(state, 1000)
+
+    const eid = getAngelEntities(state)[0]
+    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
+
     state.player.x = multi.positions[0].x - 1
     state.player.y = multi.positions[0].y
     state.playerFacing = 'right'
 
     const result = interactWithCharacter(state)
 
-    expect(result.opened).toBe(true)
-    expect(state.activeDialog).not.toBeNull()
-  })
-
-  it('opens dialog when player is standing under angel body', () => {
-    const state = createAngelTestState()
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-
-    // Move player onto a body tile
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-
-    const result = interactWithCharacter(state)
-
-    expect(result.opened).toBe(true)
-    expect(state.activeDialog).not.toBeNull()
-  })
-
-  it('can talk to angel repeatedly', () => {
-    const state = createAngelTestState()
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-
-    interactWithCharacter(state)
-    expect(state.activeDialog).not.toBeNull()
-
-    state.activeDialog = null
-    interactWithCharacter(state)
-    expect(state.activeDialog).not.toBeNull()
-  })
-
-  it('does not open when player is far from angel', () => {
-    const state = createAngelTestState()
-    spawnAngel(state, 1000)
-
-    // Player stays at their original position, far from angel
-    const result = interactWithCharacter(state)
-
     expect(result.opened).toBe(false)
     expect(state.activeDialog).toBeNull()
-  })
-})
-
-describe('angel cantos', () => {
-  it('stores a canto on first interaction', () => {
-    const state = createAngelTestState()
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-    interactWithCharacter(state)
-
-    expect(state.angelCantos).toHaveLength(1)
-    expect(state.angelCantos[0]).toMatch(/^[0-9A-F]{64}$/)
-  })
-
-  it('does not store duplicate canto on repeated interaction', () => {
-    const state = createAngelTestState()
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-    interactWithCharacter(state)
-    expect(state.angelCantos).toHaveLength(1)
-
-    state.activeDialog = null
-    interactWithCharacter(state)
-    expect(state.angelCantos).toHaveLength(1)
-  })
-
-  it('increments encounter count only on first interaction', () => {
-    const state = createAngelTestState()
-
-    expect(state.angelEncounterCount).toBe(0)
-
-    spawnAngel(state, 1000)
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-    interactWithCharacter(state)
-
-    expect(state.angelEncounterCount).toBe(1)
-
-    state.activeDialog = null
-    interactWithCharacter(state)
-    expect(state.angelEncounterCount).toBe(1)
-  })
-
-  it('appends cantos without limit', () => {
-    const state = createAngelTestState()
-    for (let i = 0; i < 100; i++) {
-      state.angelCantos.push(`HASH${String(i).padStart(60, '0')}`)
-    }
-    expect(state.angelCantos).toHaveLength(100)
-
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-    state.player.x = multi.positions[0].x
-    state.player.y = multi.positions[0].y
-    interactWithCharacter(state)
-
-    expect(state.angelCantos).toHaveLength(101)
-  })
-})
-
-describe('angel hash generation', () => {
-  it('produces a 64-character hex string', () => {
-    const hash = generateAngelHash('test', 10, 20, 0)
-    expect(hash).toMatch(/^[0-9A-F]{64}$/)
-  })
-
-  it('produces different hashes for different inputs', () => {
-    const h1 = generateAngelHash('test', 10, 20, 0)
-    const h2 = generateAngelHash('test', 10, 20, 1)
-    const h3 = generateAngelHash('other', 10, 20, 0)
-    expect(h1).not.toBe(h2)
-    expect(h1).not.toBe(h3)
-  })
-
-  it('produces deterministic hashes', () => {
-    const h1 = generateAngelHash('test', 10, 20, 0)
-    const h2 = generateAngelHash('test', 10, 20, 0)
-    expect(h1).toBe(h2)
-  })
-
-  // Snapshot pin to detect drift after the sha256Sync lift to src/engine/crypto.ts.
-  // Angel cantos in saved games depend on byte-identical output — any change here
-  // breaks save compatibility.
-  it('matches pinned snapshot for (Sage, 50, 50, 0)', () => {
-    const hash = generateAngelHash('Sage', 50, 50, 0)
-    expect(hash).toBe('78DBCE487B7E8D20B11AFBC0A6F0F738B5133E4CB8E7384CC56D26946E3BADE2')
   })
 })
 
@@ -570,118 +425,6 @@ describe('angel movement blocking', () => {
     // Angels should not have a Blocking component
     const blocking = state.world.getComponent(eid, ComponentType.Blocking)
     expect(blocking).toBeUndefined()
-  })
-})
-
-describe('angel click-to-interact detection', () => {
-  it('angel body tile resolves to CharacterIdentity via MultiPosition query', () => {
-    const state = createAngelTestState()
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-    const expectedIdentity = requireComponent(state.world.getComponent(eid, ComponentType.CharacterIdentity))
-
-    // Pick an arbitrary body tile (not the anchor — pick the last one to cover edges)
-    const bodyTile = multi.positions[multi.positions.length - 1]
-    const tileKey = posKey(bodyTile.x, bodyTile.y)
-
-    // Replicate the detection logic from useMouse: spatial index misses angel body tiles
-    const spatialHit = state.world.spatial
-      .at(bodyTile.x, bodyTile.y)
-      .find(e => state.world.getComponent(e, ComponentType.EntityTag) === 'character')
-    expect(spatialHit).toBeUndefined()
-
-    // MultiPosition query finds the angel and returns its CharacterIdentity
-    let foundIdentity: { definitionId: string } | undefined
-    for (const e of state.world.query(
-      ComponentType.AngelData,
-      ComponentType.MultiPosition,
-      ComponentType.CharacterIdentity
-    )) {
-      const m = state.world.getComponent(e, ComponentType.MultiPosition)
-      if (m?.positions.some(p => posKey(p.x, p.y) === tileKey)) {
-        foundIdentity = state.world.getComponent(e, ComponentType.CharacterIdentity)
-        break
-      }
-    }
-    expect(foundIdentity).toBeTruthy()
-    expect(foundIdentity?.definitionId).toBe(expectedIdentity.definitionId)
-  })
-
-  it('isInteractableAt returns true for angel body tiles', () => {
-    const state = createAngelTestState()
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-
-    // Check several body tiles
-    for (const pos of multi.positions.slice(0, 5)) {
-      expect(isInteractableAt(state, pos.x, pos.y)).toBe(true)
-    }
-  })
-})
-
-describe('angel click walk-target resolution', () => {
-  it('interior body tile finds walkable target on body perimeter', () => {
-    const state = createAngelTestState()
-    spawnAngel(state, 1000)
-
-    const eid = getAngelEntities(state)[0]
-    const multi = requireComponent(state.world.getComponent(eid, ComponentType.MultiPosition))
-    const bodyPositions = multi.positions
-
-    // Pick the center tile — all 4 cardinal neighbors are also body tiles
-    const centerIdx = Math.floor(bodyPositions.length / 2)
-    const centerTile = bodyPositions[centerIdx]
-    const adjacentDeltas = [
-      { x: 0, y: -1 },
-      { x: 0, y: 1 },
-      { x: -1, y: 0 },
-      { x: 1, y: 0 },
-    ]
-    const bodyKeys = new Set(bodyPositions.map(p => posKey(p.x, p.y)))
-
-    // Confirm the center tile's immediate neighbors are all body tiles (the bug scenario)
-    for (const d of adjacentDeltas) {
-      expect(bodyKeys.has(posKey(centerTile.x + d.x, centerTile.y + d.y))).toBe(true)
-    }
-
-    // Replicate the fixed walk-target search: scan all body tiles' neighbors
-    const blocked = getBlockedPositions(state)
-    let bestTarget: { x: number; y: number } | null = null
-    let bestDist = Infinity
-    for (const bt of bodyPositions) {
-      for (const d of adjacentDeltas) {
-        const ax = bt.x + d.x
-        const ay = bt.y + d.y
-        if (ax < 0 || ax >= state.mapWidth || ay < 0 || ay >= state.mapHeight) continue
-        if (bodyKeys.has(posKey(ax, ay))) continue
-        if (!isWalkableTile(state.map[ay][ax].type)) continue
-        if (blocked.has(posKey(ax, ay))) continue
-        const dist = Math.abs(ax - state.player.x) + Math.abs(ay - state.player.y)
-        if (dist < bestDist) {
-          bestDist = dist
-          bestTarget = { x: ax, y: ay }
-        }
-      }
-    }
-
-    // The full-body search must find a walkable target
-    expect(bestTarget).not.toBeNull()
-
-    // The old single-tile search would fail — verify it finds nothing
-    let oldTarget: { x: number; y: number } | null = null
-    for (const d of adjacentDeltas) {
-      const ax = centerTile.x + d.x
-      const ay = centerTile.y + d.y
-      if (ax < 0 || ax >= state.mapWidth || ay < 0 || ay >= state.mapHeight) continue
-      if (!isWalkableTile(state.map[ay][ax].type)) continue
-      if (blocked.has(posKey(ax, ay))) continue
-      oldTarget = { x: ax, y: ay }
-    }
-    expect(oldTarget).toBeNull()
   })
 })
 

@@ -28,7 +28,6 @@ export type PermacomputerScreen =
   | 'system'
   | 'manual'
   | 'divination'
-  | 'cantos'
   | 'coyote'
   | 'album'
   | 'scan-result'

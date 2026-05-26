@@ -190,7 +190,7 @@ behaviors:
   - id: coyote-permacomputer-tab
     description: >
       a 'COYOTE' tab is rendered in the permacomputer shell between
-      CANTOS and SYS, but only after the coyote has been rescued —
+      DIVINATION and SYS, but only after the coyote has been rescued —
       specifically when state.manualDiscoveries contains
       'event:rescue-coyote'. before rescue the tab is hidden and there
       is no way for the player to reach the CoyoteScreen. the

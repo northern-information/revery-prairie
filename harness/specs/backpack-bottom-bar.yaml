@@ -85,7 +85,7 @@ behaviors:
     description: >
       The 'pack' permacomputer screen is removed. Tab cycles
       through the remaining permacomputer screens (manual, divination,
-      cantos, coyote, system) but never opens 'pack'. The
+      coyote, system) but never opens 'pack'. The
       PermacomputerShell no longer mounts an InventoryPanel for the
       'pack' screen; the InventoryPanel component is mounted only
       once, from the bottom-bar. Pressing `q` continues to open the

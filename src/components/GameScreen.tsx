@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AmbientInstruments } from './AmbientInstruments'
 import { BootTitleCardOverlay } from './BootTitleCardOverlay'
-import { CantosScreen } from './CantosScreen'
 import { CoyoteScreen } from './CoyoteScreen'
 import { DialogBox } from './DialogBox'
 import { DragCursor } from './DragCursor'
@@ -177,7 +176,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
               initialView={canCast(state) ? 'casting' : 'compendium'}
             />
           )}
-          {activeScreen === 'cantos' && <CantosScreen cantos={state.angelCantos} />}
           {activeScreen === 'coyote' && <CoyoteScreen state={state} refreshUI={refreshUI} />}
           {activeScreen === 'album' && <PhotographAlbumPanel state={state} />}
           {activeScreen === 'system' && (
@@ -230,7 +228,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
               line={line}
               typingIndex={state.activeDialog.typingIndex}
               typingDone={state.activeDialog.typingDone}
-              isAngel={state.activeDialog.characterId.startsWith('angel-')}
               isLastLine={isLastLine}
               onAdvance={() => {
                 advanceDialog(state, performance.now())

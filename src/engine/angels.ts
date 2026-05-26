@@ -1,4 +1,3 @@
-import { CHARACTER_DEFINITIONS, removeCharacterDefinition } from './characters'
 import {
   ANGEL_AURA_KINDS,
   ANGEL_AURA_RADIUS,
@@ -14,7 +13,6 @@ import {
   ANGEL_SPAWN_JITTER_MS,
   SPACE_BORDER,
 } from './constants'
-import { sha256Async, sha256Sync } from './crypto'
 import { ComponentType } from './ecs/types'
 import { FLORA_SPECIES } from './flora/species'
 import { createFloraLifecycleEntry } from './floraLifecycleEntry'
@@ -26,38 +24,6 @@ import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
 import { FloraSpecies, TileType, Zone } from './types'
 
 import type { GameState, Position } from './types'
-
-// --- Angel names by aura kind ---
-
-const ANGEL_NAMES: Record<string, string> = {
-  rain: 'Angel of Rain',
-  bees: 'Angel of Bees',
-  clover: 'Angel of Clover',
-}
-
-// --- Angel hash generation (uses shared crypto module) ---
-
-export const generateAngelHash = (
-  stewardName: string,
-  spawnX: number,
-  spawnY: number,
-  encounterCount: number
-): string => sha256Sync(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`).toUpperCase()
-
-export const generateAngelHashAsync = async (
-  stewardName: string,
-  spawnX: number,
-  spawnY: number,
-  encounterCount: number
-): Promise<string> => {
-  try {
-    return (
-      await sha256Async(`${stewardName}:${String(spawnX)},${String(spawnY)}:${String(encounterCount)}`)
-    ).toUpperCase()
-  } catch {
-    return generateAngelHash(stewardName, spawnX, spawnY, encounterCount)
-  }
-}
 
 // --- Spawn logic ---
 
@@ -130,8 +96,6 @@ export const spawnAngel = (state: GameState, time: number): boolean => {
     state.world.addComponent(e, ComponentType.AngelData, {
       auraKind,
       spawnTime: time,
-      cantoStored: false,
-      encounterCount: state.angelEncounterCount,
       seed,
       lastBeeSpawnTime: 0,
       lastCloverGrowTime: 0,
@@ -143,17 +107,6 @@ export const spawnAngel = (state: GameState, time: number): boolean => {
     if (auraKind === 'rain') {
       state.world.addComponent(e, ComponentType.Aura, { kind: 'rain', radius: ANGEL_AURA_RADIUS })
     }
-
-    // Register dynamic character definition
-    const angelId = `angel-${String(time)}`
-    CHARACTER_DEFINITIONS[angelId] = {
-      id: angelId,
-      name: ANGEL_NAMES[auraKind] ?? 'Angel',
-      glyph: 'O',
-      glyphColor: '#FFFFFF',
-      dialog: [generateAngelHash(state.stewardName, x, y, state.angelEncounterCount)],
-    }
-    state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId: angelId })
 
     state.angelFlashTime = time
     recordDiscovery(state, 'event:angel')
@@ -209,12 +162,6 @@ export const tickAngelLifespan = (state: GameState, time: number): void => {
 }
 
 const despawnAngel = (state: GameState, eid: number, time: number): void => {
-  // Clean up character definition
-  const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-  if (identity) {
-    removeCharacterDefinition(identity.definitionId)
-  }
-
   state.world.destroyEntity(eid)
 
   state.angelFlashTime = time
@@ -311,29 +258,6 @@ export const tickAngelCloverAura = (state: GameState, time: number): void => {
       data.lastCloverGrowTime = time
       break
     }
-  }
-}
-
-// --- Canto storage (called from interactWithCharacter) ---
-
-export const storeAngelCanto = (state: GameState, characterId: string): void => {
-  for (const eid of state.world.query(ComponentType.AngelData, ComponentType.CharacterIdentity)) {
-    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-    if (identity?.definitionId !== characterId) continue
-    const data = state.world.getComponent(eid, ComponentType.AngelData)
-    if (!data || data.cantoStored) return
-
-    data.cantoStored = true
-    const hash = generateAngelHash(
-      state.stewardName,
-      data.seed % 10000,
-      Math.floor(data.seed / 10000) % 10000,
-      data.encounterCount
-    )
-    state.angelCantos.push(hash)
-    state.angelEncounterCount++
-    recordDiscovery(state, 'event:angel-canto')
-    return
   }
 }
 
