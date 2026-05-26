@@ -101,7 +101,7 @@ behaviors:
       a synthetic 'gate' speaker is registered in CHARACTER_DEFINITIONS
       (id: 'gate', name: 'Gate', glyph: '#', glyphColor matches the
       RuinDoorLocked verdigris #5FD3BC, dialog: ['The gate is locked.'],
-      no portrait, no gift, no postGiftDialog). this speaker is not an
+      no gift, no postGiftDialog). this speaker is not an
       entity in the world — it has no Position component, getAdjacentCharacter
       never returns it, and it never appears in entity ticks or rendering.
       it exists only as a target for state.activeDialog. when the player

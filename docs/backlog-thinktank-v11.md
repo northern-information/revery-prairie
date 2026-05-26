@@ -28,6 +28,13 @@ Carried forward from v2/v3/v4/v5/v6/v7/v9/v10 with no changes:
 - **The noun in player-facing copy is _in hand_, not _equipped_.** Code can keep `equippedItemUid` for engineering clarity; manual entries, hover hints, and prose read "in hand," "take in hand," "set down."
 - **Amendment to v4 R7:** _the inventory is the character sheet_ now has its mechanic. The in-hand-and-place layer is the seam where that doctrine becomes a verb instead of a metaphor.
 
+**Locked in round 2:**
+
+- **The prairie speaks one visual language.** ASCII-on-canvas for the world, sparse UI affordances (dialog box, permacomputer, inventory grid) in their existing register, hot-pink reserved for steward-actions. No character has an animated portrait. Characters land through voice — dialog, music cue, glyph color.
+- **Gron's `/gron.gif` is retired.** The asset is inheritance from a previous project, not a design choice. The `portrait?` field on `CharacterEntry` / `CharacterDefinition` is removed; `DialogBox` no longer renders portraits.
+- **Emily is the threshold figure**, not Gron. Her authority is her stillness and her words ("you will return before the winter solstice, to revery"). The cosmology does not need a face for the first character.
+- **`Gate` is flagged as not-a-character.** The locked-gate interactable wearing a `CharacterEntry` is the system telling us the `Character` type is overloaded. Deferred to its own round/spec — does not block the portrait retirement.
+
 **Open in v11:**
 
 - _(none yet — open questions are tracked on individual specs, not as v11 doctrine)_
@@ -73,3 +80,34 @@ _Tyler: "i think we might need a concept of 'equipped item' now. im working on m
 - The exact treatment of a "loaded" cursor over an illegal tile — drop the glyph entirely (lean), or render it muted? (Boon, Calla) Defer to spec.
 - Whether non-placeable items can also be _in hand_ as a future hook (e.g. for `RP-15` wear-on-use). (Boon) Lean: placeable-only for now.
 - Per-item hover-hint copy from `PlaceableSpec.verb` — editorial pass before lock. (Astrid)
+
+---
+
+## Round 2: the gif from the previous apartment
+
+_Tyler: "what do you think about adding character animations for npcs? right now we only have gron. i like it. it is evocative. but it is the only non-ascii or canvas asset. i'm not particularly excited to make them, oddly. i'm wondering if they help or hurt the game from a cosmological sense. i think it gives characters more weight, but it feels sorta odd to then have nothing similar for the prairie which is the real main character. (after a beat: gron is not the first character — emily is. and i really don't know if we should keep gron. it's kinda all or nothing to me. he was a previous asset i had made years ago and just slotted in.)"_
+
+> **Astrid:** Then the cosmology has already answered. Emily is the threshold — the girl who waits inside the little house, the voice that delivers the canonical refrain, _you will return before the winter solstice, to revery_. Emily has no portrait. She does not need one. Her authority is in her words and her stillness; the steward meets her in ASCII and the line lands harder for it. If Emily can carry that weight without a face, every other character in the cast can. Gron's gif is not the threshold's portrait, because the threshold is already accounted for. It is, as Tyler said plainly, an asset from a previous game that got slotted in. _Listen to what the hand will not make._ Tyler's lack of excitement to make more is not creative block — it is the cosmology speaking through the hand, and the hand is saying the prairie does not want faces. The prairie is the main character; the steward is the only body that gets to move; the named ones speak and leave. _A face would round the steward's interlocutors into people. The cosmology asks them to remain visitors._ Remove the gif. The prairie does not have a portrait, and neither should anyone in it.
+
+> **Boon:** Field audit. `src/engine/characters.ts:11` declares `portrait?: string`. Two characters set it: `gron` at line 24 and `coyote` at line 54 (both pointing at `/gron.gif` — Coyote's is a copy-paste). Every other character — Moab, Gate, Emily, the ghost cohort — leaves it unset. The optional field is one-use, and the one use is the asset Tyler is questioning. Cleanup path is small: delete `/gron.gif` from `public/`, remove the `portrait` field from `CharacterEntry` and `CharacterDefinition`, drop the `portrait?` prop from `DialogBox` and its test fixtures (`src/components/__tests__/DialogBox.test.tsx:80-82`), and let the dialog box render uniformly across the cast. Net: one asset retired, one optional field retired, one prop and its alt-text test retired. Small. While the hand is in there: `gate` at line 57-62 is not a character. Glyph `#`, one line, no music, no gift — it is a locked-gate interactable wearing a `CharacterEntry`'s clothes because the dialog pipe was the easiest route. That is a separate concern; flag it as a follow-up, do not bundle. The portrait removal does not depend on resolving it. _The cheapest spec is the one that retires a field instead of populating it._
+
+> **Calla:** The word Tyler used was "evocative" — and that is real. Gron's gif _is_ evocative. The question is what is doing the evoking: the animation itself, or the novelty of a moving face in an otherwise still-and-rendered world? The answer is almost certainly the novelty. Extend it to four NPCs and the gif stops feeling like a window into someone and starts feeling like a portrait gallery — and a portrait gallery is exactly the kind of RPG inheritance the prairie has been avoiding. Strip it back to none and the dialog box becomes a different shape of intimacy: the steward and a voice, in the same visual register as the prairie itself. Emily's line, in particular, lands harder without a face attached to it; the absence is the weight. _One register for everyone, including the threshold._
+
+> **Delta:** The frame to break is "should we add animations." Wrong question, and Tyler already broke it himself when he said _all or nothing_. The actual decision is whether to keep a piece of furniture from the apartment you moved out of. Gron's gif is doing two things at once — it looks like an art-direction choice, and it is actually inheritance from a previous project. Inheritance and intention are different things. The prairie has built a coherent visual language: ASCII-on-canvas for the world, sparse UI affordances for the bag and the dialog and the permacomputer, hot-pink reserved for steward-actions. The gif is the one piece that does not speak that language. _The camera does not know it is the camera, and the prairie does not know it is the prairie_ — but the gif knows it came from somewhere else. Retire it. While you are at it: `Gate` is a clue. The fact that a locked door is implemented as a `Character` is the system telling you the `Character` type is overloaded — it currently means "anything you can press `[f]` on and get a line back from." That is a different round, but worth naming so it does not get lost. _One visual language, no inheritance, no faces._
+
+### Consensus
+
+- **Remove Gron's portrait.** Delete `/gron.gif` from `public/`, remove the `portrait?` field from `CharacterEntry` (`src/engine/characters.ts:11`), `CharacterDefinition` (`src/engine/types.ts`), and the `Character` runtime type. Drop the `portrait?` prop from `DialogBox` and update the test fixture (`src/components/__tests__/DialogBox.test.tsx:80-82`).
+- **Coyote's `/gron.gif` reference dies with the field** — no separate fix needed.
+- **The prairie speaks one visual language**: ASCII-on-canvas for the world, sparse UI affordances (dialog box, permacomputer, inventory grid) in their existing register, hot-pink reserved for steward-actions. No character has an animated portrait. Characters land through voice — their dialog, their music cue, their glyph color.
+- **Emily is the threshold figure** by virtue of being the first character the steward meets and the carrier of the canonical refrain. Her authority is in her stillness and her words. No portrait needed; no portrait wanted.
+- A one-line conventions note in `CLAUDE.md` confirming the no-portrait doctrine, so future contributors (and future-Tyler) do not read absence as a TODO.
+
+### Tracked as
+
+- **`RP-61 Retire Gron portrait and the portrait field`** — S, no deps. Delete `/gron.gif`. Remove `portrait?: string` from `CharacterEntry` in `src/engine/characters.ts:11`, from `CharacterDefinition` in `src/engine/types.ts`, and from the `DialogBox` props and its test (`src/components/__tests__/DialogBox.test.tsx`). Add a one-line conventions note in `CLAUDE.md` declaring that no character has an animated portrait — the prairie speaks one visual language.
+- **`RP-62 Gate is not a character`** — XS, no deps, deferred. The locked-gate interactable at `src/engine/characters.ts:57-62` is routed through the `Character` system because `[f]`-to-talk was the easiest path. Spec out whether `Character` should be split into `Character` (named persons with dialog) and `Interactable` (things that respond to `[f]` with a line), or whether Gate should move to a different system entirely. Not blocking on `RP-61`.
+
+### Open questions deferred to specs
+
+- _(none — round produced a lock, not new uncertainty.)_

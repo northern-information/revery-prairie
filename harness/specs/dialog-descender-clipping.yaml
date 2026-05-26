@@ -19,7 +19,7 @@ behaviors:
       region after the SectionHeader's text + mb-3 + pb-2 + border-b
       consume ~33px of the ~50px available.
     inputs:
-      - dialog opens for a non-angel character with a portrait
+      - dialog opens for a non-angel character
       - dialog body text contains letters with descenders (e.g. "Coyote", "ghost")
     outputs:
       - every glyph in the body paragraph renders fully, descenders included
@@ -39,7 +39,7 @@ behaviors:
       - text length varies between lines
     outputs:
       - dialog outer height stays h-[240px] across all lines
-      - portrait, header, paragraph, and button positions remain consistent
+      - header, paragraph, and button positions remain consistent
     state_changes: []
     determinism: deterministic
 

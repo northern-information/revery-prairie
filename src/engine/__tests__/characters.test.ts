@@ -10,11 +10,6 @@ describe('getCharacterDefinition', () => {
     expect(def.dialog.length).toBeGreaterThan(0)
   })
 
-  it('includes the portrait path for gron', () => {
-    const def = getCharacterDefinition('gron')
-    expect(def.portrait).toBe('/gron.gif')
-  })
-
   it('throws on unknown id', () => {
     expect(() => getCharacterDefinition('nobody')).toThrow('unknown character definition: nobody')
   })
