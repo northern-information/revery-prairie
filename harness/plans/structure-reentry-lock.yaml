@@ -1,0 +1,128 @@
+plan:
+  id: structure-reentry-lock
+  title: Lock structure re-entry until the player walks a re-arm distance away
+  created: '2026-05-28'
+  # Change-request: adds a re-entry lock so a disoriented player dropped
+  # outside a cave/ruin/house can't immediately step back in. Arms on
+  # exit, clears once the player reaches a Chebyshev re-arm distance.
+  # Adds one GameState field; touches the three structure modules,
+  # zoneTransition glue, constants, and serialization.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: add-reentry-lock-field
+    title: Add ReentryLock type and state.reentryLock field, default null, plus serialization
+    spec_id: zone-transition-effect
+    spec_sections:
+      - reentry-lock-after-exit
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization
+    repair: retry
+    tags: [engine, types]
+
+  - id: add-rearm-distance-constant
+    title: Add STRUCTURE_REENTRY_REARM_DISTANCE constant (Chebyshev tiles) to constants.ts
+    spec_id: zone-transition-effect
+    spec_sections:
+      - reentry-lock-after-exit
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: arm-lock-on-exit
+    title: Arm state.reentryLock with the entrance position in exitCave, exitRuin, and exitHouse
+    spec_id: zone-transition-effect
+    spec_sections:
+      - reentry-lock-after-exit
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+      - src/engine/house.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+      - src/engine/house.ts
+    depends_on:
+      - add-reentry-lock-field
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine]
+
+  - id: clear-and-suppress-in-checktransition
+    title: >
+      Before the overworld hitbox scan in checkTransition / checkRuinTransition /
+      checkHouseTransition, clear state.reentryLock once the player is Chebyshev
+      >= STRUCTURE_REENTRY_REARM_DISTANCE from the locked entrance; while still
+      locked, skip scheduling an enter transition for that one entrance.
+    spec_id: zone-transition-effect
+    spec_sections:
+      - reentry-lock-after-exit
+      - schedule-on-zone-change
+    context_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+      - src/engine/house.ts
+      - src/engine/constants.ts
+      - src/engine/zoneTransition.ts
+    output_files:
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+      - src/engine/house.ts
+    depends_on:
+      - arm-lock-on-exit
+      - add-rearm-distance-constant
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/cave.test.ts src/engine/__tests__/ruins.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: write-reentry-lock-tests
+    title: >
+      Add regression tests for the re-entry lock — arms on exit, suppresses
+      point-blank re-entry, clears on walk-away, clears immediately when the
+      drop is already past the re-arm distance, and a different entrance stays
+      enterable.
+    spec_id: zone-transition-effect
+    spec_sections:
+      - reentry-lock-after-exit
+    context_files:
+      - src/engine/zoneTransition.ts
+      - src/engine/cave.ts
+      - src/engine/ruins.ts
+      - src/engine/house.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/engine/__tests__/zoneTransition.test.ts
+    output_files:
+      - src/engine/__tests__/zoneTransition.test.ts
+    depends_on:
+      - clear-and-suppress-in-checktransition
+    verification:
+      - npx vitest run src/engine/__tests__/zoneTransition.test.ts
+    repair: retry
+    tags: [test]
