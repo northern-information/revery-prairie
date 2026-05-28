@@ -625,7 +625,7 @@ features:
     status: shipped
     spec: harness/specs/RP-21-gron-doctrine.yaml
     plan: harness/plans/RP-21-gron-doctrine.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/462
     notes: >
       v4 thinktank round 5 (2026-05-19). Six locked design principles:
       irreducibility (no origin story, no canonical explanation);
