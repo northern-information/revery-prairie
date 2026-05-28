@@ -1,10 +1,13 @@
 import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ComponentType } from '@/engine/ecs/types'
 import { candidateDirtNeighborsContained } from '@/engine/egregore/positions'
 import { dropItem } from '@/engine/entities'
+import { takeInHand } from '@/engine/inHand'
 import { pickUpFacingOrStandingPlacedMeteorite } from '@/engine/interaction'
 import { findFitPosition, placeItem } from '@/engine/inventory'
+import { getPlaceableSpec } from '@/engine/placeable'
 import { createGameState } from '@/engine/state'
 import {
   containingPolygonsKey,
@@ -225,58 +228,89 @@ describe('RP-18 — stone circles', () => {
     })
   })
 
-  describe('dropItem places meteorites', () => {
+  // RP-59 — meteorites are PLACED via the in-hand + left-click PlaceableSpec
+  // (place → state.placedMeteorites + hallowed geometry). The [x] drop key no
+  // longer places them; it disowns them as a retrievable ground item. Drop and
+  // place are two distinct verbs.
+  describe('placement verb (PlaceableSpec)', () => {
+    const giveMeteorite = (state: GameState): string => {
+      const fit = findFitPosition(state.backpack, 'meteorite')
+      if (!fit) throw new Error('test setup: no fit for meteorite in backpack')
+      const item = placeItem(state.backpack, 'meteorite', fit.gridX, fit.gridY)
+      if (!item) throw new Error('test setup: placeItem failed for meteorite')
+      return item.uid
+    }
+
+    it('place appends to placedMeteorites at the target tile and removes the item', () => {
+      const state = createTestState()
+      swapToOverworldForTest(state)
+      clearAroundPlayer(state, 2)
+      const uid = giveMeteorite(state)
+      takeInHand(state, uid)
+      expect(state.placedMeteorites).toEqual([])
+
+      const tx = state.player.x + 1
+      const ty = state.player.y
+      const spec = getPlaceableSpec('meteorite')
+      expect(spec?.canPlace(state, tx, ty)).toBe(true)
+      spec?.place(state, tx, ty, uid)
+
+      expect(state.placedMeteorites).toEqual([{ x: tx, y: ty }])
+      expect(state.backpack.items.find(i => i.definitionId === 'meteorite')).toBeUndefined()
+      // Single meteorite → hand clears after placing.
+      expect(state.equippedItemUid).toBeNull()
+    })
+
+    it('canPlace rejects a tile that already holds a placed meteorite', () => {
+      const state = createTestState()
+      swapToOverworldForTest(state)
+      clearAroundPlayer(state, 2)
+      const tx = state.player.x + 1
+      const ty = state.player.y
+      state.placedMeteorites = [{ x: tx, y: ty }]
+
+      expect(getPlaceableSpec('meteorite')?.canPlace(state, tx, ty)).toBe(false)
+    })
+
+    it('place auto-advances the hand to another meteorite in the stack', () => {
+      const state = createTestState()
+      swapToOverworldForTest(state)
+      clearAroundPlayer(state, 2)
+      const first = giveMeteorite(state)
+      const second = giveMeteorite(state)
+      takeInHand(state, first)
+
+      getPlaceableSpec('meteorite')?.place(state, state.player.x + 1, state.player.y, first)
+
+      expect(state.placedMeteorites).toHaveLength(1)
+      expect(state.equippedItemUid).toBe(second)
+    })
+  })
+
+  describe('[x] drop disowns (does not place)', () => {
     const giveMeteorite = (state: GameState): void => {
       const fit = findFitPosition(state.backpack, 'meteorite')
       if (!fit) throw new Error('test setup: no fit for meteorite in backpack')
       placeItem(state.backpack, 'meteorite', fit.gridX, fit.gridY)
     }
 
-    it('appends to placedMeteorites and removes the item on drop', () => {
+    it('drops a meteorite as a ground item without forming hallowed ground', () => {
       const state = createTestState()
       swapToOverworldForTest(state)
       clearAroundPlayer(state, 2)
       giveMeteorite(state)
-      expect(state.placedMeteorites).toEqual([])
 
       const ok = dropItem(state, 'meteorite', 1000)
       expect(ok).toBe(true)
-      expect(state.placedMeteorites).toHaveLength(1)
+      // Drop ≠ place: no hallowed-ground contribution.
+      expect(state.placedMeteorites).toEqual([])
       expect(state.backpack.items.find(i => i.definitionId === 'meteorite')).toBeUndefined()
-    })
-
-    it('returns false and leaves state unchanged when no adjacent valid tile exists', () => {
-      const state = createTestState()
-      swapToOverworldForTest(state)
-      // Surround the player with space tiles (non-walkable, non-Dirt/Flora)
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          state.map[state.player.y + dy][state.player.x + dx] = { type: TileType.Space }
-        }
-      }
-      giveMeteorite(state)
-      const beforeBackpack = state.backpack.items.length
-
-      const ok = dropItem(state, 'meteorite', 1000)
-      expect(ok).toBe(false)
-      expect(state.placedMeteorites).toEqual([])
-      expect(state.backpack.items).toHaveLength(beforeBackpack)
-    })
-
-    it('skips deltas already holding a placed meteorite', () => {
-      const state = createTestState()
-      swapToOverworldForTest(state)
-      clearAroundPlayer(state, 2)
-      // Pre-occupy the player's standing tile (the first DROP_DELTAS entry
-      // is { 0, 0 }). The drop should land on a neighbor instead.
-      state.placedMeteorites = [{ x: state.player.x, y: state.player.y }]
-      giveMeteorite(state)
-
-      const ok = dropItem(state, 'meteorite', 1000)
-      expect(ok).toBe(true)
-      expect(state.placedMeteorites).toHaveLength(2)
-      const newPlace = state.placedMeteorites[1]
-      expect(newPlace.x === state.player.x && newPlace.y === state.player.y).toBe(false)
+      // The dropped meteorite exists as a retrievable ground item.
+      const groundItems = [...state.world.query(ComponentType.ItemDrop)].filter(eid => {
+        const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+        return drop?.definitionId === 'meteorite'
+      })
+      expect(groundItems).toHaveLength(1)
     })
   })
 

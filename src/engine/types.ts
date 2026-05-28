@@ -95,8 +95,10 @@ export interface ItemDefinition {
   category: ItemCategory
 }
 
+export type ItemUid = string
+
 export interface ItemInstance {
-  uid: string
+  uid: ItemUid
   definitionId: string
   gridX: number
   gridY: number
@@ -457,12 +459,6 @@ export interface GameState {
   // The stoneCircles render pass, egregore spread containment filter,
   // and the stone-circle manual discovery hook all read this array.
   placedMeteorites: Position[]
-  // RP-18 — transient inventory-hover preview flag. Owner + clearers:
-  // InventoryGrid's onMouseEnter sets it true when a meteorite cell is
-  // hovered; onMouseLeave (or hover of a non-meteorite) clears it. The
-  // stoneCircles render pass reads state.player on every draw when the
-  // flag is true, so preview lines follow the steward as they move.
-  stoneCirclePreview: boolean
   // RP-18 — tile the cursor is hovering on while an inventory drag
   // is over the canvas. The stoneCircles render pass draws a pink cell
   // highlight on this tile so the steward sees where the drop will
@@ -485,6 +481,11 @@ export interface GameState {
   glintingCoins: Set<string>
   coinGlintPopTimes: Map<string, number>
   seedGenomes: Map<string, FloraGenome>
+  // RP-59 — uid of the item currently in hand (placement-ready), or null.
+  // Single-owner writes via src/engine/inHand.ts. uid-keyed so it survives
+  // autoSort/merge/split like glintingCoins. The ItemInstance stays in the
+  // backpack — in-hand is a reference, never a move out of the container.
+  equippedItemUid: ItemUid | null
   divinedHexagrams: Set<number>
   glintZones: Set<string>
   glintPatches: GlintPatch[]

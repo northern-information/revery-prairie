@@ -1,11 +1,11 @@
 import { combineFromBackpack } from '../combine'
 import { FRAMES_PER_TUBE, SEASONAL_PHASE_PERIOD_MS } from '../constants'
 import { ComponentType } from '../ecs/types'
-import { dropItem } from '../entities'
 import { completeGenesis } from '../genesis'
 import { packUpPlaybackCamera, tryPlacedCameraInteraction } from '../interaction'
 import { findFitPosition, placeItem } from '../inventory'
 import { getDefinition, ITEM_DEFINITIONS } from '../items'
+import { getPlaceableSpec } from '../placeable'
 import { createGameState } from '../state'
 import { archivePlacedCameraFrames, captureCells, createPlacedCamera, recordCameraSubjectEvent } from '../timeLapse'
 import { CameraSubject, ItemCategory, TileType, Zone } from '../types'
@@ -43,6 +43,29 @@ const placeBackpackItem = (state: GameState, defId: string): ItemInstance => {
   const item = placeItem(state.backpack, defId, fit.gridX, fit.gridY)
   if (!item) throw new Error(`placeItem failed for ${defId}`)
   return item
+}
+
+// RP-59 — cameras are SET UP via the in-hand + left-click PlaceableSpec, not
+// the [x] drop key. Deploy at the first walkable adjacent tile so the placed
+// camera lands next to the player, matching the old dropItem behavior the
+// recording/playback tests rely on. Returns the placed tile.
+const deployCamera = (state: GameState, uid: string): { x: number; y: number } => {
+  const spec = getPlaceableSpec('camera')
+  if (!spec) throw new Error('no camera PlaceableSpec')
+  for (const d of [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+  ]) {
+    const tx = state.player.x + d.x
+    const ty = state.player.y + d.y
+    if (spec.canPlace(state, tx, ty)) {
+      spec.place(state, tx, ty, uid)
+      return { x: tx, y: ty }
+    }
+  }
+  throw new Error('no valid adjacent tile to deploy camera')
 }
 
 describe('time-lapse camera', () => {
@@ -125,22 +148,22 @@ describe('time-lapse camera', () => {
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
 
-      const ok = dropItem(state, 'camera', 1000)
-      expect(ok).toBe(true)
+      deployCamera(state, camera.uid)
       expect(state.backpack.items.some(i => i.definitionId === 'camera')).toBe(false)
       expect(state.placedCameras).toHaveLength(1)
       const placed = state.placedCameras[0]
       expect(placed.uid).toBe(camera.uid)
       expect(placed.expiresAt - placed.startedAt).toBe(SEASON_MS)
       expect(placed.frames).toEqual([])
+      // The camera is a unique artifact — set-up clears the hand entirely.
+      expect(state.equippedItemUid).toBeNull()
     })
 
     it('placement with no film leaves expiresAt === startedAt (no recording window)', () => {
       const state = setupOverworldState()
-      placeBackpackItem(state, 'camera')
+      const camera = placeBackpackItem(state, 'camera')
 
-      const ok = dropItem(state, 'camera', 1000)
-      expect(ok).toBe(true)
+      deployCamera(state, camera.uid)
       const placed = state.placedCameras[0]
       expect(placed.expiresAt).toBe(placed.startedAt)
     })
@@ -149,7 +172,7 @@ describe('time-lapse camera', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      dropItem(state, 'camera', 1000)
+      deployCamera(state, camera.uid)
 
       const result = tryPlacedCameraInteraction(state)
       expect(result).toBe('picked-up')
@@ -164,7 +187,7 @@ describe('time-lapse camera', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      dropItem(state, 'camera', 1000)
+      deployCamera(state, camera.uid)
 
       // Fire one event inside the footprint so frames.length > 0.
       const placed = state.placedCameras[0]
@@ -182,7 +205,7 @@ describe('time-lapse camera', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      dropItem(state, 'camera', 1000)
+      deployCamera(state, camera.uid)
       const placed = state.placedCameras[0]
       recordCameraSubjectEvent(state, placed.x, placed.y, CameraSubject.Pollination, placed.startedAt + 50)
       recordCameraSubjectEvent(state, placed.x, placed.y, CameraSubject.Rain, placed.startedAt + 100)
@@ -201,7 +224,7 @@ describe('time-lapse camera', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      dropItem(state, 'camera', 1000)
+      deployCamera(state, camera.uid)
       const placed = state.placedCameras[0]
 
       recordCameraSubjectEvent(state, placed.x + 1, placed.y, CameraSubject.Pollination, placed.startedAt + 100)
@@ -216,7 +239,7 @@ describe('time-lapse camera', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      dropItem(state, 'camera', 1000)
+      deployCamera(state, camera.uid)
       const placed = state.placedCameras[0]
 
       recordCameraSubjectEvent(state, placed.x + 5, placed.y, CameraSubject.Pollination, placed.startedAt + 100)
@@ -229,7 +252,7 @@ describe('time-lapse camera', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      dropItem(state, 'camera', 1000)
+      deployCamera(state, camera.uid)
       const placed = state.placedCameras[0]
       state.cameraFilm.set(camera.uid, 0)
 
@@ -243,7 +266,7 @@ describe('time-lapse camera', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      dropItem(state, 'camera', 1000)
+      deployCamera(state, camera.uid)
       const placed = state.placedCameras[0]
 
       recordCameraSubjectEvent(state, placed.x, placed.y, CameraSubject.Pollination, placed.expiresAt + 1)
@@ -381,7 +404,7 @@ describe('time-lapse camera', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      dropItem(state, 'camera', 1000)
+      deployCamera(state, camera.uid)
       const placed = state.placedCameras[0]
       // The underlying tile remains Dirt (or whatever was there) — the
       // placedCamera is an entity overlay, not a tile mutation.

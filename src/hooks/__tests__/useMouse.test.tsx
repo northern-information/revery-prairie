@@ -4,6 +4,8 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearAroundPlayer, createTestState } from '@/engine/__tests__/helpers'
+import { takeInHand } from '@/engine/inHand'
+import { findFitPosition, placeItem } from '@/engine/inventory'
 import { TileType } from '@/engine/types'
 import type { CharMetrics, GameState } from '@/engine/types'
 
@@ -202,5 +204,67 @@ describe('useMouse — right-click', () => {
 
     expect(state.path).not.toBeNull()
     expect(state.pathWaypoints).toEqual([mockedTile])
+  })
+})
+
+describe('useMouse — in-hand place (RP-59)', () => {
+  let state: GameState
+
+  beforeEach(() => {
+    state = createTestState()
+    clearAroundPlayer(state, 5)
+    state.placedMeteorites = []
+    mockedTile = { x: state.player.x + 2, y: state.player.y }
+    state.path = null
+    state.pathWaypoints = []
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  const giveAndHoldMeteorite = (): string => {
+    const fit = findFitPosition(state.backpack, 'meteorite')
+    if (!fit) throw new Error('no backpack slot')
+    const item = placeItem(state.backpack, 'meteorite', fit.gridX, fit.gridY)
+    if (!item) throw new Error('placeItem failed')
+    takeInHand(state, item.uid)
+    return item.uid
+  }
+
+  it('left-click places the in-hand meteorite on a legal tile', () => {
+    giveAndHoldMeteorite()
+    const { canvas } = setupHook(state)
+
+    act(() => {
+      fireClick(canvas)
+    })
+
+    expect(state.placedMeteorites).toEqual([{ x: mockedTile.x, y: mockedTile.y }])
+    expect(state.path).toBeNull()
+  })
+
+  it('left-click over an illegal tile does not place and does not crash', () => {
+    giveAndHoldMeteorite()
+    // Make the target a non-Dirt/Flora tile so canPlaceMeteoriteAt fails.
+    state.map[mockedTile.y][mockedTile.x] = { type: TileType.Space }
+    const { canvas } = setupHook(state)
+
+    act(() => {
+      fireClick(canvas)
+    })
+
+    expect(state.placedMeteorites).toEqual([])
+  })
+
+  it('left-click with nothing in hand does not place', () => {
+    const { canvas } = setupHook(state)
+
+    act(() => {
+      fireClick(canvas)
+    })
+
+    expect(state.placedMeteorites).toEqual([])
+    expect(state.path).toBeNull()
   })
 })

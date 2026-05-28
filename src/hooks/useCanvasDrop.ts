@@ -3,12 +3,12 @@ import { useEffect, useRef, useState } from 'react'
 import { ACTION_COLOR } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { spawnClickTarget } from '@/engine/effects'
-import { canPlaceMeteoriteAt, placeMeteoriteAt } from '@/engine/entities'
+import { clearInHandIfRemoved } from '@/engine/inHand'
 import { removeItem } from '@/engine/inventory'
 import { getBlockedPositions } from '@/engine/movement'
 import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'
-import { playDrop, playPlace } from '@/engine/sfx'
+import { playDrop } from '@/engine/sfx'
 import { TileType } from '@/engine/types'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from '@/engine/zone'
 import type { DragState } from '@/engine/drag'
@@ -120,19 +120,13 @@ export const useCanvasDrop = ({
           })
         )
           return
-        // RP-18 — meteorites drop into state.placedMeteorites, not as
-        // a ground-item entity. Reject if the destination tile cannot
-        // hold a stone circle marker (water, structural tile, occupied).
-        if (defId === 'meteorite') {
-          if (!canPlaceMeteoriteAt(state, mx, my)) return
-          removeItem(container, itemUid)
-          placeMeteoriteAt(state, mx, my, performance.now())
-          spawnClickTarget(state, mx, my, performance.now())
-          playPlace()
-          refreshUI()
-          return
-        }
+        // RP-59 — placeables (meteorite, camera) are no longer placed by
+        // dragging to the canvas. Placement is left-click while in hand
+        // (PlaceableSpec). A drag-to-canvas of a placeable falls through to
+        // the generic ground-item drop below — drag-to-world disowns, it
+        // does not dedicate; place is the cursor + left-click verb.
         removeItem(container, itemUid)
+        clearInHandIfRemoved(state, itemUid)
         if (defId === 'bee') {
           const beeEntity = state.world.createEntity()
           state.world.addComponent(beeEntity, ComponentType.Position, { x: mx, y: my })

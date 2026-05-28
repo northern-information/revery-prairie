@@ -19,11 +19,6 @@ interface InventoryGridProps {
   onUpdatePreview: (gridX: number, gridY: number, containerId: string) => void
   onDrop: (containerId: string) => void
   onQuickTransfer?: (uid: string, containerId: string) => void
-  // RP-18 — emits the definitionId of the currently hovered item
-  // (or null on leave / hover over empty cell). InventoryPanel translates
-  // a 'meteorite' hover into a state.stoneCirclePreview write that the
-  // stoneCircles render pass reads.
-  onItemHover?: (definitionId: string | null) => void
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
   glintingCoins?: Set<string>
   coinGlintPopTimes?: Map<string, number>
@@ -37,7 +32,6 @@ export const InventoryGrid = ({
   onUpdatePreview,
   onDrop,
   onQuickTransfer,
-  onItemHover,
   itemInfoRef,
   glintingCoins,
   coinGlintPopTimes,
@@ -114,7 +108,6 @@ export const InventoryGrid = ({
 
       if (!pos) {
         itemInfoRef.current?.clear()
-        onItemHover?.(null)
         lastHoverUidRef.current = null
         return
       }
@@ -125,23 +118,20 @@ export const InventoryGrid = ({
         const item = containerRef.current.items.find(i => i.uid === uid)
         if (item) {
           itemInfoRef.current?.show(item.definitionId, item.uid)
-          onItemHover?.(item.definitionId)
           if (lastHoverUidRef.current !== uid) {
             playHover()
             lastHoverUidRef.current = uid
           }
         } else {
           itemInfoRef.current?.clear()
-          onItemHover?.(null)
           lastHoverUidRef.current = null
         }
       } else {
         itemInfoRef.current?.clear()
-        onItemHover?.(null)
         lastHoverUidRef.current = null
       }
     },
-    [getGridPos, onUpdatePreview, containerId, itemInfoRef, onItemHover]
+    [getGridPos, onUpdatePreview, containerId, itemInfoRef]
   )
 
   const handleMouseUp = useCallback(
@@ -158,10 +148,9 @@ export const InventoryGrid = ({
   const handleMouseLeave = useCallback(() => {
     if (!dragStateRef.current) {
       itemInfoRef.current?.clear()
-      onItemHover?.(null)
       lastHoverUidRef.current = null
     }
-  }, [itemInfoRef, onItemHover])
+  }, [itemInfoRef])
 
   // Build a map of uid -> { definition, instance } for rendering icons.
   // coinState is null for non-coin items and one of dull|glint|glint-pop
