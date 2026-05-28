@@ -109,10 +109,10 @@ describe('fog mask pass', () => {
       expect(opaqueBgFills.length).toBeGreaterThan(0)
     })
 
-    it('paints alpha (1 - FOG_EXPLORED_BRIGHTNESS) black diamonds over partiallyDiscovered tiles', () => {
+    it('paints alpha (1 - FOG_EXPLORED_BRIGHTNESS) black diamonds over remembered tiles', () => {
       const state = createTestState()
       enterTestCave(state)
-      // Mark a viewport tile as previously explored but not fullyDiscovered.
+      // Mark a viewport tile as previously explored (remembered, out of gaze).
       const dimKey = posKey(15, 15)
       state.caveFogExplored.add(dimKey)
 

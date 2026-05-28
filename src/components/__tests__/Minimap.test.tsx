@@ -56,7 +56,6 @@ describe('getVisibleRuinFootprints', () => {
   it('returns no footprints on a fresh tenure with no exploration', () => {
     const state = createGameState('Test', 80, 40)
     state.overworldFogExplored = new Set()
-    state.overworldFogDiscovered = new Set()
     state.civilizationRuins = [
       makeRuin([
         { x: 40, y: 40 },
@@ -72,7 +71,6 @@ describe('getVisibleRuinFootprints', () => {
   it('returns only the explored tiles of a partially explored ruin', () => {
     const state = createGameState('Test', 80, 40)
     state.overworldFogExplored = new Set([posKey(40, 40)])
-    state.overworldFogDiscovered = new Set()
     state.civilizationRuins = [
       makeRuin([
         { x: 40, y: 40 },
@@ -112,7 +110,6 @@ describe('getVisibleRuinFootprints', () => {
   it('includes a footprint tile currently in the visible set even if not in fogExplored', () => {
     const state = createGameState('Test', 80, 40)
     state.overworldFogExplored = new Set()
-    state.overworldFogDiscovered = new Set()
     state.civilizationRuins = [
       makeRuin([
         { x: 40, y: 40 },

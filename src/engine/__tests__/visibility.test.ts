@@ -1,7 +1,15 @@
 import { CAVE_VISION_RADIUS, OVERWORLD_VISION_RADIUS, RUIN_VISION_RADIUS } from '../constants'
 import { posKey } from '../position'
 import { TileType, Zone } from '../types'
-import { blocksLOS, computeFOV, computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar } from '../visibility'
+import {
+  blocksLOS,
+  computeFOV,
+  computeZoneVisibility,
+  dimColor,
+  getTileVisibility,
+  getZoneFloraMemory,
+  hasFogOfWar,
+} from '../visibility'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -159,13 +167,13 @@ describe('fog of war', () => {
       }
     })
 
-    it('returns partiallyDiscovered when tile is in explored set but not in discovered set or visible', () => {
+    it('returns remembered when tile is in explored set but not visible', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
         state.currentZone = Zone.Cave
         state.caveFogExplored.add(posKey(5, 5))
-        expect(getTileVisibility(state, 5, 5, new Set())).toBe('partiallyDiscovered')
+        expect(getTileVisibility(state, 5, 5, new Set())).toBe('remembered')
       } finally {
         vi.restoreAllMocks()
       }
@@ -244,72 +252,7 @@ describe('fog of war', () => {
       }
     })
 
-    it('promotes tiles within DISCOVERY_RADIUS to caveFogDiscovered (player position + adjacent)', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const map = makeCaveMap(20, 20)
-        enterCaveWithMap(state, map, 20, 20)
-        state.player = { x: 10, y: 10 }
-        state.caveEntranceInterior = { x: 10, y: 19 }
-
-        expect(state.caveFogDiscovered.size).toBe(0)
-        computeZoneVisibility(state)
-
-        // Player tile + all 8 neighbors at distance 1 + ring at distance 2
-        // = at minimum 9 tiles (3x3); with DISCOVERY_RADIUS=2 it's 5x5 = 25 tiles
-        expect(state.caveFogDiscovered.has(posKey(10, 10))).toBe(true)
-        expect(state.caveFogDiscovered.has(posKey(11, 10))).toBe(true)
-        expect(state.caveFogDiscovered.has(posKey(12, 10))).toBe(true)
-        expect(state.caveFogDiscovered.has(posKey(8, 8))).toBe(true) // diagonal at 2
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
-    it('does NOT promote tiles beyond DISCOVERY_RADIUS even if visible', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const map = makeCaveMap(20, 20)
-        enterCaveWithMap(state, map, 20, 20)
-        state.player = { x: 10, y: 10 }
-        state.caveEntranceInterior = { x: 10, y: 19 }
-
-        computeZoneVisibility(state)
-
-        // Tile at distance 3 (within vision radius 3, beyond DISCOVERY_RADIUS=2)
-        expect(state.caveFogExplored.has(posKey(13, 10))).toBe(true)
-        expect(state.caveFogDiscovered.has(posKey(13, 10))).toBe(false)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
-    it('does NOT promote tiles within DISCOVERY_RADIUS that are blocked by a wall (no LOS)', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        const map = makeCaveMap(20, 20)
-        // Wall between player (10,10) and (12,10)
-        map[10][11] = { type: TileType.CaveWall }
-        enterCaveWithMap(state, map, 20, 20)
-        state.player = { x: 10, y: 10 }
-        state.caveEntranceInterior = { x: 10, y: 19 }
-
-        computeZoneVisibility(state)
-
-        // Tile at (12,10) is within DISCOVERY_RADIUS (Chebyshev distance 2)
-        // but has no LOS — it must NOT be promoted
-        expect(state.caveFogDiscovered.has(posKey(12, 10))).toBe(false)
-        // The wall itself is in LOS at distance 1, so it IS promoted
-        expect(state.caveFogDiscovered.has(posKey(11, 10))).toBe(true)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
-    it('fullyDiscovered state persists after the player moves away (out of LOS)', () => {
+    it('does NOT keep any tier permanently bright — every visible tile becomes remembered when out of gaze (RP-62)', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
@@ -318,16 +261,39 @@ describe('fog of war', () => {
         state.player = { x: 5, y: 5 }
         state.caveEntranceInterior = { x: 5, y: 19 }
 
-        computeZoneVisibility(state)
-        expect(state.caveFogDiscovered.has(posKey(5, 5))).toBe(true)
+        // Stand at (5,5): the player tile and adjacent tiles are visible.
+        const visibleHere = computeZoneVisibility(state)
+        expect(visibleHere.has(posKey(5, 5))).toBe(true)
+        expect(getTileVisibility(state, 5, 5, visibleHere)).toBe('visible')
 
-        // Move the player far away
+        // Move far away. The previously-visible tile leaves gaze.
         state.player = { x: 15, y: 15 }
-        const visible = computeZoneVisibility(state)
+        const visibleAway = computeZoneVisibility(state)
 
-        // (5,5) is no longer in LOS, but it's still fullyDiscovered
-        expect(visible.has(posKey(5, 5))).toBe(false)
-        expect(getTileVisibility(state, 5, 5, visible)).toBe('fullyDiscovered')
+        // RP-62 — no fully-discovered tier: (5,5) is now remembered (dim
+        // memory), not bright, even though we stood right on it.
+        expect(visibleAway.has(posKey(5, 5))).toBe(false)
+        expect(getTileVisibility(state, 5, 5, visibleAway)).toBe('remembered')
+      } finally {
+        vi.restoreAllMocks()
+      }
+    })
+
+    it('records every visible tile in caveFogExplored regardless of proximity (single ever-seen set)', () => {
+      const state = createTestState()
+      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        const map = makeCaveMap(20, 20)
+        enterCaveWithMap(state, map, 20, 20)
+        state.player = { x: 10, y: 10 }
+        state.caveEntranceInterior = { x: 10, y: 19 }
+
+        computeZoneVisibility(state)
+
+        // A near tile and a far-but-visible tile are both explored — there is
+        // no separate proximity-promoted set anymore.
+        expect(state.caveFogExplored.has(posKey(10, 10))).toBe(true)
+        expect(state.caveFogExplored.has(posKey(13, 10))).toBe(true)
       } finally {
         vi.restoreAllMocks()
       }
@@ -364,7 +330,7 @@ describe('fog of war', () => {
       }
     })
 
-    it('caveFogDiscovered survives exit and re-entry', () => {
+    it('caveFloraMemory survives exit and re-entry', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
@@ -373,9 +339,9 @@ describe('fog of war', () => {
         state.player = { x: 10, y: 10 }
         state.caveEntranceInterior = { x: 10, y: 19 }
 
-        computeZoneVisibility(state)
-        const discoveredBefore = new Set(state.caveFogDiscovered)
-        expect(discoveredBefore.size).toBeGreaterThan(0)
+        // Seed a flora snapshot as if the renderer had captured it in gaze.
+        state.caveFloraMemory.set(posKey(11, 10), { char: '"', color: '#88cc88' })
+        const memoryBefore = new Map(state.caveFloraMemory)
 
         state.currentZone = Zone.Overworld
         state.currentZone = Zone.Cave
@@ -383,7 +349,7 @@ describe('fog of war', () => {
         state.mapWidth = 20
         state.mapHeight = 20
 
-        expect(state.caveFogDiscovered).toEqual(discoveredBefore)
+        expect(state.caveFloraMemory).toEqual(memoryBefore)
       } finally {
         vi.restoreAllMocks()
       }
@@ -428,6 +394,34 @@ describe('fog of war', () => {
 
     it('returns true for Overworld (RP-38)', () => {
       expect(hasFogOfWar(Zone.Overworld)).toBe(true)
+    })
+  })
+
+  describe('getZoneFloraMemory (RP-62)', () => {
+    it('routes to the cave flora memory in cave zone', () => {
+      const state = createTestState()
+      state.currentZone = Zone.Cave
+      expect(getZoneFloraMemory(state)).toBe(state.caveFloraMemory)
+    })
+
+    it('routes to the overworld flora memory in overworld zone', () => {
+      const state = createTestState()
+      state.currentZone = Zone.Overworld
+      expect(getZoneFloraMemory(state)).toBe(state.overworldFloraMemory)
+    })
+
+    it('routes to the current ruin interior flora memory in ruin zone', () => {
+      const state = createTestState()
+      vi.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        const interior = state.ruinInteriors[0]
+        if (!interior) throw new Error('expected at least one ruin interior in test state')
+        state.currentZone = Zone.Ruin
+        state.currentRuinIndex = 0
+        expect(getZoneFloraMemory(state)).toBe(interior.floraMemory)
+      } finally {
+        vi.restoreAllMocks()
+      }
     })
   })
 
@@ -478,7 +472,7 @@ describe('fog of war', () => {
       cleared: false,
       dormantGarden: null,
       fogExplored: new Set<string>(),
-      fogDiscovered: new Set<string>(),
+      floraMemory: new Map(),
     })
 
     /** Put a state into ruin mode with a specific ruin interior. */
@@ -577,16 +571,12 @@ describe('fog of war', () => {
         const visibleSet = new Set([posKey(5, 5)])
         expect(getTileVisibility(state, 5, 5, visibleSet)).toBe('visible')
 
-        // Tile in fogExplored but not in fogDiscovered or visible → partiallyDiscovered
+        // Tile in fogExplored but not visible → remembered (RP-62 — the sole
+        // memory tier)
         interior.fogExplored.add(posKey(7, 7))
-        expect(getTileVisibility(state, 7, 7, new Set())).toBe('partiallyDiscovered')
+        expect(getTileVisibility(state, 7, 7, new Set())).toBe('remembered')
 
-        // Tile in fogDiscovered but not visible → fullyDiscovered (wins over partiallyDiscovered)
-        interior.fogExplored.add(posKey(8, 8))
-        interior.fogDiscovered.add(posKey(8, 8))
-        expect(getTileVisibility(state, 8, 8, new Set())).toBe('fullyDiscovered')
-
-        // Tile not in either → unexplored
+        // Tile not explored → unexplored
         expect(getTileVisibility(state, 3, 3, new Set())).toBe('unexplored')
       } finally {
         vi.restoreAllMocks()
@@ -645,28 +635,27 @@ describe('fog of war', () => {
       }
     })
 
-    it('promotes tiles within DISCOVERY_RADIUS to ruin fogDiscovered', () => {
+    it('a ruin tile leaving gaze reverts to remembered, not a permanent bright tier (RP-62)', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
         const interior = makeRuinInterior(0, 20, 20, { x: 10, y: 19 })
         enterRuinWithInterior(state, interior)
-        state.player = { x: 10, y: 10 }
+        state.player = { x: 5, y: 5 }
 
-        expect(interior.fogDiscovered.size).toBe(0)
-        computeZoneVisibility(state)
+        const visibleHere = computeZoneVisibility(state)
+        expect(getTileVisibility(state, 5, 5, visibleHere)).toBe('visible')
 
-        expect(interior.fogDiscovered.has(posKey(10, 10))).toBe(true)
-        expect(interior.fogDiscovered.has(posKey(11, 10))).toBe(true)
-        // Distance 3 (within vision radius, beyond DISCOVERY_RADIUS=2) is NOT promoted
-        expect(interior.fogExplored.has(posKey(13, 10))).toBe(true)
-        expect(interior.fogDiscovered.has(posKey(13, 10))).toBe(false)
+        state.player = { x: 15, y: 15 }
+        const visibleAway = computeZoneVisibility(state)
+        expect(visibleAway.has(posKey(5, 5))).toBe(false)
+        expect(getTileVisibility(state, 5, 5, visibleAway)).toBe('remembered')
       } finally {
         vi.restoreAllMocks()
       }
     })
 
-    it('per-ruin fogDiscovered is independent across ruins', () => {
+    it('per-ruin fogExplored is independent across ruins', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
@@ -676,37 +665,35 @@ describe('fog of war', () => {
         enterRuinWithInterior(state, interior0)
         state.player = { x: 10, y: 10 }
         computeZoneVisibility(state)
-        const discovered0 = interior0.fogDiscovered.size
-        expect(discovered0).toBeGreaterThan(0)
+        const explored0 = interior0.fogExplored.size
+        expect(explored0).toBeGreaterThan(0)
 
         enterRuinWithInterior(state, interior1)
         state.player = { x: 5, y: 5 }
         computeZoneVisibility(state)
 
-        expect(interior0.fogDiscovered.size).toBe(discovered0)
-        expect(interior1.fogDiscovered.has(posKey(5, 5))).toBe(true)
-        expect(interior1.fogDiscovered.has(posKey(10, 10))).toBe(false)
+        expect(interior0.fogExplored.size).toBe(explored0)
+        expect(interior1.fogExplored.has(posKey(5, 5))).toBe(true)
+        expect(interior1.fogExplored.has(posKey(10, 10))).toBe(false)
       } finally {
         vi.restoreAllMocks()
       }
     })
 
-    it('ruin fogDiscovered persists across visits', () => {
+    it('per-ruin floraMemory is independent and persists across visits', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
         const interior = makeRuinInterior(0, 20, 20, { x: 10, y: 19 })
         enterRuinWithInterior(state, interior)
-        state.player = { x: 10, y: 10 }
-        computeZoneVisibility(state)
-        const discoveredBefore = new Set(interior.fogDiscovered)
-        expect(discoveredBefore.size).toBeGreaterThan(0)
+        interior.floraMemory.set(posKey(8, 8), { char: '"', color: '#88cc88' })
+        const memoryBefore = new Map(interior.floraMemory)
 
         state.currentZone = Zone.Overworld
         state.currentRuinIndex = null
         enterRuinWithInterior(state, interior)
 
-        expect(interior.fogDiscovered).toEqual(discoveredBefore)
+        expect(interior.floraMemory).toEqual(memoryBefore)
       } finally {
         vi.restoreAllMocks()
       }
@@ -724,7 +711,7 @@ describe('fog of war', () => {
       state.currentZone = Zone.Overworld
       clearAroundPlayer(state, 5)
       state.overworldFogExplored.clear()
-      state.overworldFogDiscovered.clear()
+      state.overworldFloraMemory.clear()
     }
 
     it('hasFogOfWar(Zone.Overworld) is true', () => {
@@ -737,12 +724,12 @@ describe('fog of war', () => {
       expect(OVERWORLD_VISION_RADIUS).toBe(RUIN_VISION_RADIUS)
     })
 
-    it('createGameState initializes overworldFog* to empty sets (fresh tenure)', () => {
+    it('createGameState initializes overworld fog memory to empty (fresh tenure)', () => {
       const state = createTestState()
       expect(state.overworldFogExplored).toBeInstanceOf(Set)
-      expect(state.overworldFogDiscovered).toBeInstanceOf(Set)
+      expect(state.overworldFloraMemory).toBeInstanceOf(Map)
       expect(state.overworldFogExplored.size).toBe(0)
-      expect(state.overworldFogDiscovered.size).toBe(0)
+      expect(state.overworldFloraMemory.size).toBe(0)
     })
 
     it('computeZoneVisibility lights the player FOV on the prairie', () => {
@@ -794,36 +781,18 @@ describe('fog of war', () => {
       }
     })
 
-    it('promotes tiles within DISCOVERY_RADIUS of the player to overworldFogDiscovered', () => {
+    it('the player tile is visible while stood on, with no separate proximity-promoted set (RP-62)', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
         prepPrairie(state)
-        computeZoneVisibility(state)
-        // player tile and a Chebyshev-1 neighbor are within DISCOVERY_RADIUS=2 and in LOS
-        expect(state.overworldFogDiscovered.has(posKey(state.player.x, state.player.y))).toBe(true)
-        expect(state.overworldFogDiscovered.has(posKey(state.player.x + 1, state.player.y))).toBe(true)
-      } finally {
-        vi.restoreAllMocks()
-      }
-    })
-
-    it('does NOT promote tiles beyond DISCOVERY_RADIUS even if visible', () => {
-      const state = createTestState()
-      vi.spyOn(Math, 'random').mockReturnValue(0.5)
-      try {
-        prepPrairie(state)
-        computeZoneVisibility(state)
-        // OVERWORLD_VISION_RADIUS=3 > DISCOVERY_RADIUS=2; a tile at distance 3
-        // is visible (when in LOS) but must NOT be in the discovered set.
-        const tx = state.player.x + 3
-        const ty = state.player.y
-        const tileKey = posKey(tx, ty)
-        // First check it's actually visible (open terrain after clearAroundPlayer)
         const visible = computeZoneVisibility(state)
-        if (visible.has(tileKey)) {
-          expect(state.overworldFogDiscovered.has(tileKey)).toBe(false)
-        }
+        const playerTile = posKey(state.player.x, state.player.y)
+        // The player tile and its neighbors are in gaze.
+        expect(getTileVisibility(state, state.player.x, state.player.y, visible)).toBe('visible')
+        expect(getTileVisibility(state, state.player.x + 1, state.player.y, visible)).toBe('visible')
+        // Everything visible is recorded in the single ever-seen set.
+        expect(state.overworldFogExplored.has(playerTile)).toBe(true)
       } finally {
         vi.restoreAllMocks()
       }
@@ -845,40 +814,40 @@ describe('fog of war', () => {
       }
     })
 
-    it('fullyDiscovered prairie tiles remain fullyDiscovered after the player moves away (memory persists)', () => {
+    it('prairie tiles revert to remembered (dim memory) after the player moves away — fog returns (RP-62)', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
         prepPrairie(state)
-        // First frame: stand still, promote the spot.
         computeZoneVisibility(state)
         const playerTile = posKey(state.player.x, state.player.y)
-        expect(state.overworldFogDiscovered.has(playerTile)).toBe(true)
 
-        // Walk far enough away that the original tile is out of LOS.
+        // Walk far enough away that the original tile is out of gaze.
         clearAroundPlayer(state, 8)
         state.player = { x: state.player.x + 10, y: state.player.y }
         const visibleAfter = computeZoneVisibility(state)
+
         expect(visibleAfter.has(playerTile)).toBe(false)
-        expect(state.overworldFogDiscovered.has(playerTile)).toBe(true)
+        // The tile is still explored — but it is now dim memory, not bright.
+        expect(state.overworldFogExplored.has(playerTile)).toBe(true)
         expect(getTileVisibility(state, ...(playerTile.split(',').map(Number) as [number, number]), visibleAfter)).toBe(
-          'fullyDiscovered'
+          'remembered'
         )
       } finally {
         vi.restoreAllMocks()
       }
     })
 
-    it('overworldFog* survive zone transitions (cave round-trip preserves prairie memory)', () => {
+    it('overworld fog memory survives zone transitions (cave round-trip preserves prairie memory)', () => {
       const state = createTestState()
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       try {
         prepPrairie(state)
         computeZoneVisibility(state)
+        state.overworldFloraMemory.set(posKey(state.player.x, state.player.y), { char: '"', color: '#88cc88' })
         const exploredBefore = new Set(state.overworldFogExplored)
-        const discoveredBefore = new Set(state.overworldFogDiscovered)
+        const memoryBefore = new Map(state.overworldFloraMemory)
         expect(exploredBefore.size).toBeGreaterThan(0)
-        expect(discoveredBefore.size).toBeGreaterThan(0)
 
         // Simulate entering and leaving the cave. We do not call computeZoneVisibility
         // for the cave round-trip because that would mutate cave fog state we don't
@@ -887,7 +856,7 @@ describe('fog of war', () => {
         state.currentZone = Zone.Overworld
 
         expect(state.overworldFogExplored).toEqual(exploredBefore)
-        expect(state.overworldFogDiscovered).toEqual(discoveredBefore)
+        expect(state.overworldFloraMemory).toEqual(memoryBefore)
       } finally {
         vi.restoreAllMocks()
       }
