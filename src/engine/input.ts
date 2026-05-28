@@ -42,7 +42,12 @@ export const KEYBINDINGS: KeyBinding[] = [
     action: 'Interact / Scan',
     context: 'Tap to talk, open, break wall, clear debris; hold to scan flora / egregore / oak',
   },
-  { key: 'x', action: 'Drop Item', context: 'Hovering item in backpack' },
+  { key: 'x', action: 'Drop Item', context: 'Hovering item in backpack — sets the item down as a ground item' },
+  {
+    key: 'click',
+    action: 'Place In Hand',
+    context: 'With an item in hand, left-click a legal tile to place / set it up',
+  },
   { key: 'tab', action: 'Toggle Manual' },
   { key: 'c', action: 'Toggle Divination', context: 'Overworld only, requires 3 glinting coins' },
   { key: 'esc', action: 'Close Screen / Open System' },

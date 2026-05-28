@@ -22,6 +22,10 @@ interface InventoryGridProps {
   itemInfoRef: React.RefObject<ItemInfoHandle | null>
   glintingCoins?: Set<string>
   coinGlintPopTimes?: Map<string, number>
+  // RP-59 — the item currently in hand still lives in this container (in-hand
+  // is a reference, not a move). Its cell renders dimmed so the steward sees it
+  // is the same object now shown large in the in-hand slot.
+  equippedItemUid?: string | null
 }
 
 export const InventoryGrid = ({
@@ -35,6 +39,7 @@ export const InventoryGrid = ({
   itemInfoRef,
   glintingCoins,
   coinGlintPopTimes,
+  equippedItemUid,
 }: InventoryGridProps) => {
   const gridRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef(container)
@@ -226,12 +231,17 @@ export const InventoryGrid = ({
         coinState === 'glint-pop' ? ' coin-cell-pop' : coinState === 'glint' ? ' coin-cell-glint' : ''
       const dataCoinState = coinState ?? undefined
 
+      // RP-59 — dim the in-hand item's cells. It is the same object shown large
+      // in the in-hand slot; the dim is the cue that it is carried, not bagged.
+      const isInHand = isOccupied && uid !== undefined && uid === equippedItemUid
+
       cells.push(
         <div
           key={`${String(x)}-${String(y)}`}
           className={`border-grid-border flex items-center justify-center border font-mono text-xs ${bgClass}${animationClass}`}
-          style={{ width: INVENTORY_CELL_SIZE, height: INVENTORY_CELL_SIZE, ...bgStyle }}
+          style={{ width: INVENTORY_CELL_SIZE, height: INVENTORY_CELL_SIZE, ...bgStyle, ...(isInHand ? { opacity: 0.35 } : {}) }}
           data-coin-state={dataCoinState}
+          data-in-hand={isInHand ? 'true' : undefined}
         >
           {(isCombineTarget || isCombinePreview) && dragState?.combineTarget ? (
             <span style={{ color: '#000' }}>

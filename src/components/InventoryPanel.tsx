@@ -168,6 +168,7 @@ export const InventoryPanel = ({
           itemInfoRef={itemInfoRef}
           glintingCoins={state.glintingCoins}
           coinGlintPopTimes={state.coinGlintPopTimes}
+          equippedItemUid={state.equippedItemUid}
         />
       </div>
     </div>
