@@ -5,7 +5,6 @@ import { getInHandItem, releaseInHand, takeInHand } from '@/engine/inHand'
 import { getDefinition } from '@/engine/items'
 import { isPlaceable } from '@/engine/placeable'
 import { playClick, playHover } from '@/engine/sfx'
-import { SectionHeader } from './PanelPrimitives'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { DragState } from '@/engine/drag'
 import type { GameState, ItemInstance } from '@/engine/types'
@@ -94,7 +93,7 @@ export const InHandSlot = ({
 
   return (
     <div className="flex flex-col gap-2" data-panel="in-hand">
-      <SectionHeader className="mb-0 border-b-0 pb-0">In Hand</SectionHeader>
+      <div className="text-muted text-xs">In Hand</div>
       <div
         data-testid="in-hand-slot"
         data-drop-target={showDropTarget ? 'true' : undefined}

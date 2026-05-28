@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { InHandSlot } from './InHandSlot'
 import { InventoryGrid } from './InventoryGrid'
-import { SectionHeader } from './PanelPrimitives'
 
 import { autoSort } from '@/engine/inventory'
 import { RecipeKind } from '@/engine/recipes'
@@ -144,7 +143,7 @@ export const InventoryPanel = ({
       />
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-2">
-          <SectionHeader className="mb-0 border-b-0 pb-0">Backpack</SectionHeader>
+          <div className="text-muted text-xs">Backpack</div>
           <button
             type="button"
             className="text-dim hover:text-pink px-1 text-left"
