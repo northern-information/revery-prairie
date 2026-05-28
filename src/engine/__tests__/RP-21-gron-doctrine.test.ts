@@ -39,8 +39,7 @@ describe('RP-21 — gron doctrine pass', () => {
       // A non-glitched entry — clover. glitched is either undefined or false.
       const entry = MANUAL_ENTRIES['flora:clover']
       expect(entry).toBeDefined()
-      const g = entry.glitched
-      expect(g === undefined || g === false).toBe(true)
+      expect(entry.glitched).toBeFalsy()
     })
   })
 

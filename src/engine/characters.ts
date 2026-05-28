@@ -22,9 +22,10 @@ const CHARACTERS = {
     glyphColor: '#FFFFFF',
     // The runtime dispatcher in getCharacterDialog overrides this field for
     // Gron based on state.mainQuestPhase. The static fallback below is the
-    // 'awaiting-coyote' opener — preserved for callers that don't route
-    // through getCharacterDialog (legacy tests, snapshot fixtures).
-    dialog: ['...', 'Oh, you must be the new steward.'],
+    // round-5-conforming 'awaiting-coyote' opener (RP-21) — preserved for
+    // callers that don't route through getCharacterDialog (legacy tests,
+    // snapshot fixtures).
+    dialog: ['...', 'A steward.'],
     music: '/music/gron.mp3',
   },
   moab: {
@@ -137,19 +138,13 @@ export const removeCharacterDefinition = (id: string): void => {
 // other three are diagnosed but left for human authoring. Per project
 // memory rule (feedback_manual_lore_only), all replacement lines are
 // human-authored only.
-const GRON_DIALOG_AWAITING_COYOTE: string[] = [
-  '...',
-  'Oh, you must be the new steward.',
-  "Coyote hasn't returned from the ruins in some time...",
-  'Worrisome.',
-  'What is a steward without their coyote?',
-]
+const GRON_DIALOG_AWAITING_COYOTE: string[] = ['...', 'A steward.', 'A steward goes to the ruins.']
 
-const GRON_DIALOG_GATHERING: string[] = ['It takes one clover and one bee.']
+const GRON_DIALOG_GATHERING: string[] = ['A clover and a bee.']
 
-const GRON_DIALOG_COMBINING: string[] = ['Well what are you waiting for, steward? One clover and one bee.']
+const GRON_DIALOG_COMBINING: string[] = ['A clover. A bee.', 'Now.']
 
-const GRON_DIALOG_SEALED: string[] = ['Ahhh, yes. You are indeed the steward.', "Here, I've been saving these."]
+const GRON_DIALOG_SEALED: string[] = ['A steward.']
 
 // RP-32 — Gron's line at the solstice summons. Lore TODO per
 // project doctrine (feedback_no_write_lore + v4 R5 / v6 R5 Gron register

@@ -3,7 +3,7 @@ import { ComponentType } from '../ecs/types'
 import { dropItem, pickUpGroundItems, tickBees } from '../entities'
 import { containerHasItem, placeItem } from '../inventory'
 import { movePlayer } from '../movement'
-import { TileType } from '../types'
+import { MainQuestPhase, TileType } from '../types'
 import {
   clearArea,
   clearAroundPlayer,
@@ -25,6 +25,10 @@ describe('tickBees', () => {
 
   it('keeps bees on clover tiles', () => {
     const state = createTestState()
+    // Pre-seal so triggerStewardSeal's early-return kicks in and the
+    // RP-21 inheritance bee spawn doesn't introduce extra bees on
+    // non-clover dirt tiles that this test isn't set up to handle.
+    state.mainQuestPhase = MainQuestPhase.Sealed
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
     clearAroundPlayer(state, 1)

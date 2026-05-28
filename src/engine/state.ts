@@ -332,7 +332,6 @@ export const createGameState = (
     civilizationRuins: genesisData.ruins,
     mainQuestPhase: MainQuestPhase.AwaitingCoyote,
     ruinGenerationMode: RuinGenerationMode.Starter,
-    pendingSavedBees: false,
     deepTime: null,
     deepTimeTransition: null,
     revery: null,

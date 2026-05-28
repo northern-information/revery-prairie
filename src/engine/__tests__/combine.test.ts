@@ -2,7 +2,7 @@ import { checkCombine, combineFromBackpack } from '../combine'
 import { ComponentType } from '../ecs/types'
 import { containerHasItem, placeItem } from '../inventory'
 import { posKey } from '../position'
-import { TileType } from '../types'
+import { MainQuestPhase, TileType } from '../types'
 import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -156,8 +156,12 @@ describe('combineFromBackpack', () => {
     expect(state.backpack.items.filter(i => i.definitionId === 'clover')).toHaveLength(1)
   })
 
-  it('spawns a bee entity', () => {
+  it('spawns a bee entity at the player position (RP-17 ceremony — isolated by pre-sealing to skip the RP-21 inheritance spawn)', () => {
     const state = createTestState()
+    // Pre-seal so triggerStewardSeal's early-return kicks in and the
+    // inheritance bee spawn (RP-21) doesn't fire. Isolates the recipe
+    // behavior under test.
+    state.mainQuestPhase = MainQuestPhase.Sealed
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
     clearAroundPlayer(state, 1)
