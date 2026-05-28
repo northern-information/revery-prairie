@@ -143,8 +143,8 @@ export const InventoryPanel = ({
         itemInfoRef={itemInfoRef}
       />
       <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <SectionHeader>Backpack</SectionHeader>
+        <div className="flex items-baseline justify-between gap-2">
+          <SectionHeader className="mb-0 border-b-0 pb-0">Backpack</SectionHeader>
           <button
             type="button"
             className="text-dim hover:text-pink px-1 text-left"

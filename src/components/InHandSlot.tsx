@@ -2,7 +2,7 @@ import { INVENTORY_CELL_SIZE } from '@/engine/constants'
 import { getInHandItem, releaseInHand, takeInHand } from '@/engine/inHand'
 import { getDefinition } from '@/engine/items'
 import { isPlaceable } from '@/engine/placeable'
-import { playClick } from '@/engine/sfx'
+import { playClick, playHover } from '@/engine/sfx'
 import { SectionHeader } from './PanelPrimitives'
 import type { ItemInfoHandle } from './ItemInfo'
 import type { DragState } from '@/engine/drag'
@@ -63,15 +63,30 @@ export const InHandSlot = ({
     refreshUI()
   }
 
+  // Hovering the in-hand item populates the ItemInfo panel, mirroring backpack
+  // hover. Suppressed during a drag so the dragged item's info isn't clobbered.
+  const handleMouseEnter = () => {
+    if (dragState || !inHand) return
+    itemInfoRef.current?.show(inHand.definitionId, inHand.uid)
+    playHover()
+  }
+
+  const handleMouseLeave = () => {
+    if (dragState) return
+    itemInfoRef.current?.clear()
+  }
+
   return (
     <div className="flex flex-col gap-2" data-panel="in-hand">
-      <SectionHeader>In Hand</SectionHeader>
+      <SectionHeader className="mb-0 border-b-0 pb-0">In Hand</SectionHeader>
       <div
         data-testid="in-hand-slot"
         className="border-grid-border flex items-center justify-center border font-mono select-none"
         style={{ width: SLOT_PX, height: SLOT_PX }}
         onMouseUp={handleMouseUp}
         onMouseDown={handleMouseDown}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         {def && inHand ? (
           <span className="leading-none" style={{ color: 'var(--color-pink)', fontSize: INVENTORY_CELL_SIZE * 1.6 }}>
