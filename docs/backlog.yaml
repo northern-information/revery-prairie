@@ -2422,10 +2422,10 @@ features:
       `angels`, `ruin-locked-door`, `minimap`.
     size: S
     depends_on: []
-    status: in-progress
+    status: shipped
     spec: null
     plan: harness/plans/RP-61-retire-gron-portrait.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/460
     notes: >
       v11 thinktank round 2 (2026-05-25). The seed: Tyler noticed
       `/gron.gif` is the only non-ASCII/canvas asset in the game,
