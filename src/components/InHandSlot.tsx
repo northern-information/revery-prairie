@@ -125,9 +125,7 @@ export const InHandSlot = ({
         <div className="text-center text-xs" style={{ color: 'var(--color-pink)' }}>
           {def.name}
         </div>
-      ) : (
-        <div className="text-dim text-center text-xs">Drag to Hold</div>
-      )}
+      ) : null}
     </div>
   )
 }
