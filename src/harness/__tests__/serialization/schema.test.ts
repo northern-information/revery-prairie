@@ -127,6 +127,7 @@ const EXPECTED_FIELDS = [
   'genesis',
   'bootTitleCard',
   'zoneTransition',
+  'reentryLock',
   'nextAngelSpawnTime',
   'angelFlashTime',
   'coyoteCargo',

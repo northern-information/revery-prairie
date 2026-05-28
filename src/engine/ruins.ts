@@ -13,7 +13,7 @@ import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, isReservedForStructure, isWalkableTile, posKey, tileHash } from './position'
 import { STRUCTURE_REGISTRY } from './structures'
 import { FloraSpecies, RuinArchetype, TileType, Zone } from './types'
-import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
+import { armReentryLock, isReentryLocked, registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
 import type { CivilizationRuin } from './genesisTypes'
 import type { FloraGenome } from './genetics'
@@ -848,6 +848,9 @@ export const exitRuin = (state: GameState): void => {
   // Place player outside the 3x3 overworld hitbox (Chebyshev distance >= 2)
   state.player = findSafeExitPosition(interior.entranceOverworld, state.map, state.mapWidth, state.mapHeight, 2)
 
+  // Arm the re-entry lock on the ruin entrance the player just left.
+  armReentryLock(state, interior.entranceOverworld)
+
   state.currentRuinIndex = null
 
   clearNavigationState(state)
@@ -867,6 +870,8 @@ export const checkRuinTransition = (state: GameState): boolean => {
         if (state.map[py + dy]?.[px + dx]?.type === TileType.RuinEntrance) {
           const ex = px + dx
           const ey = py + dy
+          // Suppress re-entry into the ruin the player just exited.
+          if (isReentryLocked(state, { x: ex, y: ey })) continue
           const ruinIndex = state.ruinInteriors.findIndex(
             r => r.entranceOverworld.x === ex && r.entranceOverworld.y === ey
           )

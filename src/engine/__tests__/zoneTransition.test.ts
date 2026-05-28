@@ -1,15 +1,18 @@
-import { checkTransition, enterCave } from '../cave'
-import { ZONE_TRANSITION_DURATION_MS } from '../constants'
+import { checkTransition, enterCave, exitCave } from '../cave'
+import { STRUCTURE_REENTRY_REARM_DISTANCE, ZONE_TRANSITION_DURATION_MS } from '../constants'
 import { movePlayer, tickPath } from '../movement'
 import { findPath } from '../pathfinding'
 import { TileType, Zone } from '../types'
 import {
+  armReentryLock,
+  clearReentryLockIfRearmed,
   getZoneTransitionProgress,
+  isReentryLocked,
   isZoneTransitioning,
   scheduleZoneTransition,
   tickZoneTransition,
 } from '../zoneTransition'
-import { createTestState } from './helpers'
+import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 const setCaveEntranceAt = (state: ReturnType<typeof createTestState>, x: number, y: number): void => {
@@ -236,6 +239,173 @@ describe('zone transition', () => {
         irisCenter: { x: 0, y: 0 },
       })
       expect(isZoneTransitioning(state)).toBe(true)
+    })
+  })
+
+  describe('re-entry lock', () => {
+    describe('helpers', () => {
+      it('armReentryLock stores a copy of the entrance position', () => {
+        const state = createTestState()
+        const entrance = { x: 30, y: 30 }
+        armReentryLock(state, entrance)
+        expect(state.reentryLock).toEqual({ entrance: { x: 30, y: 30 } })
+        // Stored a copy — mutating the source does not leak into the lock.
+        entrance.x = 99
+        expect(state.reentryLock?.entrance.x).toBe(30)
+      })
+
+      it('isReentryLocked is true only for the exact locked entrance', () => {
+        const state = createTestState()
+        armReentryLock(state, { x: 30, y: 30 })
+        expect(isReentryLocked(state, { x: 30, y: 30 })).toBe(true)
+        // A different entrance is not suppressed.
+        expect(isReentryLocked(state, { x: 31, y: 30 })).toBe(false)
+      })
+
+      it('isReentryLocked is false when no lock is armed', () => {
+        const state = createTestState()
+        expect(state.reentryLock).toBeNull()
+        expect(isReentryLocked(state, { x: 30, y: 30 })).toBe(false)
+      })
+
+      it('isReentryLocked is pure — it never clears the lock', () => {
+        const state = createTestState()
+        armReentryLock(state, { x: 30, y: 30 })
+        // Player far away, but the pure predicate must not clear.
+        state.player = { x: 50, y: 50 }
+        isReentryLocked(state, { x: 30, y: 30 })
+        expect(state.reentryLock).not.toBeNull()
+      })
+
+      it('clearReentryLockIfRearmed clears once the player reaches the re-arm distance', () => {
+        const state = createTestState()
+        const entrance = { x: 30, y: 30 }
+        armReentryLock(state, entrance)
+
+        // One tile short of the re-arm distance — still locked.
+        state.player = { x: entrance.x + STRUCTURE_REENTRY_REARM_DISTANCE - 1, y: entrance.y }
+        clearReentryLockIfRearmed(state)
+        expect(state.reentryLock).not.toBeNull()
+
+        // Exactly at the re-arm distance (Chebyshev) — clears.
+        state.player = { x: entrance.x + STRUCTURE_REENTRY_REARM_DISTANCE, y: entrance.y }
+        clearReentryLockIfRearmed(state)
+        expect(state.reentryLock).toBeNull()
+      })
+
+      it('clearReentryLockIfRearmed uses Chebyshev distance (diagonal counts)', () => {
+        const state = createTestState()
+        const entrance = { x: 30, y: 30 }
+        armReentryLock(state, entrance)
+        // Diagonal: dx and dy both equal the re-arm distance → Chebyshev
+        // is the re-arm distance, so it clears.
+        state.player = {
+          x: entrance.x + STRUCTURE_REENTRY_REARM_DISTANCE,
+          y: entrance.y + STRUCTURE_REENTRY_REARM_DISTANCE,
+        }
+        clearReentryLockIfRearmed(state)
+        expect(state.reentryLock).toBeNull()
+      })
+
+      it('clearReentryLockIfRearmed is a no-op when no lock is armed', () => {
+        const state = createTestState()
+        expect(state.reentryLock).toBeNull()
+        clearReentryLockIfRearmed(state)
+        expect(state.reentryLock).toBeNull()
+      })
+    })
+
+    describe('checkTransition integration', () => {
+      // Place a cave entrance and stand the player adjacent to it. With a
+      // lock armed for that entrance, checkTransition must not schedule.
+      const standOnCaveEntrance = (state: ReturnType<typeof createTestState>) => {
+        clearAroundPlayer(state, STRUCTURE_REENTRY_REARM_DISTANCE + 2)
+        const ex = state.player.x
+        const ey = state.player.y - 1
+        state.map[ey][ex] = { type: TileType.CaveEntrance }
+        state.caveEntranceOverworld = { x: ex, y: ey }
+        return { x: ex, y: ey }
+      }
+
+      it('suppresses re-entry while the player is point-blank to the just-exited entrance', () => {
+        const state = createTestState()
+        const entrance = standOnCaveEntrance(state)
+        armReentryLock(state, entrance)
+
+        const result = checkTransition(state)
+        expect(result).toBe(false)
+        expect(state.zoneTransition).toBeNull()
+        // The lock survives — the player has not walked away.
+        expect(state.reentryLock).not.toBeNull()
+      })
+
+      it('re-entry succeeds after the player walks the re-arm distance away and returns', () => {
+        // This is the regression for the permanent-lock bug: the exit
+        // drop sits outside the 3x3 hitbox, so the clear must run even
+        // when no entrance tile is in the scan.
+        const state = createTestState()
+        const entrance = standOnCaveEntrance(state)
+        armReentryLock(state, entrance)
+
+        // Walk straight away to the re-arm distance. No entrance tile is
+        // under the hitbox out here, yet the lock must clear.
+        state.player = { x: entrance.x, y: entrance.y + STRUCTURE_REENTRY_REARM_DISTANCE }
+        const farResult = checkTransition(state)
+        expect(farResult).toBe(false)
+        expect(state.reentryLock).toBeNull()
+
+        // Return to point-blank — re-entry now schedules normally.
+        state.player = { x: entrance.x, y: entrance.y + 1 }
+        const backResult = checkTransition(state)
+        expect(backResult).toBe(true)
+        expect(state.zoneTransition?.direction).toBe('enter')
+        expect(state.zoneTransition?.kind).toBe('cave')
+      })
+
+      it('exitCave arms the lock keyed to the cave entrance', () => {
+        const state = createTestState()
+        clearAroundPlayer(state, STRUCTURE_REENTRY_REARM_DISTANCE + 2)
+        state.caveEntranceOverworld = { x: state.player.x, y: state.player.y }
+        enterCave(state)
+        exitCave(state)
+        expect(state.reentryLock).toEqual({ entrance: { ...state.caveEntranceOverworld } })
+      })
+
+      it('lock clears immediately when the exit drop is already past the re-arm distance', () => {
+        // findSafeExitPosition can drop the player beyond the re-arm
+        // distance; the lock then clears on the first checkTransition
+        // tick. This is correct, not a bug.
+        const state = createTestState()
+        const entrance = standOnCaveEntrance(state)
+        armReentryLock(state, entrance)
+        // Simulate a drop already past the re-arm distance.
+        state.player = { x: entrance.x, y: entrance.y + STRUCTURE_REENTRY_REARM_DISTANCE + 1 }
+        checkTransition(state)
+        expect(state.reentryLock).toBeNull()
+      })
+
+      it('a different entrance stays enterable while one entrance is locked nearby', () => {
+        const state = createTestState()
+        clearAroundPlayer(state, STRUCTURE_REENTRY_REARM_DISTANCE + 2)
+        // Lock an entrance still within the re-arm distance (so the lock
+        // does NOT clear), but at a different tile than the one the
+        // player is about to step onto.
+        const lockedEntrance = { x: state.player.x - 1, y: state.player.y }
+        armReentryLock(state, lockedEntrance)
+
+        // Stand next to a fresh cave entrance at a different tile.
+        const ex = state.player.x
+        const ey = state.player.y - 1
+        state.map[ey][ex] = { type: TileType.CaveEntrance }
+        state.caveEntranceOverworld = { x: ex, y: ey }
+
+        const result = checkTransition(state)
+        expect(result).toBe(true)
+        expect(state.zoneTransition?.kind).toBe('cave')
+        // The lock for the OTHER entrance is untouched — player is still
+        // within the re-arm distance of it.
+        expect(state.reentryLock).toEqual({ entrance: lockedEntrance })
+      })
     })
   })
 })
