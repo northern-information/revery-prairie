@@ -130,7 +130,7 @@ export const InventoryPanel = ({
   return (
     <div
       data-panel="inventory"
-      className="text-text pointer-events-auto relative flex items-start gap-3 overflow-hidden font-mono text-xs"
+      className="text-text pointer-events-auto relative flex items-end gap-3 overflow-hidden font-mono text-xs"
       onMouseEnter={clearCursorInfo}
       onMouseMove={clearCursorInfo}
     >

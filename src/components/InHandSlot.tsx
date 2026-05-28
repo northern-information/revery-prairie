@@ -1,4 +1,6 @@
-import { INVENTORY_CELL_SIZE } from '@/engine/constants'
+import { useState } from 'react'
+
+import { ACTION_COLOR, INVENTORY_CELL_SIZE } from '@/engine/constants'
 import { getInHandItem, releaseInHand, takeInHand } from '@/engine/inHand'
 import { getDefinition } from '@/engine/items'
 import { isPlaceable } from '@/engine/placeable'
@@ -35,10 +37,19 @@ export const InHandSlot = ({
   const inHand = getInHandItem(state)
   const def = inHand ? getDefinition(inHand.definitionId) : null
 
+  // True while a placeable item is being dragged over this cell — the whole
+  // box inverts to pink with a black glyph, matching the loaded-cursor and
+  // combine-target convention (hot pink = the next click means something).
+  const [isDragOver, setIsDragOver] = useState(false)
+  const dragItem = dragState?.item ?? null
+  const isPlaceableDrag = dragItem !== null && isPlaceable(dragItem.definitionId)
+  const showDropTarget = isDragOver && isPlaceableDrag
+
   // Take in hand: release the slot's mouseup while dragging a placeable item.
   // The dragged item stays in the backpack; in-hand is a reference to its uid.
   const handleMouseUp = () => {
     if (!dragState) return
+    setIsDragOver(false)
     if (!isPlaceable(dragState.item.definitionId)) {
       // Not placeable — leave the drag for the grid/canvas to resolve.
       return
@@ -63,15 +74,20 @@ export const InHandSlot = ({
     refreshUI()
   }
 
-  // Hovering the in-hand item populates the ItemInfo panel, mirroring backpack
-  // hover. Suppressed during a drag so the dragged item's info isn't clobbered.
+  // While dragging: mark this cell as the drop target so it inverts to pink.
+  // Otherwise (a free hover): populate the ItemInfo panel like backpack hover.
   const handleMouseEnter = () => {
-    if (dragState || !inHand) return
+    if (dragState) {
+      setIsDragOver(true)
+      return
+    }
+    if (!inHand) return
     itemInfoRef.current?.show(inHand.definitionId, inHand.uid)
     playHover()
   }
 
   const handleMouseLeave = () => {
+    setIsDragOver(false)
     if (dragState) return
     itemInfoRef.current?.clear()
   }
@@ -81,14 +97,23 @@ export const InHandSlot = ({
       <SectionHeader className="mb-0 border-b-0 pb-0">In Hand</SectionHeader>
       <div
         data-testid="in-hand-slot"
+        data-drop-target={showDropTarget ? 'true' : undefined}
         className="border-grid-border flex items-center justify-center border font-mono select-none"
-        style={{ width: SLOT_PX, height: SLOT_PX }}
+        style={{
+          width: SLOT_PX,
+          height: SLOT_PX,
+          ...(showDropTarget ? { backgroundColor: ACTION_COLOR } : {}),
+        }}
         onMouseUp={handleMouseUp}
         onMouseDown={handleMouseDown}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {def && inHand ? (
+        {showDropTarget && dragItem ? (
+          <span className="leading-none" style={{ color: '#000', fontSize: INVENTORY_CELL_SIZE * 1.6 }}>
+            {getDefinition(dragItem.definitionId).glyph}
+          </span>
+        ) : def && inHand ? (
           <span className="leading-none" style={{ color: 'var(--color-pink)', fontSize: INVENTORY_CELL_SIZE * 1.6 }}>
             {def.glyph}
           </span>
