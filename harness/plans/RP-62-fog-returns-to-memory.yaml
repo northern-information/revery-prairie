@@ -1,0 +1,235 @@
+plan:
+  id: RP-62-fog-returns-to-memory
+  title: 'RP-62: Fog returns to memory — collapse fullyDiscovered into a single dim remembered tier, hide live creatures out of gaze, freeze a flora snapshot'
+  created: 2026-05-28
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: collapse-visibility-type-and-state-fields
+    title: 'Collapse TileVisibility to visible | remembered | unexplored; remove *FogDiscovered fields and DISCOVERY_RADIUS; add per-zone *FloraMemory maps'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - three-state-visibility
+      - flora-snapshot-on-leaving-gaze
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/ruins.ts
+      - src/engine/constants.ts
+      - src/engine/visibility.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/ruins.ts
+      - src/engine/constants.ts
+    notes: >
+      types.ts: change TileVisibility to 'visible' | 'remembered' | 'unexplored'.
+      Remove caveFogDiscovered and overworldFogDiscovered from GameState (lines
+      ~569, ~574). Remove RuinInterior.fogDiscovered (line ~893). Add a
+      FloraMemoryEntry type { char: string; color: string } and three memory
+      maps: GameState.caveFloraMemory: Map<string, FloraMemoryEntry>,
+      GameState.overworldFloraMemory: Map<string, FloraMemoryEntry>, and
+      RuinInterior.floraMemory: Map<string, FloraMemoryEntry>.
+      state.ts: drop the two *FogDiscovered Set inits (lines ~368, ~370);
+      add caveFloraMemory and overworldFloraMemory as new Map(). ruins.ts:
+      drop fogDiscovered init (line ~749), add floraMemory: new Map().
+      constants.ts: remove DISCOVERY_RADIUS (line ~537) — nothing should
+      reference it after this plan. Keep FOG_EXPLORED_BRIGHTNESS.
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, types]
+
+  - id: rewrite-visibility-logic
+    title: 'Rewrite getTileVisibility for three states; delete the DISCOVERY_RADIUS promotion loop; keep fogExplored as the single ever-seen set'
+    spec_id: cave-fog-of-war
+    spec_sections:
+      - three-state-visibility
+      - player-vision-radius
+      - fog-updates-on-movement
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/visibility.ts
+    notes: >
+      getTileVisibility: visibleSet → 'visible'; else fogExplored.has(key) →
+      'remembered'; else 'unexplored'. Remove the fogDiscovered branch and the
+      getFogState fogDiscovered field. In computeZoneVisibility remove the
+      entire DISCOVERY_RADIUS promotion block (lines ~295-309) and the
+      fogDiscovered reads/writes; keep the fogExplored union (lines ~290-293),
+      entrance force-add, and angel-aura reveal unchanged. Update the
+      TileVisibility doc comment to describe the three states.
+    depends_on:
+      - collapse-visibility-type-and-state-fields
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: renderer-three-state-and-flora-snapshot
+    title: 'Renderer: collapse the dim branch onto remembered, gate live creatures/effects on visible only, capture + render the frozen flora snapshot'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - three-state-visibility-on-prairie
+      - flora-snapshot-on-prairie
+      - entity-visibility-culling-on-prairie
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/renderer.ts
+    notes: >
+      In the central tile loop (renderer.ts ~1224): tileVis is now one of three
+      states. For 'remembered', render terrain + static landmarks
+      (oaks, beehives, ground items) + the frozen flora snapshot, all dimmed
+      via dimColor(_, FOG_EXPLORED_BRIGHTNESS); do NOT resolve live creatures
+      (player ghosts/remote players are live, but the local player is always in
+      gaze) or live effects. The hide-vs-remember line is liveness: characters,
+      bees, ghosts, coyote, monarchs, angels, lightning, satellites, explosions,
+      wildfire, pickup effects = hidden out of gaze; terrain, flora snapshot,
+      oaks, beehive tiles, ground items, egregore snapshot = remembered dim.
+      Flora snapshot: maintain a memory map per zone. On the frame a flora or
+      egregore tile leaves the visible set (was visible, now remembered),
+      capture its resolved {char, color} into the zone's floraMemory map. When
+      rendering a 'remembered' flora/egregore tile, read {char, color} from
+      floraMemory (fall back to the live resolution if absent — e.g. a tile
+      explored via earth-scan that was never in direct gaze) and dim it.
+      Preserve the cave hidden-chamber CaveWall masking (old lines ~1246-1250)
+      on the remembered branch. Add a small accessor in visibility.ts
+      (getZoneFloraMemory(state)) mirroring getFogState so the renderer reads
+      the right map per zone.
+    depends_on:
+      - rewrite-visibility-logic
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, render]
+
+  - id: fog-mask-and-effect-passes
+    title: 'fogMask masks the single remembered tier; glinting beam/sparkle and angel aura gate on the visible set only'
+    spec_id: fog-bg-mask
+    spec_sections:
+      - remembered-tiles-dimmed
+      - visible-tiles-untouched
+    context_files:
+      - src/engine/render/passes/fogMask.ts
+      - src/engine/render/passes/glintingBeam.ts
+      - src/engine/render/passes/glintingZoneSparkle.ts
+      - src/engine/visibility.ts
+    output_files:
+      - src/engine/render/passes/fogMask.ts
+      - src/engine/render/passes/glintingBeam.ts
+      - src/engine/render/passes/glintingZoneSparkle.ts
+    notes: >
+      fogMask.ts line ~85: skip only 'visible'; mask 'remembered' (dim diamond
+      at PARTIAL_MASK_ALPHA) and 'unexplored' (BG_COLOR). Update the comments
+      that name partiallyDiscovered/fullyDiscovered. glintingBeam.ts (~line 54)
+      and glintingZoneSparkle.ts (~line 50): remove the
+      `|| fullyDiscovered.has(key)` / overworldFogDiscovered reference — gate on
+      visibleSet only, so glint effects never leak onto remembered tiles. These
+      two run in the `effect` slot (after the fog mask) so they need their own
+      gate. angelGoldAura does NOT need a change: it runs in `world-overlay`
+      before the fog mask, so the mask already covers the aura on remembered and
+      unexplored tiles; when the steward stands in the aura those tiles are
+      `visible` (angel-aura-reveal in computeZoneVisibility) and the aura shows
+      correctly.
+    depends_on:
+      - rewrite-visibility-logic
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/fogMask.test.ts'
+    repair: retry
+    tags: [engine, render]
+
+  - id: remove-revery-softening-hook
+    title: 'Remove the post-Revery memory softening hook from tickRevery (RP-39 subsumed by RP-62)'
+    spec_id: RP-39-post-revery-memory-softening
+    spec_sections:
+      - softening-retired
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/revery.ts
+    notes: >
+      Remove the Closing-phase drain of overworldFogDiscovered (the comment at
+      revery.ts ~line 213 and the corresponding .clear()/Reflect call).
+      tickRevery still nulls state.revery and reverts the house scene. No fog
+      set is touched. The overworldFogDiscovered field no longer exists, so any
+      lingering reference is a type error.
+    depends_on:
+      - collapse-visibility-type-and-state-fields
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: update-schema-allowlist
+    title: 'Update EXPECTED_FIELDS: drop the two *FogDiscovered fields, add the two *FloraMemory fields'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - per-tenure-fog-fields
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    notes: >
+      schema.test.ts lines ~136, ~138: remove 'caveFogDiscovered' and
+      'overworldFogDiscovered'; add 'caveFloraMemory' and 'overworldFloraMemory'.
+      Keep the existing *FogExplored entries.
+    depends_on:
+      - collapse-visibility-type-and-state-fields
+    verification:
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [test, harness]
+
+  - id: regression-tests
+    title: 'Author RP-62 regression tests: three-state visibility, live creatures hidden out of gaze, frozen flora snapshot, RP-39 hook gone'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - three-state-visibility-on-prairie
+      - flora-snapshot-on-prairie
+      - entity-visibility-culling-on-prairie
+      - fog-updates-on-movement
+    context_files:
+      - src/engine/visibility.ts
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/fogMask.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/visibility.test.ts
+    notes: >
+      Add/adjust cases. getTileVisibility returns 'remembered' (never
+      fullyDiscovered/partiallyDiscovered) for an explored-but-not-visible tile,
+      in all three zones. Walking away from a tile flips it visible→remembered in
+      one frame (no proximity-promotion lingering). A flora tile's snapshot is
+      captured on leaving gaze and the remembered render reads the snapshot, not
+      the live lifecycle stage advanced afterward. A creature on a tile that
+      leaves the visible set is culled. RP-39: tickRevery Closing no longer
+      references any fog-discovered set. Follow docs/claude/testing.md: spy on
+      Math.random with restore in finally, clearAroundPlayer() for terrain prep,
+      reset entity arrays before count asserts. Delete the now-obsolete
+      RP-39-post-revery-memory-softening.test.ts assertions that depended on
+      overworldFogDiscovered, or rewrite that file to assert the hook is gone.
+    depends_on:
+      - renderer-three-state-and-flora-snapshot
+      - fog-mask-and-effect-passes
+      - remove-revery-softening-hook
+      - update-schema-allowlist
+    verification:
+      - 'npx vitest run src/engine/__tests__/visibility.test.ts'
+      - 'npm run verify'
+    repair: retry
+    tags: [test, engine]

@@ -450,8 +450,8 @@ edge_cases:
     description: 'shift+right-click commits state.path with pathIsChained === true (whether the path is new or chained onto an existing one)'
     expected: 'path dots and waypoint markers render in ACTION_COLOR for every tile in state.path'
   - id: tile-bg-during-fog
-    description: 'unexplored or partiallyDiscovered fog tile with surface bg'
-    expected: 'the fog-bg-mask spec (harness/specs/fog-bg-mask.yaml) governs how the cached tile-bg interacts with fog. unexplored tiles are masked to BG_COLOR (fully hidden); partiallyDiscovered tiles are dimmed to FOG_EXPLORED_BRIGHTNESS so bg and glyph dim together. the mask is a dedicated pass that runs last in the world-overlay slot.'
+    description: 'unexplored or remembered fog tile with surface bg'
+    expected: 'the fog-bg-mask spec (harness/specs/fog-bg-mask.yaml) governs how the cached tile-bg interacts with fog. unexplored tiles are masked to BG_COLOR (fully hidden); remembered tiles are dimmed to FOG_EXPLORED_BRIGHTNESS so bg and glyph dim together. the mask is a dedicated pass that runs last in the world-overlay slot.'
   - id: dropped-item-on-tile
     description: 'ground item glyph on a clover tile'
     expected: 'clover bg shows under the item glyph; item does not paint its own background'

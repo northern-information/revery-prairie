@@ -1,56 +1,36 @@
 plan:
   id: RP-39-post-revery-memory-softening
-  title: 'RP-39: Post-Revery memory softening — drain overworldFogDiscovered on Revery exit'
+  title: 'RP-39 (RETIRED): remove the post-Revery softening hook — subsumed by RP-62'
   created: 2026-05-23
   global_verification:
     - 'npm run typecheck'
     - 'npm run test'
     - 'npm run lint'
 
+# RETIRED by RP-62 ("fog returns to memory"). The softening hook this plan
+# originally built is removed by RP-62's remove-revery-softening-hook task
+# (the overworldFogDiscovered field it drained no longer exists). This plan
+# is reduced to a single tombstone task so the spec↔plan reference stays
+# valid; the real work lives in harness/plans/RP-62-fog-returns-to-memory.yaml.
+
 tasks:
-  - id: implement-softening-hook
-    title: 'Add applyPostReveryMemorySoftening helper to revery.ts; call from Closing phase before state.revery = null'
+  - id: confirm-softening-removed
+    title: 'Confirm tickRevery performs no fog mutation on Revery exit (hook removed by RP-62)'
     spec_id: RP-39-post-revery-memory-softening
     spec_sections:
-      - softening-fires-on-revery-exit
-      - explored-set-untouched-on-exit
-      - cave-memory-untouched-on-exit
-      - softening-fires-on-every-revery-exit
+      - softening-retired
     context_files:
       - src/engine/revery.ts
-      - src/engine/types.ts
+      - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
     output_files:
-      - src/engine/revery.ts
+      - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
+    notes: >
+      The softening hook is deleted in RP-62. This task only asserts the
+      retirement: tickRevery's Closing phase nulls state.revery without touching
+      any fog set, and references no overworldFogDiscovered field. Rewrite the
+      existing RP-39 test file accordingly (drop the drain assertions).
     depends_on: []
     verification:
-      - 'npx tsc -b --noEmit'
-    repair: retry
-    tags: [engine]
-
-  - id: regression-tests
-    title: 'Author RP-39 tests: softening clears overworldFogDiscovered on Closing; overworldFogExplored and cave fog sets untouched; fires on every Revery exit; walking out re-promotes tiles via existing computeZoneVisibility'
-    spec_id: RP-39-post-revery-memory-softening
-    spec_sections:
-      - softening-fires-on-revery-exit
-      - explored-set-untouched-on-exit
-      - cave-memory-untouched-on-exit
-      - softening-fires-on-every-revery-exit
-      - walking-out-repromotes-tiles
-    context_files:
-      - src/engine/revery.ts
-      - src/engine/visibility.ts
-      - src/engine/state.ts
-      - src/engine/types.ts
-      - src/engine/__tests__/revery.test.ts
-      - src/engine/__tests__/visibility.test.ts
-      - src/engine/__tests__/helpers.ts
-      - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
-    output_files:
-      - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
-    depends_on:
-      - implement-softening-hook
-    verification:
       - 'npx vitest run src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts'
-      - 'npm run test'
     repair: retry
     tags: [test, engine]
