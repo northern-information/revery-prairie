@@ -3,7 +3,7 @@ import { combineFromBackpack } from '../combine'
 import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
 import { RuinGenerationMode, RuinRole } from '../genesisTypes'
-import { advanceDialog, triggerStewardSeal, unlockRuinDoor } from '../interaction'
+import { triggerStewardSeal, unlockRuinDoor } from '../interaction'
 import { placeItem } from '../inventory'
 import { recordDiscovery } from '../manual'
 import { movePlayer } from '../movement'
@@ -100,49 +100,38 @@ describe('main questline > starting state', () => {
 })
 
 describe('main questline > Gron dialog phase dispatch', () => {
-  it('returns the awaiting-coyote 5-line block', () => {
+  it('returns the round-5 awaiting-coyote opener', () => {
     const state = createTestState()
     state.mainQuestPhase = MainQuestPhase.AwaitingCoyote
-    const dialog = getCharacterDialog(state, 'gron')
-    expect(dialog).toHaveLength(5)
-    expect(dialog[1]).toBe('Oh, you must be the new steward.')
-    expect(dialog[4]).toBe('What is a steward without their coyote?')
+    expect(getCharacterDialog(state, 'gron')).toEqual(['...', 'A steward.', 'A steward goes to the ruins.'])
   })
 
-  it('returns the gathering hint when player has only one of bee/clover', () => {
+  it('returns the Dickinson-correct gathering line when player has only one of bee/clover', () => {
     const state = createTestState()
     state.mainQuestPhase = MainQuestPhase.Gathering
     placeItem(state.backpack, 'bee', 0, 0)
-    expect(getCharacterDialog(state, 'gron')).toEqual(['It takes one clover and one bee.'])
+    expect(getCharacterDialog(state, 'gron')).toEqual(['A clover and a bee.'])
   })
 
-  it('returns the impatient prompt when player has both bee and clover', () => {
+  it('returns the combining beat when player has both bee and clover', () => {
     const state = createTestState()
     state.mainQuestPhase = MainQuestPhase.Gathering
     placeItem(state.backpack, 'bee', 0, 0)
     placeItem(state.backpack, 'clover', 1, 0)
-    expect(getCharacterDialog(state, 'gron')).toEqual([
-      'Well what are you waiting for, steward? One clover and one bee.',
-    ])
+    expect(getCharacterDialog(state, 'gron')).toEqual(['A clover. A bee.', 'Now.'])
   })
 
-  it('returns the sealed acknowledgement', () => {
+  it('returns the sealed declaration', () => {
     const state = createTestState()
     state.mainQuestPhase = MainQuestPhase.Sealed
-    expect(getCharacterDialog(state, 'gron')).toEqual([
-      'Ahhh, yes. You are indeed the steward.',
-      "Here, I've been saving these.",
-    ])
+    expect(getCharacterDialog(state, 'gron')).toEqual(['A steward.'])
   })
 
   it('falls through gracefully to sealed dialog for an unknown phase value', () => {
     const state = createTestState()
     // Force an unrecognized phase to exercise the default branch.
     ;(state as { mainQuestPhase: string }).mainQuestPhase = 'unknown-phase'
-    expect(getCharacterDialog(state, 'gron')).toEqual([
-      'Ahhh, yes. You are indeed the steward.',
-      "Here, I've been saving these.",
-    ])
+    expect(getCharacterDialog(state, 'gron')).toEqual(['A steward.'])
   })
 })
 
@@ -291,16 +280,22 @@ describe('main questline > combine seal', () => {
     expect(state.activeDialog).toBeNull()
   })
 
-  it('flips pendingSavedBees on seal', () => {
+  it('spawns 4 bees at the combine moment (1 from RP-17 ceremony wave + 3 from the prairie inheritance via triggerStewardSeal — RP-21 decoupled this from Gron dialog close)', () => {
     const state = createTestState()
     state.currentZone = Zone.Overworld
     state.mainQuestPhase = MainQuestPhase.Gathering
     stockAndClear(state)
+    // Stack the 3x3 with clover so all 3 inheritance candidates land.
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        state.map[state.player.y + dy][state.player.x + dx].type = TileType.Flora
+      }
+    }
     createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 }, { zone: Zone.Overworld })
 
-    expect(state.pendingSavedBees).toBe(false)
+    const before = getBeeEntities(state).length
     expect(combineFromBackpack(state, 'bee', 'clover')).toBe(true)
-    expect(state.pendingSavedBees).toBe(true)
+    expect(getBeeEntities(state).length - before).toBe(4)
   })
 
   it('sets angelFlashTime when Gron teleports on combine seal', () => {
@@ -354,95 +349,78 @@ describe('main questline > combine seal', () => {
 })
 
 describe('main questline > Gron sealed dialog', () => {
-  it('shows two lines on the sealed beat ending with the saving-bees teaser', () => {
+  it('returns the round-5 single-line declaration', () => {
     const state = createTestState()
     state.mainQuestPhase = MainQuestPhase.Sealed
     const dialog = getCharacterDialog(state, 'gron')
-    expect(dialog).toEqual(['Ahhh, yes. You are indeed the steward.', "Here, I've been saving these."])
+    expect(dialog).toEqual(['A steward.'])
   })
 })
 
-describe('main questline > saving bees release', () => {
-  const openGronDialogAtLastLine = (state: GameState, lineIndex: number, characterId = 'gron'): void => {
-    state.activeDialog = {
-      characterId,
-      lineIndex,
-      typingIndex: 999,
-      typingDone: true,
-      transitioning: false,
-      transitionStartTime: 0,
-    }
+describe('main questline > combine bee release (RP-21 — at-combine, not at-dialog-close)', () => {
+  const stockAndClear = (state: GameState): void => {
+    clearAroundPlayer(state, 2)
+    state.ponds.delete(posKey(state.player.x, state.player.y))
+    state.rivers.delete(posKey(state.player.x, state.player.y))
+    placeItem(state.backpack, 'bee', 0, 0)
+    placeItem(state.backpack, 'clover', 1, 0)
   }
 
-  it('spawns 3 bees when Gron dialog closes with pendingSavedBees=true', () => {
+  it('spawns 4 bees synchronously when the combine fires on the overworld with a 3x3 clover bed (1 ceremony + 3 inheritance)', () => {
     const state = createTestState()
-    state.mainQuestPhase = MainQuestPhase.Sealed
-    state.pendingSavedBees = true
-    clearAroundPlayer(state, 2)
-    // Set a 3x3 of clover around player so candidates are plentiful.
+    state.currentZone = Zone.Overworld
+    state.mainQuestPhase = MainQuestPhase.Gathering
+    stockAndClear(state)
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         state.map[state.player.y + dy][state.player.x + dx].type = TileType.Flora
       }
     }
+    createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 }, { zone: Zone.Overworld })
     const before = getBeeEntities(state).length
-    openGronDialogAtLastLine(state, 1)
-    advanceDialog(state)
-    expect(getBeeEntities(state).length - before).toBe(3)
-    expect(state.pendingSavedBees).toBe(false)
+    expect(combineFromBackpack(state, 'bee', 'clover')).toBe(true)
+    expect(getBeeEntities(state).length - before).toBe(4)
   })
 
-  it("does not consume the flag when another character's dialog closes", () => {
+  it('the inheritance pool falls back to walkable non-clover tiles when no clover is available in the 3x3', () => {
     const state = createTestState()
-    state.mainQuestPhase = MainQuestPhase.Sealed
-    state.pendingSavedBees = true
-    clearAroundPlayer(state, 2)
-    const before = getBeeEntities(state).length
-    openGronDialogAtLastLine(state, 0, 'moab')
-    advanceDialog(state)
-    expect(getBeeEntities(state).length).toBe(before)
-    expect(state.pendingSavedBees).toBe(true)
-  })
-
-  it('fires only once across repeated Gron dialog closes', () => {
-    const state = createTestState()
-    state.mainQuestPhase = MainQuestPhase.Sealed
-    state.pendingSavedBees = true
-    clearAroundPlayer(state, 2)
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        state.map[state.player.y + dy][state.player.x + dx].type = TileType.Flora
-      }
-    }
-    const before = getBeeEntities(state).length
-
-    openGronDialogAtLastLine(state, 1)
-    advanceDialog(state)
-    const afterFirst = getBeeEntities(state).length
-
-    openGronDialogAtLastLine(state, 1)
-    advanceDialog(state)
-    const afterSecond = getBeeEntities(state).length
-
-    expect(afterFirst - before).toBe(3)
-    expect(afterSecond - afterFirst).toBe(0)
-  })
-
-  it('falls back to walkable non-clover tiles when no clover is available', () => {
-    const state = createTestState()
-    state.mainQuestPhase = MainQuestPhase.Sealed
-    state.pendingSavedBees = true
-    clearAroundPlayer(state, 2)
-    // All dirt — no clover, but all walkable.
+    state.currentZone = Zone.Overworld
+    state.mainQuestPhase = MainQuestPhase.Gathering
+    stockAndClear(state)
+    // All dirt — no clover, but all walkable. The ceremony still plants
+    // a clover at the player tile, but the 8 neighbors stay dirt.
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
         state.map[state.player.y + dy][state.player.x + dx].type = TileType.Dirt
       }
     }
+    createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 }, { zone: Zone.Overworld })
     const before = getBeeEntities(state).length
-    openGronDialogAtLastLine(state, 1)
-    advanceDialog(state)
-    expect(getBeeEntities(state).length - before).toBe(3)
+    expect(combineFromBackpack(state, 'bee', 'clover')).toBe(true)
+    // 1 ceremony bee + 3 inheritance bees (any walkable tile is fair game).
+    expect(getBeeEntities(state).length - before).toBe(4)
+  })
+
+  it('seal-bound bee spawn fires only once — re-firing triggerStewardSeal on an already-sealed state is a no-op', () => {
+    const state = createTestState()
+    state.currentZone = Zone.Overworld
+    state.mainQuestPhase = MainQuestPhase.Gathering
+    stockAndClear(state)
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        state.map[state.player.y + dy][state.player.x + dx].type = TileType.Flora
+      }
+    }
+    createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 }, { zone: Zone.Overworld })
+    const before = getBeeEntities(state).length
+
+    expect(combineFromBackpack(state, 'bee', 'clover')).toBe(true)
+    const afterFirst = getBeeEntities(state).length
+    expect(afterFirst - before).toBe(4)
+
+    // Already sealed — triggerStewardSeal's early-return kicks in. No more bees.
+    triggerStewardSeal(state)
+    expect(getBeeEntities(state).length).toBe(afterFirst)
   })
 })
 

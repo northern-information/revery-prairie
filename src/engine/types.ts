@@ -493,7 +493,6 @@ export interface GameState {
   civilizationRuins: CivilizationRuin[]
   mainQuestPhase: MainQuestPhase
   ruinGenerationMode: RuinGenerationMode
-  pendingSavedBees: boolean
   deepTime: DeepTimeState | null
   deepTimeTransition: TransitionFade | null
   // RP-4 — the Revery (long-form ceremonial phase).

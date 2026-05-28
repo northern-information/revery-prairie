@@ -223,12 +223,6 @@ export const advanceDialog = (
   const characterId = state.activeDialog.characterId
   closeActiveDialog(state)
 
-  // Gron has been saving these — release them when his sealed dialog closes.
-  if (characterId === 'gron' && state.pendingSavedBees) {
-    releaseSavedBees(state)
-    state.pendingSavedBees = false
-  }
-
   // RP-9b — completing dialog with Moab while he is walking the
   // line dismisses him. moabState flips to 'dismissed'; the torchbearer
   // tick converts that to 'returning' next pass and Moab pathfinds back
@@ -568,7 +562,6 @@ export const triggerStewardSeal = (state: GameState, time?: number): void => {
   }
 
   state.mainQuestPhase = MainQuestPhase.Sealed
-  state.pendingSavedBees = true
   recordDiscovery(state, 'event:steward-sealed')
 
   state.activeDialog = {
@@ -579,6 +572,11 @@ export const triggerStewardSeal = (state: GameState, time?: number): void => {
     transitioning: false,
     transitionStartTime: 0,
   }
+
+  // RP-21 — the bees are the prairie's, not Gron's. Spawn them
+  // synchronously as the natural completion of the bee+clover ceremony
+  // rather than gating on Gron's dialog close. Gron arrives as witness.
+  releaseSavedBees(state)
 }
 
 export const breakWall = (state: GameState, time: number): boolean => {

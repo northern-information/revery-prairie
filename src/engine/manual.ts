@@ -51,11 +51,15 @@ export interface ManualEntry {
   crossRefs?: string[]
   unlockKey: string
   sourceKind: 'item' | 'recipe' | 'character' | 'zone' | 'event' | 'entity' | 'manual-only'
+  // RP-21 — when true, the entry's lore body renders in the Voynich
+  // typeface via ManualPanel's GlitchedLore branch. The manual entry
+  // for Gron uses this to signal "the manual does not know."
+  glitched?: boolean
 }
 
 // --- Hand-authored lore ---
 
-const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }>> = {
+const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[]; glitched?: boolean }>> = {
   // Items
   'item:bee': { lore: 'Apis mellifera.' },
   // Seed items — reintroduced in RP-5 as ruin-recovery payloads.
@@ -85,8 +89,16 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[] }
   'entity:monarch': { lore: 'Danaus plexippus. Milkweed is vital to its lifecycle.' },
   'entity:oak': { lore: 'TODO' },
   // Characters
+  // RP-21 — Gron's manual entry uses the round-5 doctrine phrase
+  // verbatim. Rendered in Voynich via the glitched flag (see
+  // ManualPanel's GlitchedLore branch). The previous "rain curse" line
+  // violated round-5 principles by declaring Gron immortal, classifying
+  // him as a codger, explaining the rain as a curse, and editorializing
+  // in an authoritative register about an unknowable figure
+  // (v4 R5 line 339).
   'character:gron': {
-    lore: 'A rain curse follows this immortal codger around rendering his coarse cloak both damp and smelly.',
+    lore: 'The manual does not know.',
+    glitched: true,
   },
   'character:moab': { lore: 'TODO' },
   'character:coyote': {
@@ -191,6 +203,9 @@ export const getLore = (key: string): string => MANUAL_LORE[key]?.lore ?? ''
 
 export const getHints = (key: string): ManualHint[] => MANUAL_LORE[key]?.hints ?? []
 
+// RP-21 — optional half-Voynich flag for manual entries.
+export const getGlitched = (key: string): boolean | undefined => MANUAL_LORE[key]?.glitched
+
 // --- Category mapping ---
 
 const itemCategoryToManualCategory = (cat: ItemCategory): ManualCategory => {
@@ -245,6 +260,7 @@ const buildItemEntries = (): ManualEntry[] =>
         hints: loreData?.hints ?? [],
         unlockKey: `item:${def.id}`,
         sourceKind: 'item',
+        glitched: loreData?.glitched,
       }
     })
 
@@ -264,6 +280,7 @@ const buildRecipeEntries = (): ManualEntry[] =>
       crossRefs: recipe.ingredients.map(itemCrossRefId),
       unlockKey: `recipe:${key}`,
       sourceKind: 'recipe',
+      glitched: loreData?.glitched,
     }
   })
 
@@ -289,6 +306,7 @@ const buildCharacterEntries = (): ManualEntry[] => {
       hints: loreData?.hints ?? [],
       unlockKey: `character:${def.id}`,
       sourceKind: 'character',
+      glitched: loreData?.glitched,
     })
   }
 
@@ -310,6 +328,7 @@ const buildWorldEntityEntries = (): ManualEntry[] =>
       hints: loreData?.hints ?? [],
       unlockKey: def.unlockKey,
       sourceKind: 'entity' as const,
+      glitched: loreData?.glitched,
     }
   })
 
@@ -657,6 +676,7 @@ const buildManualOnlyEntries = (): ManualEntry[] =>
     ...skel,
     lore: getLore(skel.id),
     hints: getHints(skel.id),
+    glitched: getGlitched(skel.id),
   }))
 
 // --- Registry assembly ---

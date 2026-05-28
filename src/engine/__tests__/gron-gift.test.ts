@@ -23,11 +23,11 @@ describe('gron character definition', () => {
     expect(def.postGift).toBeUndefined()
   })
 
-  it('has two dialog lines', () => {
+  it('has two dialog lines on the static fallback', () => {
     const def = getCharacterDefinition('gron')
     expect(def.dialog).toHaveLength(2)
     expect(def.dialog[0]).toBe('...')
-    expect(def.dialog[1]).toContain('new steward')
+    expect(def.dialog[1]).toBe('A steward.')
   })
 })
 
@@ -46,11 +46,8 @@ describe('gron gift delivery', () => {
 
   it('dialog returns the awaiting-coyote phase block (no postGiftDialog branch)', () => {
     const state = makeState()
-    const dialog = getCharacterDialog(state, 'gron')
-    // Phase-driven dispatch: 5-line opener while quest phase is awaiting-coyote.
-    expect(dialog[0]).toBe('...')
-    expect(dialog[1]).toContain('new steward')
-    expect(dialog).toContain('What is a steward without their coyote?')
+    // Phase-driven dispatch: the round-5 opener while quest phase is awaiting-coyote.
+    expect(getCharacterDialog(state, 'gron')).toEqual(['...', 'A steward.', 'A steward goes to the ruins.'])
   })
 })
 

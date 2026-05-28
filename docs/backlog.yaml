@@ -622,10 +622,10 @@ features:
       hiveCount/maxHives system. Gron is the bee-keeper between stewards
       (his pendingSavedBees mechanic in interaction.ts:204 is the channel).
     depends_on: []
-    status: todo
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/RP-21-gron-doctrine.yaml
+    plan: harness/plans/RP-21-gron-doctrine.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/462
     notes: >
       v4 thinktank round 5 (2026-05-19). Six locked design principles:
       irreducibility (no origin story, no canonical explanation);
@@ -652,6 +652,30 @@ features:
       girl in the little house) and _the unchanged thing that travels_ (Gron
       arriving at the field summons). Dialog content marked
       `MANUAL_LORE`-style TODO until human-authored.
+
+
+      /change-request scope decisions (2026-05-28). The original summary's
+      bullets were narrowed during requirements gathering:
+      (1) "Remove from CONTROLLABLE_IDS" dropped — `selection.ts:9` and
+      `CONTROLLABLE_IDS` do not exist in the current codebase; Gron has
+      no follow/control mechanic. The doctrine principle is enforced by
+      absence.
+      (2) "Strike one-bee-per-patch from RP-17's framing" dropped from
+      this PR; handled as a separate maintain pass.
+      (3) "Gron is the bee-keeper between stewards" — REJECTED as
+      cosmology. The v4 R5 line was rationalizing the `pendingSavedBees`
+      code whim and handed Gron a taxonomic home that violated round-5
+      principle #2. This PR decouples Gron from beekeeping: the
+      `pendingSavedBees` field is removed and the bee-spawn fires
+      directly at the combine moment from inside `triggerStewardSeal`.
+      The bees are the prairie's, not Gron's.
+      (4) The four GRON_DIALOG_* constants are rewritten with revised
+      round-5-conforming lines (see plan). Manual lore body becomes
+      "The manual does not know." rendered in Voynich via a new
+      `glitched: true` flag on `MANUAL_LORE` entries + `GlitchedLore`
+      component in ManualPanel.
+      Spec: harness/specs/RP-21-gron-doctrine.yaml.
+      Plan: harness/plans/RP-21-gron-doctrine.yaml.
 
   - id: 'RP-22'
     name: Named regions + chronicle events (the world speaks of itself)

@@ -1,0 +1,292 @@
+id: RP-21-gron-doctrine
+name: 'Gron — round-5 doctrine pass (line revisions, glitched-lore plumbing, beekeeper decoupling)'
+priority: medium
+layer: integration
+source_files:
+  - src/engine/manual.ts
+  - src/engine/characters.ts
+  - src/engine/interaction.ts
+  - src/engine/combine.ts
+  - src/engine/drag.ts
+  - src/engine/state.ts
+  - src/engine/types.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+  - src/components/ManualPanel.tsx
+  - src/engine/__tests__/gron-gift.test.ts
+  - src/engine/__tests__/main-questline.test.ts
+  - src/engine/__tests__/RP-21-gron-doctrine.test.ts
+dependencies:
+  - RP-6-naturalists-manual
+  - RP-32-revery-dormancy-pressure
+  - main-questline-foundation
+
+# Doctrine reference: docs/backlog-thinktank-v4.md round 5 (lines 267-367);
+# v6 round 5 amendment (lines 220-261) adding GRON_DIALOG_SOLSTICE_SUMMONS;
+# v9 round 1 (lines 21, 55-67) naming Gron as the egregore-via-Gron Knot
+# witness.
+# Backlog entry: docs/backlog.yaml id 'RP-21'.
+#
+# Round-5 design principles that anchor this spec:
+#   1. Irreducibility — no origin story, no canonical explanation.
+#   2. No taxonomic home — Gron belongs to no system.
+#   3. No opinion of the steward — pragmatic, not kind. No hidden counter.
+#   4. Oblique dialog — short lines, multiple readings. Statements not
+#      questions, no contractions, no editorial affect, no direct address
+#      by title, indefinite articles where possible.
+#   5. Music precedes arrival (handled by the existing aura/music wiring
+#      on the Gron character definition — not in scope here).
+#   6. The manual entry says "the manual does not know."
+#
+# Scope notes — what this spec does NOT change:
+#   - No selection / CONTROLLABLE_IDS code change. The original backlog
+#     summary referred to `selection.ts:9` and a `CONTROLLABLE_IDS`
+#     constant; neither exists in the current codebase. Gron has no
+#     follow / control mechanic today.
+#   - No "one bee per patch" strike against RP-17's framing. That
+#     belongs to a separate doc / lore reconciliation pass.
+#
+# Scope notes — what this spec DOES change (the beekeeper decoupling
+# correction to v4 R5):
+#   v4 R5 line 277 named Gron as "the bee-keeper between stewards" to
+#   rationalize the existing `state.pendingSavedBees` code artifact. That
+#   framing handed Gron a taxonomic home (= beekeeper), which violates
+#   round-5 principle #2 directly. The v4 R5 framing was rationalizing a
+#   whim — `pendingSavedBees` was an implementation choice, not a
+#   doctrine-derived feature. This spec rolls back the v4 R5 framing and
+#   decouples Gron from beekeeping entirely. Bees that previously
+#   "released from Gron's cloud" now simply spawn at the combine moment
+#   as the natural completion of the bee+clover ceremony. The prairie
+#   has its first bees; the steward sealed it; Gron arrives as witness.
+#   No keeping, no releasing, no inheritance.
+
+behaviors:
+  - id: manual-lore-glitched-flag
+    description: >
+      `MANUAL_LORE` entries can carry an optional `glitched?: boolean`
+      field. `ManualEntry` (the auto-built record stored in
+      `MANUAL_ENTRIES`) gains an optional `glitched?: boolean` field. The
+      five MANUAL_LORE-consuming auto-builders (`buildItemEntries`,
+      `buildRecipeEntries`, `buildCharacterEntries`,
+      `buildWorldEntityEntries`, `buildManualOnlyEntries`) propagate the
+      flag from the MANUAL_LORE record onto the built `ManualEntry`. The
+      `Control` category builder does not consult `MANUAL_LORE` and is
+      unaffected. Absence of the field is equivalent to `glitched: false`
+      everywhere it is read.
+    inputs:
+      - 'MANUAL_LORE[key].glitched present (boolean) or absent'
+      - 'auto-builder runs at module load'
+    outputs:
+      - 'MANUAL_ENTRIES[key].glitched is the same boolean (or undefined when absent in MANUAL_LORE)'
+    state_changes:
+      - field: 'ManualEntry shape'
+        effect: 'gains optional glitched?: boolean'
+      - field: 'MANUAL_LORE record value shape'
+        effect: 'gains optional glitched?: boolean'
+    determinism: deterministic
+
+  - id: manual-panel-glitched-renderer
+    description: >
+      `ManualPanel.tsx` extends the lore-body render branch (currently
+      the `{entry.category === ManualCategory.Egregore ? <EgregoreLore /> :
+      entry.lore}` ternary) to route entries with `glitched === true`
+      through a new local `GlitchedLore` component that wraps `entry.lore`
+      in a `<span style={{ fontFamily: "'Voynich', monospace" }}>` — the
+      same typeface family `EgregoreLore` uses. The header (glyph + name)
+      and surrounding chrome render unchanged; only the lore body
+      switches to Voynich. Routing precedence: Egregore category first
+      (existing per-tile half-Voynich Latin-pierce rendering), then
+      glitched, then default.
+    inputs:
+      - 'ManualEntry passed to EntryCard with glitched === true'
+      - 'entry.category !== ManualCategory.Egregore'
+    outputs:
+      - 'lore body renders inside a Voynich-typeface span'
+    state_changes:
+      - field: 'ManualPanel render output'
+        effect: 'new GlitchedLore branch fires when entry.glitched is true and category is not Egregore'
+    determinism: deterministic
+
+  - id: gron-manual-entry-glitched
+    description: >
+      `MANUAL_LORE['character:gron']` is `{ lore: 'The manual does not
+      know.', glitched: true }`. The previously authored rain-curse line
+      ("A rain curse follows this immortal codger around rendering his
+      coarse cloak both damp and smelly.") is removed — it violated round-5
+      principles by declaring Gron immortal, classifying him as a codger,
+      explaining the rain as a curse, and editorializing in an
+      authoritative register about an unknowable figure (per v4 R5 line
+      339). The new body uses the round-5 doctrine phrase verbatim — the
+      manual literally says what the doctrine says. As a consequence of
+      `manual-lore-glitched-flag`, the auto-built
+      `MANUAL_ENTRIES['character:gron']` carries both fields. As a
+      consequence of `manual-panel-glitched-renderer`, the manual renders
+      the body in the Voynich typeface; the player sees garbled glyphs.
+    inputs:
+      - 'MANUAL_LORE definition at module load'
+    outputs:
+      - "MANUAL_ENTRIES['character:gron'].lore === 'The manual does not know.'"
+      - "MANUAL_ENTRIES['character:gron'].glitched === true"
+    state_changes:
+      - field: "MANUAL_LORE['character:gron']"
+        effect: 'lore replaced with the round-5 doctrine phrase; glitched flag set to true'
+    determinism: deterministic
+
+  - id: gron-dialog-revised-lines
+    description: >
+      The five Gron dialog constants in `src/engine/characters.ts` carry
+      revised round-5-conforming line values. Each value is a literal
+      string array — the runtime dispatcher `getGronDialog` and its
+      phase-switch are unchanged. Concretely:
+        GRON_DIALOG_AWAITING_COYOTE = ['...', 'A steward.', 'A steward goes to the ruins.']
+        GRON_DIALOG_GATHERING       = ['A clover and a bee.']
+        GRON_DIALOG_COMBINING       = ['A clover. A bee.', 'Now.']
+        GRON_DIALOG_SEALED          = ['A steward.']
+        GRON_DIALOG_SOLSTICE_SUMMONS unchanged (still ['TODO: solstice summons dialog'])
+      Total line count drops from 9 to 7 across the four older constants
+      (the v4 R5 target was 6; the second beat in COMBINING is an
+      intentional retention). Lines collectively satisfy: no contractions,
+      no rhetorical questions, no editorial-affect words (`Oh`, `Ahhh`,
+      `Well`, `Worrisome`, `indeed`), no direct address by title,
+      indefinite articles throughout (`A steward`, `A clover`, `A bee`).
+      The static fallback `CHARACTER_DEFINITIONS.gron.dialog` (used by
+      callers that bypass `getCharacterDialog`) is reset to
+      `['...', 'A steward.']` to match the awaiting-coyote opener
+      without re-encoding the full line set.
+    inputs:
+      - 'characters.ts module loads at runtime'
+      - "getCharacterDialog(state, 'gron') called with each MainQuestPhase value"
+    outputs:
+      - "awaiting-coyote: ['...', 'A steward.', 'A steward goes to the ruins.']"
+      - "gathering + one of bee/clover: ['A clover and a bee.']"
+      - "gathering + both: ['A clover. A bee.', 'Now.']"
+      - "sealed: ['A steward.']"
+      - "static CHARACTER_DEFINITIONS.gron.dialog: ['...', 'A steward.']"
+    state_changes:
+      - field: 'GRON_DIALOG_* constants'
+        effect: 'four constants rewritten to round-5 line shapes; solstice constant unchanged'
+      - field: 'CHARACTER_DEFINITIONS.gron.dialog'
+        effect: 'static fallback rewritten to match'
+    determinism: deterministic
+
+  - id: gron-not-beekeeper-bees-spawn-at-combine
+    description: >
+      Gron is decoupled from beekeeping. The bee+clover combine spawns up
+      to 3 bees in the 3x3 around the player at combine-time, not at
+      Gron-dialog-close. The existing `releaseSavedBees` helper in
+      `src/engine/interaction.ts` (the function that picks up-to-3 tiles
+      preferring clover, falling back to walkable dirt) is preserved and
+      its call site moves: it now fires from inside `triggerStewardSeal`
+      (after Gron's teleport and dialog open, before the function
+      returns), not from `advanceDialog` on Gron's dialog close. The
+      `state.pendingSavedBees: boolean` field is removed from `GameState`
+      entirely (types.ts, state.ts initialization, EXPECTED_FIELDS in
+      schema.test.ts). The `if (characterId === 'gron' && state.pendingSavedBees)`
+      block in `advanceDialog` is deleted. Gron still teleports at the
+      seal moment — he arrives as witness, not as deliverer of bees. The
+      bees are the prairie's (per v9 R1's egregore-via-Gron framing,
+      Gron is "of the patch", not its keeper).
+    inputs:
+      - 'Successful bee+clover combine on the overworld'
+      - 'mainQuestPhase !== Sealed at the moment of combine'
+    outputs:
+      - 'state.mainQuestPhase === Sealed after combine'
+      - 'Gron teleported adjacent to player'
+      - "state.activeDialog opened with characterId 'gron'"
+      - 'up to 3 bee entities spawned in the 3x3 around the player'
+      - "'event:steward-sealed' recorded in manualDiscoveries"
+    state_changes:
+      - field: 'GameState shape'
+        effect: 'pendingSavedBees field removed'
+      - field: 'world (bee entities)'
+        effect: 'up to 3 bee entities created via spawnBeeOrMonarch at the combine moment'
+      - field: 'EXPECTED_FIELDS'
+        effect: 'pendingSavedBees removed from the allowlist'
+    determinism: probabilistic
+
+edge_cases:
+  - id: glitched-on-egregore-entry
+    description: >
+      A hypothetical future `MANUAL_LORE[key]` entry where the built
+      entry has category `Egregore` AND `glitched: true`. (No such entry
+      ships in this PR — Egregore entries are dynamically generated and
+      do not flow through MANUAL_LORE — but the renderer must remain
+      well-defined.)
+    expected: >
+      `EgregoreLore` wins per the precedence rule documented in
+      `manual-panel-glitched-renderer`. The glitched flag is ignored at
+      the renderer level. No crash.
+
+  - id: glitched-without-matching-manual-lore-entry
+    description: >
+      A character / item / event for which `MANUAL_LORE[key]` is absent.
+      The auto-builders fall through to the existing `loreData?.lore ??
+      def.name` default for the lore body.
+    expected: >
+      `glitched` defaults to undefined (falsy) on the built entry. The
+      renderer falls through to the default lore-body branch. No crash.
+
+  - id: bees-spawn-no-clover-in-radius
+    description: >
+      Bee+clover combine fires on a tile where the surrounding 3x3 has
+      no clover (e.g. player just planted the bee on the only clover
+      tile, or playing in a sparse-clover zone). The existing
+      `releaseSavedBees` fallback path applies.
+    expected: >
+      Bees spawn on any walkable, non-water tiles in the 3x3 radius,
+      preferring clover when available. Spawn count ≤ 3, ≥ 0. No crash.
+
+  - id: bees-spawn-no-walkable-tiles
+    description: >
+      Pathological case: the 3x3 around the player has zero walkable
+      tiles (only possible if the player is surrounded by water or
+      unwalkable terrain — extremely unlikely since the player just
+      stood there to combine).
+    expected: >
+      Zero bees spawn. No crash. The seal still completes (Gron
+      teleports, dialog opens, mainQuestPhase flips).
+
+  - id: combine-fires-off-overworld
+    description: >
+      Bee+clover combine succeeds in the cave or inside a ruin (not
+      Zone.Overworld). The existing `triggerStewardSeal` early-return
+      gates on `state.currentZone !== Zone.Overworld`.
+    expected: >
+      `triggerStewardSeal` early-returns. No teleport, no dialog, no
+      bees spawn, no mainQuestPhase flip. The next overworld combine
+      fires the full sequence.
+
+failure_conditions:
+  - trigger: >
+      `MANUAL_LORE['character:gron']` is removed from the record entirely
+      (e.g. a future refactor mass-strips placeholder TODO entries).
+    expected: >
+      `buildCharacterEntries` falls back to `def.name` for the lore body
+      and `glitched` is undefined. The Gron manual entry renders its
+      lore body as the literal string 'Gron' in the default typeface.
+      No crash. The `gron-manual-entry-glitched` test assertion fails at
+      CI time, surfacing the regression.
+
+  - trigger: >
+      A future change to `getGronDialog` deletes one of the four
+      constants `GRON_DIALOG_AWAITING_COYOTE`, `GRON_DIALOG_GATHERING`,
+      `GRON_DIALOG_COMBINING`, or `GRON_DIALOG_SEALED`.
+    expected: >
+      TypeScript catches the deletion at compile time when the
+      dispatcher references the missing constant. The
+      `gron-dialog-revised-lines` test fails its assertion that all
+      five constants exist with the expected shape. No silent regression.
+
+  - trigger: >
+      A future caller of `triggerStewardSeal` skips passing through
+      `executeCombine` / `combineFromBackpack` (e.g. a debug shortcut).
+    expected: >
+      The seal still completes (Gron teleports, mainQuestPhase flips,
+      dialog opens). Bees still spawn from inside `triggerStewardSeal`'s
+      body because the spawn call lives there, not at the combine
+      site's call frame. The bee-spawn is a property of the seal, not
+      of the combine call site.
+
+verification:
+  test_file: src/engine/__tests__/RP-21-gron-doctrine.test.ts
+  test_pattern: '^RP-21 — gron doctrine pass$'
+  command: 'npx vitest run src/engine/__tests__/RP-21-gron-doctrine.test.ts'

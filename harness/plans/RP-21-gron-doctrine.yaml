@@ -1,0 +1,323 @@
+plan:
+  id: RP-21-gron-doctrine
+  title: 'RP-21 gron doctrine pass — glitched-lore plumbing, ManualPanel renderer route, revised dialog lines, manual entry rewrite, decouple Gron from beekeeping'
+  created: 2026-05-27
+  # Cross-cutting: engine manual.ts (type + auto-builders), components
+  # ManualPanel.tsx (new GlitchedLore branch), engine characters.ts
+  # (constant rewrites + doctrine comment), engine interaction.ts
+  # (move releaseSavedBees call), engine types.ts / state.ts / schema
+  # test (remove pendingSavedBees field), and three regression test
+  # updates. Amends main-questline-foundation.yaml in place.
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  # --- Tier 0: Doctrine + docs status ---
+
+  - id: doctrine-status-update
+    title: >
+      Under the RP-21 entry in docs/backlog.yaml, populate the `spec:` and
+      `plan:` fields with `harness/specs/RP-21-gron-doctrine.yaml` and
+      `harness/plans/RP-21-gron-doctrine.yaml` respectively. Status is
+      already `in-progress` from /churn. Append a paragraph to RP-21's
+      `notes:` block recording: (a) the scope expansion to include the
+      beekeeper-decoupling, (b) the no-CONTROLLABLE_IDS-code-change
+      decision (referent doesn't exist), (c) the no-RP-17-bees-plural-strike
+      decision (separate maintain pass), and (d) the rationale for
+      decoupling — the v4 R5 "Gron is the bee-keeper between stewards"
+      framing was rationalizing the `pendingSavedBees` code whim and
+      handed Gron a taxonomic home that violated round-5 principle #2.
+    spec_id: RP-21-gron-doctrine
+    spec_sections: []
+    context_files:
+      - docs/backlog.yaml
+    output_files:
+      - docs/backlog.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Engine type plumbing for glitched flag ---
+
+  - id: add-glitched-to-manual-types
+    title: >
+      In src/engine/manual.ts, extend the `ManualEntry` interface and the
+      `MANUAL_LORE` record value type with an optional `glitched?: boolean`
+      field. Update all five MANUAL_LORE-consuming auto-builders
+      (`buildItemEntries`, `buildRecipeEntries`, `buildCharacterEntries`,
+      `buildWorldEntityEntries`, `buildManualOnlyEntries`) to propagate
+      the flag from the looked-up MANUAL_LORE record onto the built
+      entry. Add a small helper `getGlitched(key: string): boolean | undefined`
+      mirroring the existing `getLore` / `getHints` helpers for
+      `buildManualOnlyEntries`.
+    spec_id: RP-21-gron-doctrine
+    spec_sections:
+      - manual-lore-glitched-flag
+    context_files:
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 2: Manual entry rewrite ---
+
+  - id: rewrite-gron-manual-lore
+    title: >
+      In src/engine/manual.ts, change `MANUAL_LORE['character:gron']`
+      from `{ lore: 'A rain curse follows this immortal codger around
+      rendering his coarse cloak both damp and smelly.' }` to
+      `{ lore: 'The manual does not know.', glitched: true }`. Add an
+      inline comment naming RP-21 and the v4 R5 / v6 R5 doctrine
+      reference. No other MANUAL_LORE entries change.
+    spec_id: RP-21-gron-doctrine
+    spec_sections:
+      - gron-manual-entry-glitched
+    context_files:
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - add-glitched-to-manual-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 3: ManualPanel renderer ---
+
+  - id: add-glitched-renderer-to-manual-panel
+    title: >
+      In src/components/ManualPanel.tsx, add a new local component
+      `GlitchedLore` near the existing `EgregoreLore` component:
+      `const GlitchedLore = ({ entry }: { entry: ManualEntry }) => (
+        <span style={{ fontFamily: "'Voynich', monospace" }}>{entry.lore}</span>
+      )`.
+      Update the lore-body render branch from
+      `{entry.category === ManualCategory.Egregore ? <EgregoreLore entry={entry} /> : entry.lore}`
+      to
+      `{entry.category === ManualCategory.Egregore ? <EgregoreLore entry={entry} /> : entry.glitched ? <GlitchedLore entry={entry} /> : entry.lore}`.
+      No other rendering changes. Egregore precedence is preserved.
+    spec_id: RP-21-gron-doctrine
+    spec_sections:
+      - manual-panel-glitched-renderer
+    context_files:
+      - src/components/ManualPanel.tsx
+      - src/engine/manual.ts
+    output_files:
+      - src/components/ManualPanel.tsx
+    depends_on:
+      - add-glitched-to-manual-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - component
+
+  # --- Tier 4: Dialog constant rewrite ---
+
+  - id: rewrite-gron-dialog-constants
+    title: >
+      In src/engine/characters.ts, the round-5 doctrine header comment
+      block above the four older dialog constants is already in place
+      (added during /change-request requirements gathering — see the
+      worktree diff for `src/engine/characters.ts`). Rewrite the four
+      constants to their revised round-5 line values:
+        GRON_DIALOG_AWAITING_COYOTE = ['...', 'A steward.', 'A steward goes to the ruins.']
+        GRON_DIALOG_GATHERING       = ['A clover and a bee.']
+        GRON_DIALOG_COMBINING       = ['A clover. A bee.', 'Now.']
+        GRON_DIALOG_SEALED          = ['A steward.']
+      `GRON_DIALOG_SOLSTICE_SUMMONS` is unchanged. Also rewrite the
+      static fallback `CHARACTER_DEFINITIONS.gron.dialog` from
+      `['...', 'Oh, you must be the new steward.']` to
+      `['...', 'A steward.']` and update its inline comment to match.
+      The runtime dispatcher `getGronDialog` and its switch statement
+      are unchanged.
+    spec_id: RP-21-gron-doctrine
+    spec_sections:
+      - gron-dialog-revised-lines
+    context_files:
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/characters.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 5: Beekeeper decoupling ---
+
+  - id: remove-pendingSavedBees-from-gamestate
+    title: >
+      Remove the `pendingSavedBees: boolean` field from `GameState` in
+      src/engine/types.ts. Remove the `pendingSavedBees: false`
+      initialization line from `createGameState` in src/engine/state.ts.
+      Remove the `'pendingSavedBees'` string from `EXPECTED_FIELDS` in
+      src/harness/__tests__/serialization/schema.test.ts.
+    spec_id: RP-21-gron-doctrine
+    spec_sections:
+      - gron-not-beekeeper-bees-spawn-at-combine
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: move-bee-spawn-to-triggerStewardSeal
+    title: >
+      In src/engine/interaction.ts, remove the `pendingSavedBees` block
+      from `advanceDialog` (the `if (characterId === 'gron' &&
+      state.pendingSavedBees) { releaseSavedBees(state);
+      state.pendingSavedBees = false }` lines). Inside
+      `triggerStewardSeal`, after the Gron teleport / dialog open path
+      but before the function returns, add an unconditional call to
+      `releaseSavedBees(state)`. Remove the `state.pendingSavedBees = true`
+      line from `triggerStewardSeal`. The `releaseSavedBees` helper
+      itself (its clover-preferring tile selection, the 3-bee upper
+      bound, the fallback to walkable dirt) is preserved verbatim — only
+      its call site moves.
+    spec_id: RP-21-gron-doctrine
+    spec_sections:
+      - gron-not-beekeeper-bees-spawn-at-combine
+    context_files:
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on:
+      - remove-pendingSavedBees-from-gamestate
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 6: Regression test fixups ---
+
+  - id: update-gron-gift-test
+    title: >
+      In src/engine/__tests__/gron-gift.test.ts, update assertions to
+      match the new dialog lines:
+      (1) `def.dialog[1]` no longer contains `'new steward'` — it is now
+          `'A steward.'`. Replace the assertion accordingly.
+      (2) The runtime `awaiting-coyote` dispatch now returns
+          `['...', 'A steward.', 'A steward goes to the ruins.']`. Replace
+          the `contains 'What is a steward without their coyote?'`
+          assertion (drop it; the line no longer exists) and update any
+          line-count or content shape checks.
+      Surrounding describe / it labels that reference "5-line opener"
+      need their wording updated (the opener is 3 lines now). The test
+      still asserts dispatcher routing by `MainQuestPhase.AwaitingCoyote`.
+    spec_id: RP-21-gron-doctrine
+    spec_sections:
+      - gron-dialog-revised-lines
+    context_files:
+      - src/engine/__tests__/gron-gift.test.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/__tests__/gron-gift.test.ts
+    depends_on:
+      - rewrite-gron-dialog-constants
+    verification:
+      - npx vitest run src/engine/__tests__/gron-gift.test.ts
+    repair: retry
+    tags:
+      - test
+
+  - id: update-main-questline-test
+    title: >
+      In src/engine/__tests__/main-questline.test.ts, rework the bee-
+      spawn assertions to match the new combine-time semantics:
+      (1) The `'flips pendingSavedBees on seal'` test (line ~294) is
+          deleted — the field no longer exists.
+      (2) The `'spawns 3 bees when Gron dialog closes with pendingSavedBees=true'`
+          test (line ~377) is rewritten as `'spawns up to 3 bees at the
+          combine moment as part of triggerStewardSeal'`. The test sets
+          up bee+clover in backpack, fires the combine, and asserts bee
+          entities exist before any dialog is closed.
+      (3) Other tests setting `state.pendingSavedBees = true` (lines
+          ~398, ~410, ~434) are deleted or rewritten to assert their
+          actual concern (e.g. closing a non-Gron dialog should still
+          be a no-op for bee spawning — but this property is trivial
+          now that the flag is gone, so the test can be deleted).
+      (4) Dialog-content assertions that reference the old line shapes
+          ("new steward", "what are you waiting for", "Ahhh, yes")
+          need updating to the new shapes.
+    spec_id: RP-21-gron-doctrine
+    spec_sections:
+      - gron-dialog-revised-lines
+      - gron-not-beekeeper-bees-spawn-at-combine
+    context_files:
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/interaction.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/__tests__/main-questline.test.ts
+    depends_on:
+      - move-bee-spawn-to-triggerStewardSeal
+      - rewrite-gron-dialog-constants
+    verification:
+      - npx vitest run src/engine/__tests__/main-questline.test.ts
+    repair: retry
+    tags:
+      - test
+
+  # --- Tier 7: Spec-coverage test ---
+
+  - id: finalize-RP-21-test-coverage
+    title: >
+      Rewrite src/engine/__tests__/RP-21-gron-doctrine.test.ts to assert
+      the five behaviors in the RP-21 spec: (1) `manual-lore-glitched-flag`
+      shape, (2) `manual-panel-glitched-renderer` covered via the manual
+      entry's `.glitched === true`, (3) `gron-manual-entry-glitched`
+      lore body equals the doctrine line, (4) `gron-dialog-revised-lines`
+      asserts the four constants' new shapes through the dispatcher,
+      (5) `gron-not-beekeeper-bees-spawn-at-combine` asserts bees spawn
+      synchronously inside `triggerStewardSeal` (not deferred).
+    spec_id: RP-21-gron-doctrine
+    spec_sections:
+      - manual-lore-glitched-flag
+      - manual-panel-glitched-renderer
+      - gron-manual-entry-glitched
+      - gron-dialog-revised-lines
+      - gron-not-beekeeper-bees-spawn-at-combine
+    context_files:
+      - src/engine/__tests__/RP-21-gron-doctrine.test.ts
+      - src/engine/manual.ts
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/__tests__/RP-21-gron-doctrine.test.ts
+    depends_on:
+      - rewrite-gron-manual-lore
+      - add-glitched-renderer-to-manual-panel
+      - rewrite-gron-dialog-constants
+      - move-bee-spawn-to-triggerStewardSeal
+    verification:
+      - npx vitest run src/engine/__tests__/RP-21-gron-doctrine.test.ts
+    repair: retry
+    tags:
+      - test

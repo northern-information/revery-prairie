@@ -126,6 +126,16 @@ const EgregoreLore = ({ entry }: { entry: ManualEntry }) => {
   )
 }
 
+/**
+ * RP-21 — renders a glitched manual entry's lore body in the Voynich
+ * typeface. Used for entries that carry `glitched: true` on their
+ * MANUAL_LORE record (currently `character:gron`). The header (glyph +
+ * name) renders normally; only the body switches.
+ */
+const GlitchedLore = ({ entry }: { entry: ManualEntry }) => (
+  <span style={{ fontFamily: "'Voynich', monospace" }}>{entry.lore}</span>
+)
+
 // Map a 'flora:<species>' entry id to the FloraSpecies key. Returns null
 // for non-flora entries. The species id segment matches the FloraSpecies
 // const values ('clover', 'wildflower', 'tallGrass').
@@ -222,7 +232,13 @@ const EntryCard = ({
           in the standard font as the spec requires. */}
       {(!isRecipe || discovered || manualState.revealedHints.has(recipeResultKey)) && (
         <div className="text-dim mt-1 text-xs whitespace-pre-line">
-          {entry.category === ManualCategory.Egregore ? <EgregoreLore entry={entry} /> : entry.lore}
+          {entry.category === ManualCategory.Egregore ? (
+            <EgregoreLore entry={entry} />
+          ) : entry.glitched ? (
+            <GlitchedLore entry={entry} />
+          ) : (
+            entry.lore
+          )}
         </div>
       )}
 
