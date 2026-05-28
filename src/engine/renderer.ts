@@ -1597,16 +1597,27 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // visible frame; the snapshot freezes naturally when writes stop.
       if (tileVis === 'visible' && floraMemory) {
         const resolvedType = map[my]?.[mx]?.type
-        // Only snapshot when the tile actually resolved to its flora/egregore
-        // glyph — not when a current-action overlay (preview, path, trail,
-        // growth-preview blink) painted over it. Otherwise the overlay glyph
-        // would be frozen into memory and shown after the overlay is gone.
+        // Only snapshot when the tile actually rendered its OWN flora/egregore
+        // glyph this frame. Exclude:
+        //  - isEntity: a live creature or static landmark (bee, ghost, coyote,
+        //    oak, beehive, ground item) resolved char/color to ITS glyph, not
+        //    the flora's — freezing that would put a creature/landmark into
+        //    flora memory and re-leak it through the fog (the bug we fix).
+        //  - the player's own tile: char is PLAYER_CHAR, not the flora.
+        //  - current-action overlays (preview, path, trail, growth-preview
+        //    blink) that painted over the flora glyph.
         const overlaid =
           previewMap.has(tileKey) ||
           pathPositions.has(tileKey) ||
           trailMap.has(tileKey) ||
           hasAnyGrowthPreview(state, tileKey)
-        if (!overlaid && (resolvedType === TileType.Flora || resolvedType === TileType.Egregore)) {
+        const isPlayerTile = mx === player.x && my === player.y
+        if (
+          !isEntity &&
+          !isPlayerTile &&
+          !overlaid &&
+          (resolvedType === TileType.Flora || resolvedType === TileType.Egregore)
+        ) {
           floraMemory.set(tileKey, { char, color })
         }
       }
