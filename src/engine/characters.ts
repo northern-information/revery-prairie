@@ -113,6 +113,30 @@ export const removeCharacterDefinition = (id: string): void => {
   Reflect.deleteProperty(CHARACTER_DEFINITIONS, id)
 }
 
+// RP-21 — Gron round-5 doctrine. Register locked in
+// docs/backlog-thinktank-v4.md round 5 (lines 267-367) and reaffirmed
+// in docs/backlog-thinktank-v6.md round 5 (lines 220-261). The six
+// design principles:
+//   1. Irreducibility — no origin story, no canonical explanation.
+//   2. No taxonomic home — Gron belongs to no system.
+//   3. No opinion of the steward — pragmatic, not kind. No hidden
+//      affection / trust / reputation counter.
+//   4. Oblique dialog — short lines, multiple readings. Statements,
+//      not questions or commands. No editorial words. No direct
+//      address by title. No contractions (Gron's speech predates
+//      American English casual). Indefinite articles where possible
+//      (a steward, not the steward — the lineage is plural).
+//   5. Music precedes arrival — the cloud is heard before it is seen.
+//   6. The manual entry says the manual does not know (handled in
+//      MANUAL_LORE['character:gron'] via the `glitched: true` flag,
+//      not here).
+//
+// The four constants below are still in their pre-doctrine state.
+// v4 R5 lines 302-329 contain the line-by-line critique. The room
+// landed concrete replacements only for GRON_DIALOG_COMBINING; the
+// other three are diagnosed but left for human authoring. Per project
+// memory rule (feedback_manual_lore_only), all replacement lines are
+// human-authored only.
 const GRON_DIALOG_AWAITING_COYOTE: string[] = [
   '...',
   'Oh, you must be the new steward.',

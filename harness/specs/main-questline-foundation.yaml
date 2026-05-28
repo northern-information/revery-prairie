@@ -23,25 +23,25 @@ dependencies:
 behaviors:
   - id: quest-phase-state-model
     description: >
-      GameState gains mainQuestPhase, ruinGenerationMode, and
-      pendingSavedBees fields with defined initial values.
-      mainQuestPhase initializes to 'awaiting-coyote';
-      ruinGenerationMode initializes to 'starter'; pendingSavedBees
-      initializes to false. CivilizationRuin gains an optional role
-      field typed as 'clover' | 'bee' | 'coyote'.
+      GameState gains mainQuestPhase and ruinGenerationMode fields with
+      defined initial values. mainQuestPhase initializes to
+      'awaiting-coyote'; ruinGenerationMode initializes to 'starter'.
+      CivilizationRuin gains an optional role field typed as
+      'clover' | 'bee' | 'coyote'. RP-21 removed the `pendingSavedBees`
+      field — the bee+clover combine now spawns bees directly at the
+      combine site rather than gating on Gron's dialog close, per the
+      round-5 doctrine decoupling of Gron from beekeeping (see
+      RP-21-gron-doctrine spec, behavior `gron-not-beekeeper-bees-spawn-at-combine`).
     inputs:
       - 'createGameState called (genesis result present or absent)'
     outputs:
       - 'state.mainQuestPhase === "awaiting-coyote"'
       - 'state.ruinGenerationMode === "starter"'
-      - 'state.pendingSavedBees === false'
     state_changes:
       - field: mainQuestPhase
         effect: 'initialized to "awaiting-coyote"'
       - field: ruinGenerationMode
         effect: 'initialized to "starter"'
-      - field: pendingSavedBees
-        effect: 'initialized to false'
     determinism: deterministic
 
   - id: starter-ruin-generation
@@ -163,41 +163,43 @@ behaviors:
   - id: gron-dialog-phase-dispatch
     description: >
       getCharacterDialog('gron', state) returns dialog lines keyed to
-      mainQuestPhase. 'awaiting-coyote' returns the 5-line introductory
-      set about the missing coyote. 'gathering' with bee OR clover (not
-      both) returns the one-clover-one-bee hint line. 'gathering' with
-      both bee AND clover returns the impatient "what are you waiting
-      for" line. 'sealed' returns the acknowledgement line. Gron's
-      gift, postGiftDialog, and postGift fields are removed from
-      CHARACTER_DEFINITIONS.
+      mainQuestPhase. The exact line values are owned by the
+      RP-21-gron-doctrine spec (behavior `gron-dialog-revised-lines`),
+      which carries the v4 R5 register doctrine. This behavior asserts
+      only the dispatch shape — which constant the dispatcher returns
+      for each phase, not the content of the constant. The dispatcher
+      itself (the switch in `getGronDialog`) is the surface this
+      behavior locks. Gron's gift, postGiftDialog, and postGift fields
+      are removed from CHARACTER_DEFINITIONS.
     inputs:
       - 'state.mainQuestPhase === "awaiting-coyote"'
       - 'state.mainQuestPhase === "gathering" and backpack has bee XOR clover'
       - 'state.mainQuestPhase === "gathering" and backpack has both bee AND clover'
       - 'state.mainQuestPhase === "sealed"'
     outputs:
-      - 'awaiting-coyote: ["...", "Oh, you must be the new steward.", "Coyote hasn''t returned from the ruins in some time...", "Worrisome.", "What is a steward without their coyote?"]'
-      - 'gathering + one of bee/clover: ["It takes one clover and one bee."]'
-      - 'gathering + both: ["Well what are you waiting for, steward? One clover and one bee."]'
-      - 'sealed: ["Ahhh, yes. You are indeed the steward.", "Here, I''ve been saving these."]'
+      - 'awaiting-coyote: returns GRON_DIALOG_AWAITING_COYOTE'
+      - 'gathering + one of bee/clover: returns GRON_DIALOG_GATHERING'
+      - 'gathering + both: returns GRON_DIALOG_COMBINING'
+      - 'sealed: returns GRON_DIALOG_SEALED'
     state_changes: []
     determinism: deterministic
 
   - id: combine-seal-overworld
     description: >
       After a successful bee+clover combine, if state.currentZone is
-      Zone.Overworld and mainQuestPhase is not 'sealed', Gron teleports
-      to a tile adjacent to the player, mainQuestPhase flips to
-      'sealed', Gron's dialog opens automatically, recordDiscovery is
-      called with 'event:steward-sealed', and pendingSavedBees flips to
-      true so the post-dialog bee release can fire when the player
-      closes Gron's dialog. When Gron's teleport actually moves him to
-      a new tile, a screen flash fires by setting state.angelFlashTime
-      to the current time — the same field and render pass used by
-      angel spawn/despawn. The field is shared across narrative-beat
-      flashes; the render pass is timestamp-driven and renders
-      whichever beat set it most recently. The flash does not fire if
-      no walkable adjacent tile is available and Gron does not move.
+      Zone.Overworld and mainQuestPhase is not 'sealed', the seal
+      sequence fires from inside `triggerStewardSeal`: Gron teleports to
+      a tile adjacent to the player; mainQuestPhase flips to 'sealed';
+      Gron's dialog opens automatically; recordDiscovery is called with
+      'event:steward-sealed'; and up to 3 bees spawn in the 3x3 radius
+      around the player via `releaseSavedBees`. The bee-spawn is part
+      of `triggerStewardSeal`'s body, not a deferred consequence of
+      closing Gron's dialog (RP-21 decoupled Gron from beekeeping; the
+      bees are the prairie's, not Gron's). When Gron's teleport actually
+      moves him to a new tile, a screen flash fires by setting
+      state.angelFlashTime to the current time — the same field and
+      render pass used by angel spawn/despawn. The flash does not fire
+      if no walkable adjacent tile is available and Gron does not move.
     inputs:
       - 'Bee+clover combine succeeds'
       - 'state.currentZone === Zone.Overworld'
@@ -207,7 +209,7 @@ behaviors:
       - 'Gron position is adjacent to player'
       - 'Gron dialog opens automatically'
       - '"event:steward-sealed" in state.manualDiscoveries'
-      - 'state.pendingSavedBees === true'
+      - 'up to 3 bee entities spawned in the 3x3 around the player'
       - 'state.angelFlashTime === current time (screen flash visible for the configured duration)'
     state_changes:
       - field: mainQuestPhase
@@ -218,37 +220,10 @@ behaviors:
         effect: 'set to Gron dialog (opens automatically)'
       - field: manualDiscoveries
         effect: '"event:steward-sealed" added via recordDiscovery'
-      - field: pendingSavedBees
-        effect: 'flips to true'
+      - field: 'world (bee entities)'
+        effect: 'up to 3 bee entities created via spawnBeeOrMonarch at the combine moment'
       - field: angelFlashTime
         effect: 'set to the time passed to triggerStewardSeal when Gron teleports to a new tile'
-    determinism: deterministic
-
-  - id: gron-saving-bees-release
-    description: >
-      When Gron's dialog finishes closing (advanceDialog returns
-      continuing=false) and state.pendingSavedBees is true, 3 bees
-      spawn on random clover tiles within a 3x3 radius around the
-      player. If fewer than 3 clover tiles are available in that
-      radius, spawn as many as possible and fall back to walkable
-      dirt tiles in the same radius for the remainder. A pickupBloom
-      is NOT spawned (the player is not acquiring the bees). The
-      pendingSavedBees flag clears regardless of how many bees
-      actually spawned, so the beat fires exactly once. The release
-      is gated on the closing dialog belonging to Gron — closing any
-      other character's dialog must not consume the flag.
-    inputs:
-      - "advanceDialog completes Gron's dialog (returns continuing=false)"
-      - 'state.pendingSavedBees === true at the moment dialog closes'
-    outputs:
-      - 'up to 3 new bee entities exist on the map'
-      - 'spawned bees prefer clover tiles in a 3x3 radius around the player'
-      - 'state.pendingSavedBees === false after release'
-    state_changes:
-      - field: 'world (bee entities)'
-        effect: '3 bee entities created via spawnBeeOrMonarch (or fewer if no valid tiles in radius)'
-      - field: pendingSavedBees
-        effect: 'flips to false'
     determinism: probabilistic
 
   - id: manual-entries-for-quest-events
@@ -344,49 +319,46 @@ edge_cases:
       Vault activates. Coyote mode and mainQuestPhase unchanged.
       No toast, no bloom, no duplicate discovery.
 
-  - id: saving-bees-target-count-bounds
+  - id: combine-bees-target-count-bounds
     description: >
-      The number of bees actually spawned by gron-saving-bees-release
-      is bounded by the supply of valid tiles in the 3x3 radius
-      around the player. Upper bound: 3. Lower bound: 0 (only if no
-      walkable tiles exist in the radius — pathologically rare since
-      the player just stood there to combine).
+      The number of bees spawned by the combine-seal sequence is
+      bounded by the supply of valid tiles in the 3x3 radius around
+      the player. Upper bound: 3. Lower bound: 0 (only if no walkable
+      tiles exist in the radius — pathologically rare since the player
+      just stood there to combine).
     expected: >
       Tests assert: when all 9 tiles in the radius are clover and
-      walkable, exactly 3 bees spawn (upper bound of the range).
-      When 0 walkable tiles exist in the radius, 0 bees spawn
-      (lower bound) and the call does not throw. Random tile
-      selection within the candidate set is unconstrained.
+      walkable, exactly 3 bees spawn. When 0 walkable tiles exist,
+      0 bees spawn and the call does not throw. Random tile selection
+      within the candidate set is unconstrained.
 
-  - id: saving-bees-no-clover-in-radius
+  - id: combine-bees-no-clover-in-radius
     description: >
-      Gron's dialog closes with pendingSavedBees=true, but the
-      combine recipe ended up planting no clover in the 3x3 around
-      the player (player standing on caveFloor, or every tile in
-      the radius is non-walkable/water). The release must fall back
-      to any walkable tile in the radius rather than throw.
+      The combine fires on a tile where the surrounding 3x3 has no
+      clover (e.g. the player just planted the bee on the only clover
+      tile, or every tile in the radius is non-walkable/water). The
+      bee-spawn must fall back to any walkable tile in the radius
+      rather than throw.
     expected: >
-      Spawns as many bees as possible (0-3) on any walkable tiles
-      in the 3x3 radius. pendingSavedBees still flips to false.
-      No crash.
+      Spawns as many bees as possible (0-3) on any walkable tiles in
+      the 3x3 radius, preferring clover when available. No crash. The
+      seal still completes (Gron teleports, dialog opens, mainQuestPhase
+      flips).
 
-  - id: saving-bees-other-character-dialog-closes
+  - id: combine-seal-fires-exactly-once
     description: >
-      pendingSavedBees=true is set, but the player opens and closes
-      another character's dialog (e.g. an Angel) before re-talking
-      to Gron.
+      Player completes the bee+clover combine, the seal sequence fires
+      and bees spawn. The player re-talks to Gron and closes the
+      dialog again; the player may even acquire and combine more bees
+      and clovers in subsequent moments.
     expected: >
-      Closing the other character's dialog does NOT consume the
-      flag and does NOT spawn bees. The flag still fires when Gron's
-      dialog next closes.
-
-  - id: saving-bees-fires-exactly-once
-    description: >
-      Player closes Gron's sealed dialog, the bees spawn, then the
-      player re-talks to Gron and closes the dialog again.
-    expected: >
-      Bees spawn only on the first close. The second close sees
-      pendingSavedBees=false and is a no-op for bee spawning.
+      The seal sequence (teleport, dialog auto-open, bee-spawn,
+      mainQuestPhase flip) fires exactly once — on the first overworld
+      combine when mainQuestPhase is not already 'sealed'. Subsequent
+      combines short-circuit at the `mainQuestPhase === 'sealed'`
+      guard; no additional bees spawn from the seal pathway. (Bees can
+      still spawn from other engine sources — e.g. bee+clover acquired
+      again as items — but the seal-bound spawn is a one-time beat.)
 
 failure_conditions:
   - trigger: >
@@ -420,13 +392,6 @@ failure_conditions:
     expected: >
       Function falls through gracefully and returns the 'sealed' dialog
       lines rather than throwing or returning undefined.
-
-  - trigger: >
-      advanceDialog finishes closing a non-Gron character's dialog
-      while state.pendingSavedBees === true
-    expected: >
-      The flag is not consumed. No bee entities are created. The
-      release fires only when Gron's dialog itself closes.
 
 verification:
   test_file: src/engine/__tests__/main-questline.test.ts
