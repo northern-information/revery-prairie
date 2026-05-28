@@ -32,7 +32,7 @@ const makeRuinInterior = (ruinIndex: number, w: number, h: number): RuinInterior
   cleared: false,
   dormantGarden: null,
   fogExplored: new Set<string>(),
-  fogDiscovered: new Set<string>(),
+  floraMemory: new Map(),
 })
 
 const enterRuinWithInterior = (state: GameState, interior: RuinInterior): void => {

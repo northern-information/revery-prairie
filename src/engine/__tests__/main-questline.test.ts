@@ -69,7 +69,7 @@ const installCoyoteRuin = (state: GameState): { ruinIndex: number; ruin: Civiliz
       collapseBarrier: null,
     },
     fogExplored: new Set<string>(),
-    fogDiscovered: new Set<string>(),
+    floraMemory: new Map(),
   }
   state.ruinInteriors = [interior]
   state.map[state.player.y - 1][state.player.x] = { type: TileType.RuinDoorLocked }

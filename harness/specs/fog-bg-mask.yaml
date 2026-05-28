@@ -33,8 +33,8 @@ behaviors:
       - 'state.currentZone'
       - 'hasFogOfWar(state.currentZone)'
     outputs:
-      - 'pass active only when state.currentZone is Cave or Ruin'
-      - 'no-op on overworld'
+      - 'pass active when state.currentZone is Cave, Ruin, or Overworld'
+      - 'no-op only in zones where hasFogOfWar is false'
     state_changes: []
     determinism: deterministic
 
@@ -55,18 +55,22 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: partially-discovered-tiles-dimmed
+  - id: remembered-tiles-dimmed
     description: >
-      tiles whose visibility is partiallyDiscovered ("dim memory")
-      render with the cached tile-bg dimmed to FOG_EXPLORED_BRIGHTNESS
-      (0.4). the mask achieves this by painting a black diamond at
-      alpha (1 - FOG_EXPLORED_BRIGHTNESS) = 0.6 over the cached bg,
-      which multiplies the visible RGB to 0.4 of the original — the
-      same factor that the central tile loop applies to the foreground
-      glyph at renderer.ts via dimColor(baseColor, FOG_EXPLORED_BRIGHTNESS).
+      tiles whose visibility is remembered ("dim memory") render with
+      the cached tile-bg dimmed to FOG_EXPLORED_BRIGHTNESS (0.4). the
+      mask achieves this by painting a black diamond at alpha
+      (1 - FOG_EXPLORED_BRIGHTNESS) = 0.6 over the cached bg, which
+      multiplies the visible RGB to 0.4 of the original — the same
+      factor that the central tile loop applies to the foreground glyph
+      at renderer.ts via dimColor(baseColor, FOG_EXPLORED_BRIGHTNESS).
       bg and glyph dim together; the tile reads as a single dim memory.
+      under RP-62 ("fog returns to memory") remembered is now the sole
+      memory tier — the former fullyDiscovered no-mask case is gone, so
+      every explored-but-not-currently-visible tile receives this dim
+      mask.
     inputs:
-      - 'tile visibility = partiallyDiscovered'
+      - 'tile visibility = remembered'
       - 'FOG_EXPLORED_BRIGHTNESS constant (0.4)'
     outputs:
       - 'black diamond painted at alpha 0.6 over the tile iso footprint'
@@ -74,14 +78,15 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: fully-discovered-and-visible-untouched
+  - id: visible-tiles-untouched
     description: >
-      tiles whose visibility is fullyDiscovered or visible are not
-      masked. the cached tile-bg + edge stroke composite through at
-      full saturation, and downstream passes / the central tile loop
-      paint glyphs and effects on top normally.
+      tiles whose visibility is visible are not masked. the cached
+      tile-bg + edge stroke composite through at full saturation, and
+      downstream passes / the central tile loop paint glyphs and
+      effects on top normally. there is no longer a fullyDiscovered
+      exemption — only the current gaze disc is unmasked.
     inputs:
-      - 'tile visibility = fullyDiscovered or visible'
+      - 'tile visibility = visible'
     outputs:
       - 'no mask painted; cached bg and edges remain at full color'
     state_changes: []
@@ -124,14 +129,14 @@ edge_cases:
     description: 'cave hidden-chamber tiles (caveHiddenPositions, before caveRevealed) are baked into the cache as CaveWall via existing masking. the fog mask does not need to handle them specially — fog state still applies to them like any other cave tile.'
     expected: "hidden chamber tiles render with the masked CaveWall bg; fog mask additionally hides/dims them per the player's visibility state"
   - id: cave-entrance-always-visible-bg
-    description: 'cave entrance and its 1-tile neighbors are force-added to the visible set by computeZoneVisibility, so their tiles never reach unexplored or partiallyDiscovered.'
+    description: 'cave entrance and its 1-tile neighbors are force-added to the visible set by computeZoneVisibility, so their tiles never reach unexplored or remembered.'
     expected: 'entrance tiles never receive a mask; their bg + edge always show at full saturation'
   - id: revery-illumination-shows-bg
     description: 'fire / lightning illumination tiles (state.caveFogIllumination) are unioned into the visible set per frame.'
-    expected: 'illuminated tiles render with full bg saturation during the effect; revert to partiallyDiscovered (dimmed) or fullyDiscovered (full) bg after the illumination expires per the existing fog state'
+    expected: 'illuminated tiles render with full bg saturation during the effect; revert to remembered (dimmed) bg after the illumination expires per the existing fog state'
   - id: world-overlays-on-unexplored-tiles
-    description: 'world-overlay passes (earth scan, ruin entrance halo, lightning targeting range, angel aura, prairie halo, prairie outline) may have drawn into the bg-cache region before the fog mask runs. since the mask runs after them in world-overlay, their colors are also covered for unexplored tiles and dimmed for partiallyDiscovered tiles.'
-    expected: 'unexplored tiles in fog zones never reveal world-overlay colors; partiallyDiscovered tiles show dimmed world-overlay colors consistent with the dim-memory bg'
+    description: 'world-overlay passes (earth scan, ruin entrance halo, lightning targeting range, angel aura, prairie halo, prairie outline) may have drawn into the bg-cache region before the fog mask runs. since the mask runs after them in world-overlay, their colors are also covered for unexplored tiles and dimmed for remembered tiles.'
+    expected: 'unexplored tiles in fog zones never reveal world-overlay colors; remembered tiles show dimmed world-overlay colors consistent with the dim-memory bg'
   - id: empty-fog-state
     description: 'a fog zone with empty fog sets (just entered, or fresh tenure on the prairie — applies to caveFog*, ruin interior fog*, or overworldFog*)'
     expected: 'every viewport tile except the player FOV (and entrance ring in cave/ruin) renders fully masked (BG_COLOR diamonds); on the prairie there is no entrance ring, only the FOV around the spawn'

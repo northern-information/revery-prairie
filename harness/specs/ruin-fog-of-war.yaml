@@ -19,9 +19,11 @@ behaviors:
       using the same shadowcasting algorithm as the cave. tiles outside
       the vision radius or behind walls are not visible. this reuses
       the generalized zone visibility system rather than being
-      cave-specific. the four-state visibility model
-      (unexplored / partiallyDiscovered / fullyDiscovered / visible)
-      applies identically in ruins.
+      cave-specific. the three-state visibility model
+      (unexplored / remembered / visible) applies identically in ruins
+      (RP-62 "fog returns to memory" — the old fullyDiscovered /
+      partiallyDiscovered split is collapsed into remembered, and
+      proximity promotion is removed).
     inputs:
       - 'state.currentZone is Ruin'
       - 'player position in ruin interior map'
@@ -29,14 +31,13 @@ behaviors:
     outputs:
       - 'Set<string> of currently visible tile keys computed via FOV'
       - 'unexplored tiles render as black (no char, no color)'
-      - 'partiallyDiscovered tiles render terrain at reduced brightness, entities hidden'
-      - 'fullyDiscovered tiles render terrain and live entities at full brightness even when out of LOS'
-      - 'visible tiles render normally with all entities and effects'
+      - 'remembered tiles render terrain, static landmarks, and the frozen flora snapshot at reduced brightness; live creatures and effects hidden'
+      - 'visible tiles render normally with all entities and effects at full brightness'
     state_changes:
       - field: 'RuinInterior.fogExplored'
         effect: 'union of previous explored set and current visible set — tiles never revert to unexplored'
-      - field: 'RuinInterior.fogDiscovered'
-        effect: 'union of previous discovered set and tiles within DISCOVERY_RADIUS of the player that are also in the current visible set — tiles never revert'
+      - field: 'RuinInterior.floraMemory'
+        effect: 'flora snapshot written on each visible→remembered transition for flora/egregore tiles'
     determinism: deterministic
 
   - id: ruin-wall-blocks-los
@@ -57,23 +58,24 @@ behaviors:
   - id: per-ruin-fog-state
     description: >
       each RuinInterior has its own fogExplored (Set<string>),
-      fogDiscovered (Set<string>), and fogIllumination
-      (Map<string, number>) fields, independent of the cave fog
-      state and independent of other ruins. when the player enters
-      a ruin, the visibility system reads fog state from the
-      current ruin interior, not from the cave-level GameState
-      fields.
+      floraMemory (Map<string, { char: string; color: string }>), and
+      fogIllumination (Map<string, number>) fields, independent of the
+      cave fog state and independent of other ruins. when the player
+      enters a ruin, the visibility system reads fog state from the
+      current ruin interior, not from the cave-level GameState fields.
+      the old per-interior fogDiscovered set is removed (RP-62) — there
+      is no longer a permanently-bright tier.
     inputs:
       - 'player enters a specific ruin'
-      - 'RuinInterior.fogExplored, fogDiscovered, and fogIllumination on that interior'
+      - 'RuinInterior.fogExplored, floraMemory, and fogIllumination on that interior'
     outputs:
       - 'visibility computed using the ruin-specific fog state'
-      - 'each ruin maintains separate exploration AND discovery progress'
+      - 'each ruin maintains separate exploration progress and flora memory'
     state_changes:
       - field: 'RuinInterior.fogExplored'
         effect: 'newly visible tiles added to the specific ruin fog set'
-      - field: 'RuinInterior.fogDiscovered'
-        effect: 'tiles within DISCOVERY_RADIUS and in LOS added to the specific ruin discovery set'
+      - field: 'RuinInterior.floraMemory'
+        effect: 'flora snapshots captured for tiles leaving gaze in the specific ruin'
       - field: 'RuinInterior.fogIllumination'
         effect: 'revery illumination stored per-ruin'
     determinism: deterministic
@@ -97,17 +99,15 @@ behaviors:
       revery effects (fire, lightning, earth scan) that add temporary
       illumination work in ruins the same as in caves. the
       addReveryIllumination function writes to the current ruin
-      interior fogIllumination map instead of returning early for
-      non-cave zones. illuminated tiles are added to the ruin
-      fogExplored set, but they are NOT added to fogDiscovered —
-      revery illumination cannot fully discover tiles, only player
-      proximity can.
+      interior fogIllumination map. illuminated tiles are added to the
+      ruin fogExplored set; during the effect they render as visible,
+      and after it expires they revert to remembered (dim).
     inputs:
       - 'revery cast while in a ruin zone'
       - 'illumination origin, radius, and expiration time'
     outputs:
       - 'tiles within illumination radius with LOS render as visible during effect'
-      - 'tiles added to RuinInterior.fogExplored only (not fogDiscovered)'
+      - 'tiles added to RuinInterior.fogExplored'
     state_changes:
       - field: 'RuinInterior.fogIllumination'
         effect: 'illuminated tile keys mapped to expiration timestamps'
@@ -117,39 +117,41 @@ behaviors:
 
   - id: renderer-fog-gating-generalized
     description: >
-      the renderer uses a generalized fog-of-war check instead of
-      the cave-specific inCave boolean. a hasFogOfWar helper returns
-      true for both Cave and Ruin zones. the renderer computes
-      visibility, ticks illumination expiry, and applies fog dimming
-      and unexplored-tile hiding for any zone with fog of war.
+      the renderer uses a generalized fog-of-war check (hasFogOfWar)
+      that returns true for Cave, Ruin, and Overworld. the renderer
+      computes visibility, ticks illumination expiry, applies the
+      remembered dimming and unexplored-tile hiding, captures flora
+      snapshots on leaving gaze, and gates live creatures/effects on
+      the visible set — identically across all fog zones.
     inputs:
-      - 'render frame in a zone with fog of war (Cave or Ruin)'
+      - 'render frame in a zone with fog of war (Cave, Ruin, or Overworld)'
     outputs:
-      - 'fog of war rendering applied identically in caves and ruins'
-      - 'overworld rendering unaffected'
+      - 'fog of war rendering applied identically in caves, ruins, and the prairie'
     state_changes: []
     determinism: deterministic
 
 edge_cases:
   - id: multiple-ruin-visits-preserve-state
-    description: 'visiting ruin A, leaving, visiting ruin B, then returning to ruin A preserves both partiallyDiscovered and fullyDiscovered tiles from the first visit to ruin A'
-    expected: 'each RuinInterior.fogExplored and RuinInterior.fogDiscovered is independent and persists across entry/exit cycles'
+    description: 'visiting ruin A, leaving, visiting ruin B, then returning to ruin A preserves the remembered tiles and flora snapshots from the first visit to ruin A'
+    expected: 'each RuinInterior.fogExplored and RuinInterior.floraMemory is independent and persists across entry/exit cycles'
   - id: ruin-entrance-always-visible-at-distance
     description: 'even when the player is at the far end of the ruin, the entrance tile and neighbors remain visible so the player can navigate back'
     expected: 'entrance tile and 1-tile-radius neighbors are force-added to visible set every frame'
-  - id: revery-illumination-persists-explored
-    description: 'tiles revealed by a revery effect in a ruin remain in the explored set (partiallyDiscovered) after the illumination expires, but are NOT promoted to fullyDiscovered'
-    expected: 'after illumination timeout, previously illuminated tiles show as partiallyDiscovered (dim) rather than unexplored or fullyDiscovered'
+  - id: revery-illumination-reverts-to-remembered
+    description: 'tiles revealed by a revery effect in a ruin remain in the explored set (remembered) after the illumination expires'
+    expected: 'after illumination timeout, previously illuminated tiles show as remembered (dim) rather than unexplored or permanently bright'
   - id: ruin-wall-corner-narrow-corridor
     description: 'player in a 1-tile-wide corridor between ruin walls sees only the corridor tiles and wall faces, not tiles around corners'
     expected: 'shadowcasting correctly handles narrow ruin corridors without light leaking'
-  - id: ruin-fully-discovered-shows-live-entities
-    description: 'if a ghost or other entity wanders into a fullyDiscovered ruin tile that is currently out of player LOS, the entity still renders at its current position'
-    expected: 'fullyDiscovered tiles render entities live; partiallyDiscovered tiles do not'
+  - id: ruin-live-creature-leaves-gaze
+    description: 'if a ghost or other creature is on a ruin tile that leaves the player visible set, it must vanish from the render immediately'
+    expected: 'live creatures render only on visible tiles; remembered tiles show only dimmed static content (terrain, flora snapshot)'
 
 failure_conditions:
-  - trigger: 'RuinInterior is generated without fogExplored/fogDiscovered/fogIllumination fields'
+  - trigger: 'RuinInterior is generated without fogExplored/floraMemory/fogIllumination fields'
     expected: 'all three fields initialized to empty Set/Map during ruin interior generation'
+  - trigger: 'a RuinInterior retains a fogDiscovered field or a live creature renders on a remembered ruin tile'
+    expected: 'spec is violated; the four-state collapse (RP-62) is incomplete'
 
 verification:
   test_file: src/engine/__tests__/visibility.test.ts

@@ -578,13 +578,17 @@ export interface GameState {
   coyoteCargo: string | null
   ruinInteriors: RuinInterior[]
   currentRuinIndex: number | null
+  // RP-62 — fog of war "returns to memory". A tile is `visible` (in
+  // gaze), `remembered` (ever seen, now dim memory), or `unexplored`.
+  // fogExplored is the single "ever seen" set that drives `remembered`;
+  // there is no permanently-bright tier. floraMemory holds the last
+  // appearance of each flora/egregore tile seen while it was visible,
+  // so remembered flora renders frozen at last-known state rather than
+  // live. Player-facing vocabulary is gaze / memory / unseen.
   caveFogExplored: Set<string>
-  caveFogDiscovered: Set<string>
-  // RP-38 — overworld fog of war. Player-facing vocabulary is
-  // gaze / memory / unseen; engineering identifiers mirror caveFog*.
-  // Both sets are initialized empty per tenure (createGameState).
+  caveFloraMemory: Map<string, FloraMemoryEntry>
   overworldFogExplored: Set<string>
-  overworldFogDiscovered: Set<string>
+  overworldFloraMemory: Map<string, FloraMemoryEntry>
   autoHidePanels: boolean
   panelOpenMoveCount: number
   multiplayerSession: MultiplayerSession | null
@@ -903,8 +907,15 @@ export interface RuinInterior {
   cleared: boolean
   dormantGarden: DormantGardenData | null
   fogExplored: Set<string>
-  fogDiscovered: Set<string>
+  floraMemory: Map<string, FloraMemoryEntry>
   glyph?: string
+}
+
+// RP-62 — last-seen appearance of a flora/egregore tile, captured while
+// the tile was visible and rendered (dimmed) while the tile is remembered.
+export interface FloraMemoryEntry {
+  char: string
+  color: string
 }
 
 export const DeepTimePhase = {

@@ -15,36 +15,34 @@ dependencies:
   - player-movement
 
 behaviors:
-  - id: four-state-visibility
+  - id: three-state-visibility
     description: >
-      cave tiles exist in one of four visibility states. unexplored
+      cave tiles exist in one of three visibility states. unexplored
       (never seen — rendered as solid black, identical to space).
-      partiallyDiscovered (was once in player FOV but never within
-      the discovery radius — terrain rendered at reduced brightness,
-      entities and effects hidden — this is the "dim memory" view).
-      fullyDiscovered (was once within DISCOVERY_RADIUS of the player
-      AND in line-of-sight at that moment — terrain and live entities
-      render at full brightness even when no longer in LOS — this
-      state is permanent). visible (currently in player line-of-sight
-      — full brightness, all entities and effects shown). overworld
-      has fog of war too — see overworld-fog-of-war spec — and shares
-      the same four-state model and the same DISCOVERY_RADIUS, but
-      uses its own overworldFog* sets.
+      remembered (was once in player FOV but is not currently in
+      line-of-sight — the "dim memory" view: terrain, static landmarks,
+      and a frozen flora snapshot render at reduced brightness; live
+      creatures and live effects are hidden). visible (currently in
+      player line-of-sight — full brightness, all entities and effects
+      shown). this replaces the prior four-state model
+      (RP-62 "fog returns to memory"): the old fullyDiscovered /
+      partiallyDiscovered split is collapsed into the single
+      remembered state, and DISCOVERY_RADIUS proximity promotion is
+      removed. fog now returns the moment the player looks away — no
+      tile stays bright once it leaves the gaze. overworld and ruin
+      share the same three-state model — see overworld-fog-of-war and
+      ruin-fog-of-war — but each uses its own fog sets.
     inputs:
       - 'state.currentZone is Cave'
-      - 'state.caveFogExplored: Set<string> tracking ever-seen tile keys (drives partiallyDiscovered)'
-      - 'state.caveFogDiscovered: Set<string> tracking tile keys that have ever been within DISCOVERY_RADIUS and in LOS (drives fullyDiscovered)'
+      - 'state.caveFogExplored: Set<string> tracking every tile key ever in player FOV (drives remembered)'
       - 'per-frame visible set computed from player position'
     outputs:
       - 'unexplored tiles render as black (no char, no color)'
-      - 'partiallyDiscovered tiles render terrain char and color at ~40% brightness, entities/effects hidden'
-      - 'fullyDiscovered tiles render terrain and live entities at full brightness even when out of LOS'
-      - 'visible tiles render normally with all entities and effects'
+      - 'remembered tiles render terrain, static landmarks, and the frozen flora snapshot at ~40% brightness; live creatures and live effects hidden'
+      - 'visible tiles render normally with all entities and effects at full brightness'
     state_changes:
       - field: caveFogExplored
-        effect: 'union of previous set and current visible set — tiles never revert'
-      - field: caveFogDiscovered
-        effect: 'union of previous set and tiles within DISCOVERY_RADIUS that are also in the current visible set — tiles never revert'
+        effect: 'union of previous set and current visible set — tiles never revert to unexplored'
     determinism: deterministic
 
   - id: player-vision-radius
@@ -57,9 +55,6 @@ behaviors:
       shadowcasting for consistent, artifact-free FOV. CAVE_VISION_RADIUS
       is held equal to OVERWORLD_VISION_RADIUS and RUIN_VISION_RADIUS
       per the RP-38 "same eyes, indoors or out" cosmological lock.
-      The prior "claustrophobic feel" framing is intentionally relaxed
-      at the doubled value — corridor widths often exceed the radius
-      no longer.
     inputs:
       - 'player position in cave'
       - 'cave map tile data'
@@ -68,46 +63,53 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: discovery-radius-promotion
+  - id: flora-snapshot-on-leaving-gaze
     description: >
-      a tile is promoted to fullyDiscovered when the player is within
-      DISCOVERY_RADIUS (2 tiles, Chebyshev) of it AND the tile is in
-      line-of-sight from the player at that moment. this is computed
-      every frame as the intersection of the current visible set with
-      the set of tiles within DISCOVERY_RADIUS of the player. the
-      requirement of LOS prevents tiles behind walls from being
-      promoted purely by distance. revery illumination effects
-      (fire, lightning, earth scan) do NOT promote tiles to
-      fullyDiscovered — only the player's own proximity does.
-      fullyDiscovered tiles remain in fullyDiscovered forever.
+      every frame, each flora/egregore tile in the visible set writes
+      its current rendered appearance (glyph and color, accounting for
+      species and lifecycle stage) into a per-zone flora-memory map
+      keyed by tile position. while a tile is remembered (not visible),
+      the renderer reads that stored snapshot and draws it dimmed — NOT
+      the live lifecycle state. the underlying flora lifecycle continues
+      to tick (the plant may grow or die while unobserved), but the
+      remembered view stays frozen at the last appearance seen while the
+      tile was in gaze. when the player looks again the tile is visible
+      (live appearance shown) and the snapshot refreshes. the mechanism
+      is write-while-visible / read-while-remembered — no previous-frame
+      transition tracking. non-flora terrain is re-derived from the live
+      tile type at render time (terrain shape does not change while
+      unobserved in the cave).
     inputs:
-      - 'player position in cave'
-      - 'current frame visible set'
-      - 'DISCOVERY_RADIUS constant (2)'
+      - 'a flora/egregore tile in the current visible set (write) or remembered (read)'
+      - 'the tile current rendered glyph and color'
+      - 'state.caveFloraMemory: Map<string, { char: string; color: string }>'
     outputs:
-      - 'tiles within DISCOVERY_RADIUS of player AND in visible set are added to caveFogDiscovered'
+      - 'caveFloraMemory[posKey] holds the last appearance seen while the tile was visible'
+      - 'remembered flora renders the snapshot dimmed, not the live lifecycle stage'
     state_changes:
-      - field: caveFogDiscovered
-        effect: 'tiles satisfying the proximity-and-LOS check added to set'
+      - field: caveFloraMemory
+        effect: 'written each frame for every visible flora/egregore tile'
     determinism: deterministic
 
   - id: fog-updates-on-movement
     description: >
       after each player movement in the cave, the visible set is
-      recomputed, newly visible tiles are added to caveFogExplored,
-      and tiles within DISCOVERY_RADIUS that are also in LOS are
-      added to caveFogDiscovered. this happens as part of the render
+      recomputed and newly visible tiles are added to caveFogExplored.
+      tiles that were visible and are no longer in LOS revert to
+      remembered (dim). flora tiles leaving gaze have their appearance
+      captured into caveFloraMemory. this happens as part of the render
       frame following the movement — no separate tick needed.
     inputs:
       - 'player moves to new position in cave'
     outputs:
       - 'visible set shifts to new player position'
-      - 'previously visible tiles that are now out of sight revert to either fullyDiscovered (if previously promoted) or partiallyDiscovered'
+      - 'previously visible tiles now out of sight render as remembered (dim)'
+      - 'flora tiles leaving gaze captured into caveFloraMemory'
     state_changes:
       - field: caveFogExplored
         effect: 'newly visible tiles added to set'
-      - field: caveFogDiscovered
-        effect: 'tiles newly within DISCOVERY_RADIUS and LOS added to set'
+      - field: caveFloraMemory
+        effect: 'flora snapshots captured for tiles leaving gaze'
     determinism: deterministic
 
   - id: earth-revery-reveals-fog
@@ -115,18 +117,16 @@ behaviors:
       when the earth revery is cast in the cave, all tiles within
       its scan radius that have line-of-sight from the player
       (walls block) are added to caveFogExplored — making them
-      partiallyDiscovered (dim) once the scan ends. earth revery
-      does NOT promote tiles to fullyDiscovered, even tiles within
-      DISCOVERY_RADIUS — promotion requires the player's own
-      proximity, not a remote scan. the scan expansion animation
-      reveals tiles progressively as the radius expands.
+      remembered (dim) once the scan ends. the scan expansion animation
+      reveals tiles progressively as the radius expands; during the
+      scan those tiles render as visible.
     inputs:
       - 'earth revery cast in cave zone'
       - 'EARTH_SCAN_RADIUS defines reveal range'
     outputs:
-      - 'tiles within scan radius with LOS added to caveFogExplored only'
+      - 'tiles within scan radius with LOS added to caveFogExplored'
       - 'during scan animation, tiles within current expansion radius render as visible'
-      - 'after the scan ends, revealed tiles render as partiallyDiscovered (unless they were already fullyDiscovered)'
+      - 'after the scan ends, revealed tiles render as remembered (dim)'
     state_changes:
       - field: caveFogExplored
         effect: 'all LOS-reachable tiles within scan radius added'
@@ -138,17 +138,15 @@ behaviors:
       temporarily illuminates tiles within a small radius (3 tiles)
       around the target tile. line-of-sight applies from the fire
       tile — walls block. illuminated tiles are added to
-      caveFogExplored only — they are NOT promoted to
-      fullyDiscovered. during the fire effect duration, illuminated
+      caveFogExplored. during the fire effect duration, illuminated
       tiles render as visible. after the effect ends, they revert
-      to partiallyDiscovered (or fullyDiscovered if previously
-      promoted by player proximity).
+      to remembered (dim).
     inputs:
       - 'fire revery cast on a cave tile'
       - 'fire illumination radius: 3 tiles from target'
     outputs:
       - 'tiles within fire illumination radius with LOS from fire tile render as visible during effect'
-      - 'tiles added to caveFogExplored only'
+      - 'tiles added to caveFogExplored'
     state_changes:
       - field: caveFogExplored
         effect: 'LOS-reachable tiles within fire illumination radius added'
@@ -156,39 +154,42 @@ behaviors:
 
   - id: entity-visibility-culling
     description: >
-      entities (characters, bees, ground items) in the cave render
-      when their tile is in the current visible set OR is in
-      caveFogDiscovered (fullyDiscovered tiles show live entities
-      at their current positions even when out of player LOS).
-      entities on partiallyDiscovered (dim memory) tiles are hidden.
-      entities on unexplored tiles are hidden. this applies to
-      rendering only — entities still exist and tick normally
-      regardless of visibility.
+      live creatures (characters, bees, ghosts, coyote, monarchs) and
+      live effects (glinting beams/sparkles, auras) in the cave render
+      ONLY when their tile is in the current visible set. they are
+      hidden on remembered and unexplored tiles. static content
+      remembered while out of gaze (terrain, the frozen flora snapshot,
+      ground items, beehive structures, oaks) renders dimmed on
+      remembered tiles. entities still exist and tick normally
+      regardless of visibility — fog culls render only. the
+      hide-vs-remember line is liveness: anything that moves or acts on
+      its own is hidden out of gaze; anything static is remembered dim.
     inputs:
       - 'entity position in cave'
       - 'current visible tile set'
-      - 'caveFogDiscovered set'
+      - 'whether the entity is a live creature/effect or static content'
     outputs:
-      - 'entity rendered if its tile is visible OR fullyDiscovered'
-      - 'entity char/color hidden if tile is partiallyDiscovered or unexplored'
+      - 'live creatures and live effects rendered only if their tile is visible'
+      - 'static content (terrain, flora snapshot, ground items, beehives, oaks) rendered dimmed on remembered tiles'
+      - 'nothing but black on unexplored tiles'
     state_changes: []
     determinism: deterministic
 
   - id: fog-persists-across-visits
     description: >
-      caveFogExplored AND caveFogDiscovered both persist across cave
+      caveFogExplored and caveFloraMemory both persist across cave
       entry/exit cycles. leaving the cave and re-entering preserves
-      which tiles were partiallyDiscovered and fullyDiscovered. both
-      sets are initialized empty on first cave generation.
+      which tiles were remembered and their flora snapshots. both are
+      initialized empty on first cave generation.
     inputs:
       - 'player exits and re-enters cave'
     outputs:
-      - 'previously partiallyDiscovered tiles remain partiallyDiscovered'
-      - 'previously fullyDiscovered tiles remain fullyDiscovered'
+      - 'previously remembered tiles remain remembered (dim)'
+      - 'flora snapshots persist'
     state_changes:
       - field: caveFogExplored
         effect: 'not cleared on zone transition'
-      - field: caveFogDiscovered
+      - field: caveFloraMemory
         effect: 'not cleared on zone transition'
     determinism: deterministic
 
@@ -197,34 +198,38 @@ edge_cases:
     description: 'the cave entrance tile and its immediate neighbors (1 tile radius) are always visible regardless of player position, so the player can always find the exit'
     expected: 'cave entrance tile and adjacent walkable tiles are force-added to the visible set'
   - id: hidden-chamber-fog-interaction
-    description: 'the hidden chamber behind breakable walls respects both caveRevealed and fog state — even after breaking the wall, hidden chamber tiles start as unexplored until the player walks in'
-    expected: 'breaking the wall reveals CaveFloor tiles that are initially unexplored in the fog system'
+    description: 'the hidden chamber behind breakable walls respects both caveRevealed and fog state — even after breaking the wall, hidden chamber tiles start as unexplored until the player walks in. the CaveWall masking that lived in the old partiallyDiscovered render branch must be preserved on the remembered branch.'
+    expected: 'breaking the wall reveals CaveFloor tiles that are initially unexplored in the fog system; remembered hidden-chamber tiles still mask as CaveWall until caveRevealed'
   - id: revery-illumination-stacking
     description: 'multiple revery effects active simultaneously have their illumination areas unioned — no conflicts'
     expected: 'visible set is union of player vision plus all active illumination areas'
   - id: zero-radius-wall-corner
     description: 'player standing in a 1-tile-wide corridor sees only the corridor tiles and wall faces, not tiles around corners'
     expected: 'shadowcasting correctly handles narrow corridors without light leaking through diagonal wall gaps'
-  - id: discovery-requires-los
-    description: 'a tile within DISCOVERY_RADIUS of the player but on the far side of a wall (no LOS) is NOT promoted to fullyDiscovered — proximity alone is insufficient'
-    expected: 'caveFogDiscovered only contains tiles satisfying both proximity AND LOS at some past frame'
-  - id: wall-tile-can-be-fully-discovered
-    description: 'wall tiles within DISCOVERY_RADIUS that are visible (the wall face is in LOS) DO get promoted to fullyDiscovered. the player can never stand on a wall, but adjacent walls still reach the fullyDiscovered state.'
-    expected: 'walls bordering a corridor become fullyDiscovered as the player walks past them'
-  - id: revery-illumination-does-not-fully-discover
-    description: 'tiles revealed by fire, lightning, or earth revery from a remote position are added to caveFogExplored but NOT caveFogDiscovered, even if they are within DISCOVERY_RADIUS of the player by coincidence — discovery requires the proximity check to use the player position relative to the visible tile during a player-vision frame'
-    expected: 'after a remote revery cast, revealed tiles render as partiallyDiscovered after the effect expires, never fullyDiscovered'
+  - id: live-creature-leaves-gaze
+    description: 'a ghost or bee that was visible walks (or is left behind as the player walks away) onto a tile that is now remembered. it must vanish from the render the moment its tile leaves the visible set.'
+    expected: 'the creature is not drawn on remembered or unexplored tiles; it reappears at its live position only when its tile re-enters the visible set. this is the fix for the "bees and ghosts render through fog" bug.'
+  - id: flora-grows-while-unobserved
+    description: 'player sees a flora tile at an early lifecycle stage, walks away (tile becomes remembered, snapshot captured), the flora grows to a later stage off-screen, player returns.'
+    expected: 'while remembered, the tile shows the dimmed early-stage snapshot; on re-entering gaze it shows the live later stage and the snapshot is refreshed when the tile next leaves gaze'
+  - id: flora-dies-while-unobserved
+    description: 'a remembered flora tile whose live lifecycle decays to a dead/decomposing stage while out of gaze.'
+    expected: 'remembered view keeps the last-seen (alive) snapshot; the death is only revealed when the player looks again'
   - id: discovered-tile-after-tile-change
-    description: 'a tile in caveFogDiscovered whose tile type later changes (e.g. breakable wall broken into floor) renders the new tile type at full brightness with live entities'
-    expected: 'fog tracks position keys not tile types; tile-type changes propagate through fullyDiscovered rendering'
+    description: 'a remembered tile whose underlying tile type later changes (e.g. breakable wall broken into floor) renders the new terrain type dimmed when remembered. terrain is re-derived live; only flora/egregore appearance is snapshotted.'
+    expected: 'fog tracks position keys not tile types; non-flora terrain-type changes propagate through the remembered (dim) render'
 
 failure_conditions:
   - trigger: 'computeVisibility called with out-of-bounds position'
     expected: 'returns empty set, no crash'
-  - trigger: 'caveFogExplored or caveFogDiscovered contains keys for tiles that were later changed (breakable wall broken)'
-    expected: 'tile renders with current tile type at the appropriate brightness — fog tracks position keys not tile types'
-  - trigger: 'GameState created without caveFogDiscovered field'
-    expected: 'field initialized to empty Set<string> by createGameState'
+  - trigger: 'a live creature (bee, ghost, coyote) renders on a remembered or unexplored cave tile'
+    expected: 'spec is violated; the live-creature-leaves-gaze case fails. live entities must gate on the visible set only.'
+  - trigger: 'a remembered flora tile renders its live lifecycle stage instead of the captured snapshot'
+    expected: 'spec is violated; flora-grows-while-unobserved fails. remembered flora must read caveFloraMemory, not the live lifecycle.'
+  - trigger: 'GameState created without caveFogExplored or caveFloraMemory'
+    expected: 'fields initialized to empty Set/Map by createGameState; EXPECTED_FIELDS schema test surfaces a missing field'
+  - trigger: 'a TileVisibility value of fullyDiscovered or partiallyDiscovered survives anywhere in the code'
+    expected: 'spec is violated; the four-state model was not fully collapsed. the type admits only visible, remembered, unexplored.'
 
 verification:
   test_file: src/engine/__tests__/visibility.test.ts

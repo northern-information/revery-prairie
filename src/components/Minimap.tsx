@@ -29,8 +29,9 @@ const tileColor = (tile: Tile, state: GameState, x: number, y: number): string =
 
 const applyFogTint = (color: string, vis: TileVisibility): string => {
   if (vis === 'unexplored') return UNEXPLORED_COLOR
-  if (vis === 'partiallyDiscovered') {
-    // Dim memory — render at ~35% brightness against black
+  if (vis === 'remembered') {
+    // Dim memory — render at ~35% brightness against black. RP-62 — this is
+    // the sole memory tier, so only the gaze disc (visible) shows full color.
     return color + '59' // alpha 0x59 ≈ 35%
   }
   return color

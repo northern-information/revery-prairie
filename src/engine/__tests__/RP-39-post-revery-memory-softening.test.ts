@@ -1,7 +1,6 @@
 import { initiateRevery, tickRevery } from '../revery'
-import { OmenKind, ReveryPhase, Zone } from '../types'
-import { computeZoneVisibility } from '../visibility'
-import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
+import { OmenKind, ReveryPhase } from '../types'
+import { createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 const driveReveryToClosingAndTick = (state: ReturnType<typeof createTestState>, time: number): void => {
@@ -11,93 +10,51 @@ const driveReveryToClosingAndTick = (state: ReturnType<typeof createTestState>, 
   tickRevery(state, 0, time + 200) // Closing → null
 }
 
-describe('RP-39 post-revery memory softening', () => {
-  it('softening-fires-on-revery-exit: Closing tick clears overworldFogDiscovered and nulls state.revery', () => {
+// RP-39 is RETIRED, subsumed by RP-62 ("fog returns to memory"). The
+// post-Revery softening hook drained overworldFogDiscovered on Revery exit so
+// the prairie dimmed back to memory. Under RP-62 that dimming is the permanent
+// default the moment the steward looks away — there is no bright tier to drain,
+// and overworldFogDiscovered no longer exists. These tests assert the hook is
+// gone: Revery exit touches no fog state, and the overworld fog sets that DO
+// exist (overworldFogExplored) are untouched by tickRevery.
+describe('RP-39 post-revery memory softening (retired by RP-62)', () => {
+  it('Closing tick nulls state.revery without mutating overworldFogExplored', () => {
     const state = createTestState()
-    state.overworldFogDiscovered.add('10,10')
-    state.overworldFogDiscovered.add('11,10')
-    state.overworldFogDiscovered.add('12,12')
-    expect(state.overworldFogDiscovered.size).toBe(3)
-
-    driveReveryToClosingAndTick(state, 1000)
-
-    expect(state.overworldFogDiscovered.size).toBe(0)
-    expect(state.revery).toBeNull()
-  })
-
-  it('explored-set-untouched-on-exit: overworldFogExplored is set-equal before and after', () => {
-    const state = createTestState()
-    state.overworldFogDiscovered.add('20,20')
-    state.overworldFogDiscovered.add('21,20')
     state.overworldFogExplored.add('20,20')
     state.overworldFogExplored.add('21,20')
     state.overworldFogExplored.add('22,20')
-    state.overworldFogExplored.add('23,20')
     const exploredSnapshot = new Set(state.overworldFogExplored)
 
-    driveReveryToClosingAndTick(state, 2000)
+    driveReveryToClosingAndTick(state, 1000)
 
+    expect(state.revery).toBeNull()
     expect(state.overworldFogExplored.size).toBe(exploredSnapshot.size)
     for (const key of exploredSnapshot) {
       expect(state.overworldFogExplored.has(key)).toBe(true)
     }
   })
 
-  it('cave-memory-untouched-on-exit: caveFogDiscovered and caveFogExplored are unmodified', () => {
+  it('Closing tick does not touch cave fog memory', () => {
     const state = createTestState()
-    state.caveFogDiscovered.add('5,5')
-    state.caveFogDiscovered.add('6,5')
     state.caveFogExplored.add('5,5')
     state.caveFogExplored.add('6,5')
-    state.caveFogExplored.add('7,5')
-    state.overworldFogDiscovered.add('30,30')
-    const discoveredSnapshot = new Set(state.caveFogDiscovered)
     const exploredSnapshot = new Set(state.caveFogExplored)
 
     driveReveryToClosingAndTick(state, 3000)
 
-    expect(state.caveFogDiscovered.size).toBe(discoveredSnapshot.size)
-    for (const key of discoveredSnapshot) {
-      expect(state.caveFogDiscovered.has(key)).toBe(true)
-    }
     expect(state.caveFogExplored.size).toBe(exploredSnapshot.size)
     for (const key of exploredSnapshot) {
       expect(state.caveFogExplored.has(key)).toBe(true)
     }
-    expect(state.overworldFogDiscovered.size).toBe(0)
   })
 
-  it('softening-fires-on-every-revery-exit: two sequential Reveries each drain overworldFogDiscovered', () => {
+  it('every Revery exit nulls state.revery (no per-tenure gate)', () => {
     const state = createTestState()
-    state.overworldFogDiscovered.add('40,40')
-    state.overworldFogDiscovered.add('41,40')
 
     driveReveryToClosingAndTick(state, 4000)
-    expect(state.overworldFogDiscovered.size).toBe(0)
-
-    state.overworldFogDiscovered.add('50,50')
-    state.overworldFogDiscovered.add('51,50')
-    state.overworldFogDiscovered.add('52,50')
-    expect(state.overworldFogDiscovered.size).toBe(3)
+    expect(state.revery).toBeNull()
 
     driveReveryToClosingAndTick(state, 8000)
-    expect(state.overworldFogDiscovered.size).toBe(0)
-  })
-
-  it('walking-out-repromotes-tiles: computeZoneVisibility grows overworldFogDiscovered after softening', () => {
-    const state = createTestState()
-    state.overworldFogDiscovered.add('60,60')
-    state.overworldFogDiscovered.add('61,60')
-
-    driveReveryToClosingAndTick(state, 5000)
-    expect(state.overworldFogDiscovered.size).toBe(0)
-
-    swapToOverworldForTest(state)
-    clearAroundPlayer(state, 3)
-    expect(state.currentZone).toBe(Zone.Overworld)
-
-    computeZoneVisibility(state)
-
-    expect(state.overworldFogDiscovered.size).toBeGreaterThan(0)
+    expect(state.revery).toBeNull()
   })
 })

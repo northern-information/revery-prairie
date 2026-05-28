@@ -746,7 +746,7 @@ export const generateRuinInterior = (
     cleared: false,
     dormantGarden: dormantGardenData,
     fogExplored: new Set<string>(),
-    fogDiscovered: new Set<string>(),
+    floraMemory: new Map(),
   }
 }
 

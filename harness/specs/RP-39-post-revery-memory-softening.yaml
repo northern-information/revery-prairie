@@ -1,155 +1,68 @@
 id: RP-39-post-revery-memory-softening
-name: 'Post-Revery memory softening'
-priority: medium
+name: 'Post-Revery memory softening (RETIRED — subsumed by RP-62)'
+priority: low
 layer: engine
 source_files:
   - src/engine/revery.ts
 dependencies:
   - overworld-fog-of-war
 
+# RETIRED by RP-62 ("fog returns to memory").
+#
+# RP-39 made Revery exit drain the prairie's bright-memory tier
+# (overworldFogDiscovered) so the steward walked out of the little house
+# into a dimmed prairie rather than a fully-remembered one. That whole
+# mechanism depended on there being TWO memory tiers: a permanently-bright
+# fullyDiscovered tier and a dim partiallyDiscovered tier, with the bright
+# tier draining on Revery exit.
+#
+# RP-62 collapses those two tiers into a single `remembered` (dim) state
+# that the fog returns to the instant the player looks away — everywhere,
+# always, in all three zones. There is no longer a bright tier to drain,
+# so the Revery-exit softening hook has nothing to do. The "memory persists
+# but dims" property RP-39 delivered on Revery exit is now the permanent
+# default at every frame.
+#
+# Implementation consequence: the softening hook in tickRevery's Closing
+# phase (the drain of overworldFogDiscovered) is removed along with the
+# overworldFogDiscovered field itself. This spec is kept as a tombstone so
+# the dependency graph and historical record stay intact; it asserts no
+# behaviors.
+
 behaviors:
-  - id: softening-fires-on-revery-exit
+  - id: softening-retired
     description: >
-      In the Closing phase of `tickRevery` (`src/engine/revery.ts`), after
-      `revertHouseScene(state)` and the dormancy-pressure reset, and
-      before `state.revery = null`, the Revery-exit hook drains
-      `state.overworldFogDiscovered`. The set becomes empty in the same
-      tick that clears `state.revery`. `state.overworldFogExplored` is
-      not modified — lived history persists. No new GameState field is
-      introduced; the softening is expressed entirely as a one-shot
-      mutation of the existing RP-38 set.
+      The post-Revery memory softening behavior is retired. Revery exit
+      no longer performs any fog-set mutation: there is no
+      overworldFogDiscovered to drain (RP-62 removed it), and the
+      prairie is already dim memory by default the moment the steward
+      leaves a tile's gaze. tickRevery's Closing phase still nulls
+      state.revery and reverts the house scene as before; it simply
+      does not touch the fog system.
     inputs:
       - 'state.revery.phase === ReveryPhase.Closing'
-      - 'state.overworldFogDiscovered contains one or more tile keys promoted during the previous tenure of overworld walking'
     outputs:
-      - 'state.overworldFogDiscovered.size === 0 after tickRevery returns'
-      - 'state.revery === null after tickRevery returns (existing Closing-phase contract)'
+      - 'tickRevery completes the Closing phase with no fog-set mutation'
+      - 'state.revery === null after tickRevery returns (unchanged Closing-phase contract)'
     state_changes:
-      - field: overworldFogDiscovered
-        effect: 'cleared (Set.clear) in the same Closing-tick that nulls state.revery'
       - field: revery
-        effect: 'set to null (existing Closing-phase behavior; not changed by this backlog item)'
-    determinism: deterministic
-
-  - id: explored-set-untouched-on-exit
-    description: >
-      `state.overworldFogExplored` is NOT mutated by the softening hook.
-      Every tile key present in `overworldFogExplored` before Revery
-      remains present after Revery exit. This is the "memory persists
-      but dims" property — tiles previously fullyDiscovered fall back
-      to partiallyDiscovered (still in `overworldFogExplored`, no
-      longer in `overworldFogDiscovered`) rather than to unexplored.
-    inputs:
-      - 'state.revery.phase === ReveryPhase.Closing'
-      - 'state.overworldFogExplored snapshot taken immediately before tickRevery'
-    outputs:
-      - 'state.overworldFogExplored after tickRevery is set-equal to the snapshot taken before the tick'
-    state_changes: []
-    determinism: deterministic
-
-  - id: cave-memory-untouched-on-exit
-    description: >
-      Cave memory is out of scope. `state.caveFogDiscovered` and
-      `state.caveFogExplored` are not modified by the post-Revery
-      softening hook. Revery happens in the overworld little house;
-      cave certainty is a different memory context and belongs to a
-      different surface.
-    inputs:
-      - 'state.revery.phase === ReveryPhase.Closing'
-      - 'state.caveFogDiscovered and state.caveFogExplored snapshots taken immediately before tickRevery'
-    outputs:
-      - 'state.caveFogDiscovered after tickRevery is set-equal to its pre-tick snapshot'
-      - 'state.caveFogExplored after tickRevery is set-equal to its pre-tick snapshot'
-    state_changes: []
-    determinism: deterministic
-
-  - id: softening-fires-on-every-revery-exit
-    description: >
-      Softening is a property of the Revery-exit hook itself, not a
-      per-tenure or per-year event. Every Closing-phase tick clears
-      `overworldFogDiscovered`. A steward who Reveries twice in one
-      tenure experiences two softenings. There is no counter, flag, or
-      season gate on the hook.
-    inputs:
-      - 'two sequential Reveries within one tenure, each driven to Closing'
-      - 'between the two Reveries the steward walks the overworld and re-promotes some tiles to overworldFogDiscovered'
-    outputs:
-      - 'overworldFogDiscovered.size === 0 after the first Closing tick'
-      - 'overworldFogDiscovered.size > 0 again after the inter-Revery walk re-promotes tiles'
-      - 'overworldFogDiscovered.size === 0 after the second Closing tick'
-    state_changes:
-      - field: overworldFogDiscovered
-        effect: 'cleared on every Closing-phase tick that nulls state.revery'
-    determinism: deterministic
-
-  - id: walking-out-repromotes-tiles
-    description: >
-      After softening fires, the existing RP-38 promotion logic in
-      `computeZoneVisibility` (`src/engine/visibility.ts`) re-adds tiles
-      to `overworldFogDiscovered` as the steward walks out of the house
-      and back into the overworld. The softening hook does not disable,
-      gate, or alter promotion; it only resets the set once at the exit
-      boundary. This is verified indirectly — promotion is already
-      covered by `overworld-fog-of-war` spec id
-      `discovery-radius-promotion-on-prairie`. The RP-39 test only
-      asserts that the set is empty immediately after Closing and that
-      a subsequent overworld visibility computation can grow it again.
-    inputs:
-      - 'state.overworldFogDiscovered is empty after Closing tick'
-      - 'state.currentZone is later set to Zone.Overworld'
-      - 'computeZoneVisibility runs with the steward at a known overworld position'
-    outputs:
-      - 'state.overworldFogDiscovered.size > 0 after computeZoneVisibility runs (tiles within DISCOVERY_RADIUS and in LOS are added)'
-    state_changes:
-      - field: overworldFogDiscovered
-        effect: 'grown by computeZoneVisibility per the existing RP-38 contract; not by this backlog item'
+        effect: 'set to null (existing Closing-phase behavior; unchanged by RP-62)'
     determinism: deterministic
 
 edge_cases:
-  - id: already-empty-discovered-set
+  - id: revery-exit-leaves-fog-untouched
     description: >
-      A Revery whose Closing tick fires while `overworldFogDiscovered`
-      is already empty (e.g. a test path that never walked the overworld
-      before entering Revery). The clear is a no-op; tickRevery still
-      transitions state.revery to null.
-    expected: 'state.overworldFogDiscovered.size === 0 after the tick (unchanged); state.revery === null'
-  - id: steward-still-in-house-on-exit-frame
-    description: >
-      Per RP-33, the steward wakes on the bed inside the house
-      interior. On the frame Closing fires, `state.map` is still the
-      house interior; the steward has not yet walked out. The softening
-      mutates `state.overworldFogDiscovered` regardless — the overworld
-      memory is dimmed before the steward sees it again.
-    expected: 'state.overworldFogDiscovered is cleared even though state.currentZone or state.map may reference the house interior at the tick boundary; the dimming is observed when the steward later walks back into Zone.Overworld.'
-  - id: softening-runs-after-egregoric-commit
-    description: >
-      The Closing-phase egregoric commit (`commitEgregoreTiles` for the
-      summons collapse tile) runs before `revertHouseScene` and the
-      softening. Egregoric tile mutations are not affected by the
-      softening — they live on the map grid, not in the fog sets.
-      Conversely, softening does not interfere with the commit because
-      it only touches `overworldFogDiscovered`.
-    expected: 'commitEgregoreTiles still mutates state.overworldMap as before; state.overworldFogDiscovered is empty after the Closing tick whether or not a collapse tile was committed.'
-  - id: snapshot-round-trip-preserves-empty-set
-    description: >
-      The post-exit empty `overworldFogDiscovered` survives a save/load
-      round trip via the serialization layer. `EXPECTED_FIELDS` in
-      `src/harness/__tests__/serialization/schema.test.ts` already
-      includes `overworldFogDiscovered`; this backlog item does not add a new
-      GameState field, so the schema test is unchanged.
-    expected: 'no change required in EXPECTED_FIELDS; serialization round-trip of a post-Closing state preserves overworldFogDiscovered as an empty Set.'
+      A steward who walked the overworld, then enters and completes a
+      Revery. On the Closing tick, tickRevery nulls state.revery and
+      reverts the house scene but performs no fog mutation. The prairie
+      the steward walked is already dim memory by the RP-62 default.
+    expected: 'state.revery === null after the Closing tick; no fog set is read or written by tickRevery; the prairie renders as remembered (dim) wherever it is out of gaze.'
 
 failure_conditions:
-  - trigger: 'tickRevery exits the Closing phase without clearing state.overworldFogDiscovered'
-    expected: 'spec is violated; the RP-39 test for softening-fires-on-revery-exit fails. The steward walks out of the house into a fully-remembered prairie — the "shape again" property of the backlog item is not delivered.'
-  - trigger: 'The softening hook clears state.overworldFogExplored in addition to state.overworldFogDiscovered'
-    expected: 'spec is violated; lived history is erased. The explored-set-untouched-on-exit test fails. The prairie returns to a partially-unseen state instead of dimmed memory.'
-  - trigger: 'The softening hook clears cave fog sets'
-    expected: 'spec is violated; cave-memory-untouched-on-exit fails. Cave certainty is not within the scope of post-Revery softening.'
-  - trigger: 'The softening hook is gated by a per-tenure or per-season flag and fires only on the first Revery of a tenure/year'
-    expected: 'spec is violated; softening-fires-on-every-revery-exit fails. Multi-Revery-per-year stewards experience inconsistent dimming.'
+  - trigger: 'tickRevery references overworldFogDiscovered (the field RP-62 removed)'
+    expected: 'compile/type error; the softening hook and its target field must both be gone'
 
 verification:
-  test_file: src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
-  test_pattern: 'RP-39'
-  command: 'npx vitest run src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts'
+  test_file: src/engine/__tests__/visibility.test.ts
+  test_pattern: 'fog of war'
+  command: 'npx vitest run src/engine/__tests__/visibility.test.ts'
