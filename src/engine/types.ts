@@ -222,6 +222,17 @@ export interface ZoneTransition {
   swapApplied: boolean
 }
 
+// Armed when the player exits a structure (cave / ruin / house). While
+// set, checkTransition suppresses the enter transition for this one
+// overworld entrance so a disoriented player dropped just outside can't
+// immediately step back in. Cleared once the player walks
+// STRUCTURE_REENTRY_REARM_DISTANCE Chebyshev tiles away. A plain object
+// (no Maps/Sets/functions) so it round-trips through serialization.
+export interface ReentryLock {
+  // The overworld entrance tile the player just emerged from.
+  entrance: Position
+}
+
 export type MultiplayerStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
 export interface MultiplayerSession {
@@ -560,6 +571,8 @@ export interface GameState {
   genesis: GenesisSimState | null
   bootTitleCard: BootTitleCard | null
   zoneTransition: ZoneTransition | null
+  // Re-entry lock armed on structure exit. See ReentryLock.
+  reentryLock: ReentryLock | null
   nextAngelSpawnTime: number
   angelFlashTime: number
   coyoteCargo: string | null

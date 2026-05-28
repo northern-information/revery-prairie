@@ -359,6 +359,7 @@ export const createGameState = (
     genesis: genesisData,
     bootTitleCard: null,
     zoneTransition: null,
+    reentryLock: null,
     nextAngelSpawnTime: 60_000, // first angel after ~60s
     angelFlashTime: 0,
     coyoteCargo: null,

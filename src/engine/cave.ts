@@ -8,7 +8,13 @@ import { findSafeExitPosition, tileHash } from './position'
 import { checkRuinTransition } from './ruins'
 import { STRUCTURE_REGISTRY } from './structures'
 import { TileType, Zone } from './types'
-import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
+import {
+  armReentryLock,
+  clearReentryLockIfRearmed,
+  isReentryLocked,
+  registerZoneSwapHandler,
+  scheduleZoneTransition,
+} from './zoneTransition'
 
 import type { RuinTileLayer } from './ruins'
 import type { GameState, Position, Tile } from './types'
@@ -226,6 +232,10 @@ export const exitCave = (state: GameState): void => {
   // Place player outside the 3x3 overworld hitbox (Chebyshev distance >= 2)
   state.player = findSafeExitPosition(state.caveEntranceOverworld, state.map, state.mapWidth, state.mapHeight, 2)
 
+  // Arm the re-entry lock so a disoriented step back can't re-enter
+  // until the player walks the re-arm distance away.
+  armReentryLock(state, state.caveEntranceOverworld)
+
   // Clear navigation state
   state.path = null
   state.pathWaypoints = []
@@ -249,13 +259,23 @@ export const checkTransition = (state: GameState): boolean => {
 
   // Overworld: 3x3 hitbox scan for CaveEntrance
   if (state.currentZone === Zone.Overworld) {
+    // Release the re-entry lock once the player has walked far enough.
+    // This runs before any entrance scan (cave, ruin, or house) and is
+    // the single clear site for all structures — the overworld branch
+    // here executes before the delegations below.
+    clearReentryLockIfRearmed(state)
+
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        if (state.map[py + dy]?.[px + dx]?.type === TileType.CaveEntrance) {
+        const ex = px + dx
+        const ey = py + dy
+        if (state.map[ey]?.[ex]?.type === TileType.CaveEntrance) {
+          // Suppress re-entry into the structure the player just exited.
+          if (isReentryLocked(state, { x: ex, y: ey })) continue
           scheduleZoneTransition(state, performance.now(), {
             direction: 'enter',
             kind: 'cave',
-            irisCenter: { x: px + dx, y: py + dy },
+            irisCenter: { x: ex, y: ey },
           })
           return true
         }

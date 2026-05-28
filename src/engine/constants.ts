@@ -527,6 +527,13 @@ export const ZONE_TRANSITION_FADE_OUT_MS = 700
 export const ZONE_TRANSITION_DURATION_MS =
   ZONE_TRANSITION_FADE_IN_MS + ZONE_TRANSITION_HOLD_MS + ZONE_TRANSITION_FADE_OUT_MS
 
+// Re-entry lock: after exiting a structure the player is dropped at
+// Chebyshev distance 2 (findSafeExitPosition). The just-exited entrance
+// stays suppressed until the player reaches this Chebyshev distance from
+// it, so a disoriented step back toward the entrance can't re-enter.
+// 4 = two tiles past the exit drop. Tunable from playtest feedback.
+export const STRUCTURE_REENTRY_REARM_DISTANCE = 4
+
 // fog of war
 export const CAVE_VISION_RADIUS = 6
 export const RUIN_VISION_RADIUS = 6

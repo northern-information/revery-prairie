@@ -1,5 +1,10 @@
 import { updateCamera } from './camera'
-import { ZONE_TRANSITION_DURATION_MS, ZONE_TRANSITION_FADE_IN_MS, ZONE_TRANSITION_HOLD_MS } from './constants'
+import {
+  STRUCTURE_REENTRY_REARM_DISTANCE,
+  ZONE_TRANSITION_DURATION_MS,
+  ZONE_TRANSITION_FADE_IN_MS,
+  ZONE_TRANSITION_HOLD_MS,
+} from './constants'
 
 import type { GameState, Position, ZoneTransition, ZoneTransitionDirection, ZoneTransitionKind } from './types'
 
@@ -49,6 +54,54 @@ export const scheduleZoneTransition = (state: GameState, time: number, input: Sc
     swapApplied: false,
   }
   return true
+}
+
+/**
+ * Arm the re-entry lock on the entrance the player just exited from.
+ * Called by exitCave / exitRuin / exitHouse. While armed, the matching
+ * overworld entrance does not schedule an enter transition until the
+ * player walks STRUCTURE_REENTRY_REARM_DISTANCE Chebyshev tiles away.
+ */
+export const armReentryLock = (state: GameState, entrance: Position): void => {
+  state.reentryLock = { entrance: { x: entrance.x, y: entrance.y } }
+}
+
+/**
+ * Clear the re-entry lock if the player has reached the re-arm distance.
+ *
+ * Side-effecting and unconditional — takes no entrance argument. Call it
+ * once per overworld move, before any entrance hitbox scan. This is the
+ * ONLY place the lock clears. It must not be folded into the per-entrance
+ * predicate: the exit drop sits at Chebyshev 2 (outside the 3x3 hitbox),
+ * so a straight walk-away never lands on an entrance tile, and a clear
+ * gated on "an entrance is in the scan" would never fire — the lock would
+ * stay armed forever.
+ */
+export const clearReentryLockIfRearmed = (state: GameState): void => {
+  const lock = state.reentryLock
+  if (lock === null) return
+
+  // Chebyshev distance — same metric findSafeExitPosition uses.
+  const chebyshev = Math.max(
+    Math.abs(state.player.x - lock.entrance.x),
+    Math.abs(state.player.y - lock.entrance.y)
+  )
+  if (chebyshev >= STRUCTURE_REENTRY_REARM_DISTANCE) {
+    state.reentryLock = null
+  }
+}
+
+/**
+ * Pure predicate: is this exact overworld entrance currently suppressed?
+ *
+ * Returns true only when a lock is armed AND it is keyed to this entrance.
+ * A different structure's entrance returns false (stays enterable). Has no
+ * side effects — clearing is owned by clearReentryLockIfRearmed.
+ */
+export const isReentryLocked = (state: GameState, entrance: Position): boolean => {
+  const lock = state.reentryLock
+  if (lock === null) return false
+  return lock.entrance.x === entrance.x && lock.entrance.y === entrance.y
 }
 
 /**

@@ -4,7 +4,7 @@ import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition } from './position'
 import { TileType, Zone } from './types'
-import { registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
+import { armReentryLock, isReentryLocked, registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
 import type { GameState, Position, Tile } from './types'
 
@@ -124,6 +124,9 @@ export const exitHouse = (state: GameState): void => {
   state.currentZone = Zone.Overworld
   state.player = findSafeExitPosition(state.houseEntranceOverworld, state.map, state.mapWidth, state.mapHeight, 2)
 
+  // Arm the re-entry lock on the house door the player just left.
+  armReentryLock(state, state.houseEntranceOverworld)
+
   state.path = null
   state.pathWaypoints = []
   state.pendingAction = null
@@ -154,11 +157,15 @@ export const checkHouseTransition = (state: GameState): boolean => {
   if (state.currentZone === Zone.Overworld) {
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        if (state.map[py + dy]?.[px + dx]?.type === TileType.HouseEntrance) {
+        const ex = px + dx
+        const ey = py + dy
+        if (state.map[ey]?.[ex]?.type === TileType.HouseEntrance) {
+          // Suppress re-entry into the house the player just exited.
+          if (isReentryLocked(state, { x: ex, y: ey })) continue
           scheduleZoneTransition(state, performance.now(), {
             direction: 'enter',
             kind: 'house',
-            irisCenter: { x: px + dx, y: py + dy },
+            irisCenter: { x: ex, y: ey },
           })
           return true
         }

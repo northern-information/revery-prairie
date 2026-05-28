@@ -6,6 +6,9 @@ source_files:
   - src/engine/zoneTransition.ts
   - src/engine/cave.ts
   - src/engine/ruins.ts
+  - src/engine/house.ts
+  - src/engine/position.ts
+  - src/engine/constants.ts
   - src/engine/types.ts
   - src/engine/state.ts
   - src/engine/movement.ts
@@ -124,6 +127,43 @@ behaviors:
         effect: not invoked while transitioning
     determinism: deterministic
 
+  - id: reentry-lock-after-exit
+    description: >
+      When the player exits any structure (cave, ruin, or house), the
+      exit handler arms a re-entry lock keyed to the overworld entrance
+      position the player just emerged from. While the lock is armed,
+      checkTransition's overworld branch does not schedule an enter
+      transition for that one locked entrance: the player can stand on
+      or walk across the entrance tile freely (it stays walkable), but
+      no transition fires. The lock clears as soon as the player reaches
+      STRUCTURE_REENTRY_REARM_DISTANCE Chebyshev tiles from the locked
+      entrance — the same metric findSafeExitPosition uses (Chebyshev,
+      max of abs(dx) and abs(dy)). The clear check runs in
+      checkTransition before the overworld hitbox scan, so the lock
+      releases the instant the player walks far enough. The lock is
+      keyed to a single entrance position, so a different structure's
+      entrance remains immediately enterable. This prevents accidental
+      re-entry when a disoriented player, just dropped outside a
+      structure, drifts a step back onto the entrance they came from.
+    inputs:
+      - exit handler runs (exitCave, exitRuin, or exitHouse)
+      - subsequent player moves while state.reentryLock is non-null
+    outputs:
+      - on exit, state.reentryLock is set to the locked entrance position
+      - while locked, stepping onto that entrance's 3x3 hitbox schedules no transition
+      - the locked entrance tile remains walkable (no movement block, no pathfinding avoidance)
+      - state.reentryLock clears to null once the player is Chebyshev >= STRUCTURE_REENTRY_REARM_DISTANCE from the locked entrance
+      - after the lock clears, stepping onto the entrance hitbox schedules an enter transition normally
+    state_changes:
+      - field: state.reentryLock
+        effect: >
+          set by the exit handler to an object holding the locked
+          entrance Position; cleared to null in checkTransition once the
+          player reaches the re-arm distance
+      - field: state.zoneTransition
+        effect: not scheduled for the locked entrance while the lock is armed
+    determinism: deterministic
+
 edge_cases:
   - id: entrance-tile-still-walkable-after-schedule
     description: >
@@ -138,13 +178,43 @@ edge_cases:
 
   - id: rapid-reentry
     description: >
-      Player exits a cave or ruin and immediately re-steps onto the
-      same entrance hitbox on the very next frame after the transition
-      clears.
+      Player exits a cave, ruin, or house and immediately re-steps onto
+      the same entrance hitbox shortly after the transition clears,
+      before walking the re-arm distance away.
     expected: >
-      A fresh transition is scheduled. The two transitions never
-      overlap; the second one cannot begin while state.zoneTransition
-      is non-null.
+      No transition is scheduled — the re-entry lock from
+      reentry-lock-after-exit suppresses the just-exited entrance until
+      the player reaches the re-arm distance. The entrance tile is still
+      walkable; the player simply does not re-enter. Once the lock
+      clears, a fresh transition schedules normally and the two
+      transitions never overlap (the second cannot begin while
+      state.zoneTransition is non-null).
+
+  - id: exit-drop-already-past-rearm-distance
+    description: >
+      findSafeExitPosition occasionally places the player at a Chebyshev
+      distance already >= STRUCTURE_REENTRY_REARM_DISTANCE from the
+      entrance (e.g. the nearest walkable tile was several tiles out).
+      The lock is still armed by the exit handler.
+    expected: >
+      The lock clears on the player's first move (or the first
+      checkTransition tick), because the clear check finds the player
+      already at or beyond the re-arm distance. This is correct: the
+      player is already oriented away from the entrance, so the lock has
+      nothing to protect against. No special-casing needed.
+
+  - id: entrance-boxed-in-within-rearm-radius
+    description: >
+      Theoretical edge: the entrance is surrounded by unwalkable tiles
+      within STRUCTURE_REENTRY_REARM_DISTANCE, so the player could never
+      reach the re-arm distance and the lock would never clear.
+    expected: >
+      Effectively impossible in the open prairie — the player reached a
+      walkable findSafeExitPosition drop at Chebyshev 2, which proves an
+      outward walkable path exists, and the prairie is open enough to
+      reach the re-arm distance. Documented as an assumption; not
+      guarded in code. A regression test asserts the lock clears on a
+      normal walk-away.
 
   - id: dialog-or-menu-open-at-transition-start
     description: >
@@ -187,6 +257,16 @@ failure_conditions:
 
   - trigger: enterCave or enterRuin invoked directly by future code (bypassing schedule)
     expected: the function still performs the map swap; the transition overlay simply does not play because state.zoneTransition was never set. Used by tests and dev tooling
+
+  - trigger: state.reentryLock is armed and the player is saved and reloaded
+    expected: >
+      reentryLock round-trips through serialization (a plain object
+      holding the entrance Position, or null); on reload the lock state
+      is preserved and clears normally once the player walks the re-arm
+      distance
+
+  - trigger: a fresh game starts with no exit having occurred
+    expected: state.reentryLock defaults to null; every structure entrance is immediately enterable
 
 verification:
   test_file: src/engine/__tests__/zoneTransition.test.ts
