@@ -158,7 +158,7 @@ const installCoyoteRuinWithBarrier = (state: GameState, barrier: { x: number; y:
       collapseBarrier: barrier,
     },
     fogExplored: new Set<string>(),
-    fogDiscovered: new Set<string>(),
+    floraMemory: new Map(),
   }
   state.ruinInteriors = [interior]
 }

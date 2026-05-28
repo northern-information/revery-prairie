@@ -540,8 +540,7 @@ export const RUIN_VISION_RADIUS = 6
 // RP-38 — vision radius is unchanged across zones (same eyes,
 // indoors or out). Keep all three in lockstep.
 export const OVERWORLD_VISION_RADIUS = 6
-export const FOG_EXPLORED_BRIGHTNESS = 0.4 // dimmed brightness for partiallyDiscovered tiles
-export const DISCOVERY_RADIUS = 2 // Chebyshev distance for player-proximity full-discovery promotion
+export const FOG_EXPLORED_BRIGHTNESS = 0.4 // dimmed brightness for remembered (dim memory) tiles
 
 // Greek letter glyphs for overworld entrances (index 0 = cave, 1+ = ruins by ruinIndex)
 export const ENTRANCE_GLYPHS = ['Ω', 'Δ', 'Φ', 'Ψ', 'Σ', 'Λ', 'Θ', 'Π', 'Ξ', 'Γ'] as const

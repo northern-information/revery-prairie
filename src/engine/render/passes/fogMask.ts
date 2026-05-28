@@ -13,12 +13,12 @@ import type { RenderPass } from '../passes'
 // and every other world-overlay pass, so masks cover both the cached tile
 // bg and any world overlays. See harness/specs/fog-bg-mask.yaml.
 //
-// unexplored        → opaque BG_COLOR diamond (tile fully hidden)
-// partiallyDiscovered → black diamond at alpha (1 - FOG_EXPLORED_BRIGHTNESS),
-//                       which multiplies the underlying RGB to
-//                       FOG_EXPLORED_BRIGHTNESS — same factor the central
-//                       tile loop uses on the foreground glyph (renderer.ts).
-// fullyDiscovered / visible → no mask.
+// unexplored  → opaque BG_COLOR diamond (tile fully hidden)
+// remembered  → black diamond at alpha (1 - FOG_EXPLORED_BRIGHTNESS), which
+//               multiplies the underlying RGB to FOG_EXPLORED_BRIGHTNESS —
+//               same factor the central tile loop uses on the foreground
+//               glyph (renderer.ts). RP-62 — this is the sole memory tier.
+// visible     → no mask.
 //
 // Diamond geometry matches the tileBgCache paint (TILE_BG_OVERLAP=2 px on
 // each vertex), so the mask exactly covers both the cached fill and the
@@ -82,7 +82,7 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
       if (map[my][mx].type === TileType.Space) continue
 
       const visibility = getTileVisibility(state, mx, my, visibleSet)
-      if (visibility === 'visible' || visibility === 'fullyDiscovered') continue
+      if (visibility === 'visible') continue
 
       // Project tile center to canvas. Mirrors viewportToScreen + the lift
       // applied to py in the central tile loop and tileBgCache.tileWorldPos.
@@ -101,7 +101,7 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
         ctx.globalAlpha = 1
         ctx.fillStyle = BG_COLOR
       } else {
-        // partiallyDiscovered
+        // remembered (dim memory)
         ctx.globalAlpha = PARTIAL_MASK_ALPHA
         ctx.fillStyle = '#000'
       }

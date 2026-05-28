@@ -104,7 +104,7 @@ import './render/passes/index'
 
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
 import { DeepTimePhase, FloraStage, TileType, Zone } from './types'
-import { computeZoneVisibility, dimColor, getTileVisibility, hasFogOfWar } from './visibility'
+import { computeZoneVisibility, dimColor, getTileVisibility, getZoneFloraMemory, hasFogOfWar } from './visibility'
 import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
 
@@ -1126,6 +1126,43 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // state, readable via getLastVisibleSet().
   const fogActive = hasFogOfWar(state.currentZone)
   const visibleSet = fogActive ? computeZoneVisibility(state) : null
+  // RP-62 — per-zone flora snapshot map. Written for visible flora/egregore
+  // tiles (their live appearance) and read back dimmed while remembered.
+  const floraMemory = fogActive ? getZoneFloraMemory(state) : null
+
+  // RP-62 — whether a remembered tile's WINNING resolved content is a static
+  // landmark (oak, beehive, ground item) rather than terrain/flora or a live
+  // creature/effect. Encodes the same z-priority as the resolution chain
+  // below: beehive(1) and oak(2) outrank the live creatures beneath them but
+  // not remote players / characters / angels above; ground item outranks
+  // nothing live. When true, the tile falls through the resolution chain so
+  // the landmark's group/layer logic runs once, then is dimmed at the
+  // deferred-push point. When false (terrain, flora, or a live-only tile),
+  // the remembered branch draws the dimmed terrain/snapshot inline and skips
+  // all live content.
+  const rememberedStaticLandmarkAt = (key: string): boolean => {
+    if (remotePlayerMap.has(key) || characterMap.has(key)) return false
+    if (beehivePositions.has(key)) return true
+    if (angelMap.has(key)) return false
+    if (oakMap.has(key)) return true
+    // Ground item only wins if nothing live sits above it in the chain.
+    if (
+      targetedStarMap.has(key) ||
+      lightningMap.has(key) ||
+      monarchPositions.has(key) ||
+      beePositions.has(key) ||
+      satelliteMap.has(key) ||
+      satelliteImpactMap.has(key) ||
+      explosionMap.has(key) ||
+      wildfireMap.has(key) ||
+      pickupEffectMap.has(key) ||
+      crumbleMap.has(key) ||
+      meteoritePositions.has(key)
+    ) {
+      return false
+    }
+    return groundItemMap.has(key)
+  }
 
   // world-overlay slot: ruin entrance halo
   // range, angel gold aura, prairie halo composite, prairie outline, then
@@ -1226,7 +1263,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // Unexplored — leave as dark background
         continue
       }
-      const tileIsPartiallyDiscovered = tileVis === 'partiallyDiscovered'
+      // RP-62 — `remembered` (dim memory): render terrain, static landmarks,
+      // and the frozen flora snapshot dimmed; hide live creatures, live
+      // effects, and current-action overlays. The early-`continue` of the
+      // old partiallyDiscovered branch is gone — we let the resolution chain
+      // run so static landmarks (oaks, beehives, ground items) still draw,
+      // then gate at the draw/push points below.
+      const tileIsRemembered = tileVis === 'remembered'
 
       const isFacingEntity = mx === state.facingEntityPos?.x && my === state.facingEntityPos?.y
       const isPendingTarget = mx === state.pendingInteractionTarget?.x && my === state.pendingInteractionTarget?.y
@@ -1239,19 +1282,41 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       // high-elevation tiles can't overpaint them.
       let isEntity = false
 
-      // partiallyDiscovered tiles: render terrain only at dimmed brightness.
-      // fullyDiscovered tiles fall through and are rendered like visible.
-      if (tileIsPartiallyDiscovered) {
+      // RP-62 — a remembered tile that holds a static landmark (oak,
+      // beehive, ground item) falls through to the resolution chain and is
+      // dimmed at the deferred-push point so the oak/group/layer logic is
+      // not duplicated. Every other remembered tile (terrain, flora,
+      // egregore, or a tile whose only content is a live creature/effect or
+      // current-action overlay) is drawn here: the frozen flora/egregore
+      // snapshot or dimmed terrain, with all live content suppressed.
+      if (tileIsRemembered && !rememberedStaticLandmarkAt(tileKey)) {
         const tile = map[my][mx]
         // Mask hidden chamber tiles as CaveWall until revealed (cave only)
         const effectiveType =
           state.currentZone === Zone.Cave && !state.caveRevealed && state.caveHiddenPositions.has(tileKey)
             ? TileType.CaveWall
             : tile.type
-        const baseColor = TILE_COLORS[effectiveType]
-        const baseChar = TILE_CHARS[effectiveType]
-        ctx.fillStyle = dimColor(baseColor, FOG_EXPLORED_BRIGHTNESS)
-        ctx.fillText(baseChar, px, pyLift)
+        const snapshot = floraMemory?.get(tileKey)
+        if (snapshot && (tile.type === TileType.Flora || tile.type === TileType.Egregore)) {
+          // Frozen flora/egregore: draw the last-seen glyph+color dimmed, no
+          // sway (memory does not animate). Egregore glyphs need the Voynich
+          // font; swap and restore around the draw (mirrors the off-player
+          // egregore branch below).
+          ctx.fillStyle = dimColor(snapshot.color, FOG_EXPLORED_BRIGHTNESS)
+          if (tile.type === TileType.Egregore) {
+            const prevFont = ctx.font
+            ctx.font = `${String(BASE_FONT_SIZE)}px 'Voynich', monospace`
+            ctx.fillText(snapshot.char, px, pyLift)
+            ctx.font = prevFont
+          } else {
+            ctx.fillText(snapshot.char, px, pyLift)
+          }
+        } else {
+          const baseColor = TILE_COLORS[effectiveType]
+          const baseChar = TILE_CHARS[effectiveType]
+          ctx.fillStyle = dimColor(baseColor, FOG_EXPLORED_BRIGHTNESS)
+          ctx.fillText(baseChar, px, pyLift)
+        }
         continue
       }
 
@@ -1524,6 +1589,28 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         }
       }
 
+      // RP-62 — flora snapshot capture. While a flora/egregore tile is in
+      // gaze, record its live appearance (the char/color just resolved) into
+      // the zone's flora-memory map. When the tile later leaves gaze it is
+      // rendered from this snapshot (dimmed, frozen), not from the live
+      // lifecycle — "only see flora at last known state". Capture every
+      // visible frame; the snapshot freezes naturally when writes stop.
+      if (tileVis === 'visible' && floraMemory) {
+        const resolvedType = map[my]?.[mx]?.type
+        // Only snapshot when the tile actually resolved to its flora/egregore
+        // glyph — not when a current-action overlay (preview, path, trail,
+        // growth-preview blink) painted over it. Otherwise the overlay glyph
+        // would be frozen into memory and shown after the overlay is gone.
+        const overlaid =
+          previewMap.has(tileKey) ||
+          pathPositions.has(tileKey) ||
+          trailMap.has(tileKey) ||
+          hasAnyGrowthPreview(state, tileKey)
+        if (!overlaid && (resolvedType === TileType.Flora || resolvedType === TileType.Egregore)) {
+          floraMemory.set(tileKey, { char, color })
+        }
+      }
+
       // Angel group highlight: if cursor or facingEntity is on any tile in this
       // angel's body, highlight ALL body tiles pink
       const angelGroup = angelTileToGroup.get(tileKey)
@@ -1574,18 +1661,30 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // Oak tiles attach their multilayer overlays so the deferred-flush can
         // stack glyphs after the base char. Suppressed on highlight so the
         // single inverted glyph reads cleanly against the pink BG.
-        const oakLayers = isOakPixel && !highlight ? oakLayerMap.get(tileKey) : undefined
+        const baseOakLayers = isOakPixel && !highlight ? oakLayerMap.get(tileKey) : undefined
         // Player standing on an egregore tile — flag so the flush applies
         // the Voynich font swap. Mirrors the on-player branch below
         // (around the egregore-font swap at line ~1750) which is unreachable
         // when isPlayerOwnTile=true.
         const egregoreFont = isPlayerOwnTile && map[my]?.[mx]?.type === TileType.Egregore
+        // RP-62 — a remembered static landmark (oak / beehive / ground item)
+        // reached here via fall-through. Dim its color and suppress the cursor
+        // highlight: it is out of gaze, dim memory, not an interaction target.
+        // Oak canopy layers carry their own colors, so dim those too or the
+        // trunk would dim while the canopy stayed bright.
+        const rememberedEntity = tileIsRemembered
+        const oakLayers =
+          rememberedEntity && baseOakLayers
+            ? baseOakLayers.map((layer) => ({ ...layer, color: dimColor(layer.color, FOG_EXPLORED_BRIGHTNESS) }))
+            : baseOakLayers
+        const pushHighlight = rememberedEntity ? false : highlight
+        const pushColor = pushHighlight ? BG_COLOR : rememberedEntity ? dimColor(color, FOG_EXPLORED_BRIGHTNESS) : color
         deferredEntities.push({
           char,
-          color: highlight ? BG_COLOR : color,
+          color: pushColor,
           glyphPx: glyphPx + tweenDx,
           glyphPy: glyphPyBase + angelLift + tweenDy,
-          highlight,
+          highlight: pushHighlight,
           highlightPx: px + tweenDx,
           highlightPy: pyLift + angelLift + tweenDy,
           alpha: 1,

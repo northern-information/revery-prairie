@@ -151,7 +151,7 @@ describe('ruin locked door', () => {
           doorPositions,
         },
         fogExplored: new Set<string>(),
-        fogDiscovered: new Set<string>(),
+        floraMemory: new Map(),
         fogIllumination: new Map<string, number>(),
       } as unknown as RuinInterior
       state.ruinInteriors = [stubInterior]

@@ -23,11 +23,11 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   const { charWidth, charHeight } = metrics
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
   const bounds = getVisibleTileBounds(viewportWidth, viewportHeight)
-  // RP-38 — only sparkle on currently-visible or fully-discovered tiles.
-  // The `effect` slot draws after the fog-mask pass (in world-overlay), so
-  // sparkles would otherwise paint through the mask onto unseen prairie.
+  // RP-62 — only sparkle on currently-visible (gaze) tiles. Glint is a live
+  // effect; it must not leak onto remembered (dim memory) tiles. The `effect`
+  // slot draws after the fog-mask pass (in world-overlay), so sparkles would
+  // otherwise paint through the mask onto unseen or remembered prairie.
   const visibleSet = getLastVisibleSet()
-  const fullyDiscovered = state.overworldFogDiscovered
 
   // Iterate glintZones directly instead of the full viewport. The previous
   // approach called posKey + isInBounds for every viewport tile — O(viewport²)
@@ -47,7 +47,7 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
     if (wx === player.x && wy === player.y) continue
 
     const tileKey = posKey(wx, wy)
-    if (!visibleSet?.has(tileKey) && !fullyDiscovered.has(tileKey)) continue
+    if (!visibleSet?.has(tileKey)) continue
 
     const opacity = state.glintOpacity.get(key) ?? 0
     if (opacity <= 0) continue

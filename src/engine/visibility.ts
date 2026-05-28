@@ -1,20 +1,23 @@
-import { ANGEL_AURA_RADIUS, CAVE_VISION_RADIUS, DISCOVERY_RADIUS, OVERWORLD_VISION_RADIUS, RUIN_VISION_RADIUS } from './constants'
+import { ANGEL_AURA_RADIUS, CAVE_VISION_RADIUS, OVERWORLD_VISION_RADIUS, RUIN_VISION_RADIUS } from './constants'
 import { ComponentType } from './ecs/types'
 import { isInBounds, posKey } from './position'
 import { TileType, Zone } from './types'
 
-import type { GameState, Tile } from './types'
+import type { FloraMemoryEntry, GameState, Tile } from './types'
 
 /**
- * Tile visibility state for fog of war.
- * - 'unexplored': never seen — renders as black
- * - 'partiallyDiscovered': was once in player FOV but never within DISCOVERY_RADIUS
- *   — terrain at reduced brightness, entities/effects hidden ("dim memory")
- * - 'fullyDiscovered': was once within DISCOVERY_RADIUS of the player AND in LOS
- *   — terrain and live entities at full brightness even when out of LOS (permanent)
- * - 'visible': currently in line-of-sight — full rendering with cursor/effects
+ * Tile visibility state for fog of war (RP-62 — "fog returns to memory").
+ * - 'unexplored': never seen — renders as black ("unseen")
+ * - 'remembered': was once in player FOV but is not currently in line-of-sight
+ *   — dim memory: terrain, static landmarks, and a frozen flora snapshot at
+ *   reduced brightness; live creatures and live effects hidden
+ * - 'visible': currently in line-of-sight — full rendering with all entities,
+ *   effects, and cursor ("gaze")
+ *
+ * The fog returns the moment the player looks away — there is no
+ * permanently-bright tier. Player-facing vocabulary: gaze / memory / unseen.
  */
-export type TileVisibility = 'unexplored' | 'partiallyDiscovered' | 'fullyDiscovered' | 'visible'
+export type TileVisibility = 'unexplored' | 'remembered' | 'visible'
 
 /** Returns true if the given zone has fog of war. */
 export const hasFogOfWar = (zone: string): boolean =>
@@ -143,50 +146,50 @@ const scanOctant = (
 }
 
 /**
- * Get the fog state sets for the current zone.
- * Cave uses GameState fields; Ruin uses per-interior fields.
+ * Get the fog explored set for the current zone.
+ * Cave/Overworld use GameState fields; Ruin uses the per-interior field.
  * Returns null if the current zone has no fog of war.
  *
- * - fogExplored: tiles ever in player FOV (drives partiallyDiscovered)
- * - fogDiscovered: tiles ever within DISCOVERY_RADIUS AND in LOS (drives fullyDiscovered)
+ * fogExplored is the single "ever seen" set that drives `remembered`
+ * (RP-62 — there is no separate fully-discovered tier).
  */
-const getFogState = (
-  state: GameState
-): {
-  fogExplored: Set<string>
-  fogDiscovered: Set<string>
-} | null => {
+const getFogState = (state: GameState): { fogExplored: Set<string> } | null => {
   if (state.currentZone === Zone.Cave) {
-    return {
-      fogExplored: state.caveFogExplored,
-      fogDiscovered: state.caveFogDiscovered,
-    }
+    return { fogExplored: state.caveFogExplored }
   }
   if (state.currentZone === Zone.Overworld) {
-    return {
-      fogExplored: state.overworldFogExplored,
-      fogDiscovered: state.overworldFogDiscovered,
-    }
+    return { fogExplored: state.overworldFogExplored }
   }
   if (state.currentZone === Zone.Ruin && state.currentRuinIndex !== null) {
     const interior = state.ruinInteriors[state.currentRuinIndex]
     if (interior) {
-      return {
-        fogExplored: interior.fogExplored,
-        fogDiscovered: interior.fogDiscovered,
-      }
+      return { fogExplored: interior.fogExplored }
     }
   }
   return null
 }
 
 /**
- * Get the visibility state of a tile for fog of war.
- * Returns 'visible', 'fullyDiscovered', 'partiallyDiscovered', or 'unexplored'.
+ * Get the flora-memory map for the current zone (RP-62). Mirrors
+ * getFogState's zone routing. The renderer writes the live appearance of
+ * each visible flora/egregore tile here and reads it back (dimmed) while
+ * the tile is remembered. Returns null if the zone has no fog of war.
+ */
+export const getZoneFloraMemory = (state: GameState): Map<string, FloraMemoryEntry> | null => {
+  if (state.currentZone === Zone.Cave) return state.caveFloraMemory
+  if (state.currentZone === Zone.Overworld) return state.overworldFloraMemory
+  if (state.currentZone === Zone.Ruin && state.currentRuinIndex !== null) {
+    return state.ruinInteriors[state.currentRuinIndex]?.floraMemory ?? null
+  }
+  return null
+}
+
+/**
+ * Get the visibility state of a tile for fog of war (RP-62).
+ * Returns 'visible', 'remembered', or 'unexplored'.
  *
- * Priority: visible (currently in LOS / illuminated) wins over fullyDiscovered;
- * fullyDiscovered (was within DISCOVERY_RADIUS in LOS) wins over
- * partiallyDiscovered (was once in FOV); else unexplored.
+ * Priority: visible (currently in LOS / illuminated) wins; else remembered
+ * (ever seen) wins; else unexplored.
  */
 export const getTileVisibility = (state: GameState, x: number, y: number, visibleSet: Set<string>): TileVisibility => {
   if (!hasFogOfWar(state.currentZone)) return 'visible'
@@ -195,8 +198,7 @@ export const getTileVisibility = (state: GameState, x: number, y: number, visibl
   if (visibleSet.has(key)) return 'visible'
 
   const fog = getFogState(state)
-  if (fog?.fogDiscovered.has(key)) return 'fullyDiscovered'
-  if (fog?.fogExplored.has(key)) return 'partiallyDiscovered'
+  if (fog?.fogExplored.has(key)) return 'remembered'
   return 'unexplored'
 }
 
@@ -287,25 +289,12 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
     }
   }
 
-  // Update explored set — tiles never revert to unexplored
+  // Update explored set — tiles never revert to unexplored. This is the
+  // single fog set now (RP-62): every visible tile becomes `remembered`
+  // (dim memory) the moment it leaves gaze. There is no proximity-promotion
+  // step and no permanently-bright tier.
   for (const key of visible) {
     fog.fogExplored.add(key)
-  }
-
-  // Promote tiles within DISCOVERY_RADIUS of the player AND in the player's
-  // natural FOV (LOS-checked) to fullyDiscovered. Permanent — never reverts.
-  const minX = player.x - DISCOVERY_RADIUS
-  const maxX = player.x + DISCOVERY_RADIUS
-  const minY = player.y - DISCOVERY_RADIUS
-  const maxY = player.y + DISCOVERY_RADIUS
-  for (let y = minY; y <= maxY; y++) {
-    for (let x = minX; x <= maxX; x++) {
-      if (!isInBounds(x, y, mapWidth, mapHeight)) continue
-      const key = posKey(x, y)
-      if (playerFOV.has(key)) {
-        fog.fogDiscovered.add(key)
-      }
-    }
   }
 
   _lastVisibleSet = visible

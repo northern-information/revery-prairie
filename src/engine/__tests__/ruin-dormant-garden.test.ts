@@ -86,7 +86,7 @@ const installCoyoteRuinFixture = (
         collapseBarrier: barrier,
       },
       fogExplored: new Set<string>(),
-      fogDiscovered: new Set<string>(),
+      floraMemory: new Map(),
     },
   ]
 }
