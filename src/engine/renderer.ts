@@ -605,7 +605,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const cursor = state.cursorTile
     if (!inHand || !cursor) return null
     const spec = getPlaceableSpec(inHand.definitionId)
-    if (!spec || !spec.canPlace(state, cursor.x, cursor.y)) return null
+    if (!spec?.canPlace(state, cursor.x, cursor.y)) return null
     return { key: posKey(cursor.x, cursor.y), glyph: getDefinition(inHand.definitionId).glyph }
   })()
 

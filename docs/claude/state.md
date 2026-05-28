@@ -32,7 +32,11 @@ new fields also require updating `EXPECTED_FIELDS` in `src/harness/__tests__/ser
 
 The `state.playerSpawn` field and the `PlayerSpawn` interface are removed entirely. The falling-star spawn ceremony is gone — the player spawns inside the house at tenure start. All `state.playerSpawn.visible` gates in `movement.ts`, `renderer.ts`, `camera.ts`, and `useGameEngine.ts` are deleted (player is always visible from frame 1). `EXPECTED_FIELDS` loses `playerSpawn` in the same PR that adds the new fields above.
 
-## Placed meteorites and stone-circle preview (RP-18)
+## Placed meteorites (RP-18)
 
-- **`placedMeteorites: Position[]`** — multi-spawner, single lifecycle. `dropItem` in `src/engine/entities.ts` appends an entry when the dropped item is a meteorite (one of the DROP_DELTAS positions). `pickUpFacingOrStandingPlacedMeteorite` in `src/engine/interaction.ts` splices an entry out when the player taps F on or while facing a placed meteorite tile. All other readers are read-only (the `stoneCircles` render pass, the egregore spread containment filter, the manual unlock check).
-- **`stoneCirclePreview: boolean`** — owner + clearers. `InventoryGrid.tsx`'s `onMouseEnter` handler sets it `true` when the hovered item is a meteorite; `onMouseLeave` and hover over a non-meteorite cell clear it. The `stoneCircles` render pass reads `state.player` live on every draw when the flag is true, so preview lines follow the steward as they walk. No engine code writes this field — it is purely a UI affordance plumbed through the engine state because the renderer is engine-side.
+- **`placedMeteorites: Position[]`** — multi-spawner, single lifecycle. `PlaceableSpec.place` in `src/engine/placeable.ts` appends an entry when a meteorite is placed (RP-59 — left-click on the cursor tile while in hand). `pickUpFacingOrStandingPlacedMeteorite` in `src/engine/interaction.ts` splices an entry out when the player taps F on or while facing a placed meteorite tile. All other readers are read-only (the `stoneCircles` render pass, the egregore spread containment filter, the manual unlock check).
+
+## In hand (RP-59)
+
+- **`equippedItemUid: ItemUid | null`** — single owner: `src/engine/inHand.ts` (`takeInHand` / `releaseInHand` / `advanceInHand` / `clearInHandIfRemoved`). It is a uid *reference* into the backpack — the referenced `ItemInstance` stays in `state.backpack.items`, so the reference survives `autoSort`/merge/split exactly like `glintingCoins`. The 3x3 in-hand HUD cell (`InHandSlot.tsx`) and the loaded cursor (`renderer.ts`) are views of this field. `getInHandItem` self-heals a dangling reference to `null`. Player-facing copy reads "in hand," never "equipped."
+- The RP-18 `stoneCirclePreview` boolean was **removed** by RP-59: the meteorite placement preview now follows the loaded cursor (cursor tile + `canPlaceMeteoriteAt`) in the `stoneCircles` pass, not a grid-hover flag.
