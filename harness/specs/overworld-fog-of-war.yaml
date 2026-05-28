@@ -89,25 +89,27 @@ behaviors:
 
   - id: flora-snapshot-on-prairie
     description: >
-      when a prairie flora or egregore tile transitions from visible
-      to remembered, its current rendered glyph and color (species +
-      lifecycle stage) are captured into overworldFloraMemory keyed by
-      tile position. while remembered the tile renders the captured
-      snapshot dimmed, not the live lifecycle stage — so a flower the
-      steward last saw in bloom stays in bloom in memory even as it
-      wilts off-screen. on re-entering gaze the live appearance shows
-      and the snapshot refreshes the next time the tile leaves gaze.
-      this is the "only see flora at last known state" property.
+      every frame, each prairie flora or egregore tile in the visible
+      set writes its current rendered glyph and color (species +
+      lifecycle stage) into overworldFloraMemory keyed by tile position.
+      while a tile is remembered (not visible) the renderer reads that
+      stored snapshot and draws it dimmed, NOT the live lifecycle stage —
+      so a flower the steward last saw in bloom stays in bloom in memory
+      even as it wilts off-screen. the snapshot freezes the moment the
+      tile leaves gaze (writes stop) and refreshes while it is in gaze.
+      this is the "only see flora at last known state" property. it needs
+      no previous-frame transition tracking — write while visible, read
+      while remembered.
     inputs:
-      - 'a prairie flora/egregore tile visible last frame, remembered this frame'
+      - 'a prairie flora/egregore tile in the current visible set (write) or remembered (read)'
       - 'the tile current rendered glyph and color'
       - 'state.overworldFloraMemory'
     outputs:
-      - 'overworldFloraMemory[posKey] set to the appearance at the moment of leaving gaze'
+      - 'overworldFloraMemory[posKey] holds the last appearance seen while the tile was visible'
       - 'remembered flora renders the dimmed snapshot, not the live stage'
     state_changes:
       - field: overworldFloraMemory
-        effect: 'snapshot written/overwritten on each visible→remembered transition'
+        effect: 'written each frame for every visible flora/egregore tile'
     determinism: deterministic
 
   - id: no-entrance-always-visible

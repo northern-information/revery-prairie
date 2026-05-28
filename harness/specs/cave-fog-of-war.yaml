@@ -65,31 +65,30 @@ behaviors:
 
   - id: flora-snapshot-on-leaving-gaze
     description: >
-      when a flora tile transitions from visible to remembered (the
-      player looks away), its current rendered appearance (glyph and
-      color, accounting for species and lifecycle stage) is captured
-      into a per-zone flora-memory map keyed by tile position. while
-      the tile is remembered, the renderer draws the captured snapshot
-      dimmed — NOT the live lifecycle state. the underlying flora
-      lifecycle continues to tick (the plant may grow or die while
-      unobserved), but the remembered view stays frozen at the last
-      seen appearance. when the player looks again, the tile is visible
-      (live appearance shown) and the snapshot is refreshed on the next
-      visible→remembered transition. snapshots are captured for flora
-      and egregore tiles; non-flora terrain is re-derived from the
-      live tile type at render time (terrain shape does not change
-      while unobserved in the cave).
+      every frame, each flora/egregore tile in the visible set writes
+      its current rendered appearance (glyph and color, accounting for
+      species and lifecycle stage) into a per-zone flora-memory map
+      keyed by tile position. while a tile is remembered (not visible),
+      the renderer reads that stored snapshot and draws it dimmed — NOT
+      the live lifecycle state. the underlying flora lifecycle continues
+      to tick (the plant may grow or die while unobserved), but the
+      remembered view stays frozen at the last appearance seen while the
+      tile was in gaze. when the player looks again the tile is visible
+      (live appearance shown) and the snapshot refreshes. the mechanism
+      is write-while-visible / read-while-remembered — no previous-frame
+      transition tracking. non-flora terrain is re-derived from the live
+      tile type at render time (terrain shape does not change while
+      unobserved in the cave).
     inputs:
-      - 'a flora tile that was visible last frame and is remembered this frame'
+      - 'a flora/egregore tile in the current visible set (write) or remembered (read)'
       - 'the tile current rendered glyph and color'
       - 'state.caveFloraMemory: Map<string, { char: string; color: string }>'
     outputs:
-      - 'caveFloraMemory[posKey] set to the glyph+color seen at the moment of leaving gaze'
+      - 'caveFloraMemory[posKey] holds the last appearance seen while the tile was visible'
       - 'remembered flora renders the snapshot dimmed, not the live lifecycle stage'
-      - 'snapshot overwritten next time the tile leaves gaze'
     state_changes:
       - field: caveFloraMemory
-        effect: 'snapshot written/overwritten on each visible→remembered transition for flora and egregore tiles'
+        effect: 'written each frame for every visible flora/egregore tile'
     determinism: deterministic
 
   - id: fog-updates-on-movement

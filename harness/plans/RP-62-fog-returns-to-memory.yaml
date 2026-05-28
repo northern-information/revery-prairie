@@ -95,16 +95,21 @@ tasks:
       bees, ghosts, coyote, monarchs, angels, lightning, satellites, explosions,
       wildfire, pickup effects = hidden out of gaze; terrain, flora snapshot,
       oaks, beehive tiles, ground items, egregore snapshot = remembered dim.
-      Flora snapshot: maintain a memory map per zone. On the frame a flora or
-      egregore tile leaves the visible set (was visible, now remembered),
-      capture its resolved {char, color} into the zone's floraMemory map. When
-      rendering a 'remembered' flora/egregore tile, read {char, color} from
-      floraMemory (fall back to the live resolution if absent — e.g. a tile
-      explored via earth-scan that was never in direct gaze) and dim it.
-      Preserve the cave hidden-chamber CaveWall masking (old lines ~1246-1250)
-      on the remembered branch. Add a small accessor in visibility.ts
-      (getZoneFloraMemory(state)) mirroring getFogState so the renderer reads
-      the right map per zone.
+      Flora snapshot mechanism (write-every-visible-frame, NOT
+      transition-detection): for every flora/egregore tile that is in the
+      current visible set this frame, write its resolved {char, color} into the
+      zone's floraMemory map. When rendering a 'remembered' flora/egregore tile,
+      read {char, color} from floraMemory and dim it. The snapshot freezes
+      naturally the moment writes stop (tile leaves gaze), needs no previous-
+      frame tracking, and a tile revealed by earth-scan/fire-revery is captured
+      during its visible window (those tiles render as visible during the effect
+      per the cave spec) — so there is no live-dimmed fallback path. If a
+      remembered flora tile somehow has no snapshot, render the dimmed terrain
+      base (NOT the live lifecycle stage) — never show live state on a
+      remembered tile. Preserve the cave hidden-chamber CaveWall masking (old
+      lines ~1246-1250) on the remembered branch. Add a small accessor in
+      visibility.ts (getZoneFloraMemory(state)) mirroring getFogState so the
+      renderer reads the right map per zone.
     depends_on:
       - rewrite-visibility-logic
     verification:
@@ -147,6 +152,36 @@ tasks:
       - 'npx vitest run src/engine/__tests__/fogMask.test.ts'
     repair: retry
     tags: [engine, render]
+
+  - id: minimap-three-state
+    title: 'Minimap: rename the partiallyDiscovered dim branch to remembered'
+    spec_id: overworld-fog-of-war
+    spec_sections:
+      - minimap-respects-prairie-fog
+    context_files:
+      - src/components/Minimap.tsx
+      - src/components/minimapStructures.ts
+      - src/components/__tests__/Minimap.test.tsx
+      - src/engine/visibility.ts
+    output_files:
+      - src/components/Minimap.tsx
+      - src/components/__tests__/Minimap.test.tsx
+    notes: >
+      Minimap.tsx ~line 32 switches on getTileVisibility returning
+      'partiallyDiscovered' and dims that tile to ~35% alpha (color + '59').
+      Rename the check to 'remembered'. With the bright fullyDiscovered tier
+      gone, only the gaze disc ('visible') renders full color and all other
+      explored tiles dim — the spec's intended consequence. isTileExplored in
+      minimapStructures.ts already returns vis !== 'unexplored' and needs no
+      change. Update Minimap.test.tsx assertions that reference the old state
+      literals.
+    depends_on:
+      - rewrite-visibility-logic
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/components/__tests__/Minimap.test.tsx'
+    repair: retry
+    tags: [component, render]
 
   - id: remove-revery-softening-hook
     title: 'Remove the post-Revery memory softening hook from tickRevery (RP-39 subsumed by RP-62)'
@@ -210,22 +245,37 @@ tasks:
       - src/engine/__tests__/helpers.ts
     output_files:
       - src/engine/__tests__/visibility.test.ts
+      - src/engine/__tests__/fogMask.test.ts
+      - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
+      - src/engine/__tests__/pickupZoneFilter.test.ts
+      - src/engine/__tests__/zoneIsolation.test.ts
+      - src/engine/__tests__/ruin-dormant-garden.test.ts
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+      - src/engine/__tests__/main-questline.test.ts
+      - src/engine/__tests__/ruin-locked-door.test.ts
     notes: >
       Add/adjust cases. getTileVisibility returns 'remembered' (never
       fullyDiscovered/partiallyDiscovered) for an explored-but-not-visible tile,
       in all three zones. Walking away from a tile flips it visible→remembered in
-      one frame (no proximity-promotion lingering). A flora tile's snapshot is
-      captured on leaving gaze and the remembered render reads the snapshot, not
-      the live lifecycle stage advanced afterward. A creature on a tile that
-      leaves the visible set is culled. RP-39: tickRevery Closing no longer
-      references any fog-discovered set. Follow docs/claude/testing.md: spy on
+      one frame (no proximity-promotion lingering). A flora tile written to
+      floraMemory while visible renders the stored snapshot (not the live stage)
+      once remembered, even after the live lifecycle advances. A creature on a
+      tile that leaves the visible set is culled. RP-39: tickRevery Closing no
+      longer references any fog-discovered set. MIGRATION: fogMask.test.ts uses
+      the removed TileVisibility literals — migrate to 'visible' | 'remembered' |
+      'unexplored'. Six test files construct RuinInterior literals with
+      `fogDiscovered: new Set()` (pickupZoneFilter, zoneIsolation,
+      ruin-dormant-garden, trapped-coyote-stays-put, main-questline,
+      ruin-locked-door) — remove that line and add `floraMemory: new Map()` so
+      they type-check against the new RuinInterior shape. Rewrite
+      RP-39-post-revery-memory-softening.test.ts to assert the hook is gone (no
+      overworldFogDiscovered reference). Follow docs/claude/testing.md: spy on
       Math.random with restore in finally, clearAroundPlayer() for terrain prep,
-      reset entity arrays before count asserts. Delete the now-obsolete
-      RP-39-post-revery-memory-softening.test.ts assertions that depended on
-      overworldFogDiscovered, or rewrite that file to assert the hook is gone.
+      reset entity arrays before count asserts.
     depends_on:
       - renderer-three-state-and-flora-snapshot
       - fog-mask-and-effect-passes
+      - minimap-three-state
       - remove-revery-softening-hook
       - update-schema-allowlist
     verification:
