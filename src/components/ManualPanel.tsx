@@ -367,7 +367,7 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
           setSearch(e.target.value)
         }}
         placeholder="Search..."
-        className="text-text placeholder-dim border-border hover:border-pink focus:border-pink mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none"
+        className="text-text placeholder-dim border-border hover:border-pink mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none"
       />
 
       {/* Category tabs */}
@@ -391,7 +391,15 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
                 setCategory(cat)
               }}
             >
-              {CATEGORY_LABELS[cat]}
+              {/* The egregore label is Voynich PUA glyphs; render it in the
+                  Voynich face like all other egregore content, else it falls
+                  back to tofu in the default mono font. The search-count
+                  suffix stays in the normal font (Latin digits). */}
+              {cat === ManualCategory.Egregore ? (
+                <span style={{ fontFamily: "'Voynich', monospace" }}>{CATEGORY_LABELS[cat]}</span>
+              ) : (
+                CATEGORY_LABELS[cat]
+              )}
               {searchQuery && ` (${String(count)})`}
             </Tab>
           )
@@ -405,7 +413,13 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
           if (catEntries.length === 0) return null
           return (
             <div key={cat}>
-              <SectionHeader>{CATEGORY_LABELS[cat]}</SectionHeader>
+              <SectionHeader>
+                {cat === ManualCategory.Egregore ? (
+                  <span style={{ fontFamily: "'Voynich', monospace" }}>{CATEGORY_LABELS[cat]}</span>
+                ) : (
+                  CATEGORY_LABELS[cat]
+                )}
+              </SectionHeader>
               {catEntries.map(entry => {
                 const isHighlighted = entry.id === highlightId
                 return (

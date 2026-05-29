@@ -1,0 +1,151 @@
+id: menu-overhaul
+name: 'Menu surface overhaul — shared modal shell, dialog fix, hidden focus'
+priority: medium
+layer: integration
+source_files:
+  - src/styles/index.css
+  - src/components/PanelPrimitives.tsx
+  - src/components/ModalShell.tsx
+  - src/components/DialogBox.tsx
+  - src/components/CreditsModal.tsx
+  - src/components/ScanResultModal.tsx
+  - src/components/PermacomputerShell.tsx
+  - src/components/ManualPanel.tsx
+  - src/hooks/useFocusTrap.ts
+  - src/components/__tests__/ModalShell.test.tsx
+  - src/components/__tests__/DialogBox.test.tsx
+  - src/components/__tests__/PanelPrimitives.test.tsx
+  - src/hooks/__tests__/useFocusTrap.test.tsx
+dependencies:
+  - auto-hide-panels
+
+behaviors:
+  - id: dialog-button-reserves-footer-space
+    description: >
+      the dialog advance button no longer reflows the spoken line when
+      typing finishes. a fixed-height footer is reserved up front; the
+      button is mounted but invisible and disabled (out of tab order,
+      non-interactive) while typing, and becomes visible and enabled once
+      typingDone. the vertically centered text region keeps a constant
+      height across the typing-to-done transition.
+    inputs:
+      - 'DialogBox rendered with onAdvance provided and typingDone false'
+      - 'the same DialogBox re-rendered with typingDone true'
+    outputs:
+      - 'advance button is present in the DOM in both states'
+      - 'while typing: button carries the invisible class and is disabled'
+      - 'when done: button is visible and enabled'
+    state_changes: []
+    determinism: deterministic
+
+  - id: modal-shell-owns-scaffolding
+    description: >
+      ModalShell portals its content to document.body, optionally renders a
+      dimmed backdrop scrim, applies role=dialog and aria-modal, and traps
+      focus while open. dismissal fires on a configurable key (default
+      Escape) gated by a canDismiss flag, and on a backdrop click when
+      dismissOnBackdropClick is set. the dismissal key listener runs in the
+      capture phase so it does not leak to the game input layer.
+    inputs:
+      - 'ModalShell rendered with an onDismiss handler'
+      - 'the dismiss key is pressed, or the backdrop is clicked'
+    outputs:
+      - 'content rendered into a body portal with dialog semantics'
+      - 'onDismiss fires only when canDismiss is true'
+    state_changes: []
+    determinism: deterministic
+
+  - id: credits-modal-adopts-shell
+    description: >
+      CreditsModal renders through ModalShell instead of a hand-rolled
+      backdrop and Escape listener. it keeps its auto-scroll animation and
+      its inline titled-bar close button. the title is wired to the dialog
+      via aria-labelledby.
+    inputs:
+      - 'CreditsModal opened from the system menu'
+    outputs:
+      - 'backdrop, Escape dismissal, and close button all close the modal'
+    state_changes: []
+    determinism: deterministic
+
+  - id: scan-modal-dismisses-on-f
+    description: >
+      ScanResultModal adopts ModalShell over a transparent backdrop and
+      dismisses on the F key, gated until the gel reveal completes
+      (fullyRevealed). keys other than F never dismiss it. the gel reveal,
+      film grain, and Voynich heading are unchanged. the hint reads
+      "Press [F] to continue".
+    inputs:
+      - 'ScanResultModal rendered for a scan commit result'
+      - 'F is pressed before the reveal finishes, and after'
+      - 'a non-F key is pressed after the reveal finishes'
+    outputs:
+      - 'onDismiss does not fire before fullyRevealed'
+      - 'onDismiss fires on F after fullyRevealed'
+      - 'onDismiss never fires for non-F keys'
+    state_changes: []
+    determinism: deterministic
+
+  - id: focus-indicators-hidden
+    description: >
+      a single global outline:none rule on :focus and :focus-visible hides
+      every focus ring across the UI, so no control reads as a web form.
+      keyboard navigation still functions and modals trap and restore focus
+      via useFocusTrap; the focus state is simply not visible.
+    inputs:
+      - 'any focusable control receives keyboard focus'
+    outputs:
+      - 'no outline or ring is shown'
+      - 'focus still moves and is trappable within a modal'
+    state_changes: []
+    determinism: deterministic
+
+  - id: permacomputer-has-no-gear
+    description: >
+      the permacomputer terminal no longer renders the gear glyph as a
+      close button or as a footer status badge. it closes via Escape, Tab,
+      or a backdrop click. the status footer keeps the "Permacomputer
+      online" text without the gear.
+    inputs:
+      - 'the permacomputer shell is open'
+    outputs:
+      - 'no gear glyph in the tab bar or footer'
+      - 'Escape, Tab, and backdrop click each close it'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregore-tab-renders-in-voynich
+    description: >
+      the egregore manual category tab label and its section header render
+      in the Voynich typeface, matching the egregore entry bodies, rather
+      than falling back to the default mono font which lacks glyphs at
+      those private-use code points. the Latin search-count suffix stays in
+      the normal font.
+    inputs:
+      - 'the manual is opened with the egregore category visible'
+    outputs:
+      - 'the egregore tab label and section header use the Voynich font'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: dialog-no-footer-without-advance
+    description: 'DialogBox rendered with no onAdvance (e.g. a locked-gate one-liner)'
+    expected: 'no footer and no advance button render at all'
+  - id: scan-reduced-motion
+    description: 'prefers-reduced-motion collapses the gel reveal to instant'
+    expected: 'modal is immediately dismissable on F'
+  - id: text-button-disabled
+    description: 'TextButton rendered with disabled true'
+    expected: 'button is dimmed (opacity-40), shows not-allowed cursor, and its click handler does not fire'
+
+failure_conditions:
+  - trigger: 'a non-F key pressed in the scan modal after the reveal finishes'
+    expected: 'the modal stays open'
+  - trigger: 'Escape pressed in the scan modal'
+    expected: 'the modal stays open (only F dismisses it)'
+
+verification:
+  test_file: src/components/__tests__/ModalShell.test.tsx
+  test_pattern: 'ModalShell'
+  command: 'npx vitest run src/components/__tests__/ModalShell.test.tsx'

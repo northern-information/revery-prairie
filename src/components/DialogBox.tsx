@@ -29,16 +29,23 @@ export const DialogBox = ({
         </p>
       </div>
     </div>
-    {typingDone && onAdvance && (
-      <TextButton
-        onClick={() => {
-          onAdvance()
-        }}
-        data-testid="dialog-advance-button"
-        className="self-center"
-      >
-        {isLastLine ? '[F] Close' : '[F] Next'}
-      </TextButton>
+    {/* Fixed-height footer reserved up front so the advance button can appear
+        when typing finishes without reflowing the centered text above it. The
+        button is always mounted while onAdvance exists; it is invisible and
+        disabled (out of tab order, non-interactive) until typingDone. */}
+    {onAdvance && (
+      <div className="flex h-7 shrink-0 items-center justify-center">
+        <TextButton
+          onClick={() => {
+            onAdvance()
+          }}
+          disabled={!typingDone}
+          data-testid="dialog-advance-button"
+          className={typingDone ? '' : 'invisible'}
+        >
+          {isLastLine ? '[F] Close' : '[F] Next'}
+        </TextButton>
+      </div>
     )}
   </div>
 )

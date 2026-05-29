@@ -1,0 +1,164 @@
+plan:
+  id: menu-overhaul
+  title: 'Overhaul React menu surfaces: shared modal shell, dialog fix, hidden focus'
+  created: '2026-05-29'
+  global_verification:
+    - 'npm run build'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: normalize-primitives
+    title: 'Normalize PanelPrimitives and suppress focus rings'
+    spec_id: menu-overhaul
+    spec_sections:
+      - focus-indicators-hidden
+    context_files:
+      - src/components/PanelPrimitives.tsx
+      - src/components/__tests__/PanelPrimitives.test.tsx
+    output_files:
+      - src/components/PanelPrimitives.tsx
+      - src/components/__tests__/PanelPrimitives.test.tsx
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: add-focus-trap
+    title: 'Add useFocusTrap hook'
+    spec_id: menu-overhaul
+    spec_sections:
+      - modal-shell-owns-scaffolding
+    context_files:
+      - src/hooks/useFocusTrap.ts
+    output_files:
+      - src/hooks/useFocusTrap.ts
+      - src/hooks/__tests__/useFocusTrap.test.tsx
+    depends_on: []
+    verification:
+      - 'npx vitest run src/hooks/__tests__/useFocusTrap.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: add-modal-shell
+    title: 'Add ModalShell primitive'
+    spec_id: menu-overhaul
+    spec_sections:
+      - modal-shell-owns-scaffolding
+    context_files:
+      - src/components/ModalShell.tsx
+      - src/hooks/useFocusTrap.ts
+    output_files:
+      - src/components/ModalShell.tsx
+      - src/components/__tests__/ModalShell.test.tsx
+    depends_on:
+      - add-focus-trap
+    verification:
+      - 'npx vitest run src/components/__tests__/ModalShell.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: fix-dialog-jump
+    title: 'Reserve dialog footer space to stop the advance button reflow'
+    spec_id: menu-overhaul
+    spec_sections:
+      - dialog-button-reserves-footer-space
+    context_files:
+      - src/components/DialogBox.tsx
+      - src/components/__tests__/DialogBox.test.tsx
+    output_files:
+      - src/components/DialogBox.tsx
+      - src/components/__tests__/DialogBox.test.tsx
+    depends_on:
+      - normalize-primitives
+    verification:
+      - 'npx vitest run src/components/__tests__/DialogBox.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: adopt-shell-credits
+    title: 'Adopt ModalShell in CreditsModal and delete dead CloseButton'
+    spec_id: menu-overhaul
+    spec_sections:
+      - credits-modal-adopts-shell
+    context_files:
+      - src/components/CreditsModal.tsx
+      - src/components/ModalShell.tsx
+    output_files:
+      - src/components/CreditsModal.tsx
+      - src/components/PanelPrimitives.tsx
+    depends_on:
+      - add-modal-shell
+    verification:
+      - 'npx vitest run src/components/__tests__/CreditsModal.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: adopt-shell-scan
+    title: 'Adopt ModalShell in ScanResultModal, dismiss on F'
+    spec_id: menu-overhaul
+    spec_sections:
+      - scan-modal-dismisses-on-f
+    context_files:
+      - src/components/ScanResultModal.tsx
+      - src/components/ModalShell.tsx
+    output_files:
+      - src/components/ScanResultModal.tsx
+      - src/components/__tests__/ScanResultModal.test.tsx
+    depends_on:
+      - add-modal-shell
+    verification:
+      - 'npx vitest run src/components/__tests__/ScanResultModal.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: hide-focus-global
+    title: 'Hide all focus indicators with a global CSS rule'
+    spec_id: menu-overhaul
+    spec_sections:
+      - focus-indicators-hidden
+    context_files:
+      - src/styles/index.css
+      - src/components/ManualPanel.tsx
+    output_files:
+      - src/styles/index.css
+      - src/components/ManualPanel.tsx
+    depends_on:
+      - normalize-primitives
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [component]
+
+  - id: remove-permacomputer-gear
+    title: 'Remove the permacomputer gear glyphs'
+    spec_id: menu-overhaul
+    spec_sections:
+      - permacomputer-has-no-gear
+    context_files:
+      - src/components/PermacomputerShell.tsx
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/components/PermacomputerShell.tsx
+    depends_on: []
+    verification:
+      - 'npx vitest run src/components/__tests__/PermacomputerShell.test.tsx'
+    repair: retry
+    tags: [component]
+
+  - id: egregore-tab-voynich
+    title: 'Render the egregore manual tab and header in the Voynich font'
+    spec_id: menu-overhaul
+    spec_sections:
+      - egregore-tab-renders-in-voynich
+    context_files:
+      - src/components/ManualPanel.tsx
+      - src/components/ManualPanel.constants.ts
+    output_files:
+      - src/components/ManualPanel.tsx
+    depends_on: []
+    verification:
+      - 'npx vitest run src/components/__tests__/ManualPanel.test.tsx'
+    repair: retry
+    tags: [component]

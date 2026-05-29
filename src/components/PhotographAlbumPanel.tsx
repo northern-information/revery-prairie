@@ -73,7 +73,7 @@ export const PhotographAlbumPanel = ({ state }: PhotographAlbumPanelProps) => {
                   setActiveIndex(i)
                 }}
                 onMouseEnter={playHover}
-                className="text-text hover:bg-bee/10 hover:border-bee/40 flex w-full items-center justify-between rounded border border-transparent p-2 text-left"
+                className="text-text hover:bg-bee/10 hover:border-bee/40 flex w-full items-center justify-between rounded border border-transparent p-2 text-left focus:outline-none"
               >
                 <span className="text-text text-sm">{subjectLabel(frame.subject)}</span>
                 <span className="text-dim text-xs italic">

@@ -1,7 +1,6 @@
 import { Tab } from './PanelPrimitives'
 
 import { canCast } from '@/engine/hexagram'
-import { playClick, playHover } from '@/engine/sfx'
 import type { GameState } from '@/engine/types'
 import type { PermacomputerScreen } from '@/hooks/useKeyboard'
 
@@ -62,20 +61,10 @@ export const PermacomputerShell = ({
           e.stopPropagation()
         }}
       >
-        {/* Tab bar — aligned with sidebar PanelTitle border */}
+        {/* Tab bar — aligned with the panel header border. The permacomputer
+            closes via Escape, Tab, or a backdrop click; there is no visible
+            close button by design. */}
         <div className="border-border-dim flex items-end border-b px-2 pt-4 pb-2">
-          <button
-            type="button"
-            className="text-permacomputer hover:text-pink px-2 py-1.5 text-xs transition-colors"
-            onClick={() => {
-              playClick()
-              onClose()
-            }}
-            onMouseEnter={playHover}
-            title="close permacomputer"
-          >
-            ⚙
-          </button>
           {visibleTabs.map(tab => (
             <Tab
               key={tab.screen}
@@ -95,8 +84,7 @@ export const PermacomputerShell = ({
 
         {/* Status footer */}
         <div className="border-border-dim flex items-center border-t px-4 py-2">
-          <span className="text-permacomputer text-xs">⚙</span>
-          <span className="text-permacomputer ml-2 text-xs">
+          <span className="text-permacomputer text-xs">
             Permacomputer <span className="animate-pulse">online</span>
           </span>
         </div>

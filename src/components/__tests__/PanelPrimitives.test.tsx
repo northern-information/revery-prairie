@@ -1,51 +1,6 @@
-import {
-  AccentBlock,
-  CloseButton,
-  ListCard,
-  PanelTitle,
-  ScrollArea,
-  SectionHeader,
-  Tab,
-  TextButton,
-} from '../PanelPrimitives'
+import { AccentBlock, ListCard, ScrollArea, SectionHeader, Tab, TextButton } from '../PanelPrimitives'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-
-describe('CloseButton', () => {
-  it('renders x and fires onClick', async () => {
-    const onClick = vi.fn()
-    render(<CloseButton onClick={onClick} />)
-
-    const button = screen.getByRole('button', { name: 'Close' })
-    expect(button).toHaveTextContent('x')
-
-    await userEvent.click(button)
-    expect(onClick).toHaveBeenCalledOnce()
-  })
-
-  it('uses custom aria-label', () => {
-    render(<CloseButton onClick={vi.fn()} label="Close dialog" />)
-
-    expect(screen.getByRole('button', { name: 'Close dialog' })).toBeInTheDocument()
-  })
-
-  it('uses hover:text-pink for hot pink hover', () => {
-    render(<CloseButton onClick={vi.fn()} />)
-
-    const button = screen.getByRole('button', { name: 'Close' })
-    expect(button.className).toContain('hover:text-pink')
-  })
-})
-
-describe('PanelTitle', () => {
-  it('renders children with text-clover class', () => {
-    render(<PanelTitle>inventory</PanelTitle>)
-
-    const el = screen.getByText('inventory')
-    expect(el).toBeInTheDocument()
-    expect(el.className).toContain('text-clover')
-  })
-})
 
 describe('SectionHeader', () => {
   it('renders children', () => {
@@ -76,8 +31,8 @@ describe('TextButton', () => {
 
     const button = screen.getByRole('button', { name: 'resume' })
     expect(button.className).toContain('text-text')
-    expect(button.className).toContain('hover:text-pink')
-    expect(button.className).toContain('hover:border-pink')
+    expect(button.className).toContain('enabled:hover:text-pink')
+    expect(button.className).toContain('enabled:hover:border-pink')
     expect(button.className).toContain('border')
     expect(button.className).toContain('px-2')
     expect(button.className).toContain('py-1')
@@ -93,7 +48,31 @@ describe('TextButton', () => {
 
     const button = screen.getByRole('button', { name: 'sort' })
     expect(button.className).toContain('text-dim')
-    expect(button.className).toContain('hover:text-pink')
+    expect(button.className).toContain('enabled:hover:text-pink')
+  })
+
+  it('shows a dimmed, non-interactive disabled state', () => {
+    render(
+      <TextButton onClick={vi.fn()} disabled>
+        locked
+      </TextButton>
+    )
+
+    const button = screen.getByRole('button', { name: 'locked' })
+    expect(button.className).toContain('disabled:opacity-40')
+    expect(button.className).toContain('disabled:cursor-not-allowed')
+  })
+
+  it('does not fire onClick when disabled', async () => {
+    const onClick = vi.fn()
+    render(
+      <TextButton onClick={onClick} disabled>
+        locked
+      </TextButton>
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'locked' }))
+    expect(onClick).not.toHaveBeenCalled()
   })
 
   it('fires onClick', async () => {

@@ -146,7 +146,7 @@ export const InventoryPanel = ({
           <div className="text-muted text-xs">Backpack</div>
           <button
             type="button"
-            className="text-dim hover:text-pink px-1 text-left"
+            className="text-dim hover:text-pink px-1 text-left focus:outline-none"
             onClick={() => {
               playClick()
               autoSort(state.backpack)

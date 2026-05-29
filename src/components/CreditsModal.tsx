@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 
+import { ModalShell } from './ModalShell'
+
 import type { Credit } from '@/engine/credits'
 import { playClick, playHover } from '@/engine/sfx'
 
@@ -15,19 +17,6 @@ const MAX_DURATION_MS = 60_000
 export const CreditsModal = ({ credits, onClose }: CreditsModalProps) => {
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const userInterruptedRef = useRef(false)
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation()
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', onKey, true)
-    return () => {
-      window.removeEventListener('keydown', onKey, true)
-    }
-  }, [onClose])
 
   useEffect(() => {
     const el = scrollRef.current
@@ -67,53 +56,49 @@ export const CreditsModal = ({ credits, onClose }: CreditsModalProps) => {
   }, [credits.length])
 
   return (
-    <div
+    <ModalShell
+      onDismiss={onClose}
+      ariaLabelledBy="credits-modal-title"
       data-testid="credits-modal-backdrop"
-      className="fixed inset-0 z-30 flex items-center justify-center bg-black/70"
-      onClick={onClose}
+      contentTestId="credits-modal"
+      contentClassName="border-border-dim flex max-h-[60vh] w-96 flex-col border bg-black/90 font-mono"
     >
-      <div
-        data-testid="credits-modal"
-        className="border-border-dim relative flex max-h-[60vh] w-96 flex-col border bg-black/90 font-mono"
-        onClick={e => {
-          e.stopPropagation()
-        }}
-      >
-        <div className="border-border-dim flex items-center justify-between border-b px-4 py-2">
-          <span className="text-clover text-sm">Credits</span>
-          <button
-            type="button"
-            className="text-dim hover:text-pink text-sm"
-            onClick={() => {
-              playClick()
-              onClose()
-            }}
-            onMouseEnter={playHover}
-            aria-label="Close credits"
-          >
-            x
-          </button>
-        </div>
-        <div
-          ref={scrollRef}
-          data-testid="credits-modal-scroll"
-          className="scrollbar-custom min-h-0 flex-1 overflow-y-auto px-4 py-4"
+      <div className="border-border-dim flex items-center justify-between border-b px-4 py-2">
+        <span id="credits-modal-title" className="text-clover text-sm">
+          Credits
+        </span>
+        <button
+          type="button"
+          className="text-dim hover:text-pink text-sm focus:outline-none"
+          onClick={() => {
+            playClick()
+            onClose()
+          }}
+          onMouseEnter={playHover}
+          aria-label="Close credits"
         >
-          {credits.length === 0 ? (
-            <p className="text-dim text-xs">No credits yet.</p>
-          ) : (
-            <ul className="text-text flex flex-col gap-2 text-xs">
-              {credits.map((credit, i) => (
-                <li key={`${credit.name}-${String(i)}`}>
-                  <span className="text-text">{credit.name}</span>
-                  <span className="text-dim"> — </span>
-                  <span className="text-dim">{credit.role}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+          x
+        </button>
       </div>
-    </div>
+      <div
+        ref={scrollRef}
+        data-testid="credits-modal-scroll"
+        className="scrollbar-custom min-h-0 flex-1 overflow-y-auto px-4 py-4"
+      >
+        {credits.length === 0 ? (
+          <p className="text-dim text-xs">No credits yet.</p>
+        ) : (
+          <ul className="text-text flex flex-col gap-2 text-xs">
+            {credits.map((credit, i) => (
+              <li key={`${credit.name}-${String(i)}`}>
+                <span className="text-text">{credit.name}</span>
+                <span className="text-dim"> — </span>
+                <span className="text-dim">{credit.role}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </ModalShell>
   )
 }
