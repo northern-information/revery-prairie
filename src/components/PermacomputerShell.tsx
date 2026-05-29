@@ -62,11 +62,11 @@ export const PermacomputerShell = ({
           e.stopPropagation()
         }}
       >
-        {/* Tab bar — aligned with sidebar PanelTitle border */}
+        {/* Tab bar — aligned with the panel header border */}
         <div className="border-border-dim flex items-end border-b px-2 pt-4 pb-2">
           <button
             type="button"
-            className="text-permacomputer hover:text-pink px-2 py-1.5 text-xs transition-colors"
+            className="text-permacomputer hover:text-pink px-2 py-1.5 text-xs transition-colors focus:outline-none"
             onClick={() => {
               playClick()
               onClose()

@@ -8,7 +8,7 @@ interface CloseButtonProps {
 export const CloseButton = ({ onClick, label = 'Close' }: CloseButtonProps) => (
   <button
     type="button"
-    className="text-dim hover:text-pink absolute top-0 right-0 px-4 py-3 text-sm"
+    className="text-dim hover:text-pink absolute top-0 right-0 px-4 py-3 text-sm focus:outline-none"
     onClick={() => {
       playClick()
       onClick()
@@ -18,14 +18,6 @@ export const CloseButton = ({ onClick, label = 'Close' }: CloseButtonProps) => (
   >
     x
   </button>
-)
-
-interface PanelTitleProps {
-  children: React.ReactNode
-}
-
-export const PanelTitle = ({ children }: PanelTitleProps) => (
-  <div className="border-border-dim text-clover mb-3 border-b pt-1.5 pb-2 text-sm">{children}</div>
 )
 
 interface SectionHeaderProps {
@@ -58,7 +50,7 @@ export const TextButton = ({
 }: TextButtonProps) => (
   <button
     type="button"
-    className={`${variant === 'primary' ? 'text-text' : 'text-dim'} border-border/50 hover:border-pink hover:text-pink rounded border px-2 py-1 text-left text-xs transition-colors ${className ?? ''}`}
+    className={`${variant === 'primary' ? 'text-text' : 'text-dim'} border-border/50 enabled:hover:border-pink enabled:hover:text-pink rounded border px-2 py-1 text-left text-xs transition-colors focus:outline-none disabled:cursor-not-allowed disabled:opacity-40 ${className ?? ''}`}
     onClick={() => {
       if (disabled) return
       playClick()
@@ -86,7 +78,7 @@ interface TabProps {
 export const Tab = ({ active, onClick, children, ...rest }: TabProps) => (
   <button
     type="button"
-    className={`px-2 py-1.5 text-xs transition-colors ${
+    className={`px-2 py-1.5 text-xs transition-colors focus:outline-none ${
       active ? 'bg-pink text-bg' : 'text-dim hover:bg-permacomputer-dim hover:text-text'
     }`}
     onClick={() => {
