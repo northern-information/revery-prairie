@@ -74,7 +74,12 @@ npm run verify          # typecheck + lint + test (all three)
 npm run preview         # vite preview
 npm run deploy          # vite build + wrangler deploy from worker/ (needs wrangler login once)
 npm run backlog         # terminal kanban for the backlog
+npm run sync:audio              # diff local audio vs R2 (dry-run, exits 1 on deltas)
+npm run sync:audio -- --pull    # download missing/changed audio from R2 (no auth)
+npm run sync:audio -- --push    # upload local audio deltas (needs wrangler login)
 ```
+
+audio files in `public/music/` and `public/sfx/` are gitignored. on a fresh checkout, run `npm run sync:audio -- --pull` after `npm install` to populate them from R2. the bucket is public; pulls require no Cloudflare auth. only `--push` (and `--push --prune`) needs `wrangler login`.
 
 ## worktrees
 
