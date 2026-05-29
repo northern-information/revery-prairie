@@ -85,8 +85,10 @@ import { ComponentType } from './ecs/types'
 import { hasAnyGrowthPreview } from './floraGrowthPreviews'
 import { GENESIS_EPOCHS } from './genesis'
 import { renderGenesis } from './genesisRenderer'
+import { getInHandItem } from './inHand'
 import { getDefinition } from './items'
 import { getTweenLerp } from './movementTween'
+import { getPlaceableSpec } from './placeable'
 import { isInBounds, posKey, tileHash } from './position'
 import { drawCellBackground, drawCellHighlight, viewportToScreen, worldDeltaToIsoPx, worldToScreen } from './projection'
 import { runPassesInSlot } from './render/passes'
@@ -591,6 +593,21 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (gpos && drop)
       groundItemMap.set(posKey(gpos.x, gpos.y), { definitionId: drop.definitionId, glinting: drop.glinting })
   }
+
+  // RP-59 — loaded cursor: when an item is in hand and the hovered tile is a
+  // legal placement, the cursor's inverted highlight cell shows the in-hand
+  // item's glyph (a "loaded" cursor). Resolved once per frame; applied in the
+  // tile loop. Over an illegal tile the glyph drops out and the cursor reads
+  // as a plain highlight. Computed independently of previewFn to avoid the
+  // single-slot ownership race with drag/recipe previews.
+  const loadedCursor = (() => {
+    const inHand = getInHandItem(state)
+    const cursor = state.cursorTile
+    if (!inHand || !cursor) return null
+    const spec = getPlaceableSpec(inHand.definitionId)
+    if (!spec?.canPlace(state, cursor.x, cursor.y)) return null
+    return { key: posKey(cursor.x, cursor.y), glyph: getDefinition(inHand.definitionId).glyph }
+  })()
 
   // Populate preview tile positions for macro recipe previews
   if (state.previewFn) {
@@ -1646,13 +1663,23 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             oakGroup.has(posKey(state.pendingInteractionTarget.x, state.pendingInteractionTarget.y))
           ))
 
+      // RP-59 — loaded cursor: on the hovered tile with a placeable in hand,
+      // force the pink inverted highlight and swap the inner glyph to the
+      // in-hand item. The glyph renders in BG_COLOR (dark) on pink like every
+      // other cursor inversion.
+      const isLoadedCursor = loadedCursor !== null && loadedCursor.key === tileKey
+      if (isLoadedCursor) {
+        char = loadedCursor.glyph
+      }
+
       // Resolve highlight state without ctx side effects so the deferred
       // path can capture it and the inline path can apply it.
       // Invalid preview tiles (e.g. red X for lightning targeting) suppress
       // entity/target inversion.
       const highlightSuppressed = previewTile !== undefined && !previewTile.isValid
       const highlight =
-        !highlightSuppressed && (isAngelGroupHighlighted || isOakGroupHighlighted || isFacingEntity || isPendingTarget)
+        !highlightSuppressed &&
+        (isLoadedCursor || isAngelGroupHighlighted || isOakGroupHighlighted || isFacingEntity || isPendingTarget)
 
       // Defer entity glyphs (and the local player on its own tile) to a
       // post-tile-loop flush so neighboring high-elevation tiles drawn

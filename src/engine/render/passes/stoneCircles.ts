@@ -8,9 +8,9 @@
 // 'world-overlay' for that to work.
 
 import { ACTION_COLOR } from '../../constants'
-import { findMeteoriteDropTarget } from '../../entities'
+import { canPlaceMeteoriteAt } from '../../entities'
+import { getInHandItem } from '../../inHand'
 import { findPickupableMeteorite } from '../../interaction'
-import { findItemByDefinition } from '../../inventory'
 import { drawCellHighlight, getCellDiamondCorners, worldToScreen } from '../../projection'
 import { containingPolygonsKey, getHallowedPolygons, getStoneCircleGraph } from '../../stoneCircles'
 import { registerPass } from '../passes'
@@ -29,7 +29,19 @@ const CHAIN_EDGE_ALPHA = 0.35
 const PREVIEW_CLOSURE_ALPHA = 0.95
 const PREVIEW_CHAIN_ALPHA = 0.75
 
-const isActive = (state: GameState): boolean => state.placedMeteorites.length > 0 || state.stoneCirclePreview
+// RP-59 — the placement preview tile is the cursor tile when a meteorite is
+// in hand and that tile is a legal placement. Replaces the old grid-hover +
+// DROP_DELTAS model: placement now happens at the cursor via left-click, so
+// the preview lines must radiate from where the stone will actually land.
+const meteoritePreviewTile = (state: GameState): Position | null => {
+  if (getInHandItem(state)?.definitionId !== 'meteorite') return null
+  const cursor = state.cursorTile
+  if (!cursor || !canPlaceMeteoriteAt(state, cursor.x, cursor.y)) return null
+  return { x: cursor.x, y: cursor.y }
+}
+
+const isActive = (state: GameState): boolean =>
+  state.placedMeteorites.length > 0 || meteoritePreviewTile(state) !== null
 
 const cellCenter = (
   pos: Position,
@@ -54,14 +66,9 @@ const cellCenter = (
 
 const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, _time: number): void => {
   const placed = state.placedMeteorites
-  // Preview is only meaningful while the steward actually holds a meteorite —
-  // if they drag-placed or [X]-dropped the last one, the flag may still be
-  // true (the hover handler only fires on mouse move), so gate render-time
-  // on inventory contents too. Position is recomputed every frame using the
-  // same DROP_DELTAS search dropItem() uses, so the preview shows the
-  // actual tile a drop would land on.
-  const hasMeteorite = findItemByDefinition(state.backpack, 'meteorite') !== undefined
-  const preview: Position | null = state.stoneCirclePreview && hasMeteorite ? findMeteoriteDropTarget(state) : null
+  // RP-59 — preview follows the loaded cursor: it shows where the in-hand
+  // meteorite would land on left-click, and only when that tile is legal.
+  const preview: Position | null = meteoritePreviewTile(state)
   if (placed.length === 0 && preview === null) return
 
   const { charWidth, charHeight } = metrics

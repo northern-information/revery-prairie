@@ -267,7 +267,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           >
             <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} cameraFilm={state.cameraFilm} />
           </div>
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto self-start">
             <InventoryPanel
               state={state}
               refreshUI={refreshUI}

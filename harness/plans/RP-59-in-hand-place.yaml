@@ -1,0 +1,229 @@
+plan:
+  id: RP-59-in-hand-place
+  title: >
+    RP-59 — In-hand + place: equippedItemUid field, in-hand layer, PlaceableSpec
+    registry, left-click placement, loaded cursor, 3x3 HUD cell, and the
+    drop≠place split. Retires the grid-hover stone-circle preview and the
+    dropItem placeable special-cases.
+  created: 2026-05-28
+  # Cross-cutting. Adds one GameState field (equippedItemUid), removes one
+  # (stoneCirclePreview), introduces two engine modules (inHand, placeable),
+  # wires left-click placement + a loaded-cursor render branch, retires the
+  # placeable drop/drag-to-world paths, and adds a React HUD cell with drag
+  # take/release. Schema serialization changed and existing RP-18/RP-23
+  # placement tests were migrated — full suite required.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: doctrine-status-update
+    title: >
+      Set spec and plan paths and status under the RP-59 entry in
+      docs/backlog.yaml. Add a notes paragraph naming the four locked
+      decisions (modal-on-hand precedence, auto-advance, drag-only
+      take/unequip, 3x3 HUD cell), the reference-not-move model for
+      equippedItemUid, and that RP-59 supersedes RP-18's inventory-hover
+      preview + stoneCirclePreview field and the dropItem placeable
+      special-cases. Update docs/claude/state.md and docs/claude/entities.md
+      to document equippedItemUid ownership (single-owner via inHand.ts) and
+      the place verb.
+    spec_id: RP-59-in-hand-place
+    spec_sections: []
+    context_files:
+      - docs/backlog.yaml
+      - docs/claude/state.md
+      - docs/claude/entities.md
+    output_files:
+      - docs/backlog.yaml
+      - docs/claude/state.md
+      - docs/claude/entities.md
+    depends_on: []
+    verification: []
+    repair: skip
+    tags: [docs]
+
+  - id: state-field
+    title: >
+      Add `export type ItemUid = string` to types.ts and retype
+      ItemInstance.uid. Add equippedItemUid: ItemUid | null to GameState near
+      glintingCoins. Initialize null in createGameState. Register
+      'equippedItemUid' and remove 'stoneCirclePreview' in EXPECTED_FIELDS.
+      Remove the stoneCirclePreview field from GameState + state.ts.
+    spec_id: RP-59-in-hand-place
+    spec_sections: [equipped-item-uid-field]
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: [doctrine-status-update]
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [engine, state]
+
+  - id: in-hand-layer
+    title: >
+      Create src/engine/inHand.ts — single owner of equippedItemUid:
+      takeInHand, releaseInHand, getInHandItem (self-healing), advanceInHand
+      (definitionId-parameterized, deterministic lowest gridY/gridX),
+      clearInHandIfRemoved. In-hand is a uid reference into the backpack; the
+      item never leaves the container.
+    spec_id: RP-59-in-hand-place
+    spec_sections: [in-hand-layer]
+    context_files:
+      - src/engine/inHand.ts
+      - src/engine/inventory.ts
+    output_files:
+      - src/engine/inHand.ts
+    depends_on: [state-field]
+    verification:
+      - npx vitest run src/engine/__tests__/inHand.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: placeable-registry
+    title: >
+      Create src/engine/placeable.ts — PlaceableSpec { verb, canPlace, place }
+      registry keyed by definitionId. meteorite (place → placedMeteorites +
+      removeItem + advanceInHand), camera (set up → placedCameras + ECS
+      placedCamera entity + removeItem + releaseInHand). New canPlaceCameraAt.
+      getPlaceableSpec / isPlaceable helpers.
+    spec_id: RP-59-in-hand-place
+    spec_sections: [placeable-spec-registry]
+    context_files:
+      - src/engine/placeable.ts
+      - src/engine/entities.ts
+      - src/engine/timeLapse.ts
+    output_files:
+      - src/engine/placeable.ts
+    depends_on: [in-hand-layer]
+    verification:
+      - npx vitest run src/engine/__tests__/placeable.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: strip-drop-placement
+    title: >
+      Remove the meteorite and camera special-cases from dropItem in
+      entities.ts so both fall through to the generic ground-ItemDrop path;
+      clear the in-hand reference on the dropped uid. Remove the dead
+      findMeteoriteDropTarget. Remove the meteorite world-drop branch from
+      useCanvasDrop.ts and clear in-hand there too.
+    spec_id: RP-59-in-hand-place
+    spec_sections: [drop-disowns-not-places]
+    context_files:
+      - src/engine/entities.ts
+      - src/hooks/useCanvasDrop.ts
+    output_files:
+      - src/engine/entities.ts
+      - src/hooks/useCanvasDrop.ts
+    depends_on: [placeable-registry]
+    verification:
+      - npx vitest run src/engine/__tests__/RP-18-stone-circles.test.ts
+    repair: retry
+    tags: [engine, input]
+
+  - id: left-click-place
+    title: >
+      In useMouse handleClick, route left-click to PlaceableSpec.place on the
+      clicked tile when an item is in hand and canPlace passes; otherwise fall
+      through. Add a canvas mousemove listener that writes cursorScreenPos only
+      while in hand (cleared otherwise / on mouseleave) so angel/oak highlights
+      aren't triggered on plain hover.
+    spec_id: RP-59-in-hand-place
+    spec_sections: [left-click-place, loaded-cursor]
+    context_files:
+      - src/hooks/useMouse.ts
+      - src/engine/inHand.ts
+      - src/engine/placeable.ts
+    output_files:
+      - src/hooks/useMouse.ts
+    depends_on: [placeable-registry]
+    verification:
+      - npx vitest run src/hooks/__tests__/useMouse.test.tsx
+    repair: retry
+    tags: [input]
+
+  - id: loaded-cursor-render
+    title: >
+      In renderer.ts resolve a once-per-frame loadedCursor (in-hand item +
+      cursorTile + canPlace) and, on the cursor tile, force the pink inverted
+      highlight and swap the inner glyph to the in-hand item's glyph. Retarget
+      the stoneCircles pass preview to the cursor tile (meteoritePreviewTile),
+      removing the stoneCirclePreview reads and the grid-hover onItemHover
+      mechanism.
+    spec_id: RP-59-in-hand-place
+    spec_sections: [loaded-cursor, meteorite-preview-follows-cursor]
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/render/passes/stoneCircles.ts
+      - src/components/InventoryGrid.tsx
+      - src/components/InventoryPanel.tsx
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/render/passes/stoneCircles.ts
+      - src/components/InventoryGrid.tsx
+      - src/components/InventoryPanel.tsx
+    depends_on: [left-click-place]
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [render]
+
+  - id: in-hand-hud
+    title: >
+      Create src/components/InHandSlot.tsx — a single 3x3-sized cell left of the
+      backpack inside InventoryPanel. Loaded: scaled glyph + hot-pink name.
+      Drop onto it (placeable) → takeInHand. Mousedown on the loaded slot →
+      releaseInHand + start a backpack drag of the item. Wire into
+      InventoryPanel; dim the equipped item's backpack cell.
+    spec_id: RP-59-in-hand-place
+    spec_sections: [in-hand-hud-cell]
+    context_files:
+      - src/components/InHandSlot.tsx
+      - src/components/InventoryPanel.tsx
+      - src/components/InventoryGrid.tsx
+      - src/components/ItemInfo.tsx
+    output_files:
+      - src/components/InHandSlot.tsx
+      - src/components/InventoryPanel.tsx
+      - src/components/InventoryGrid.tsx
+    depends_on: [in-hand-layer]
+    verification:
+      - npx vitest run src/components/__tests__/InHandSlot.test.tsx
+    repair: retry
+    tags: [components]
+
+  - id: tests
+    title: >
+      Add inHand.test.ts, placeable.test.ts, InHandSlot.test.tsx, and the
+      in-hand-place describe in useMouse.test.tsx. Migrate the RP-18
+      stone-circles placement tests (place verb + [x]-drops-ground-item) and
+      the timeLapseCamera deployment tests (deployCamera via PlaceableSpec).
+    spec_id: RP-59-in-hand-place
+    spec_sections: []
+    context_files:
+      - src/engine/__tests__/inHand.test.ts
+      - src/engine/__tests__/placeable.test.ts
+      - src/components/__tests__/InHandSlot.test.tsx
+      - src/hooks/__tests__/useMouse.test.tsx
+      - src/engine/__tests__/RP-18-stone-circles.test.ts
+      - src/engine/__tests__/timeLapseCamera.test.ts
+    output_files:
+      - src/engine/__tests__/inHand.test.ts
+      - src/engine/__tests__/placeable.test.ts
+      - src/components/__tests__/InHandSlot.test.tsx
+      - src/hooks/__tests__/useMouse.test.tsx
+      - src/engine/__tests__/RP-18-stone-circles.test.ts
+      - src/engine/__tests__/timeLapseCamera.test.ts
+    depends_on: [strip-drop-placement, loaded-cursor-render, in-hand-hud]
+    verification:
+      - npm run test
+    repair: retry
+    tags: [test]

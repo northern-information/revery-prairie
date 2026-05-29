@@ -1,15 +1,16 @@
-import { BEE_STARVATION_MS, BEE_TICK_MS, GHOST_TICK_MS, SEASONAL_PHASE_PERIOD_MS } from './constants'
+import { BEE_STARVATION_MS, BEE_TICK_MS, GHOST_TICK_MS } from './constants'
 import { ComponentType } from './ecs/types'
 import { AURA_RADIUS, spawnPickupBloom } from './effects'
 import { FLORA_SPECIES, getTileBeePreference } from './flora/species'
 import { createFloraLifecycleEntry } from './floraLifecycleEntry'
 import { tickCreatureHunger } from './hunger'
+import { clearInHandIfRemoved } from './inHand'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
-import { createPlacedCamera, recordCameraSubjectEvent } from './timeLapse'
+import { recordCameraSubjectEvent } from './timeLapse'
 import { CameraSubject, FloraSpecies, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
@@ -324,19 +325,6 @@ export const canPlaceMeteoriteAt = (state: GameState, x: number, y: number): boo
   return true
 }
 
-// RP-18 — return the tile where the next dropItem('meteorite') call
-// would land, or null if no DROP_DELTAS tile is valid. Used by the
-// inventory-hover preview so the pink preview lines render at the actual
-// drop destination rather than at the player's standing tile.
-export const findMeteoriteDropTarget = (state: GameState): Position | null => {
-  for (const d of DROP_DELTAS) {
-    const tx = state.player.x + d.x
-    const ty = state.player.y + d.y
-    if (canPlaceMeteoriteAt(state, tx, ty)) return { x: tx, y: ty }
-  }
-  return null
-}
-
 // RP-18 — commit a meteorite placement at a specific tile. Used by
 // the drag-to-canvas drop path (useCanvasDrop) so the steward can place
 // meteorites anywhere reachable, not only at DROP_DELTAS-adjacent tiles.
@@ -368,23 +356,12 @@ export const dropItem = (state: GameState, definitionId: string, time?: number):
 
   if (!sourceContainer || !sourceItem) return false
 
-  // RP-18 — meteorites place onto the first valid DROP_DELTAS tile
-  // rather than dropping as ground items. The placement appends to
-  // state.placedMeteorites (no ECS ground-item entity is created). Aligns
-  // with v4 cosmology — placing a stone is a commitment, not a stockpile
-  // shuffle.
-  if (definitionId === 'meteorite') {
-    for (const d of DROP_DELTAS) {
-      const tx = state.player.x + d.x
-      const ty = state.player.y + d.y
-      if (canPlaceMeteoriteAt(state, tx, ty)) {
-        removeItem(sourceContainer, sourceItem.uid)
-        placeMeteoriteAt(state, tx, ty, time)
-        return true
-      }
-    }
-    return false
-  }
+  // RP-59 — drop and place are distinct verbs. Meteorites and cameras are
+  // PLACED (left-click while in hand, routed through PlaceableSpec); the [x]
+  // drop key no longer places them. They fall through to the generic
+  // ground-ItemDrop path below — a dropped meteorite is a retrievable ground
+  // item that does NOT contribute to hallowed-ground geometry. Drop disowns;
+  // place dedicates.
 
   // RP-11 — seed items plant onto adjacent Dirt rather than dropping
   // as ground items. Cannot be set down as bare ground items. Aligns with
@@ -429,37 +406,13 @@ export const dropItem = (state: GameState, definitionId: string, time?: number):
     if (canDropAt(state, tx, ty)) {
       const droppedUid = sourceItem.uid
       removeItem(sourceContainer, droppedUid)
+      // RP-59 — if the dropped item was in hand, clear the reference (mirror
+      // the glintingCoins delete below). Placeables drop as generic ground
+      // items now; place/set-up lives only on left-click via PlaceableSpec.
+      clearInHandIfRemoved(state, droppedUid)
       // Bees are released as world entities instead of ground items
       if (definitionId === 'bee') {
         spawnBeeOrMonarch(state, tx, ty)
-      } else if (definitionId === 'camera') {
-        // Precis #23 — camera placement. Create a placedCamera entity
-        // (not a groundItem, so the proximity-pickup flow skips it) and
-        // arm a PlacedCamera entry in state.placedCameras. The uid is
-        // preserved so cameraFilm and cameraArchive keying stays
-        // stable. If film remains, recording is active for one
-        // season's worth of wall-clock time.
-        const placed = createPlacedCamera(state, {
-          uid: droppedUid,
-          x: tx,
-          y: ty,
-          zone: state.currentZone,
-          now: time ?? performance.now(),
-          spanMs: SEASONAL_PHASE_PERIOD_MS / 4,
-        })
-        state.placedCameras.push(placed)
-        const ce = state.world.createEntity()
-        state.world.addComponent(ce, ComponentType.Position, { x: tx, y: ty })
-        state.world.addComponent(ce, ComponentType.EntityTag, 'placedCamera')
-        state.world.addComponent(ce, ComponentType.EntityZone, getCurrentEntityZone(state))
-        // Re-use the ItemDrop component as the rendering hook so the
-        // existing renderer pass shows the camera glyph at the placed
-        // tile. The component is purely decorative here — pickup
-        // skips placedCamera-tagged entities (proximity-pickup
-        // filters on EntityTag === 'groundItem').
-        state.world.addComponent(ce, ComponentType.ItemDrop, { definitionId: 'camera' })
-        // Deliberately no spawnPickupBloom here — bloom is the visual
-        // for acquisition, not deployment.
       } else {
         const ge = state.world.createEntity()
         state.world.addComponent(ge, ComponentType.Position, { x: tx, y: ty })

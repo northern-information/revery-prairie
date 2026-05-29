@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { InHandSlot } from './InHandSlot'
 import { InventoryGrid } from './InventoryGrid'
-import { SectionHeader } from './PanelPrimitives'
 
 import { autoSort } from '@/engine/inventory'
 import { RecipeKind } from '@/engine/recipes'
@@ -129,46 +129,47 @@ export const InventoryPanel = ({
   return (
     <div
       data-panel="inventory"
-      className="text-text pointer-events-auto relative flex flex-col gap-2 overflow-hidden font-mono text-xs"
+      className="text-text pointer-events-auto relative flex items-start gap-3 overflow-hidden font-mono text-xs"
       onMouseEnter={clearCursorInfo}
       onMouseMove={clearCursorInfo}
     >
-      <div className="flex items-center justify-between gap-2">
-        <SectionHeader>Backpack</SectionHeader>
-        <button
-          type="button"
-          className="text-dim hover:text-pink px-1 text-left"
-          onClick={() => {
-            playClick()
-            autoSort(state.backpack)
-            refreshUI()
-          }}
-          onMouseEnter={playHover}
-        >
-          sort
-        </button>
-      </div>
-      <InventoryGrid
-        container={state.backpack}
-        containerId={state.backpack.id}
+      <InHandSlot
+        state={state}
         dragState={dragState}
-        onStartDrag={handleStartDrag}
-        onUpdatePreview={updatePreview}
-        onDrop={drop}
-        // RP-18 — meteorite hover sets a transient preview flag; the
-        // stoneCircles render pass reads state.player live on every draw,
-        // so preview lines follow the steward as they move. Cleared on
-        // hover-out or hover over any non-meteorite cell.
-        onItemHover={definitionId => {
-          const wanted = definitionId === 'meteorite'
-          if (state.stoneCirclePreview === wanted) return
-          state.stoneCirclePreview = wanted
-          refreshUI()
-        }}
+        refreshUI={refreshUI}
+        cancelDrag={cancelDrag}
+        startDrag={startDrag}
         itemInfoRef={itemInfoRef}
-        glintingCoins={state.glintingCoins}
-        coinGlintPopTimes={state.coinGlintPopTimes}
       />
+      <div className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="text-muted text-xs">Backpack</div>
+          <button
+            type="button"
+            className="text-dim hover:text-pink px-1 text-left"
+            onClick={() => {
+              playClick()
+              autoSort(state.backpack)
+              refreshUI()
+            }}
+            onMouseEnter={playHover}
+          >
+            sort
+          </button>
+        </div>
+        <InventoryGrid
+          container={state.backpack}
+          containerId={state.backpack.id}
+          dragState={dragState}
+          onStartDrag={handleStartDrag}
+          onUpdatePreview={updatePreview}
+          onDrop={drop}
+          itemInfoRef={itemInfoRef}
+          glintingCoins={state.glintingCoins}
+          coinGlintPopTimes={state.coinGlintPopTimes}
+          equippedItemUid={state.equippedItemUid}
+        />
+      </div>
     </div>
   )
 }

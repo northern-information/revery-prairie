@@ -2373,9 +2373,9 @@ features:
       preserved untouched for every item type, placeables included —
       drop and place are two distinct verbs.
     depends_on: ['RP-18', 'RP-23', 'RP-28']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/RP-59-in-hand-place.yaml
+    plan: harness/plans/RP-59-in-hand-place.yaml
     pr: null
     notes: >
       v11 thinktank round 1 (2026-05-24). The seed: Tyler working on
@@ -2401,6 +2401,36 @@ features:
       scope: RP-11 (seeds, drop-on-dirt-to-plant) migrating to
       sow-from-in-hand — room's lean is follow-up spec, ship RP-59
       for meteorites and camera first.
+
+
+      /plan session (2026-05-28). Spec + plan authored:
+      harness/specs/RP-59-in-hand-place.yaml,
+      harness/plans/RP-59-in-hand-place.yaml. Open questions resolved with
+      Tyler:
+      (1) Click precedence — modal-on-hand. `[f]` (interact what I face) is
+      untouched; left-click places what's in hand on the cursor tile only
+      while something is in hand; over an illegal tile the loaded glyph
+      blanks and the click falls through to the existing adjacent-
+      interaction. Three distinct verbs: `[f]` interact, `[x]` drop,
+      left-click place. (Note: the thinktank's "left-click is unused"
+      premise was false — `useMouse` already fired adjacent interactions on
+      left-click.)
+      (2) Sticky — auto-advance. On place, `equippedItemUid` advances to the
+      next backpack instance of the same `definitionId` (lowest gridY then
+      gridX), clearing when none remain. Camera is unique — never advances.
+      (3) Take/unequip — drag only. Drag a backpack item onto the in-hand
+      cell to take it; drag it back out to release. Drag is no longer the
+      world-placement path for placeables.
+      (4) HUD — a single cell sized like a 3x3 block of backpack cells, left
+      of the backpack; glyph scales up, name in hot pink.
+      Implementation notes: `equippedItemUid` is a uid *reference* into the
+      backpack (item never leaves the container) so it survives autoSort
+      like `glintingCoins`. RP-59 *supersedes* RP-18's inventory-hover
+      preview + the `stoneCirclePreview` field (preview now follows the
+      loaded cursor) and RP-18's `dropItem`-places-meteorite behavior (`[x]`
+      now drops a retrievable ground item; place is left-click only). The
+      camera's `dropItem` set-up special-case is likewise removed. Existing
+      RP-18 + RP-23 placement tests migrated to the new verbs.
   - id: 'RP-61'
     name: Retire Gron portrait and the portrait field
     summary: >

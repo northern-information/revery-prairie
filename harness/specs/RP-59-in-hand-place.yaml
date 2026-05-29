@@ -1,0 +1,258 @@
+id: RP-59-in-hand-place
+name: 'RP-59 — In-hand + place (additive placement verb, HUD affordance)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/inHand.ts
+  - src/engine/placeable.ts
+  - src/engine/entities.ts
+  - src/engine/renderer.ts
+  - src/engine/render/passes/stoneCircles.ts
+  - src/hooks/useMouse.ts
+  - src/hooks/useCanvasDrop.ts
+  - src/components/InHandSlot.tsx
+  - src/components/InventoryPanel.tsx
+  - src/components/InventoryGrid.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - RP-18-stone-circles
+  - time-lapse-camera
+
+# RP-59 adds a second placement verb. "[x] to drop" + drag-from-grid-to-world
+# was vestigial crafting-game language — you don't *drop* a field camera, you
+# *set it up*; you don't *drop* a meteorite to make a sacred space, you *place*
+# it. Drop stays (disown); place is added (dedicate). v4 R7's "the inventory is
+# the character sheet" gets its mechanic: a slot that holds what the steward is
+# carrying with intent, separate from the bag.
+#
+# Player-facing noun is **in hand**, never *equipped*. Code keeps
+# state.equippedItemUid for engineering clarity.
+#
+# Locked design decisions (user, 2026-05-28):
+# 1. Modal-on-hand precedence. [f] (interact what I face) is untouched.
+#    Left-click is "place what's in hand on the cursor tile" only while
+#    something is in hand. canPlace gates legality; over an illegal tile the
+#    loaded glyph blanks and the click falls through to the existing adjacent-
+#    interaction. Three distinct verbs: [f] interact, [x] drop, left-click place.
+# 2. Sticky / auto-advance. On place, equippedItemUid advances to another
+#    backpack instance of the same definitionId (lowest gridY then gridX),
+#    clearing to null when none remain. Camera is unique — it never advances.
+# 3. Take/unequip = drag only. Drag a backpack item onto the 3x3 in-hand cell
+#    to take it in hand; drag it back out to release. Drag is no longer the
+#    world-placement path for placeables.
+# 4. HUD: a single cell sized like a 3x3 block of backpack cells, left of the
+#    backpack. Holds one in-hand item; glyph scales up, name in hot pink.
+#
+# In-hand is a uid *reference* into the backpack, never a move: the ItemInstance
+# stays in state.backpack.items so it survives autoSort/merge/split like
+# state.glintingCoins. The 3x3 cell and loaded cursor are views of the reference.
+#
+# Note: this spec supersedes RP-18's `inventory-hover-preview` behavior and its
+# state.stoneCirclePreview field. The meteorite placement preview now follows
+# the loaded cursor (cursor tile + canPlace) instead of grid-hover + a
+# DROP_DELTAS search. state.stoneCirclePreview and the now-dead
+# findMeteoriteDropTarget helper are removed. RP-18's `meteorite-drop-places`
+# behavior (dropItem placing a meteorite into placedMeteorites) is also
+# superseded — [x] now drops a generic ground item; placement is left-click.
+
+behaviors:
+  - id: equipped-item-uid-field
+    description: >
+      New state.equippedItemUid: ItemUid | null. Initialized null in
+      createGameState. Registered in EXPECTED_FIELDS. uid-keyed for
+      stack/sort/merge resilience like glintingCoins — the referenced item
+      stays in the backpack, so autoSort preserving uids keeps the reference
+      valid. New ItemUid type alias in types.ts; ItemInstance.uid retyped.
+    inputs:
+      - 'createGameState'
+    outputs:
+      - 'state.equippedItemUid === null at genesis'
+    state_changes:
+      - field: equippedItemUid
+        effect: 'new nullable field, single-owner writes via src/engine/inHand.ts'
+    determinism: deterministic
+
+  - id: in-hand-layer
+    description: >
+      src/engine/inHand.ts is the single owner of equippedItemUid.
+      takeInHand(state, uid) sets the reference. releaseInHand(state) clears it.
+      getInHandItem(state) resolves the uid across active containers and
+      self-heals a dangling reference to null. advanceInHand(state,
+      definitionId, placedUid) selects the next backpack instance of the same
+      definitionId (lowest gridY then gridX), excluding placedUid, or null when
+      none remain — the caller passes definitionId because the placed instance
+      is already removed by the time advance runs. clearInHandIfRemoved(state,
+      uid) clears the reference iff it matches a uid being removed elsewhere.
+    inputs:
+      - 'GameState; an ItemInstance uid'
+    outputs:
+      - 'getInHandItem returns the ItemInstance or null'
+    state_changes:
+      - field: equippedItemUid
+        effect: 'set to uid (take), null (release/clear), or the next same-def uid (advance)'
+    determinism: deterministic
+
+  - id: placeable-spec-registry
+    description: >
+      src/engine/placeable.ts registers a PlaceableSpec per placeable
+      definitionId: { verb, canPlace(state, x, y), place(state, x, y, uid) }.
+      meteorite → verb 'place', canPlace = canPlaceMeteoriteAt, place appends to
+      placedMeteorites + removeItem + advanceInHand('meteorite', uid). camera →
+      verb 'set up', canPlace = canPlaceCameraAt (in bounds, walkable,
+      unoccupied, not the player tile), place creates a PlacedCamera + pushes
+      placedCameras + a 'placedCamera'-tagged ECS entity (renderer hook) +
+      removeItem + releaseInHand (unique artifact, no advance). getPlaceableSpec
+      and isPlaceable gate which items can be taken in hand (placeable-only).
+    inputs:
+      - 'definitionId; GameState; target tile'
+    outputs:
+      - 'PlaceableSpec or undefined; canPlace boolean; place side effects'
+    state_changes:
+      - field: placedMeteorites
+        effect: 'meteorite place appends { x, y }'
+      - field: placedCameras
+        effect: 'camera place pushes a PlacedCamera'
+      - field: backpack
+        effect: 'placed item removed by uid'
+      - field: equippedItemUid
+        effect: 'meteorite advances; camera clears'
+    determinism: deterministic
+
+  - id: left-click-place
+    description: >
+      In useMouse handleClick, before the existing resolveClickTarget block:
+      if an item is in hand and getPlaceableSpec(def)?.canPlace(state, tile) is
+      true, call spec.place, spawn a click target, play the place SFX, update
+      facing, refresh, and return. Otherwise fall through to the existing
+      adjacent-interaction behavior unchanged. Targets the clicked (cursor)
+      tile, not facing. Nothing-in-hand left-click is unchanged.
+    inputs:
+      - 'GameState with a placeable in hand; canvas left-click'
+    outputs:
+      - 'placement committed when legal; no-op fall-through when illegal'
+    state_changes:
+      - field: placedMeteorites / placedCameras
+        effect: 'committed via PlaceableSpec.place on a legal tile'
+    determinism: deterministic
+
+  - id: loaded-cursor
+    description: >
+      A canvas mousemove listener in useMouse writes state.cursorScreenPos only
+      while an item is in hand (cleared otherwise and on mouseleave), so the
+      angel/oak group highlights that also read cursorTile are not triggered on
+      plain hover. The renderer resolves a once-per-frame loadedCursor (in-hand
+      item + cursorTile + canPlace) and, on the cursor tile, forces the pink
+      inverted highlight and swaps the inner glyph to the in-hand item's glyph
+      (drawn in BG_COLOR on pink like every cursor inversion). Over an illegal
+      tile no glyph swap occurs. Computed independently of previewFn to avoid the
+      single-slot ownership race with drag/recipe previews.
+    inputs:
+      - 'GameState with a placeable in hand; cursor over the world'
+    outputs:
+      - 'loaded glyph on legal tiles; plain highlight / no glyph on illegal tiles'
+    state_changes:
+      - field: cursorScreenPos
+        effect: 'set on canvas mousemove only while in hand; cleared otherwise'
+    determinism: deterministic
+
+  - id: meteorite-preview-follows-cursor
+    description: >
+      The stoneCircles render pass preview tile is the cursor tile when a
+      meteorite is in hand and canPlaceMeteoriteAt passes there. Replaces the
+      retired grid-hover + DROP_DELTAS preview. The connecting/closure preview
+      lines radiate from the cursor tile so they show where the stone will
+      actually land. state.stoneCirclePreview and findMeteoriteDropTarget are
+      removed.
+    inputs:
+      - 'GameState with a meteorite in hand; cursor over a legal tile'
+    outputs:
+      - 'preview lines drawn from the cursor tile to placed meteorites in range'
+    state_changes: []
+    determinism: deterministic
+
+  - id: in-hand-hud-cell
+    description: >
+      InHandSlot renders a single cell sized like a 3x3 block of backpack cells
+      (INVENTORY_CELL_SIZE * 3), placed left of the backpack inside
+      InventoryPanel. When loaded it shows the item glyph scaled up and the name
+      in hot pink; empty it shows a placeholder. Drop onto the slot while
+      dragging a placeable calls takeInHand (item stays in the backpack).
+      Mousedown on the loaded slot calls releaseInHand and starts a normal
+      backpack drag of that item. The backpack grid renders the equipped item's
+      origin cell dimmed.
+    inputs:
+      - 'GameState; active inventory dragState'
+    outputs:
+      - 'data-testid="in-hand-slot" showing glyph + name, or an empty placeholder'
+    state_changes:
+      - field: equippedItemUid
+        effect: 'set on drop-into-slot (take), cleared on grab-from-slot (release)'
+    determinism: deterministic
+
+  - id: drop-disowns-not-places
+    description: >
+      [x] drop and drag-to-canvas no longer place placeables. dropItem's
+      meteorite and camera special-cases are removed — both fall through to the
+      generic ground-ItemDrop path (a retrievable ground item that does NOT
+      contribute to hallowed-ground geometry). The generic drop path clears the
+      in-hand reference if the dropped uid was in hand. useCanvasDrop's meteorite
+      world-drop branch is removed; a dragged placeable falls through to the
+      generic ground drop. Drop disowns; place dedicates.
+    inputs:
+      - "GameState with a placeable in the backpack; dropItem(state, def)"
+    outputs:
+      - 'a groundItem ECS entity created; placedMeteorites/placedCameras unchanged'
+    state_changes:
+      - field: backpack
+        effect: 'item removed'
+      - field: world
+        effect: 'groundItem-tagged ItemDrop entity created'
+      - field: equippedItemUid
+        effect: 'cleared if the dropped uid was in hand'
+    determinism: deterministic
+
+edge_cases:
+  - id: place-last-of-stack
+    description: 'place the only meteorite in hand'
+    expected: 'placedMeteorites gains the tile; equippedItemUid clears to null'
+  - id: place-advances-stack
+    description: 'place one meteorite from a stack of two'
+    expected: 'equippedItemUid advances to the other instance'
+  - id: place-illegal-tile
+    description: 'left-click a non-Dirt/Flora tile with a meteorite in hand'
+    expected: 'no placement; falls through to existing adjacent-interaction; no crash'
+  - id: nothing-in-hand-left-click
+    description: 'left-click with an empty hand'
+    expected: 'existing behavior unchanged; no placement, no movement'
+  - id: camera-is-unique
+    description: 'set up the field camera'
+    expected: 'placedCameras gains one entry; backpack loses the camera; hand clears (no advance)'
+  - id: autosort-preserves-in-hand
+    description: 'autoSort runs while an item is in hand'
+    expected: 'equippedItemUid still resolves to the same uid (reference preserved)'
+  - id: drop-in-hand-item
+    description: '[x] drop the item currently in hand'
+    expected: 'ground item created; equippedItemUid cleared; no placement geometry'
+  - id: dangling-reference
+    description: 'equippedItemUid points at a uid no longer in any container'
+    expected: 'getInHandItem returns null and self-heals the field to null'
+  - id: hover-no-glyph-swap-without-item
+    description: 'cursor over a legal tile with nothing in hand'
+    expected: 'no loaded glyph; angel/oak highlights are not triggered by plain hover'
+
+failure_conditions:
+  - trigger: 'state.equippedItemUid omitted from EXPECTED_FIELDS in the schema test'
+    expected: 'schema.test.ts fails with the expected-fields mismatch — the new-field gate'
+  - trigger: 'state.stoneCirclePreview still present in EXPECTED_FIELDS after removal'
+    expected: 'schema.test.ts fails — the field was removed from GameState'
+  - trigger: 'a non-placeable item is taken in hand'
+    expected: 'InHandSlot rejects the drop (isPlaceable gate); equippedItemUid unchanged'
+  - trigger: 'advanceInHand called after place without the placed instance present'
+    expected: 'next same-def instance selected, or null — never throws on the missing placedUid'
+
+verification:
+  test_file: src/engine/__tests__/placeable.test.ts
+  test_pattern: '^PlaceableSpec registry$'
+  command: 'npx vitest run src/engine/__tests__/placeable.test.ts src/engine/__tests__/inHand.test.ts'

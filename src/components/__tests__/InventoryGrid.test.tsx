@@ -116,3 +116,43 @@ describe('InventoryGrid coin glint states', () => {
     expect(container.querySelectorAll('[data-coin-state]')).toHaveLength(0)
   })
 })
+
+describe('InventoryGrid in-hand dim (RP-59)', () => {
+  it('marks the equipped item cell with data-in-hand', () => {
+    const state = createGameState('Test', 80, 40)
+    const item = placeItem(state.backpack, 'meteorite', 0, 0)
+    if (item === null) throw new Error('expected meteorite placement')
+
+    const { container, rerender } = render(
+      <InventoryGrid
+        container={state.backpack}
+        containerId={state.backpack.id}
+        dragState={null}
+        onStartDrag={vi.fn()}
+        onUpdatePreview={vi.fn()}
+        onDrop={vi.fn()}
+        itemInfoRef={itemInfoRef}
+        equippedItemUid={null}
+      />
+    )
+    // Not in hand → no cell is marked.
+    expect(container.querySelector('[data-in-hand="true"]')).toBeNull()
+
+    rerender(
+      <InventoryGrid
+        container={state.backpack}
+        containerId={state.backpack.id}
+        dragState={null}
+        onStartDrag={vi.fn()}
+        onUpdatePreview={vi.fn()}
+        onDrop={vi.fn()}
+        itemInfoRef={itemInfoRef}
+        equippedItemUid={item.uid}
+      />
+    )
+    // In hand → exactly the equipped item's cell is marked and dimmed.
+    const dimmed = container.querySelectorAll('[data-in-hand="true"]')
+    expect(dimmed).toHaveLength(1)
+    expect((dimmed[0] as HTMLElement).style.opacity).toBe('0.35')
+  })
+})

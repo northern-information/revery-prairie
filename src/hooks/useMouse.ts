@@ -17,9 +17,12 @@ import {
   unlockRuinDoor,
   updateFacingEntity,
 } from '@/engine/interaction'
+import { getInHandItem } from '@/engine/inHand'
 import { getPathfindingBlockers } from '@/engine/movement'
 import { findPath } from '@/engine/pathfinding'
+import { getPlaceableSpec } from '@/engine/placeable'
 import { isWalkableTile, posKey } from '@/engine/position'
+import { playPlace } from '@/engine/sfx'
 import { TileType } from '@/engine/types'
 import { isInputGated } from '@/engine/zoneTransition'
 import type { PermacomputerScreen } from './useKeyboard'
@@ -172,6 +175,25 @@ export const useMouse = ({
 
       const tile = expandClickTile(state, rawTile)
 
+      // RP-59 — place what's in hand. Left-click is the place verb whenever
+      // something is in hand and the clicked tile is a legal placement.
+      // Targets the clicked tile (cursor), not facing. Over an illegal tile
+      // we fall through to the existing adjacent-interaction behavior, so a
+      // misfire on an illegal tile is a graceful no-op for placement. [f]
+      // (interact) and [x] (drop) are untouched — three distinct verbs.
+      const inHand = getInHandItem(state)
+      if (inHand) {
+        const spec = getPlaceableSpec(inHand.definitionId)
+        if (spec?.canPlace(state, rawTile.x, rawTile.y)) {
+          spec.place(state, rawTile.x, rawTile.y, inHand.uid)
+          spawnClickTarget(state, rawTile.x, rawTile.y, performance.now())
+          playPlace()
+          updateFacingEntity(state)
+          refreshUI()
+          return
+        }
+      }
+
       // Click on the player tile — no-op
       if (tile.x === state.player.x && tile.y === state.player.y) return
 
@@ -245,11 +267,37 @@ export const useMouse = ({
       refreshUI()
     }
 
+    // RP-59 — track the cursor over the canvas so the loaded-cursor render
+    // branch can swap the highlight glyph to the in-hand item at the hovered
+    // tile. updateCursorState (run each frame in GameCanvas) reads
+    // cursorScreenPos → cursorTile; without this listener cursorScreenPos is
+    // only set during an inventory drag. Offset coords match the click
+    // handler's screenToTile call.
+    const handleMouseMove = (e: MouseEvent) => {
+      // Gate on in-hand: cursorTile is read by the angel/oak group highlights
+      // too, so tracking it unconditionally would invert those on plain hover.
+      // Only the loaded cursor needs cursorTile live, and only while in hand.
+      if (!getInHandItem(state)) {
+        if (state.cursorScreenPos !== null) state.cursorScreenPos = null
+        return
+      }
+      if (state.cursorScreenPos?.x === e.offsetX && state.cursorScreenPos.y === e.offsetY) return
+      state.cursorScreenPos = { x: e.offsetX, y: e.offsetY }
+    }
+
+    const handleMouseLeave = () => {
+      if (state.cursorScreenPos !== null) state.cursorScreenPos = null
+    }
+
     canvas.addEventListener('click', handleClick)
     canvas.addEventListener('contextmenu', handleContextMenu)
+    canvas.addEventListener('mousemove', handleMouseMove)
+    canvas.addEventListener('mouseleave', handleMouseLeave)
     return () => {
       canvas.removeEventListener('click', handleClick)
       canvas.removeEventListener('contextmenu', handleContextMenu)
+      canvas.removeEventListener('mousemove', handleMouseMove)
+      canvas.removeEventListener('mouseleave', handleMouseLeave)
     }
   }, [canvasRef, state, metricsRef, refreshUI])
 }
