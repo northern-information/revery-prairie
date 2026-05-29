@@ -106,6 +106,31 @@ behaviors:
         effect: 'recalculated (see facing-entity-update)'
     determinism: deterministic
 
+  - id: diagonal-corner-cut-blocked
+    description: >
+      for a diagonal move (isDiagonalDirection true: upLeft, upRight,
+      downLeft, downRight), movePlayer rejects the move when either of
+      the two adjacent cardinal tiles the player would cut the corner
+      of is non-walkable, OR when either of those cardinal tiles is
+      entity-blocked. This prevents the player slipping diagonally
+      through the corner of a wall or between two blocking entities.
+      The terrain check (isWalkableTile on both cardinal neighbors)
+      runs before the destination's own getBlockedPositions check; the
+      entity check (getBlockedPositions on both cardinal neighbors)
+      runs after. Cardinal moves are never subject to either rule.
+    inputs:
+      - 'GameState with player able to step diagonally toward a walkable destination'
+      - "Direction: one of 'upLeft' | 'upRight' | 'downLeft' | 'downRight'"
+      - 'at least one of the two adjacent cardinal tiles is non-walkable or entity-blocked'
+    outputs:
+      - 'boolean: false'
+    state_changes:
+      - field: playerFacing
+        effect: 'set to dir (see facing-entity-update)'
+      - field: facingEntityPos
+        effect: 'recalculated (see facing-entity-update)'
+    determinism: deterministic
+
   - id: facing-entity-update
     description: >
       after any move attempt (successful or not), playerFacing is set
@@ -191,6 +216,8 @@ failure_conditions:
   - trigger: 'Target position is out of map bounds'
     expected: 'movePlayer returns false, no state mutation to player position'
   - trigger: 'Target tile occupied by character'
+    expected: 'movePlayer returns false, no state mutation to player position'
+  - trigger: 'Diagonal move where an adjacent cardinal corner tile is non-walkable or entity-blocked'
     expected: 'movePlayer returns false, no state mutation to player position'
   - trigger: 'WASD or click-to-move during deep time Burning or Simulating phase'
     expected: 'tick systems return early, no movement processed'

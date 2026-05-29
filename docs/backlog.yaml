@@ -2373,10 +2373,10 @@ features:
       preserved untouched for every item type, placeables included —
       drop and place are two distinct verbs.
     depends_on: ['RP-18', 'RP-23', 'RP-28']
-    status: in-progress
+    status: shipped
     spec: harness/specs/RP-59-in-hand-place.yaml
     plan: harness/plans/RP-59-in-hand-place.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/467
     notes: >
       v11 thinktank round 1 (2026-05-24). The seed: Tyler working on
       RP-18 (meteorite hallowed ground) and RP-23 (field camera)
@@ -2478,7 +2478,7 @@ features:
       bullet was dropped during change-request scoping per Tyler's
       preference — we don't keep a list of things we don't do unless
       the rule is very specific.
-  - id: 'RP-62'
+  - id: 'RP-63'
     name: Gate is not a character
     summary: >
       The locked-gate interactable at `src/engine/characters.ts:57-62`
