@@ -91,6 +91,18 @@ body,
   justify-content: center;
 }
 
+/* Hide every focus indicator, everywhere. This is a deliberate aesthetic
+   choice over the usual web focus-visible affordance: the game must not read
+   as a web form, and a focus ring on a button or input breaks that. Keyboard
+   navigation still works (and modals trap+restore focus via useFocusTrap) —
+   it is simply invisible. Unlayered so it overrides Tailwind utilities in v4;
+   covers buttons, inputs, links, and anything focusable, present and future,
+   so no per-element opt-out is needed. */
+:focus,
+:focus-visible {
+  outline: none;
+}
+
 .scrollbar-custom::-webkit-scrollbar {
   width: 6px;
 }

@@ -367,7 +367,7 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
           setSearch(e.target.value)
         }}
         placeholder="Search..."
-        className="text-text placeholder-dim border-border hover:border-pink focus:border-pink mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none"
+        className="text-text placeholder-dim border-border hover:border-pink mb-3 w-full border bg-black/50 px-2 py-1 font-mono text-xs outline-none"
       />
 
       {/* Category tabs */}
