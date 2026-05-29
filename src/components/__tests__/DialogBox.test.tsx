@@ -100,7 +100,9 @@ describe('DialogBox', () => {
     expect(button.textContent).toBe('[F] Close')
   })
 
-  it('hides button while still typing', () => {
+  it('keeps the advance button in reserved space but hidden while still typing', () => {
+    // The footer space is reserved up front (mounted, invisible, disabled) so
+    // the button appearing on typingDone does not reflow the centered text.
     const onAdvance = vi.fn()
     render(
       <DialogBox
@@ -112,6 +114,49 @@ describe('DialogBox', () => {
         onAdvance={onAdvance}
       />
     )
+
+    const button = screen.getByTestId('dialog-advance-button')
+    expect(button.className).toContain('invisible')
+    expect(button).toBeDisabled()
+  })
+
+  it('does not advance when the hidden button is clicked while typing', () => {
+    const onAdvance = vi.fn()
+    render(
+      <DialogBox
+        characterName="Gron"
+        line="hello"
+        typingIndex={3}
+        typingDone={false}
+        isLastLine={false}
+        onAdvance={onAdvance}
+      />
+    )
+
+    screen.getByTestId('dialog-advance-button').click()
+    expect(onAdvance).not.toHaveBeenCalled()
+  })
+
+  it('reveals the advance button (visible, enabled) once typing finishes', () => {
+    const onAdvance = vi.fn()
+    render(
+      <DialogBox
+        characterName="Gron"
+        line="hello"
+        typingIndex={5}
+        typingDone={true}
+        isLastLine={false}
+        onAdvance={onAdvance}
+      />
+    )
+
+    const button = screen.getByTestId('dialog-advance-button')
+    expect(button.className).not.toContain('invisible')
+    expect(button).toBeEnabled()
+  })
+
+  it('omits the footer entirely when no onAdvance is provided', () => {
+    render(<DialogBox characterName="gate" line="The gate is locked." typingIndex={19} typingDone={true} />)
 
     expect(screen.queryByTestId('dialog-advance-button')).toBeNull()
   })
