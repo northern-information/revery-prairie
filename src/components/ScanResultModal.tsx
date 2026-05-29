@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { GelBandView } from './GelBandView'
+import { ModalShell } from './ModalShell'
 
 import { playSfx } from '@/engine/audio'
 import { FLORA_SPECIES } from '@/engine/flora/species'
@@ -113,68 +114,55 @@ export const ScanResultModal = ({ result, onDismiss }: ScanResultModalProps) => 
     }
   }, [reducedMotion])
 
-  useEffect(() => {
-    if (!fullyRevealed) return
-    const onKey = (e: KeyboardEvent) => {
-      e.preventDefault()
-      onDismiss()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [fullyRevealed, onDismiss])
-
-  const handleBackdropClick = () => {
-    if (fullyRevealed) onDismiss()
-  }
-
+  // Dismissal is owned by ModalShell: F closes the ceremony, but only once
+  // the reveal has finished (canDismiss). The transparent backdrop (scrim
+  // off) preserves the original look — the film-grain content sits over the
+  // unobscured game canvas. The "no scan bypasses this modal" doctrine is
+  // about opening the modal, which is unchanged.
   return (
-    <div
+    <ModalShell
+      onDismiss={onDismiss}
+      dismissKey="f"
+      canDismiss={fullyRevealed}
+      scrim={false}
+      ariaLabelledBy="scan-result-common-name"
       data-testid="scan-result-modal"
-      className="pointer-events-auto fixed inset-0 z-30 flex items-center justify-center"
-      onClick={handleBackdropClick}
+      contentTestId="scan-result-content"
+      contentClassName="film-grain-overlay border-border flex flex-col items-center gap-4 overflow-hidden border bg-black p-8 font-mono"
     >
       <div
-        data-testid="scan-result-content"
-        className="film-grain-overlay border-border relative flex flex-col items-center gap-4 overflow-hidden border bg-black p-8 font-mono"
-        onClick={e => {
-          e.stopPropagation()
-        }}
+        data-testid="scan-result-heading"
+        data-revealed={binomialVisible}
+        className="flex flex-col items-center gap-1 transition-opacity duration-[400ms]"
+        style={{ opacity: binomialVisible ? 1 : 0 }}
       >
-        <div
-          data-testid="scan-result-heading"
-          data-revealed={binomialVisible}
-          className="flex flex-col items-center gap-1 transition-opacity duration-[400ms]"
-          style={{ opacity: binomialVisible ? 1 : 0 }}
+        <h2
+          id="scan-result-common-name"
+          data-testid="scan-result-common-name"
+          className="text-text text-2xl"
+          style={heading.voynich ? { fontFamily: VOYNICH_FONT_FAMILY } : undefined}
         >
-          <h2
-            data-testid="scan-result-common-name"
-            className="text-text text-2xl"
-            style={heading.voynich ? { fontFamily: VOYNICH_FONT_FAMILY } : undefined}
-          >
-            {heading.commonName}
-          </h2>
-          <p
-            data-testid="scan-result-binomial"
-            className="text-dim text-xs italic"
-            style={heading.voynich ? { fontFamily: VOYNICH_FONT_FAMILY } : undefined}
-          >
-            {heading.binomial}
-          </p>
-        </div>
-        <div
-          data-testid="scan-result-gel"
-          data-variant={variant}
-          data-revealed-cells={revealedCells}
-          data-fully-revealed={fullyRevealed}
+          {heading.commonName}
+        </h2>
+        <p
+          data-testid="scan-result-binomial"
+          className="text-dim text-xs italic"
+          style={heading.voynich ? { fontFamily: VOYNICH_FONT_FAMILY } : undefined}
         >
-          <GelBandView identity={identity} variant={variant} revealedCells={revealedCells} />
-        </div>
-        <p data-testid="scan-result-hint" className="text-dim text-xs" style={{ opacity: fullyRevealed ? 0.7 : 0 }}>
-          Press any key to continue
+          {heading.binomial}
         </p>
       </div>
-    </div>
+      <div
+        data-testid="scan-result-gel"
+        data-variant={variant}
+        data-revealed-cells={revealedCells}
+        data-fully-revealed={fullyRevealed}
+      >
+        <GelBandView identity={identity} variant={variant} revealedCells={revealedCells} />
+      </div>
+      <p data-testid="scan-result-hint" className="text-dim text-xs" style={{ opacity: fullyRevealed ? 0.7 : 0 }}>
+        Press [F] to continue
+      </p>
+    </ModalShell>
   )
 }

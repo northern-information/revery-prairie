@@ -86,16 +86,16 @@ describe('scan-result modal', () => {
     expect(screen.getByTestId('scan-result-gel').getAttribute('data-fully-revealed')).toBe('true')
   })
 
-  it('ignores key dismiss before fully revealed', () => {
+  it('ignores F dismiss before fully revealed', () => {
     const onDismiss = vi.fn()
     render(<ScanResultModal result={floraResult} onDismiss={onDismiss} />)
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }))
     })
     expect(onDismiss).not.toHaveBeenCalled()
   })
 
-  it('dismisses on key after fully revealed', () => {
+  it('ignores keys other than F even after fully revealed', () => {
     const onDismiss = vi.fn()
     render(<ScanResultModal result={floraResult} onDismiss={onDismiss} />)
     act(() => {
@@ -104,6 +104,19 @@ describe('scan-result modal', () => {
     expect(screen.getByTestId('scan-result-gel').getAttribute('data-fully-revealed')).toBe('true')
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    })
+    expect(onDismiss).not.toHaveBeenCalled()
+  })
+
+  it('dismisses on F after fully revealed', () => {
+    const onDismiss = vi.fn()
+    render(<ScanResultModal result={floraResult} onDismiss={onDismiss} />)
+    act(() => {
+      vi.advanceTimersByTime(50 + 400 + 40 * 64)
+    })
+    expect(screen.getByTestId('scan-result-gel').getAttribute('data-fully-revealed')).toBe('true')
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }))
     })
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
@@ -129,7 +142,7 @@ describe('scan-result modal', () => {
     expect(screen.getByTestId('scan-result-heading').getAttribute('data-revealed')).toBe('true')
     expect(screen.getByTestId('scan-result-gel').getAttribute('data-fully-revealed')).toBe('true')
     act(() => {
-      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }))
     })
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
