@@ -1,32 +1,6 @@
-import { AccentBlock, CloseButton, ListCard, ScrollArea, SectionHeader, Tab, TextButton } from '../PanelPrimitives'
+import { AccentBlock, ListCard, ScrollArea, SectionHeader, Tab, TextButton } from '../PanelPrimitives'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-
-describe('CloseButton', () => {
-  it('renders x and fires onClick', async () => {
-    const onClick = vi.fn()
-    render(<CloseButton onClick={onClick} />)
-
-    const button = screen.getByRole('button', { name: 'Close' })
-    expect(button).toHaveTextContent('x')
-
-    await userEvent.click(button)
-    expect(onClick).toHaveBeenCalledOnce()
-  })
-
-  it('uses custom aria-label', () => {
-    render(<CloseButton onClick={vi.fn()} label="Close dialog" />)
-
-    expect(screen.getByRole('button', { name: 'Close dialog' })).toBeInTheDocument()
-  })
-
-  it('uses hover:text-pink for hot pink hover', () => {
-    render(<CloseButton onClick={vi.fn()} />)
-
-    const button = screen.getByRole('button', { name: 'Close' })
-    expect(button.className).toContain('hover:text-pink')
-  })
-})
 
 describe('SectionHeader', () => {
   it('renders children', () => {

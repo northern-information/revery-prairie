@@ -1,25 +1,5 @@
 import { playClick, playHover } from '@/engine/sfx'
 
-interface CloseButtonProps {
-  onClick: () => void
-  label?: string
-}
-
-export const CloseButton = ({ onClick, label = 'Close' }: CloseButtonProps) => (
-  <button
-    type="button"
-    className="text-dim hover:text-pink absolute top-0 right-0 px-4 py-3 text-sm focus:outline-none"
-    onClick={() => {
-      playClick()
-      onClick()
-    }}
-    onMouseEnter={playHover}
-    aria-label={label}
-  >
-    x
-  </button>
-)
-
 interface SectionHeaderProps {
   children: React.ReactNode
   className?: string
