@@ -77,7 +77,7 @@ export const SpecimenStack = ({ specimens, initialIndex }: SpecimenStackProps) =
             if (total > 1) playHover()
           }}
           disabled={total <= 1}
-          className="hover:text-text disabled:opacity-30"
+          className="hover:text-text focus:outline-none disabled:opacity-40"
           aria-label="Previous specimen"
         >
           {'<'}
@@ -95,7 +95,7 @@ export const SpecimenStack = ({ specimens, initialIndex }: SpecimenStackProps) =
             if (total > 1) playHover()
           }}
           disabled={total <= 1}
-          className="hover:text-text disabled:opacity-30"
+          className="hover:text-text focus:outline-none disabled:opacity-40"
           aria-label="Next specimen"
         >
           {'>'}

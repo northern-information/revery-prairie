@@ -113,7 +113,7 @@ const HexagramCompendium = ({ state, onBack }: { state: GameState; onBack: () =>
               <button
                 key={`${String(ri)}-${String(ci)}`}
                 type="button"
-                className={`flex flex-col items-center gap-0.5 rounded px-0.5 py-1 transition-colors ${
+                className={`flex flex-col items-center gap-0.5 rounded px-0.5 py-1 transition-colors focus:outline-none ${
                   isSelected ? 'bg-pink/20 border-pink border' : 'border-border-dim hover:border-pink/50 border'
                 }`}
                 onClick={() => {

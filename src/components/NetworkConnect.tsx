@@ -162,7 +162,7 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
                   disabled={submitting}
                   aria-label={swatch.label}
                   aria-pressed={isActive}
-                  className={`flex h-10 w-10 items-center justify-center rounded border-2 ${isActive ? 'border-text' : 'border-transparent'}`}
+                  className={`flex h-10 w-10 items-center justify-center rounded border-2 focus:outline-none ${isActive ? 'border-text' : 'border-transparent'}`}
                   style={{ backgroundColor: swatch.hex }}
                 >
                   <span className="text-bg font-bold">@</span>
