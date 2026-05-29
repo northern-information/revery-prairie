@@ -128,6 +128,10 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[]; 
       '— emily dickinson',
     ].join('\n'),
   },
+  // Loaded Camera (filmRoll + camera) — TODO per repo policy (lore is
+  // human-authored only). Without this key the entry falls back to its
+  // resultName.
+  'recipe:camera+filmRoll': { lore: 'TODO' },
   // Events — celestial
   'event:shooting-star': {
     lore: 'Shooting stars appear randomly in the space around the prairie. Most pass harmlessly, but some land as meteorites.',
