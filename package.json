@@ -21,6 +21,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "spec:validate": "tsx harness/src/validate-cli.ts harness/specs",
+    "sync:audio": "node tools/sync-audio.mjs",
     "test:components": "vitest run src/components/",
     "test:engine": "vitest run src/engine/",
     "test:harness": "vitest run src/harness/ harness/",
