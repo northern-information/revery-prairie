@@ -1,0 +1,386 @@
+id: RP-24-seeded-predecessors
+name: 'Seeded predecessor stewards (procedural pre-tenure cameras with developed footage)'
+priority: medium
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/predecessors.ts
+  - src/engine/predecessors/names.ts
+  - src/engine/predecessors/footage.ts
+  - src/engine/timeLapse.ts
+  - src/engine/genesis/state.ts
+  - src/engine/constants.ts
+  - src/components/TimeLapsePlayback.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - time-lapse-camera
+
+behaviors:
+  - id: predecessor-record-shape
+    description: >
+      A new `PredecessorRecord` interface is exported from
+      src/engine/types.ts. Shape — `{ stewardName: string; tenure:
+      number; fate: PredecessorFate }`. `PredecessorFate` is a
+      discriminated union: the string literal `'bed'` (tenure ended at
+      the little house) OR an object `{ kind: 'field'; tile: { x:
+      number; y: number } }` (tenure collapsed on the overworld at the
+      stored tile). `PlacedCamera` gains an optional
+      `predecessor?: PredecessorRecord` field. The Field Camera seeded
+      by `seedTenureStartFieldCamera` (precis #23 v9 R3) does NOT set
+      predecessor — its absence marks the body as the player's own
+      inherited camera, not a predecessor. Save/load roundtrips the
+      predecessor field without loss for every PlacedCamera that has
+      one, and omits the key (or leaves it `undefined`) for those that
+      do not. `tenure` is a positive integer ≥ 1, where 1 is the
+      most-recent predecessor and increasing values are older.
+    inputs:
+      - 'PlacedCamera type referenced from src/engine/types.ts'
+    outputs:
+      - 'PredecessorRecord and PredecessorFate types are exported'
+      - 'PlacedCamera.predecessor is an optional field'
+    state_changes: []
+    determinism: deterministic
+
+  - id: predecessor-count-derivation
+    description: >
+      `seedPredecessorCameras(state)` computes the number of
+      predecessor cameras to place from `state.genesisSeed` (the
+      number derived from the steward name in `createGameState`). The
+      count is `PREDECESSOR_COUNT_MIN + (h mod (PREDECESSOR_COUNT_MAX
+      - PREDECESSOR_COUNT_MIN + 1))` where `h` is the lower 32 bits of
+      `sha256Sync('predecessors:count:' + String(genesisSeed))`
+      interpreted as a non-negative integer. `PREDECESSOR_COUNT_MIN =
+      5` and `PREDECESSOR_COUNT_MAX = 12` are exported from
+      src/engine/constants.ts. The count is deterministic given the
+      genesisSeed.
+    inputs:
+      - 'state.genesisSeed (number)'
+    outputs:
+      - 'integer N in [5, 12] inclusive, deterministic from genesisSeed'
+    state_changes: []
+    determinism: deterministic
+
+  - id: predecessor-camera-placement
+    description: >
+      For each of the N predecessor cameras (indexed i = 0..N-1),
+      `seedPredecessorCameras` selects a placement tile on the
+      overworld map deterministically from `sha256Sync('predecessors:'
+      + String(genesisSeed) + ':place:' + String(i))`. The candidate
+      pool is every walkable overworld tile (per `isWalkableTile`)
+      that is (a) inside `overworldMapWidth × overworldMapHeight`, (b)
+      not occupied by an oak body, (c) not occupied by any existing
+      `placedCamera` entity (including the inherited Field Camera
+      seeded earlier in genesis), (d) not occupied by any
+      `groundItem` entity, and (e) at Chebyshev distance ≥ 6 from
+      every already-chosen predecessor tile in this seeding pass (to
+      avoid clustering). The hash maps into the filtered pool via
+      modulo. If the pool becomes empty before N placements
+      (extremely small maps or pathological constraint), the function
+      returns early with the placements made so far — partial seeding
+      is acceptable; the function does not throw.
+    inputs:
+      - 'state with overworldMap, world entities, oaks placed, inherited Field Camera already seeded'
+    outputs:
+      - 'tile coordinates for each placement, distinct, all walkable, all spaced'
+    state_changes:
+      - field: placedCameras
+        effect: 'up to N PlacedCamera entries appended, each with a fresh uid (crypto.randomUUID) and a `predecessor` record'
+      - field: cameraFilm
+        effect: 'one entry per placement: filmRemaining (0 for memorials; small positive integer for gifts — see predecessor-gift-vs-memorial)'
+      - field: cameraArchive
+        effect: 'one entry per placement: array of pre-developed TimeLapseFrame entries (see predecessor-footage-generation)'
+      - field: world
+        effect: 'one entity per placement: Position(x,y), EntityTag "placedCamera", EntityZone(Overworld), ItemDrop({definitionId: "camera"})'
+    determinism: deterministic
+
+  - id: predecessor-tenure-assignment
+    description: >
+      Predecessor `tenure` is assigned by depth order — the first
+      placement in the seeding pass gets `tenure = 1`, the second
+      `tenure = 2`, and so on up to `tenure = N`. The ordering is
+      stable and derived only from the placement index, so re-running
+      `seedPredecessorCameras` with the same genesisSeed produces the
+      same tenure-to-uid mapping (modulo the uid itself, which is
+      random per run by design — the deterministic surface is the
+      placement tile and the predecessor record, not the uid).
+    inputs:
+      - 'placement index i ∈ [0, N-1]'
+    outputs:
+      - 'tenure = i + 1'
+    state_changes: []
+    determinism: deterministic
+
+  - id: predecessor-fate-derivation
+    description: >
+      Each predecessor's `fate` is rolled from `sha256Sync(
+      'predecessors:' + String(genesisSeed) + ':fate:' + String(i))`.
+      The lower 32 bits of the hash, divided by 2^32, gives a value
+      `r ∈ [0, 1)`. If `r < PREDECESSOR_FATE_FIELD_PROBABILITY`
+      (default 0.20), fate is `{ kind: 'field', tile }` where `tile`
+      is a deterministic walkable overworld coordinate derived from
+      `sha256Sync('predecessors:' + String(genesisSeed) + ':fate:' +
+      String(i) + ':tile')` using the same candidate-pool filter as
+      `predecessor-camera-placement` (walkable + in-bounds; oaks
+      allowed; spacing not required; the tile is a memory of a
+      location, not a placement). Otherwise fate is `'bed'`.
+      `PREDECESSOR_FATE_FIELD_PROBABILITY` is exported from
+      constants.ts.
+    inputs:
+      - 'placement index i, genesisSeed'
+    outputs:
+      - "fate is either the literal 'bed' or { kind: 'field', tile: { x, y } } with a walkable tile"
+    state_changes: []
+    determinism: deterministic
+
+  - id: predecessor-steward-name-generation
+    description: >
+      A new module `src/engine/predecessors/names.ts` exports
+      `generatePredecessorName(genesisSeed: number, index: number):
+      string`. The function uses `sha256Sync('predecessors:' +
+      String(genesisSeed) + ':name:' + String(index))` to pick from
+      finite morpheme tables: one prefix list, one suffix list, both
+      defined inside the module as `as const` arrays of 16+ entries
+      each. The output is `${prefix}${suffix}` (single concatenated
+      word, no spaces), capitalized. The morpheme tables are
+      hand-authored by the spec — no LLM generation. Names that
+      collide with player-visible character names (Gron, the steward,
+      etc.) are not in the table by construction. The same
+      (genesisSeed, index) always returns the same name.
+    inputs:
+      - 'genesisSeed, index'
+    outputs:
+      - 'a string of the form Prefix+Suffix, deterministic'
+    state_changes: []
+    determinism: deterministic
+
+  - id: predecessor-gift-vs-memorial
+    description: >
+      Each predecessor is rolled gift-or-memorial from `sha256Sync(
+      'predecessors:' + String(genesisSeed) + ':gift:' + String(i))`.
+      With probability `PREDECESSOR_GIFT_PROBABILITY` (default 0.25)
+      the camera is a gift — `state.cameraFilm.set(uid, k)` where `k`
+      is a deterministic integer in
+      `[PREDECESSOR_GIFT_FILM_MIN, PREDECESSOR_GIFT_FILM_MAX]`
+      (default 4..20 inclusive) derived from the same hash. Otherwise
+      the camera is a memorial — `state.cameraFilm.set(uid, 0)`. The
+      PlacedCamera's `startedAt` and `expiresAt` follow the
+      established RP-23 rule (`createPlacedCamera`): `expiresAt =
+      startedAt + spanMs` when filmRemaining > 0; `expiresAt =
+      startedAt` otherwise. For predecessors `startedAt` is set to
+      `0` (the camera body was deployed before the current tenure
+      began).
+    inputs:
+      - 'placement index i, genesisSeed'
+    outputs:
+      - 'cameraFilm entry: 0 for memorial; k in [4, 20] for gift'
+      - 'placedCamera.expiresAt: 0 for memorial; spanMs for gift'
+    state_changes:
+      - field: cameraFilm
+        effect: 'entry added: uid -> filmRemaining'
+    determinism: deterministic
+
+  - id: predecessor-footage-generation
+    description: >
+      A new module `src/engine/predecessors/footage.ts` exports
+      `generatePredecessorFootage(args)` returning a TimeLapseFrame[]
+      array of length F, where F is derived from `sha256Sync(
+      'predecessors:' + String(genesisSeed) + ':frames:' + String(i))`
+      as `PREDECESSOR_FRAMES_MIN + (h mod (PREDECESSOR_FRAMES_MAX -
+      PREDECESSOR_FRAMES_MIN + 1))` (default range 4..14 inclusive).
+      For each frame index j, the subject is chosen from a weighted
+      table — `Pollination`, `Bloom`, `Rain`, `SeasonalLandmark`,
+      `MonarchVisit`, `GhostPassage`, `EgregoreScan`, `Ember` — by
+      hashing `'predecessors:' + String(genesisSeed) + ':frame:' +
+      String(i) + ':' + String(j) + ':subject'`. Default weights are
+      authored in `footage.ts` as a constant table.
+      `recordedAt` is set to `0` (predecessors are pre-tenure).
+      `cells` is a 9-entry array procedurally synthesized to be
+      visually consistent with the chosen subject (e.g. Pollination
+      places a bee glyph in the centre cell with FLORA_SPECIES
+      glyphs around it; Rain shades cells with a `:` shower glyph;
+      EgregoreScan places PUA glyphs from the existing egregore
+      allowlist; SeasonalLandmark uses a tinted-tree palette). Per-
+      cell `char` and `color` choices are derived from sub-hashes so
+      the same predecessor + frame index always renders the same
+      cells. Cells contain glyphs consistent with the chosen subject
+      kind, drawn from the same TILE_CHARS / FLORA_SPECIES / entity
+      glyph constants the live renderer uses (e.g. BEE_CHAR for the
+      centre cell of a Pollination frame). The function does NOT read
+      live game state — frames are synthesized purely from the seed
+      and the subject, matching the "found-footage" cosmology: the
+      camera does not know what the prairie looks like now.
+    inputs:
+      - 'genesisSeed, predecessor index i'
+    outputs:
+      - 'TimeLapseFrame[] of length F, each with cells.length === 9'
+    state_changes: []
+    determinism: deterministic
+
+  - id: predecessor-egregoric-content-bias
+    description: >
+      The frame-subject weight table inside
+      `generatePredecessorFootage` is modulated by an
+      egregoric-content roll per predecessor. Hash `'predecessors:' +
+      String(genesisSeed) + ':egregore:' + String(i)` → value
+      `r ∈ [0, 1)`. If `r < PREDECESSOR_EGREGORE_DOMINANT_RATE`
+      (default 0.10), the EgregoreScan weight is boosted such that
+      EgregoreScan frames make up ≥ 50% of the predecessor's footage
+      (this is enforced by post-filtering — any non-egregore subjects
+      chosen are flipped to EgregoreScan until the share reaches 50%
+      + 1 frames). Otherwise, if `r < PREDECESSOR_EGREGORE_LIGHT_RATE`
+      (default 0.30) the table is left alone but a single frame index
+      (chosen by sub-hash) is forced to EgregoreScan so the
+      predecessor has at least one egregoric frame. Otherwise, the
+      table runs unmodified. Constants are exported from constants.ts.
+    inputs:
+      - 'placement index i, genesisSeed, frame array under construction'
+    outputs:
+      - '~10% of predecessors have ≥ 50% egregoric frames; ~30% have at least one egregoric frame'
+    state_changes: []
+    determinism: deterministic
+
+  - id: predecessor-pickup-flow-unchanged
+    description: >
+      Picking up a predecessor camera (interaction key adjacent to
+      its placedCamera entity) follows the existing RP-23 flow with
+      no special-casing. If the camera's `frames.length === 0` AND
+      `cameraArchive[uid].length === 0`, the interaction routes to
+      pickup and the ItemInstance returns to the backpack with its
+      uid preserved. If either buffer is non-empty (which is the
+      typical predecessor case — pre-developed footage lives in
+      cameraArchive), the interaction opens TimeLapsePlayback.
+      Picking up a gift predecessor with residual film preserves the
+      `cameraFilm[uid]` count through pickup. The `predecessor`
+      record on PlacedCamera does NOT survive pickup — it is a
+      property of the placement, not the camera body — and the
+      camera that returns to the backpack is an ordinary camera
+      ItemInstance. (Re-placement creates a new PlacedCamera with
+      `predecessor: undefined`.)
+    inputs:
+      - 'state with a predecessor PlacedCamera; pickup intent'
+    outputs:
+      - 'standard RP-23 pickup or playback path executes'
+    state_changes:
+      - field: placedCameras
+        effect: 'predecessor entry removed if pickup succeeds'
+      - field: backpack.items
+        effect: 'camera ItemInstance appended without predecessor metadata'
+    determinism: deterministic
+
+  - id: playback-modal-film-grain-by-tenure
+    description: >
+      `TimeLapsePlayback.tsx` reads the placedCamera matching
+      `state.playbackCameraUid` and, if its `predecessor` field is
+      set, intensifies the `film-grain-overlay` opacity in proportion
+      to tenure depth. The mapping is linear and clamped — opacity =
+      `min(1, BASE_GRAIN_OPACITY + tenure × PER_TENURE_GRAIN_STEP)`
+      with `BASE_GRAIN_OPACITY = 0.25` and `PER_TENURE_GRAIN_STEP =
+      0.05` (so tenure 1 → 0.30, tenure 5 → 0.50, tenure 12 → 0.85).
+      Player-placed cameras (no predecessor) render at
+      `BASE_GRAIN_OPACITY` exactly. Constants live in
+      `TimeLapsePlayback.tsx` near the existing chrome constants.
+    inputs:
+      - 'state.playbackCameraUid pointing to a predecessor camera with tenure T'
+    outputs:
+      - 'film-grain-overlay style includes opacity = min(1, 0.25 + T * 0.05)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: playback-heading-shows-steward-name
+    description: >
+      When playback opens for a predecessor camera, the subject
+      heading slot in `TimeLapsePlayback.tsx` adds a second line
+      below the subject — the `predecessor.stewardName` in italic
+      `text-dim`, prefixed by `tenure {tenure}`. Format example:
+      `tenure 3 · Marlow`. This line is omitted for player-placed
+      cameras. The fate is NOT surfaced in the playback UI for this
+      MVP — it lives in state for `RP-37 the root cellar` and
+      `RP-40 per-tenure FOW reset` to consume later. No new lore
+      strings are authored.
+    inputs:
+      - 'playback modal mounted with a predecessor camera'
+    outputs:
+      - 'DOM contains "tenure {N} · {stewardName}" below the subject heading'
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-hook-ordering
+    description: >
+      `seedPredecessorCameras(state)` is called from
+      `genesis/state.ts` immediately after the existing
+      `seedTenureStartFieldCamera(state)` line and before
+      `state.onGenesisComplete?.(handoffTime)`. The order matters —
+      `seedPredecessorCameras` must see the inherited Field Camera
+      already placed so its placement filter excludes that tile.
+      `seedPredecessorCameras` returns void; failures inside it
+      (e.g. empty placement pool) are silent — partial seeding is
+      preferred over throwing during genesis.
+    inputs:
+      - 'createGenesisState run with oaks and inherited Field Camera seeded'
+    outputs:
+      - 'state.placedCameras.length === 1 (inherited) + N (predecessors)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: schema-test-roundtrip
+    description: >
+      `src/harness/__tests__/serialization/schema.test.ts` is updated
+      to include `predecessor` in the PlacedCamera shape allowlist
+      (whatever surface the existing tests check — by enumeration in
+      a fixture, by deep-equal roundtrip, or both). A test asserts
+      that a PlacedCamera with `predecessor: { stewardName: 'Foo',
+      tenure: 7, fate: { kind: 'field', tile: { x: 12, y: 34 } } }`
+      survives a save → load cycle losslessly, and a sibling test
+      asserts the same for `fate: 'bed'`. `EXPECTED_FIELDS` for
+      GameState itself does not change — `placedCameras` is already
+      enumerated.
+    inputs:
+      - 'A state with a predecessor PlacedCamera'
+    outputs:
+      - 'Round-tripped state.placedCameras[0].predecessor deep-equals the original'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: empty-overworld-pool
+    description: 'A pathological map where every walkable tile is occupied by an oak body or existing entity'
+    expected: 'seedPredecessorCameras returns after placing zero predecessors; no entries added to state.placedCameras / cameraFilm / cameraArchive; no exception thrown; gameplay proceeds normally'
+  - id: spacing-constraint-truncates-count
+    description: 'A small map where N = 12 predecessors are rolled but only 7 placements fit at Chebyshev distance ≥ 6'
+    expected: 'state.placedCameras gains 7 predecessor entries, not 12; cameraFilm and cameraArchive each gain 7 corresponding entries; no exception thrown'
+  - id: gift-pickup-preserves-film
+    description: 'A gift predecessor with cameraFilm = 11 is picked up while frames.length === 0 and cameraArchive[uid].length > 0 (i.e. playback opens, dismisses, archive migrates to album, frames cleared, then user picks up via Pack Up)'
+    expected: 'After pickup, backpack has the camera ItemInstance with the original uid; state.cameraFilm[uid] === 11 (preserved); placedCameras entry removed; world entity destroyed; the recipe filmRoll+camera remains blocked because cameraFilm still has an entry (per RP-23 reject-load-onto-loaded-camera)'
+  - id: memorial-pickup-no-playback-no-frames
+    description: 'A memorial predecessor whose archive frames have all already been viewed and migrated to photographAlbum (frames === [], cameraArchive has no entry, cameraFilm = 0); player interacts'
+    expected: 'Interaction routes to pickup not playback; PlacedCamera removed; world entity destroyed; ItemInstance in backpack with original uid; cameraFilm[uid] remains 0; predecessor record is discarded with the placement'
+  - id: replacement-strips-predecessor
+    description: 'Player picks up a predecessor camera and re-places it elsewhere'
+    expected: 'The new PlacedCamera entry has predecessor === undefined; the original predecessor record does not migrate; subsequent playback on this placement does not show the steward-name line'
+  - id: dominant-egregoric-clamp
+    description: 'A predecessor rolled into the dominant-egregore tier with F = 5 frames'
+    expected: 'After post-filtering, EgregoreScan frames === 3 (≥ 50% + 1 of 5 = 3); cells on those frames use PUA glyphs from the egregore allowlist'
+  - id: light-egregoric-with-one-frame
+    description: 'A predecessor rolled into the light-egregore tier with F = 1 frame'
+    expected: 'The single frame has subject EgregoreScan; no extra frames are added (the F count comes from the framecount hash and is not modified by the egregoric roll)'
+  - id: schema-roundtrip-without-predecessor
+    description: 'Save → load on a state whose PlacedCamera entries lack predecessor (e.g. only the RP-23 inherited Field Camera exists)'
+    expected: 'No predecessor field is serialized; deserialized PlacedCamera has predecessor === undefined; deep-equal passes'
+  - id: prefers-reduced-motion-keeps-grain
+    description: 'User has prefers-reduced-motion: reduce; opens predecessor playback'
+    expected: 'Film-grain opacity is still raised per tenure depth; only the cell-reveal animation is collapsed (per RP-23 prefers-reduced-motion-playback). Grain is not motion; it is a static overlay.'
+
+failure_conditions:
+  - trigger: 'seedPredecessorCameras is called before seedTenureStartFieldCamera in genesis'
+    expected: 'Predecessor placement may collide with the inherited Field Camera tile. Spec mandates the call ordering in genesis-hook-ordering; tests verify the call order.'
+  - trigger: 'generatePredecessorFootage is invoked with a frame count of 0'
+    expected: 'Returns []; downstream cameraArchive.set(uid, []) is acceptable — interaction routes to pickup if filmRemaining === 0, or recording-only if gift'
+  - trigger: 'generatePredecessorName receives a (genesisSeed, index) pair that hashes into out-of-bounds morpheme indices'
+    expected: 'Module enforces `index mod table.length` on both sides — no out-of-bounds reads; the function cannot throw for non-negative integer inputs'
+  - trigger: 'Playback opens on a PlacedCamera whose predecessor.tenure exceeds the grain-opacity clamp ceiling'
+    expected: 'Opacity is clamped at 1.0 (`Math.min(1, ...)`); no NaN, no over-1 style values'
+
+verification:
+  test_file: src/engine/__tests__/predecessors.test.ts
+  test_pattern: 'seeded predecessor stewards'
+  command: 'npx vitest run src/engine/__tests__/predecessors.test.ts'
