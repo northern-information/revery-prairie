@@ -739,7 +739,7 @@ features:
     depends_on: []
     status: shipped
     spec: harness/specs/time-lapse-camera.yaml
-    plan: harness/plans/time-lapse-camera.yaml
+    plan: harness/plans/RP-23-contact-sheet-redesign.yaml
     pr: https://github.com/northern-information/revery-prairie/pull/442
     notes: >
       v4 thinktank round 7 (2026-05-20). Tyler's breakthrough — FromSoft
