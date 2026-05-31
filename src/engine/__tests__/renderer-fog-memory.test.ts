@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 
 import { BEE_CHAR, FOG_EXPLORED_BRIGHTNESS } from '../constants'
+import { registerGhostDefinitions, removeCharacterDefinition } from '../characters'
+import { createCharacterEntity } from '../entities'
+import { ComponentType } from '../ecs/types'
 import { posKey } from '../position'
 import { render } from '../renderer'
 import { FLORA_SPECIES } from '../flora/species'
@@ -186,6 +189,42 @@ describe('renderer fog memory (RP-62)', () => {
       expect(beeDraws).toEqual([])
     } finally {
       vi.restoreAllMocks()
+    }
+  })
+
+  it('does not leak a tweening ghost glyph through unexplored fog', () => {
+    const state = createTestState()
+    const ghostId = 'ghost-99'
+    registerGhostDefinitions([99])
+    try {
+      setupPrairie(state)
+      // Ghost destination tile sits well outside the player's gaze, in
+      // unexplored fog. Source tile is the adjacent unexplored tile.
+      const gx = state.player.x + 14
+      const gy = state.player.y
+      const eid = createCharacterEntity(state, ghostId, { x: gx, y: gy })
+      // Hand-roll the tween so the lerp is mid-flight at render `time = 50`
+      // (startTime 0, duration 200 → t ≈ 0.25, floored lerp = (gx-1, gy),
+      // also unexplored). Without the fog gate on the smooth-movement
+      // post-pass, the 'ö' glyph would render straight over the fog.
+      state.world.addComponent(eid, ComponentType.MovementTween, {
+        fromX: gx - 1,
+        fromY: gy,
+        startTime: 0,
+        durationMs: 200,
+      })
+
+      expect(state.overworldFogExplored.has(posKey(gx, gy))).toBe(false)
+      expect(state.overworldFogExplored.has(posKey(gx - 1, gy))).toBe(false)
+
+      spy.fillTextCalls.length = 0
+      render(ctx, state, metrics, 50)
+
+      const ghostGlyph = 'ö'
+      const ghostDraws = spy.fillTextCalls.filter((c) => c.text === ghostGlyph)
+      expect(ghostDraws).toEqual([])
+    } finally {
+      removeCharacterDefinition(ghostId)
     }
   })
 })
