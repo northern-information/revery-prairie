@@ -13,8 +13,8 @@ source_files:
   - src/engine/movement.ts
   - src/engine/renderer.ts
   - src/engine/render/passes/knotCellarKnots.ts
-  - src/engine/render/passes/knotCellarFog.ts
   - src/engine/render/passes/index.ts
+  - src/engine/visibility.ts
   - src/engine/manual.ts
   - src/harness/__tests__/serialization/schema.test.ts
   - docs/backlog.yaml
@@ -93,13 +93,20 @@ dependencies:
 #     occupied alcove tile renders `§` in the same warm prairie-straw
 #     `glyphColor: '#D4B58A'` used for the in-inventory item.
 #
-#   * The cellar is lit only near the bulkhead; the rest fades to dark.
-#     A new render pass `knotCellarFog` overlays a per-tile alpha mask
-#     keyed on **Chebyshev distance from the steward**. Tiles within
-#     `CELLAR_READ_DISTANCE = 8` are rendered at full intensity; tiles
-#     beyond fade linearly to full black over the next 12 tiles
-#     (`CELLAR_FADE_DISTANCE = 12`); tiles past 20 are invisible.
-#     Egregoric content is excluded from the cellar tile palette
+#   * Fog of war reuses the existing shadowcasting system shared by the
+#     cave, the ruins, and the overworld (`src/engine/visibility.ts`).
+#     `hasFogOfWar` is extended to include `Zone.KnotCellar`;
+#     `blocksLOS` is extended to include `TileType.CellarWall`; a
+#     new `state.cellarFogExplored: Set<string>` mirrors
+#     `state.caveFogExplored` and is read by `getFogState`. The
+#     standard `fogMaskPass` paints the mask. The corridor walls
+#     block line-of-sight the same way cave / ruin walls do, so the
+#     steward sees the alcoves alongside them and the corridor ahead,
+#     but not around corners or past the far end. Once read, the
+#     cellar remembers — discovered tiles dim to the memory tier and
+#     stay.
+#
+#   * Egregoric content is excluded from the cellar tile palette
 #     (the cellar is architecture, not prairie — no dirt, no flora,
 #     no egregore eligibility).
 #
@@ -415,30 +422,57 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: cellar-distance-fog-pass
+  - id: cellar-fog-of-war
     description: >
-      A new render pass at src/engine/render/passes/knotCellarFog.ts
-      runs while state.currentZone === Zone.KnotCellar. For each
-      visible tile, it computes Chebyshev distance from the steward's
-      position:
-        * d ≤ CELLAR_READ_DISTANCE (=8): alpha 0 (no overlay)
-        * CELLAR_READ_DISTANCE < d ≤ CELLAR_READ_DISTANCE + CELLAR_FADE_DISTANCE (=20):
-            alpha = (d - CELLAR_READ_DISTANCE) / CELLAR_FADE_DISTANCE
-          (linear fade from 0 to 1 over the fade band)
-        * d > 20: alpha 1 (fully black)
-      The overlay color is pure black (#000000). The pass is
-      registered last in the cellar's render-pass ordering so it sits
-      on top of tile and knot rendering. The fog is recomputed per
-      frame as the steward walks, producing the "the corridor reveals
-      as you advance" effect.
+      The Knot Cellar reuses the existing shadowcasting fog-of-war
+      system shared by the cave, the ruins, and the overworld
+      (`src/engine/visibility.ts`): the steward's FOV is computed per
+      frame via `computeFOV`; visible tiles render at full color;
+      tiles that have ever entered the FOV are dimmed to
+      `FOG_EXPLORED_BRIGHTNESS` (remembered); tiles never seen are
+      fully black (unexplored). The standard `fogMaskPass` paints the
+      mask once for all four zones — no cellar-specific render pass.
+      Wiring:
+        * `hasFogOfWar` is extended to return true for
+          `Zone.KnotCellar`.
+        * `blocksLOS` is extended to include `TileType.CellarWall`,
+          so the corridor walls block sight the same way cave / ruin
+          walls do — the steward sees the corridor ahead and the
+          alcoves alongside, but not around corners.
+        * A new state field `cellarFogExplored: Set<string>` is added
+          (mirroring `state.caveFogExplored` and
+          `state.overworldFogExplored`) and registered in
+          `EXPECTED_FIELDS`. The set persists for the tenure: every
+          tile that has ever fallen into the steward's FOV joins it
+          and stays — once read, the cellar remembers.
+        * `getFogState` returns the cellar's set when
+          `currentZone === Zone.KnotCellar`.
+        * `getZoneFloraMemory` returns null for the cellar — there
+          is no flora register, so the remembered-tier dimming acts
+          on the tile bg only (no flora freeze).
+        * The cellar's staircase tile (`state.cellarBulkheadInterior`)
+          is treated as the canonical "entrance" by
+          `computeZoneVisibility` and is always added to the visible
+          set + its 3x3 neighborhood, so the steward can always find
+          the exit even after wandering deep into the corridor.
+        * Vision radius reuses `CAVE_VISION_RADIUS` (same eyes,
+          indoors or out — RP-38 doctrine).
+      The knot-glyph pass (`knotCellarKnotsPass`) reads visibility
+      per-alcove: knots in unexplored tiles render nothing; knots in
+      remembered tiles render at the dimmed memory tier; visible
+      knots render at full color. The standalone distance-fog pass
+      from earlier doctrine drafts is removed.
     inputs:
       - 'state.currentZone === Zone.KnotCellar'
-      - 'state.player position'
+      - 'state.cellarFogExplored, state.player position, state.cellarMap'
     outputs:
-      - 'tiles within CELLAR_READ_DISTANCE are unobscured'
-      - 'tiles in the fade band fade linearly to black'
-      - 'tiles beyond the fade band are fully black (effectively invisible)'
-    state_changes: []
+      - 'tiles within FOV render fully'
+      - 'tiles ever in FOV are remembered (dimmed) when out of gaze'
+      - 'tiles never seen are fully black'
+      - 'state.cellarFogExplored gains the FOV tiles each frame'
+    state_changes:
+      - field: 'state.cellarFogExplored'
+        effect: 'grows monotonically; entries never removed'
     determinism: deterministic
 
   - id: post-revery-awaken-in-cellar
@@ -618,13 +652,14 @@ behaviors:
   - id: schema-test-fields
     description: >
       src/harness/__tests__/serialization/schema.test.ts EXPECTED_FIELDS
-      is extended with the six new field names:
+      is extended with the seven new field names:
         * 'cellarMap'
         * 'cellarMapWidth'
         * 'cellarMapHeight'
         * 'cellarDoorSpawn'
         * 'cellarBulkheadInterior'
         * 'cellarBulkheadYard'
+        * 'cellarFogExplored'
       No removals. The Zone enum coverage test is updated to include
       'knotCellar' as a valid currentZone value. The
       ZoneTransitionKind coverage test (if one exists) is updated to

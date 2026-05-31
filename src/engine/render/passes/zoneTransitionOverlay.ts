@@ -21,9 +21,12 @@ export const getDestinationLabel = (state: GameState, transition: ZoneTransition
   // yard, so the destination label is 'Yard', not 'Revery Prairie'.
   if (transition.kind === 'house-to-yard') return 'Yard'
   if (transition.kind === 'yard' && transition.direction === 'enter') return 'Yard'
+  // RP-37: cellar exit routes to the yard, not back to the prairie.
+  if (transition.kind === 'knot-cellar' && transition.direction === 'exit') return 'Yard'
   if (transition.direction === 'exit') return 'Revery Prairie'
   if (transition.kind === 'cave') return 'Cave'
   if (transition.kind === 'house') return 'The Little House'
+  if (transition.kind === 'knot-cellar') return 'The Knot Cellar'
   // Ruin enter — "<archetype> <name>" if both are known, else fall
   // back to whichever is available, else generic "Ruin".
   const idx = transition.ruinIndex

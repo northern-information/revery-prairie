@@ -45,15 +45,13 @@ export { clickTargetPass } from './clickTarget'
 export { fireplaceGlowPass } from './fireplaceGlow'
 // RP-37 — Knot Cellar knot-glyph overlay. Stamps `§` at each archived
 // alcove (plus the in-hand alcove while bedKnotPresent is true). Active
-// only inside the cellar zone.
+// only inside the cellar zone. (The cellar's fog of war is handled by
+// the standard fogMaskPass via hasFogOfWar / cellarFogExplored, matching
+// the cave/ruin visual register.)
 export { knotCellarKnotsPass } from './knotCellarKnots'
 // screen-overlay
 export { lightningScreenFlashPass } from './lightningScreenFlash'
 export { angelSpawnDespawnFlashPass } from './angelSpawnDespawnFlash'
-// RP-37 — Knot Cellar distance-fog mask. Linearly fades to opaque black
-// past CELLAR_READ_DISTANCE; hides the far end of the corridor at all
-// times. Active only inside the cellar zone.
-export { knotCellarFogPass } from './knotCellarFog'
 // Registered last so the zone-transition fade sits above every other
 // screen-overlay. The boot title card lives as a DOM overlay
 // (BootTitleCardOverlay) so it can z-index above gameplay DOM panels

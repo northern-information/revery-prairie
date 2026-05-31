@@ -9,7 +9,7 @@ plan:
 
 tasks:
   - id: cellar-foundations
-    title: "Add Zone.KnotCellar, ZoneTransitionKind 'knot-cellar', five new TileTypes (CellarFloor, CellarWall, CellarAlcoveFloor, CellarBulkhead, CellarBulkheadInterior), cellar dimension/spacing constants (CELLAR_WIDTH=7, CELLAR_HEIGHT=770, CELLAR_ROOM_CAP=256, CELLAR_ALCOVE_SPACING=3, CELLAR_READ_DISTANCE=8, CELLAR_FADE_DISTANCE=12), walkability + renderer color/glyph tables, and the six new GameState fields registered in EXPECTED_FIELDS (cellarMap, cellarMapWidth, cellarMapHeight, cellarDoorSpawn, cellarBulkheadInterior, cellarBulkheadYard)"
+    title: "Add Zone.KnotCellar, ZoneTransitionKind 'knot-cellar', five new TileTypes (CellarFloor, CellarWall, CellarAlcoveFloor, CellarBulkhead, CellarBulkheadInterior), cellar dimension/spacing constants (CELLAR_WIDTH=7, CELLAR_HEIGHT=770, CELLAR_ROOM_CAP=256, CELLAR_ALCOVE_SPACING=3), walkability + renderer color/glyph tables, and the seven new GameState fields registered in EXPECTED_FIELDS (cellarMap, cellarMapWidth, cellarMapHeight, cellarDoorSpawn, cellarBulkheadInterior, cellarBulkheadYard, cellarFogExplored)"
     spec_id: RP-37-knot-cellar
     spec_sections:
       - cellar-tile-types
@@ -106,25 +106,27 @@ tasks:
     skip: false
 
   - id: cellar-render-passes
-    title: 'Implement knotCellarKnots and knotCellarFog render passes; knotCellarKnots iterates state.archivedKnots and stamps `§` at getAlcovePosition(i) plus one extra at archivedKnots.length when bedKnotPresent is true; knotCellarFog overlays Chebyshev-distance alpha (full intensity within CELLAR_READ_DISTANCE, linear fade across CELLAR_FADE_DISTANCE, opaque beyond); register both passes in the render pipeline gated on currentZone === Zone.KnotCellar'
+    title: 'Implement knotCellarKnots render pass; iterate state.archivedKnots and stamp `§` at getAlcovePosition(i) plus one extra at archivedKnots.length when bedKnotPresent is true; respect fog visibility per-alcove (hide unexplored, dim remembered, full color when visible). Wire the cellar into the standard shadowcasting fog-of-war system by extending hasFogOfWar, blocksLOS, getFogState, and computeZoneVisibility; add state.cellarFogExplored to GameState + EXPECTED_FIELDS.'
     spec_id: RP-37-knot-cellar
     spec_sections:
       - cellar-knot-render-pass
-      - cellar-distance-fog-pass
+      - cellar-fog-of-war
     context_files:
       - src/engine/render/passes/knotCellarKnots.ts
-      - src/engine/render/passes/knotCellarFog.ts
       - src/engine/render/passes/index.ts
-      - src/engine/render/passes/lineageOverlay.ts
-      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/engine/render/passes/fogMask.ts
+      - src/engine/visibility.ts
       - src/engine/renderer.ts
       - src/engine/cellar.ts
       - src/engine/types.ts
+      - src/engine/state.ts
       - src/engine/constants.ts
     output_files:
       - src/engine/render/passes/knotCellarKnots.ts
-      - src/engine/render/passes/knotCellarFog.ts
       - src/engine/render/passes/index.ts
+      - src/engine/visibility.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
       - src/engine/__tests__/RP-37-knot-cellar.test.ts
     depends_on:
       - cellar-transitions
@@ -238,7 +240,7 @@ tasks:
       - cellar-to-yard-exit
       - alcove-position-derivation
       - cellar-knot-render-pass
-      - cellar-distance-fog-pass
+      - cellar-fog-of-war
       - post-revery-awaken-in-cellar
       - cellar-pauses-player-time
       - manual-knot-cellar-entry

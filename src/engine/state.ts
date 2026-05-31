@@ -319,6 +319,7 @@ export const createGameState = (
     cellarDoorSpawn: cellar.doorSpawn,
     cellarBulkheadInterior: cellar.bulkheadInterior,
     cellarBulkheadYard,
+    cellarFogExplored: new Set<string>(),
     emilyInvitation: 'unoffered',
     tenureOpened: false,
     giftsReceived: new Set<string>(),

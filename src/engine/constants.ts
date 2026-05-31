@@ -751,9 +751,10 @@ export const YARD_BULKHEAD_Y = YARD_HOUSE_OFFSET_Y - 1
 // closest to the door on the left; the second (index 1) deeper on the
 // right; etc. No two alcoves share a y-coordinate, so the steward in the
 // corridor never sees two knots framing them. Length is capped at
-// CELLAR_ROOM_CAP — chosen to outlive any realistic playthrough.
-// CELLAR_READ_DISTANCE and CELLAR_FADE_DISTANCE govern the
-// distance-fog pass that hides the far end at all times.
+// CELLAR_ROOM_CAP — chosen to outlive any realistic playthrough; the
+// far end is hidden by the standard shadowcasting fog of war (the
+// CellarWall blocks line-of-sight, so the corridor is revealed only as
+// the steward walks).
 export const CELLAR_WIDTH = 7
 export const CELLAR_ROOM_CAP = 256
 export const CELLAR_ALCOVE_SPACING = 3
@@ -761,8 +762,6 @@ export const CELLAR_ALCOVE_SPACING = 3
 // last alcove sits at y = 2 + (CELLAR_ROOM_CAP-1) * CELLAR_ALCOVE_SPACING;
 // add a one-row back wall after that for closure.
 export const CELLAR_HEIGHT = 2 + CELLAR_ROOM_CAP * CELLAR_ALCOVE_SPACING
-export const CELLAR_READ_DISTANCE = 8
-export const CELLAR_FADE_DISTANCE = 12
 // Color tokens for the cellar tiles. Floor and walls are deep earthen
 // browns; the bulkhead surfaces reuse the reserved user-action pink per
 // the cave/ruin exit idiom.

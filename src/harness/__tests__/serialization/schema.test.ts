@@ -68,6 +68,7 @@ const EXPECTED_FIELDS = [
   'cellarDoorSpawn',
   'cellarBulkheadInterior',
   'cellarBulkheadYard',
+  'cellarFogExplored',
   'emilyInvitation',
   'tenureOpened',
   'meteorShower',

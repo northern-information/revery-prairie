@@ -536,6 +536,13 @@ export interface GameState {
   cellarDoorSpawn: Position
   cellarBulkheadInterior: Position
   cellarBulkheadYard: Position
+  // RP-37 — fog-of-war discovery set for the Knot Cellar. Mirrors
+  // state.caveFogExplored / state.overworldFogExplored / per-ruin
+  // fogExplored. Permanent discovery (RP-62 "fog returns to memory"):
+  // tiles enter this set the first time they fall in the steward's
+  // FOV and stay forever, so the corridor reads as remembered the
+  // moment the steward looks away.
+  cellarFogExplored: Set<string>
   // Emily's invitation state machine. 'unoffered' at genesis; flips to
   // 'offered' when her autumn last line arms awaitingConfirmation;
   // 'confirmed' on [f]-consume; resets to 'unoffered' at dialog close
