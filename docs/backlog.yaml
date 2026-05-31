@@ -1528,9 +1528,9 @@ features:
       bed in the little house during its working winter; Emily moves it
       to the root cellar (`RP-37`) at the Revery's spring.
     depends_on: ['RP-33']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/RP-36-revery-knot.yaml
+    plan: harness/plans/RP-36-revery-knot.yaml
     pr: null
     notes: >
       v6 thinktank round 6 (2026-05-22). The omen variant under `RP-32`'s
@@ -1584,6 +1584,21 @@ features:
       coyote waits at the house, delivers on the steward's next overworld
       arrival). _The prairie wove this year for you. The girl tied it.
       The coyote brought it. Sleep under it._
+
+
+      v11 thinktank round 7 (2026-05-31). The Knot encloses a harvest
+      year, autumn equinox to autumn equinox — not the Gregorian year,
+      not winter-to-winter. The Knot Emily ties at autumn-N encloses
+      the period from autumn-(N−1) to autumn-(N): the grass that just
+      grew. The first tenure's first Knot encloses pre-play time —
+      the steward Reveries in winter of year 0 on a year they did not
+      live. Each Knot carries a `harvestYear: number` tag (pre-play
+      Knots are ≤ 0; the first lived year is 1). Pool seeded at
+      `createGameState` (round proposes `POOL_INITIAL_KNOTS = 1`).
+      The pickup, pressure contribution, and bed → `archivedKnots[]`
+      mechanism in the current spec are unchanged; the amendment is
+      doctrinal plus one field on Knot data plus one constant.
+      Delta's line: _the first knot is not yours._
 
   - id: 'RP-37'
     name: The root cellar

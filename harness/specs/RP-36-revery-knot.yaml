@@ -1,0 +1,778 @@
+id: RP-36-revery-knot
+name: 'The Revery Knot (RP-36)'
+priority: high
+layer: engine
+source_files:
+  - src/engine/items.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/constants.ts
+  - src/engine/coyote.ts
+  - src/engine/gameLoop.ts
+  - src/engine/revery.ts
+  - src/engine/manual.ts
+  - src/components/__tests__/ReverySummary.test.tsx
+  - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
+  - src/engine/__tests__/revery-house-scene.test.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - RP-32-revery-dormancy-pressure
+  - RP-33-little-house-and-emily
+
+# Doctrine reference: docs/backlog.yaml id 'RP-36' (the entry under
+# "The Revery Knot"), docs/backlog-thinktank-v6.md round 6, and
+# docs/backlog-thinktank-v11.md round 7.
+#
+# RP-36 is the omen variant under RP-32's pressure model. Emily,
+# the girl who waits inside the little house (RP-33), ties Revery
+# Knots from prairie grass — clover, tall grass, milkweed silk,
+# wildflower stems — in the manner of pan-European frontier
+# harvest-knot traditions (corn dolly, wheat braid, last sheaf). Once
+# per autumn the coyote retrieves a pre-tied Knot at the house and
+# routes it to the steward; pickup contributes a bounded scalar to
+# `dormancyPressure` (RP-32). _The item is the omen. The omen is
+# the item._
+#
+# v11 thinktank round 7 (2026-05-31) added a doctrinal frame: the Knot
+# encloses a **harvest year**, autumn equinox to autumn equinox — not the
+# Gregorian year, not winter-to-winter. The Knot Emily ties at autumn-N
+# encloses the period from autumn-(N−1) to autumn-(N): the grass that
+# just grew. The first tenure's first Knot encloses pre-play time — the
+# steward Reveries in winter of year 0 on a year they did not live. Each
+# Knot carries a `harvestYear: number` tag (pre-play Knots are ≤ 0; the
+# first lived year is 1). Emily's pool is pre-seeded at `createGameState`
+# with `POOL_INITIAL_KNOTS = 1` Knot ready to deliver. Delta's line: _the
+# first knot is not yours._
+#
+# Design decisions locked by the user 2026-05-31 during spec gathering:
+#
+#   1. **Cellar handoff is stubbed.** RP-37 (the root cellar) is
+#      not yet shipped. This spec adds `state.archivedKnots: ArchivedKnot[]`
+#      as a placeholder array. At the Revery's spring (the first
+#      Winter → Spring transition after a winter Revery), the current
+#      year's Knot moves from the bed (`state.bedKnotPresent`) into
+#      `state.archivedKnots`. When RP-37 ships, it reads this array
+#      to populate the cellar's hook row. No render surface for
+#      `archivedKnots` lands here — only the data substrate.
+#
+#   2. **The three existing OmenKind enum values are retired.**
+#      `OmenKind` (src/engine/types.ts:1000-1004) drops
+#      `BeeOnShoulder`, `DistantMeteorite`, `CloudPassingSun` and
+#      gains a single value: `ReveryKnot: 'revery-knot'`. The
+#      RP-32 placeholder call site at gameLoop.ts:141 is updated
+#      to pass `OmenKind.ReveryKnot`. Three test fixtures
+#      (ReverySummary.test.tsx, RP-39-post-revery-memory-softening.test.ts,
+#      revery-house-scene.test.ts) that reference `OmenKind.BeeOnShoulder`
+#      are updated to `OmenKind.ReveryKnot`. The enum's wire shape on
+#      ReveryState.omenKind is preserved as a string type; only the
+#      single legal value changes.
+#
+#   3. **The coyote uses a new scripted route.** Existing tickCoyote
+#      logic (carry-to-deliver, visible-item collection, follow-the-
+#      steward) is preserved. A new top-priority branch is added:
+#      while `state.knotDelivery !== null`, the coyote ignores the
+#      visible-collectible scan and follows the scripted route.
+#      Stages:
+#        - `walkingToHouse`: pathfind toward the overworld tile
+#          adjacent to `state.houseEntranceOverworld` (the southernmost
+#          HouseApron tile, derived deterministically). On arrival at
+#          Chebyshev-1, set `state.coyoteCargo = 'reveryKnot'` (Emily
+#          hands the Knot through the door — no ground item placed;
+#          the cargo transfer is the scripted-route output) and
+#          transition to `enroute`.
+#        - `enroute`: the existing `tickDeliver` path handles the
+#          walk-to-steward and the auto-deposit / drop-as-ground-item
+#          handoff. When `state.coyoteCargo` becomes null AGAIN (the
+#          existing tickDeliver path clears it on successful delivery),
+#          the scripted route completes — `state.knotDelivery` is set
+#          to null.
+#      The scripted route is reentrant: if a delivery is interrupted
+#      (e.g. the steward enters a zone the coyote cannot pathfind to,
+#      or the autumn ends without the Knot reaching the steward), the
+#      state machine self-resets at the next Summer → Autumn transition
+#      (see autumn-begin-arms-delivery).
+#
+# What this feature does NOT do:
+#   - **Does not author the cellar (RP-37).** `state.archivedKnots`
+#     is a write-only data substrate from this spec's perspective;
+#     RP-37 will own the reading + rendering surface.
+#   - **Does not change RP-32's dormancy-pressure ramp.** The Knot
+#     pickup is an additive, edge-triggered contribution; the seasonal
+#     ramp from autumn equinox to winter solstice remains the safety
+#     net.
+#   - **Does not change Emily's dialog, position, or schedule.** Emily
+#     is stationary at house-interior {x: 14, y: 1} per RP-33. The
+#     Knot transfer at the house entrance is engine-bookkeeping only;
+#     Emily does not walk to the door, and her dialog register is
+#     untouched.
+#   - **Does not render the Knot resting on the bed during winter.**
+#     `state.bedKnotPresent: boolean` is data only; the bed-tile
+#     glyph overlay is deferred to a follow-up render-pass PR. The
+#     field is exposed and tested for write/clear correctness.
+#   - **Does not block confirm-path Reveries.** Both paths into the
+#     Revery (Emily confirm via RP-33, pressure-ceiling via RP-32)
+#     remain available. A Knot pickup that pushes pressure to ceiling
+#     simply triggers RP-32's existing threshold-trigger; if the
+#     player has already confirmed with Emily, no double-Revery is
+#     possible (state.revery !== null gate).
+#   - **Does not multiplayer-broadcast the Knot delivery.** Single-
+#     player state only; the wire protocol is unchanged.
+#   - **Does not author lore.** No MANUAL_LORE entry is written. The
+#     manual entry for `item:reveryKnot` registers as `{ lore: 'TODO' }`
+#     per feedback_manual_lore_only.
+#   - **Does not modify the chronicle stream.** Knot pickup is a
+#     player-action event, not a world-state transition. Per the
+#     CLAUDE.md chronicle-routing rule, the pickup does NOT call
+#     `addChronicleEvent` (chronicle events are world-driven only).
+#
+# Engine substrate notes (verified during research):
+#   - Pressure entry point: contributeDormancyPressure(state, amount)
+#     in src/engine/omen.ts. This spec calls it with
+#     `KNOT_PRESSURE_AMOUNT` (0.5) on Knot pickup.
+#   - Coyote tick site: src/engine/coyote.ts:191 (tickCoyote). The
+#     scripted-route branch is inserted between the Zone.Ruin
+#     early-return and the existing cargo-delivery branch.
+#   - Coyote cargo substrate: state.coyoteCargo (string | null).
+#     Already drives the existing pickup/deliver flow; no schema
+#     change required.
+#   - Season-transition detection pattern: gameLoop.ts:44-45, 148-151
+#     (prevSeason vs state.weather.season). The autumn-begin trigger
+#     mirrors RP-32's Autumn→Winter safety-reset pattern.
+#   - House entrance position: state.houseEntranceOverworld
+#     (Position, set by RP-33's house-overworld-placement at
+#     genesis). The southernmost apron tile is derived as
+#     `{x: houseEntranceOverworld.x, y: houseEntranceOverworld.y + 1}`
+#     and validated walkable at coyote-arrival time (defensive against
+#     pre-RP-33 fixtures).
+#   - Item registration pattern: src/engine/items.ts:14-99 (the
+#     ITEMS object). New entry appended; ITEM_DEFINITIONS auto-derives.
+#
+# Manual cross-references (RP-6 — Naturalist's Manual):
+#   - New manual entry for `item:reveryKnot` is auto-registered via the
+#     item-iteration pass in manual.ts:255-265. MANUAL_LORE gains
+#     `'item:reveryKnot': { lore: 'TODO' }` per feedback_manual_lore_only.
+
+behaviors:
+  - id: reveryknot-item-definition
+    description: >
+      A new entry `reveryKnot` is appended to ITEMS in src/engine/items.ts:
+        - name: 'Revery Knot'
+        - glyph: '§'                # section sign — double-reads as a
+                                    # tied braided knot AND a "section" of
+                                    # parceled time (one year, bound)
+        - glyphColor: '#D4B58A'     # warm prairie-straw tone, distinct
+                                    # from coin gold and clover green
+        - category: ItemCategory.Artifact
+      No maxUses (Knots are not tool-worn — they are picked up,
+      contribute pressure, and pass into the archive). ITEM_DEFINITIONS
+      derives the registered definition via the existing
+      `Object.fromEntries` pattern. The manual auto-iteration in
+      manual.ts:692 picks up the new definition with no manual edit
+      to MANUAL_ENTRIES; MANUAL_LORE gains a `'item:reveryKnot':
+      { lore: 'TODO' }` entry.
+    inputs:
+      - 'getDefinition("reveryKnot") is called by inventory, coyote, or render code'
+    outputs:
+      - 'ITEM_DEFINITIONS["reveryKnot"] is a valid ItemDefinition'
+      - 'MANUAL_ENTRIES["item:reveryKnot"] exists with lore "TODO"'
+    state_changes:
+      - field: 'ITEMS module'
+        effect: 'new reveryKnot entry; ITEM_DEFINITIONS auto-derives'
+      - field: 'MANUAL_LORE module'
+        effect: 'item:reveryKnot entry added with lore TODO'
+    determinism: deterministic
+
+  - id: knot-delivery-state-fields
+    description: >
+      GameState gains SIX new top-level fields, all initialized by
+      createGameState and persisted through serialization (added to
+      EXPECTED_FIELDS):
+        - `knotDelivery: KnotDeliveryState | null` — `null` when no
+          scripted route is in flight. When active:
+          `{ stage: 'walkingToHouse' | 'enroute'; dispatchedAt: number;
+             harvestYear: number }`. Initialized to `null`.
+        - `bedKnotPresent: boolean` — `true` between Knot pickup and
+          the Revery's spring archive. Initialized to `false`.
+        - `archivedKnots: ArchivedKnot[]` — stub array consumed by
+          RP-37 when it ships. ArchivedKnot shape:
+          `{ pickedUpAt: number; pickedUpTile: Position;
+             archivedAt: number; harvestYear: number }`.
+          Initialized to `[]`.
+        - `lastKnotDeliveryArmed: boolean` — guard preventing more
+          than one scripted-route dispatch per autumn. Set to true at
+          Summer → Autumn arming; reset to false at Autumn → Winter.
+          Initialized to `false`.
+        - `knotHarvestYearCounter: number` — running counter that
+          advances by 1 at each Summer → Autumn arming. Determines
+          the harvestYear tag assigned to the autumn's Knot.
+          Initialized to `1 - POOL_INITIAL_KNOTS` (= 0 with
+          POOL_INITIAL_KNOTS = 1), so the first delivery in tenure
+          year 0 stamps a harvestYear of 0 — the pre-play year.
+        - `knotHarvestYears: Map<ItemUid, number>` — uid-keyed side
+          table holding the harvestYear tag of each Knot ItemInstance
+          currently in inventory. Mirrors the `state.seedGenomes` and
+          `state.glintingCoins` patterns. Entries are written at
+          backpack-handoff time (see knot-pickup-contributes-pressure)
+          and cleared at archive time (see revery-spring-archives-knot).
+          Initialized to a new empty Map.
+      The KnotDeliveryState and ArchivedKnot type aliases are exported
+      from src/engine/types.ts. EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts is extended
+      with all six new field names.
+    inputs:
+      - 'createGameState invocation'
+    outputs:
+      - 'state.knotDelivery === null'
+      - 'state.bedKnotPresent === false'
+      - 'state.archivedKnots is an empty array'
+      - 'state.lastKnotDeliveryArmed === false'
+      - 'state.knotHarvestYearCounter === 0 (with POOL_INITIAL_KNOTS = 1)'
+      - 'state.knotHarvestYears is a new empty Map'
+    state_changes:
+      - field: knotDelivery
+        effect: 'initialized to null'
+      - field: bedKnotPresent
+        effect: 'initialized to false'
+      - field: archivedKnots
+        effect: 'initialized to []'
+      - field: lastKnotDeliveryArmed
+        effect: 'initialized to false'
+      - field: knotHarvestYearCounter
+        effect: 'initialized to 1 - POOL_INITIAL_KNOTS (= 0 with the default)'
+      - field: knotHarvestYears
+        effect: 'initialized to a new empty Map<ItemUid, number>'
+    determinism: deterministic
+
+  - id: autumn-begin-arms-delivery
+    description: >
+      In the gameLoop frame block, after the existing season tracking
+      and BEFORE the dormancy-pressure tick, a new edge-trigger runs:
+      when `prevSeason === Season.Summer && state.weather.season ===
+      Season.Autumn` and `state.lastKnotDeliveryArmed === false` and
+      `state.bedKnotPresent === false` and `state.knotDelivery === null`
+      and `state.houseEntranceOverworld !== null/undefined`, the engine
+      arms a new delivery:
+        - harvestYear = state.knotHarvestYearCounter
+        - state.knotDelivery = {
+            stage: 'walkingToHouse',
+            dispatchedAt: time,
+            harvestYear,
+          }
+        - state.knotHarvestYearCounter += 1
+        - state.lastKnotDeliveryArmed = true
+      The harvestYear stamp is the year the Knot encloses (per v11 R7
+      doctrine). With POOL_INITIAL_KNOTS = 1, the first delivery in
+      tenure year 0 stamps harvestYear = 0 (the pre-play year — _the
+      first knot is not yours_). Subsequent autumns stamp 1, 2, 3, …
+      A symmetric reset fires on `prevSeason === Season.Autumn &&
+      state.weather.season === Season.Winter`:
+        - state.lastKnotDeliveryArmed = false
+      (so the next autumn can re-arm). The reset does NOT clear
+      state.knotDelivery — if an unfinished delivery survives the
+      autumn, see edge-case knot-undelivered-at-winter for the cleanup
+      rule.
+    inputs:
+      - 'gameLoop frame block detects Summer → Autumn transition'
+      - 'gameLoop frame block detects Autumn → Winter transition'
+    outputs:
+      - 'state.knotDelivery is non-null, stage="walkingToHouse", and harvestYear is the pre-increment counter value after the Summer→Autumn edge'
+      - 'state.knotHarvestYearCounter is incremented by 1 after the Summer→Autumn edge'
+      - 'state.lastKnotDeliveryArmed is true after arming, false after the Autumn→Winter edge'
+    state_changes:
+      - field: knotDelivery
+        effect: 'set to { stage: "walkingToHouse", dispatchedAt: time, harvestYear: pre-increment counter } on autumn arm'
+      - field: knotHarvestYearCounter
+        effect: 'incremented by 1 on autumn arm'
+      - field: lastKnotDeliveryArmed
+        effect: 'set to true on autumn arm; set to false on Autumn→Winter edge'
+    determinism: deterministic
+
+  - id: coyote-scripted-route-walking-to-house
+    description: >
+      A new branch is added to tickCoyote (src/engine/coyote.ts:191)
+      between the `Zone.Ruin` early-return and the existing
+      `state.coyoteCargo !== null` cargo branch. The new branch fires
+      when `state.knotDelivery !== null && state.knotDelivery.stage ===
+      "walkingToHouse" && state.coyoteCargo === null`. It pathfinds the
+      coyote toward the apron tile south of the overworld house entrance
+      (`apronTile = { x: state.houseEntranceOverworld.x,
+      y: state.houseEntranceOverworld.y + 1 }`). On arrival at
+      Chebyshev-1 of apronTile (or arrival on the apronTile itself if
+      reachable), the engine:
+        - sets `state.coyoteCargo = 'reveryKnot'`
+        - sets `state.knotDelivery.stage = 'enroute'`
+      No ground item is materialized — the cargo transfer represents
+      Emily handing the Knot through the door. The existing
+      tickDeliver path (next behavior) handles the rest. While in
+      this stage, the visible-collectible scan is bypassed; the coyote
+      does not pause to pick up coins or honey on the way to the
+      house.
+    inputs:
+      - 'tickCoyote called with state.knotDelivery.stage === "walkingToHouse"'
+      - 'state.houseEntranceOverworld is a valid Position'
+    outputs:
+      - 'coyote position moved one step closer to apronTile (or arrived)'
+      - 'on arrival: state.coyoteCargo === "reveryKnot", state.knotDelivery.stage === "enroute"'
+    state_changes:
+      - field: 'coyote entity Position'
+        effect: 'mutated one step along the A* path toward apronTile'
+      - field: coyoteCargo
+        effect: 'set to "reveryKnot" on Chebyshev-1 arrival at apronTile'
+      - field: knotDelivery.stage
+        effect: 'transitions "walkingToHouse" → "enroute" on Chebyshev-1 arrival'
+    determinism: deterministic
+
+  - id: coyote-scripted-route-enroute
+    description: >
+      When `state.knotDelivery !== null && state.knotDelivery.stage ===
+      "enroute" && state.coyoteCargo === "reveryKnot"`, the existing
+      tickDeliver branch in tickCoyote handles the walk-to-steward and
+      handoff identically to coin / honey / meteorite cargo: at
+      Chebyshev-1 of the steward, the engine attempts
+      placeItem(state.backpack, 'reveryKnot', ...). On success, the
+      Knot lands in the backpack; on backpack-full, the existing
+      fallback drops a 'reveryKnot' ground item near Gron via
+      dropGroundItemNear (preserving the existing ground-item pickup
+      semantics — the player can walk over to collect it via the
+      proximity-pickup pass in movement.ts). The existing
+      spawnPickupBloom fires at the steward's tile on successful
+      auto-deposit (handled by the existing tickDeliver code path).
+      The handoff is detected by the engine via:
+      `state.coyoteCargo === null && state.knotDelivery?.stage === "enroute"`
+      after tickDeliver. When that condition holds, the post-tick
+      cleanup in tickCoyote sets `state.knotDelivery = null`,
+      transitioning out of the scripted route.
+    inputs:
+      - 'tickCoyote called with state.knotDelivery.stage === "enroute" and state.coyoteCargo === "reveryKnot"'
+    outputs:
+      - 'on backpack-fit: state.backpack contains a reveryKnot ItemInstance; state.coyoteCargo === null; state.knotDelivery === null'
+      - 'on backpack-full: a reveryKnot ground item exists near Gron; state.coyoteCargo === null; state.knotDelivery === null'
+    state_changes:
+      - field: backpack
+        effect: 'reveryKnot placed at the first-fit grid position OR ground item entity created near Gron'
+      - field: coyoteCargo
+        effect: 'set to null by the existing tickDeliver handoff'
+      - field: knotDelivery
+        effect: 'set to null in the post-tick cleanup once enroute → null transition is observed'
+    determinism: deterministic
+
+  - id: knot-pickup-contributes-pressure
+    description: >
+      Two new constants are added to src/engine/constants.ts:
+        - KNOT_PRESSURE_AMOUNT = 0.5
+        - POOL_INITIAL_KNOTS = 1
+      (POOL_INITIAL_KNOTS seeds the initial value of
+      state.knotHarvestYearCounter via 1 - POOL_INITIAL_KNOTS, so the
+      first delivery in tenure year 0 stamps harvestYear = 0 — the
+      pre-play year. Larger pool values shift the harvestYear of the
+      first delivery further negative; v11 R7 picks 1 as the minimal
+      coherent value and defers larger seedings to a later round.) Whenever a `reveryKnot` ItemInstance
+      enters the backpack — whether via the coyote auto-deposit
+      branch or via the player walking over a ground-item Knot (the
+      backpack-full fallback) — the engine calls
+      `contributeDormancyPressure(state, KNOT_PRESSURE_AMOUNT)` exactly
+      once per ItemInstance. The contribution site is the same
+      function that calls spawnPickupBloom on Knot acquisition (per
+      CLAUDE.md's "new item acquisition path" rule). Additional
+      bookkeeping at the contribution site:
+        - state.bedKnotPresent = true
+        - if state.knotDelivery !== null, state.knotDelivery = null
+          (defensive — the enroute → null transition in
+          coyote-scripted-route-enroute already handles the coyote
+          path; this guards the backpack-full → walk-to-ground-item
+          path).
+      The value 0.5 (not 1.0) is the bounded scalar per the backlog's
+      "pickup contributes a bounded scalar to dormancyPressure" rule:
+      a Knot accelerates the Revery but does not, on its own, force
+      threshold. The seasonal ramp from RP-32 carries the remainder.
+      Half ceiling matches the round-6 doctrine: the Knot is "the
+      omen", but the omen is one input, not the whole.
+
+      Harvest-year tagging (v11 R7 amendment): at the moment the Knot
+      ItemInstance enters the backpack, the engine reads the harvestYear
+      from `state.knotDelivery?.harvestYear` (the value stamped at
+      autumn arming) and writes
+      `state.knotHarvestYears.set(itemInstance.uid, harvestYear)`. If
+      state.knotDelivery is null (e.g. the player picks up a ground-item
+      Knot dropped by the backpack-full fallback, after the scripted
+      route already cleared), the harvestYear is recovered from
+      `state.lastKnotPickupHarvestYear` (a sibling bookkeeping field
+      written by the same code path — see pickup-bookkeeping-fields).
+      The Knot's harvestYear travels with its uid across stack/sort/merge
+      operations the same way `seedGenomes` does.
+    inputs:
+      - 'a reveryKnot ItemInstance is placed into state.backpack by any code path'
+    outputs:
+      - 'state.dormancyPressure increased by 0.5 (clamped to [0, 1] by contributeDormancyPressure)'
+      - 'state.bedKnotPresent === true'
+      - 'state.knotDelivery === null'
+      - 'state.knotHarvestYears.get(itemInstance.uid) === harvestYear for the picked-up Knot'
+    state_changes:
+      - field: dormancyPressure
+        effect: 'increased by 0.5, clamped to 1'
+      - field: bedKnotPresent
+        effect: 'set to true'
+      - field: knotDelivery
+        effect: 'defensively cleared to null'
+      - field: knotHarvestYears
+        effect: 'gains an entry keyed by the new Knot ItemInstance uid, value = harvestYear'
+    determinism: deterministic
+
+  - id: revery-spring-archives-knot
+    description: >
+      At the Winter → Spring transition (detected in the gameLoop
+      season-edge block as `prevSeason === Season.Winter &&
+      state.weather.season === Season.Spring`), the engine performs
+      the archive handoff:
+        - If state.bedKnotPresent === true AND state.reveryCount >
+          state.lastArchiveReveryCount, locate the Knot ItemInstance
+          in the backpack (the most recently picked up reveryKnot, by
+          lastKnotPickupAt). Read its harvestYear from
+          state.knotHarvestYears via the ItemInstance uid.
+        - Append a new ArchivedKnot to state.archivedKnots with shape
+          `{ pickedUpAt: state.lastKnotPickupAt,
+             pickedUpTile: state.lastKnotPickupTile (cloned),
+             archivedAt: time,
+             harvestYear }`.
+        - Remove the Knot ItemInstance from state.backpack (the bed →
+          cellar handoff consumes the in-hand Knot; RP-37 will read
+          archivedKnots for the cellar display).
+        - Delete the corresponding entry from state.knotHarvestYears.
+        - Set state.bedKnotPresent = false.
+        - Set state.lastKnotPickupTile = null, state.lastKnotPickupAt
+          = 0, state.lastKnotPickupHarvestYear = 0.
+        - Set state.lastArchiveReveryCount = state.reveryCount.
+      To support the recovery, three side fields are tracked at pickup
+      time on GameState (added to EXPECTED_FIELDS):
+      `lastKnotPickupAt: number`, `lastKnotPickupTile: Position | null`,
+      and `lastKnotPickupHarvestYear: number`. These are initialized to
+      0 / null / 0 and overwritten on each Knot pickup. The archive
+      only fires if at least one Revery has occurred since the last
+      archive — i.e. the spring transition is gated on
+      `state.reveryCount` having advanced past the value it held at
+      the prior archive. A new field `lastArchiveReveryCount: number`
+      (initial 0) tracks this. If a winter passes with no Revery
+      (only possible via the safety reset paths from RP-32 / RP-33),
+      the Knot stays on the bed (and in the backpack) until the next
+      post-Revery spring.
+    inputs:
+      - 'gameLoop frame block detects Winter → Spring transition'
+      - 'state.bedKnotPresent === true'
+      - 'state.reveryCount > state.lastArchiveReveryCount'
+    outputs:
+      - 'state.archivedKnots has one more entry, including the harvestYear tag'
+      - 'state.backpack no longer contains the archived Knot ItemInstance'
+      - 'state.knotHarvestYears no longer has the archived Knot uid'
+      - 'state.bedKnotPresent === false'
+      - 'state.lastKnotPickupTile === null'
+      - 'state.lastArchiveReveryCount === state.reveryCount'
+    state_changes:
+      - field: archivedKnots
+        effect: 'one ArchivedKnot appended (includes harvestYear)'
+      - field: backpack
+        effect: 'the archived Knot ItemInstance removed'
+      - field: knotHarvestYears
+        effect: 'the archived Knot uid entry deleted'
+      - field: bedKnotPresent
+        effect: 'set to false'
+      - field: lastKnotPickupTile
+        effect: 'set to null'
+      - field: lastKnotPickupAt
+        effect: 'set to 0'
+      - field: lastKnotPickupHarvestYear
+        effect: 'set to 0'
+      - field: lastArchiveReveryCount
+        effect: 'set to state.reveryCount'
+    determinism: deterministic
+
+  - id: pickup-bookkeeping-fields
+    description: >
+      The pickup contribution site (knot-pickup-contributes-pressure)
+      also writes three recovery fields:
+        - state.lastKnotPickupAt = time
+        - state.lastKnotPickupTile = { x: state.player.x, y: state.player.y }
+        - state.lastKnotPickupHarvestYear =
+            state.knotDelivery?.harvestYear ?? state.lastKnotPickupHarvestYear
+          (preserves the prior value as a defensive fallback when
+          state.knotDelivery is already null at pickup — e.g., the
+          backpack-full ground-item walk-over path; the scripted-route
+          enroute → null cleanup runs in the same tick before the
+          contribution, so the harvestYear must be read FROM
+          state.knotDelivery before that cleanup, OR cached on
+          state.lastKnotPickupHarvestYear at the moment the cargo is
+          handed off; see coyote-scripted-route-enroute for the
+          handoff order).
+      All three are added to EXPECTED_FIELDS in schema.test.ts. Initial
+      values: `lastKnotPickupAt = 0`, `lastKnotPickupTile = null`,
+      `lastKnotPickupHarvestYear = 0`. The `lastArchiveReveryCount`
+      field (from revery-spring-archives-knot) is also tracked: initial
+      0, added to EXPECTED_FIELDS.
+    inputs:
+      - 'a reveryKnot ItemInstance is placed into state.backpack by any code path'
+    outputs:
+      - 'state.lastKnotPickupAt === time'
+      - 'state.lastKnotPickupTile === player position at pickup'
+      - 'state.lastKnotPickupHarvestYear === the picked-up Knot harvestYear'
+    state_changes:
+      - field: lastKnotPickupAt
+        effect: 'set to time at pickup'
+      - field: lastKnotPickupTile
+        effect: 'set to player position at pickup'
+      - field: lastKnotPickupHarvestYear
+        effect: 'set to the harvestYear of the Knot entering the backpack'
+    determinism: deterministic
+
+  - id: retire-omenkind-triplet
+    description: >
+      src/engine/types.ts:1000-1004 OmenKind is rewritten:
+      ```
+      export const OmenKind = {
+        ReveryKnot: 'revery-knot',
+      } as const
+      ```
+      The three values BeeOnShoulder, DistantMeteorite, CloudPassingSun
+      are deleted. All in-repo references are updated to ReveryKnot:
+        - src/engine/gameLoop.ts:141 — the threshold-trigger call
+          `initiateRevery(state, time, OmenKind.CloudPassingSun)` becomes
+          `initiateRevery(state, time, OmenKind.ReveryKnot)`. The
+          comment on gameLoop.ts:135-138 is updated to remove the
+          "RP-36 will surface a real Knot-pickup kind when it ships"
+          phrasing — that has now shipped.
+        - src/components/__tests__/ReverySummary.test.tsx:25 — fixture
+          uses OmenKind.ReveryKnot.
+        - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts:7 —
+          fixture uses OmenKind.ReveryKnot.
+        - src/engine/__tests__/revery-house-scene.test.ts:26 — fixture
+          uses OmenKind.ReveryKnot.
+      The OmenKind type alias is preserved (it is referenced by
+      ReveryState.omenKind in types.ts:1052 and the export from
+      revery.ts:376); only the value set changes.
+    inputs:
+      - 'any code path reading OmenKind'
+    outputs:
+      - 'OmenKind has exactly one value: ReveryKnot'
+      - 'all OmenKind.{BeeOnShoulder, DistantMeteorite, CloudPassingSun} references are removed'
+      - 'gameLoop threshold-trigger passes OmenKind.ReveryKnot'
+    state_changes:
+      - field: 'OmenKind enum'
+        effect: 'three values removed; one value added'
+      - field: 'gameLoop threshold-trigger call site'
+        effect: 'OmenKind argument updated'
+    determinism: deterministic
+
+  - id: schema-test-fields
+    description: >
+      src/harness/__tests__/serialization/schema.test.ts EXPECTED_FIELDS
+      is extended with the ten new field names:
+        - 'knotDelivery'
+        - 'bedKnotPresent'
+        - 'archivedKnots'
+        - 'lastKnotDeliveryArmed'
+        - 'lastKnotPickupAt'
+        - 'lastKnotPickupTile'
+        - 'lastKnotPickupHarvestYear'
+        - 'lastArchiveReveryCount'
+        - 'knotHarvestYearCounter'
+        - 'knotHarvestYears'
+      No removals. The test continues to pass with
+      `expect(actualFields).toEqual(EXPECTED_FIELDS)` after the new
+      fields are added to createGameState and EXPECTED_FIELDS in the
+      same change.
+    inputs:
+      - 'npm run test:harness'
+    outputs:
+      - 'EXPECTED_FIELDS matches the new GameState shape'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: first-knot-harvest-year-is-pre-play
+    description: >
+      v11 R7 doctrine. With POOL_INITIAL_KNOTS = 1 and the initial
+      knotHarvestYearCounter = 0, the first Summer → Autumn edge in a
+      fresh tenure arms a delivery whose knotDelivery.harvestYear === 0.
+      The Knot the coyote brings to the steward that autumn carries
+      harvestYear = 0 — the pre-play year. The state.archivedKnots entry
+      written at the following Winter → Spring (after the first Revery)
+      contains `harvestYear: 0`. The second tenure-year delivery
+      (the next Summer → Autumn) stamps harvestYear = 1 (the first
+      year actually lived), and so on.
+    expected: >
+      state.knotHarvestYearCounter increments from 0 to 1 at the first
+      autumn arming, and state.knotDelivery.harvestYear === 0 for the
+      first delivery. The ArchivedKnot from the first Revery's Spring
+      has harvestYear === 0.
+
+  - id: knot-pickup-pushes-to-ceiling
+    description: >
+      Player picks up a Knot late in autumn when the seasonal ramp
+      has already raised dormancyPressure to 0.6. The +0.5
+      contribution clamps to 1.0.
+    expected: >
+      dormancyPressure === 1.0 after pickup; RP-32's threshold-
+      trigger fires on the next frame's gameLoop block, initiating a
+      Revery with OmenKind.ReveryKnot. state.bedKnotPresent === true
+      throughout the Revery. The Revery's Closing-phase
+      dormancyPressure reset (RP-32) zeroes pressure; bedKnotPresent
+      is unaffected and persists into winter for the spring archive.
+
+  - id: knot-pickup-early-autumn
+    description: >
+      Coyote delivers the Knot in early autumn. dormancyPressure is
+      still 0 (the ramp has not yet engaged because seasonalPhase
+      < 0.5). Pickup adds 0.5.
+    expected: >
+      dormancyPressure === 0.5; no threshold trigger. The seasonal
+      ramp continues to climb across autumn; by the winter solstice
+      the floor reaches 1.0 and the Revery fires. The Knot sits in
+      the backpack across the autumn (no decay, no consumption).
+
+  - id: backpack-full-at-delivery
+    description: >
+      Coyote arrives at the steward with the Knot, but state.backpack
+      has no room.
+    expected: >
+      Existing tickDeliver fallback fires: coyote walks to Gron and
+      drops the Knot as a ground item via dropGroundItemNear. The
+      scripted-route enroute → null transition still completes (the
+      cargo is null after the drop). When the player later walks over
+      the ground-item Knot, the proximity-pickup pass picks it up,
+      and the contribution site fires identically — pressure += 0.5,
+      bedKnotPresent = true.
+
+  - id: house-entrance-blocked
+    description: >
+      The apron tile south of the house entrance is non-walkable at
+      the time the coyote tries to arrive (e.g. blocked by a placed
+      meteorite or a temporary structural mutation).
+    expected: >
+      The coyote pathfinds to the nearest walkable tile within
+      Chebyshev-1 of the apronTile (via the existing findAdjacentWalkable
+      pattern). The cargo transfer fires on Chebyshev-1 of apronTile,
+      not on the apronTile itself. If no Chebyshev-1 walkable exists,
+      the coyote idles in its current position and retries each tick;
+      the autumn safety reset (Autumn → Winter) clears
+      lastKnotDeliveryArmed but does NOT clear state.knotDelivery,
+      so the coyote keeps trying until the steward walks within
+      pathfinding range of the house.
+
+  - id: knot-undelivered-at-winter
+    description: >
+      Autumn ends with state.knotDelivery still non-null (e.g. the
+      coyote was stuck in a ruin or the player exited to deep time
+      mid-route).
+    expected: >
+      At the Autumn → Winter edge, state.lastKnotDeliveryArmed resets
+      to false (so the next autumn can arm), but state.knotDelivery
+      is preserved — the scripted route continues to run through
+      winter, spring, and into summer. The coyote completes the route
+      whenever the pathfinding becomes possible again. The contribution
+      still adds 0.5 to dormancyPressure on pickup, but
+      contributeDormancyPressure runs through the pressureGateOpen
+      check (RP-32 omen.ts:31-38) which forbids contributions
+      outside Season.Autumn — wait, that gate applies to
+      tickDormancyPressure, NOT to contributeDormancyPressure.
+      Re-reading omen.ts:56-59: contributeDormancyPressure has no
+      season gate. The contribution lands regardless of season; the
+      pressure accumulates and triggers the Revery whenever the
+      threshold check next runs. This is consistent with RP-32's
+      "RP-36 owns when to call this; pressure is fired exactly
+      when threshold crosses".
+
+  - id: confirm-path-already-active
+    description: >
+      Player confirms with Emily in early autumn (RP-33 confirm
+      path sets dormancyPressure to 1.0). The Revery initiates. The
+      coyote, mid-route with the Knot, eventually delivers — but
+      state.revery !== null at delivery time.
+    expected: >
+      The Knot still lands in the backpack (or as a ground item).
+      contributeDormancyPressure runs and pushes pressure to 1.0 —
+      already at ceiling; clamp no-ops. RP-32's threshold-trigger
+      gate (state.revery === null) prevents a double Revery. The
+      Knot is in the backpack across the Revery; bedKnotPresent is
+      set to true at pickup; the spring-archive handoff fires
+      normally at the Winter → Spring edge.
+
+  - id: two-knots-in-one-autumn
+    description: >
+      Defensive: a code path somehow puts two reveryKnot ItemInstances
+      into the backpack in the same autumn (should not happen under
+      normal flow because lastKnotDeliveryArmed prevents re-arming,
+      but a test fixture or save-load edge could construct this).
+    expected: >
+      Each pickup contributes 0.5 independently (the contribution
+      runs per ItemInstance entering the backpack). bedKnotPresent
+      stays true through both. The spring archive appends one
+      ArchivedKnot using the most-recent lastKnotPickupAt /
+      lastKnotPickupTile; the earlier pickup's pickup-tile is lost
+      (acceptable — this edge is anomalous and unobservable in
+      normal play).
+
+  - id: no-house-entrance-overworld
+    description: >
+      Test fixture or save-load constructs a GameState where
+      state.houseEntranceOverworld is null/undefined (pre-RP-33
+      snapshot).
+    expected: >
+      coyote-scripted-route-walking-to-house treats this as an
+      unplayable arming: at the Summer → Autumn edge, if
+      state.houseEntranceOverworld is missing, the arming is
+      skipped (state.knotDelivery stays null). No crash, no scripted
+      route, no contribution that autumn. The seasonal ramp from
+      RP-32 still carries the autumn.
+
+  - id: serialization-roundtrip
+    description: >
+      A saved game from before this PR (lacking the seven new fields)
+      is loaded after this PR ships.
+    expected: >
+      Consistent with the RP-32 / RP-33 stance (no migration logic):
+      EXPECTED_FIELDS validates the post-PR shape only; a pre-PR
+      load is out of scope. The save format is not stable across
+      backlog-item-level changes.
+
+failure_conditions:
+  - trigger: >
+      Coyote entity does not exist in the world (defensive — should
+      not happen under normal genesis, but a test fixture may construct
+      a coyote-less state).
+    expected: >
+      tickCoyote's existing early-return on `findCoyoteEntity === null`
+      prevents the scripted-route branch from firing. The arming
+      itself still ran at the season edge (knotDelivery is non-null),
+      but no movement occurs; the route resolves whenever a coyote
+      is later spawned (out of scope here).
+
+  - trigger: >
+      ITEM_DEFINITIONS["reveryKnot"] lookup fails (e.g. items.ts
+      regression removes the entry).
+    expected: >
+      placeItem and the ground-item drop both call getDefinition;
+      the existing throw ("unknown item definition: reveryKnot") is
+      surfaced per CLAUDE.md "always surface errors". The Knot
+      delivery fails loudly rather than silently no-opping.
+
+  - trigger: >
+      contributeDormancyPressure is called with a Knot pickup while
+      state.revery is non-null.
+    expected: >
+      The contribution lands (pressure clamped). RP-32's threshold-
+      trigger gate prevents a second Revery. No double-fire.
+
+  - trigger: >
+      The same reveryKnot ItemInstance is detected twice by the
+      pickup-contribution site within a single frame (e.g., a stack-
+      merge code path).
+    expected: >
+      The contribution site is keyed by the ItemInstance entering the
+      backpack — auto-deposit OR ground-item walk-over. A merge of
+      two Knot stacks in the backpack does NOT fire the contribution
+      (no new ItemInstance enters; existing stack count increments).
+      The contribution fires exactly once per ItemInstance entering
+      the backpack from outside it.
+
+verification:
+  test_file: src/engine/__tests__/RP-36-revery-knot.test.ts
+  test_pattern: '^RP-36 — the Revery Knot$'
+  command: 'npx vitest run src/engine/__tests__/RP-36-revery-knot.test.ts'

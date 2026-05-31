@@ -4,7 +4,7 @@ import { createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 const driveReveryToClosingAndTick = (state: ReturnType<typeof createTestState>, time: number): void => {
-  initiateRevery(state, time, OmenKind.BeeOnShoulder)
+  initiateRevery(state, time, OmenKind.ReveryKnot)
   tickRevery(state, 0, time + 100) // Omen → Observing
   if (state.revery) state.revery.phase = ReveryPhase.Closing
   tickRevery(state, 0, time + 200) // Closing → null

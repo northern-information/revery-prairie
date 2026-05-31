@@ -64,7 +64,7 @@ describe('RP-32 — revery dormancy pressure', () => {
     // RP-33 — capture the collapse tile expectation BEFORE
     // tickRevery, since Omen → Observing moves the steward to the bed.
     const expected = { x: state.player.x, y: state.player.y }
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     expect(state.revery?.summonsCollapseTile).toEqual(expected)
@@ -80,7 +80,7 @@ describe('RP-32 — revery dormancy pressure', () => {
     const px = state.player.x
     const py = state.player.y
     state.overworldMap[py][px] = { type: TileType.Dirt }
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     if (state.revery) state.revery.phase = ReveryPhase.Closing
@@ -93,7 +93,7 @@ describe('RP-32 — revery dormancy pressure', () => {
     setAutumnOverworld(state)
     clearAroundPlayer(state, 3)
     createCharacterEntity(state, 'gron', { x: state.player.x + 5, y: state.player.y + 5 })
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     if (state.revery) state.revery.phase = ReveryPhase.Closing

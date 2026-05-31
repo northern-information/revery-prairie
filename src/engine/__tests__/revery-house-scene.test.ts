@@ -23,7 +23,7 @@ describe('RP-33 — Revery scene transition at Omen → Observing', () => {
     state.mapHeight = state.houseMapHeight
     createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // Omen → Observing
 
@@ -47,7 +47,7 @@ describe('RP-33 — Revery scene transition at Omen → Observing', () => {
     state.mapHeight = state.overworldMapHeight
     createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // Omen → Observing
 
@@ -66,7 +66,7 @@ describe('RP-33 — Closing-phase revert', () => {
     state.mapHeight = state.houseMapHeight
     createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // Omen → Observing
     state.emilyInvitation = 'confirmed'
@@ -88,7 +88,7 @@ describe('RP-33 — Closing-phase revert', () => {
     createCharacterTestEntity(state, 'emily', 5, 2, undefined)
     const initialEgregoreCount = state.egregorePositions.length
 
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // Omen → Observing (captures collapse tile inside house)
     if (state.revery) state.revery.phase = ReveryPhase.Closing
@@ -111,7 +111,7 @@ describe('RP-33 — Closing-phase revert', () => {
     state.overworldMap[py][px] = { type: TileType.Dirt }
     createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // Omen → Observing captures collapse tile at (px, py) on overworld
     if (state.revery) state.revery.phase = ReveryPhase.Closing

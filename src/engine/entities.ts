@@ -8,6 +8,7 @@ import { tickCreatureHunger } from './hunger'
 import { clearInHandIfRemoved } from './inHand'
 import { findFitPosition, findItemByDefinition, getActiveContainers, placeItem, removeItem } from './inventory'
 import { recordDiscovery } from './manual'
+import { onReveryKnotEntered } from './reveryKnot'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
@@ -81,6 +82,10 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
   const px = state.player.x
   const py = state.player.y
   const pickedUp: string[] = []
+  // RP-36 — track Knot pickups so onReveryKnotEntered can fire its
+  // own bloom; the default pickup bloom at the end of this function
+  // is suppressed for Knots to keep "one pickup, one bloom".
+  const knotsPickedUp: string[] = []
 
   // Sweep stale pickup exemptions: any entity tagged PickupExemption whose
   // position is outside the player's 3x3 footprint gets its marker cleared
@@ -114,6 +119,12 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
       if (placed && itemDrop.genome) {
         state.seedGenomes.set(placed.uid, itemDrop.genome)
       }
+      // RP-36 — Knot pickup from the ground (backpack-full fallback
+      // path). Fire the contribution helper; defer the bloom to it.
+      if (placed && itemDrop.definitionId === 'reveryKnot' && time !== undefined) {
+        onReveryKnotEntered(state, placed.uid, time)
+        knotsPickedUp.push(placed.uid)
+      }
       recordDiscovery(state, `item:${itemDrop.definitionId}`)
       pickedUp.push(itemDrop.definitionId)
       state.world.destroyEntity(eid)
@@ -130,7 +141,11 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     }
   }
 
-  if (pickedUp.length > 0 && time !== undefined) {
+  // RP-36 — the default bloom is suppressed when only Knots were
+  // picked up (the helper already fired one). If non-Knot items were
+  // also picked up in the same sweep, the default bloom still fires.
+  const nonKnotCount = pickedUp.length - knotsPickedUp.length
+  if (nonKnotCount > 0 && time !== undefined) {
     spawnPickupBloom(state, px, py, time)
   }
 

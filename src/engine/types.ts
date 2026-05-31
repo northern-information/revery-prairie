@@ -713,6 +713,37 @@ export interface GameState {
   // within a tenure. Single writer: addChronicleEvent in chronicle/index.ts,
   // which enforces dedupe-by-id. Reset to [] on a new tenure.
   chronicle: ChronicleEvent[]
+  // RP-36 — Revery Knot. Ten fields land together; see docs/claude/state.md
+  // for single-owner write conventions. _The item is the omen. The omen is
+  // the item._
+  knotDelivery: KnotDeliveryState | null
+  bedKnotPresent: boolean
+  archivedKnots: ArchivedKnot[]
+  lastKnotDeliveryArmed: boolean
+  lastKnotPickupAt: number
+  lastKnotPickupTile: Position | null
+  lastKnotPickupHarvestYear: number
+  lastArchiveReveryCount: number
+  knotHarvestYearCounter: number
+  knotHarvestYears: Map<ItemUid, number>
+}
+
+// RP-36 — scripted coyote-delivery route. Armed at Summer → Autumn,
+// cleared when the Knot reaches the steward (or the bag fallback drops
+// it as a ground item near Gron).
+export interface KnotDeliveryState {
+  stage: 'walkingToHouse' | 'enroute'
+  dispatchedAt: number
+  harvestYear: number
+}
+
+// RP-36 — archive entry written at the Winter → Spring edge after a
+// Revery. RP-37 (the root cellar) reads this array when it ships.
+export interface ArchivedKnot {
+  pickedUpAt: number
+  pickedUpTile: Position
+  archivedAt: number
+  harvestYear: number
 }
 
 export const FloraStage = {
@@ -1037,10 +1068,14 @@ export const ReveryPhase = {
 
 export type ReveryPhase = (typeof ReveryPhase)[keyof typeof ReveryPhase]
 
+// RP-36 — single omen variant: the Revery Knot, delivered by the
+// coyote once per autumn. The original triplet (bee-on-shoulder,
+// distant-meteorite, cloud-passing-sun) was retired alongside the
+// detectOmen predicates in RP-32; this enum now carries one value
+// preserved on ReveryState.omenKind for shape compat. _The item is
+// the omen. The omen is the item._
 export const OmenKind = {
-  BeeOnShoulder: 'bee-on-shoulder',
-  DistantMeteorite: 'distant-meteorite',
-  CloudPassingSun: 'cloud-passing-sun',
+  ReveryKnot: 'revery-knot',
 } as const
 
 export type OmenKind = (typeof OmenKind)[keyof typeof OmenKind]

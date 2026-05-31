@@ -50,7 +50,7 @@ describe('the revery (RP-4) — acceptance', () => {
 
   it('revery-enter-and-observe: Observing phase is reached and elapsedYears accumulates', () => {
     const state = createTestState()
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     tickRevery(state, 0, 1100)
     expect(state.revery?.phase).toBe(ReveryPhase.Observing)
     const before = state.revery?.elapsedYears ?? 0
@@ -61,7 +61,7 @@ describe('the revery (RP-4) — acceptance', () => {
   it('revery-input-lock: movePlayer is blocked during the Revery', () => {
     const state = createTestState()
     clearAroundPlayer(state, 3)
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     tickRevery(state, 0, 1100)
     expect(isReveryLocked(state)).toBe(true)
     expect(movePlayer(state, 'right')).toBe(false)
@@ -72,7 +72,7 @@ describe('the revery (RP-4) — acceptance', () => {
     state.manualDiscoveries.add('flora:clover')
     clearAroundPlayer(state, 5)
     placeFloraAt(state, state.player.x + 1, state.player.y, FloraSpecies.Clover, 0.5)
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     tickRevery(state, 0, 1100) // → Observing
     for (let i = 0; i < 250; i++) tickRevery(state, 0, 2000 + i)
     expect(state.revery?.phase).toBe(ReveryPhase.Summary)
@@ -96,7 +96,7 @@ describe('the revery (RP-4) — acceptance', () => {
     state.map[state.player.y + 6][state.player.x + 6] = { type: TileType.Egregore }
     state.egregorePositions.push({ x: state.player.x + 6, y: state.player.y + 6 })
     const before = state.egregorePositions.length
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     tickRevery(state, 0, 1100)
     for (let i = 0; i < 250; i++) tickRevery(state, 0, 2000 + i)
     expect(state.egregorePositions.length).toBeGreaterThan(before)
@@ -105,7 +105,7 @@ describe('the revery (RP-4) — acceptance', () => {
     expect(state.reveryCount).toBe(1)
     const afterFirst = state.egregorePositions.length
 
-    initiateRevery(state, 200_000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 200_000, OmenKind.ReveryKnot)
     tickRevery(state, 0, 200_100)
     for (let i = 0; i < 250; i++) tickRevery(state, 0, 201_000 + i)
     // Second Revery (reveryCount=1 entering Summary) places 6 + 1 % 4 = 7 more.
@@ -114,7 +114,7 @@ describe('the revery (RP-4) — acceptance', () => {
 
   it('revery-summary-phase: summaryReady is true at Summary and scheduledChanges is populated', () => {
     const state = createTestState()
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     tickRevery(state, 0, 1100)
     for (let i = 0; i < 250; i++) tickRevery(state, 0, 2000 + i)
     expect(state.revery?.summaryReady).toBe(true)
@@ -123,7 +123,7 @@ describe('the revery (RP-4) — acceptance', () => {
 
   it('revery-closing-and-reset: Closing increments reveryCount and clears state.revery', () => {
     const state = createTestState()
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     tickRevery(state, 0, 1100)
     if (state.revery) state.revery.phase = ReveryPhase.Closing
     tickRevery(state, 0, 5000)
