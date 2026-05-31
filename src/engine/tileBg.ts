@@ -46,8 +46,6 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.HouseApron]: ['#322215', '#342417', '#302115', '#332416'],
   [TileType.HouseFloor]: ['#3A2A1C'],
   [TileType.HouseWall]: ['#1E1410'],
-  [TileType.HouseBed]: ['#3A2A1C'],
-  [TileType.HouseChair]: ['#3A2A1C'],
   [TileType.Fireplace]: ['#2A1810', '#2C1A11', '#28170F'],
   [TileType.HouseHearth]: ['#2E1F12'],
   [TileType.HouseExit]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],

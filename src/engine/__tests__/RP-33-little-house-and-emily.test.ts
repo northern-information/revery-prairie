@@ -28,10 +28,11 @@ describe('RP-33 — the little house and Emily', () => {
     expect(state.houseMap.length).toBe(state.houseMapHeight)
     expect(state.houseEntranceOverworld).toBeDefined()
     expect(state.houseEntranceInterior).toBeDefined()
-    expect(state.houseBedInterior).toEqual({ x: 13, y: 4 })
-    expect(state.houseChairInterior).toEqual({ x: 1, y: 4 })
+    // v11 R7 — bed, chair, emilyReveryReturn dropped.
+    expect((state as unknown as { houseBedInterior?: unknown }).houseBedInterior).toBeUndefined()
+    expect((state as unknown as { houseChairInterior?: unknown }).houseChairInterior).toBeUndefined()
+    expect((state as unknown as { emilyReveryReturn?: unknown }).emilyReveryReturn).toBeUndefined()
     expect(state.emilyInvitation).toBe('unoffered')
-    expect(state.emilyReveryReturn).toBe(null)
     // playerSpawn must NOT exist on the state shape.
     expect((state as unknown as { playerSpawn?: unknown }).playerSpawn).toBeUndefined()
   })
@@ -60,12 +61,14 @@ describe('RP-33 — the little house and Emily', () => {
     expect(door.x).toBeLessThanOrEqual(gronX)
   })
 
-  it('walkability: floor walkable; wall + bed + fireplace not; chair walkable; entrance + exit walkable', () => {
+  it('walkability: floor walkable; wall + fireplace not; entrance + exit + apron walkable', () => {
+    // v11 R7 — bed and chair were dropped, so the only non-walkable
+    // interior tiles are the wall and fireplace itself. The hearth in
+    // front of the fireplace is walkable.
     expect(isWalkableTile(TileType.HouseFloor)).toBe(true)
     expect(isWalkableTile(TileType.HouseWall)).toBe(false)
-    expect(isWalkableTile(TileType.HouseBed)).toBe(false)
     expect(isWalkableTile(TileType.Fireplace)).toBe(false)
-    expect(isWalkableTile(TileType.HouseChair)).toBe(true)
+    expect(isWalkableTile(TileType.HouseHearth)).toBe(true)
     expect(isWalkableTile(TileType.HouseEntrance)).toBe(true)
     expect(isWalkableTile(TileType.HouseExit)).toBe(true)
     expect(isWalkableTile(TileType.HouseApron)).toBe(true)

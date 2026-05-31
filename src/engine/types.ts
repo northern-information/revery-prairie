@@ -34,17 +34,16 @@ export const TileType = {
   Egregore: 'egregore',
   // The little house (RP-33). HouseEntrance is the single overworld
   // door tile (`α` glyph, warm brown); HouseApron the 8-neighbor path.
-  // HouseFloor / HouseWall make up the 30x18 interior. HouseBed sits on
-  // the east wall (Revery destination); HouseChair on the west wall
-  // (Emily's during-Revery position). Fireplace is animated `^~*` at
-  // FIRE_TICK_MS cadence. HouseExit is the 3-wide south door rendered
-  // in pink (`#ff69b4`) per the cave/ruin exit idiom.
+  // HouseFloor / HouseWall make up the interior. Fireplace is animated
+  // `^~*` at FIRE_TICK_MS cadence; HouseHearth is the walkable row in
+  // front of it. HouseExit is the 3-wide south door rendered in pink
+  // (`#ff69b4`) per the cave/ruin exit idiom. The Revery happens in
+  // place at the hearth opposite Emily across the fireplace — no
+  // furniture is required to host it (v11 R7 amendment, RP-36).
   HouseEntrance: 'houseEntrance',
   HouseApron: 'houseApron',
   HouseFloor: 'houseFloor',
   HouseWall: 'houseWall',
-  HouseBed: 'houseBed',
-  HouseChair: 'houseChair',
   Fireplace: 'fireplace',
   HouseHearth: 'houseHearth',
   HouseExit: 'houseExit',
@@ -461,20 +460,15 @@ export interface GameState {
   houseMapHeight: number
   // Overworld door tile (the `α` glyph), placed west of Gron at genesis.
   houseEntranceOverworld: Position
-  // Interior spawn position (one tile north of the middle exit).
+  // Interior spawn position — the hearth tile east of the fireplace,
+  // opposite Emily across the fire. Also the Revery anchor: the steward
+  // Reverys in place here, no bed teleport (v11 R7 amendment, RP-36).
   houseEntranceInterior: Position
-  // Interior bed position (Revery destination — east wall).
-  houseBedInterior: Position
-  // Interior chair position (Emily's during-Revery seat — west wall).
-  houseChairInterior: Position
   // Emily's invitation state machine. 'unoffered' at genesis; flips to
   // 'offered' when her autumn last line arms awaitingConfirmation;
   // 'confirmed' on [f]-consume; resets to 'unoffered' at dialog close
   // without confirm or at Revery Closing.
   emilyInvitation: 'unoffered' | 'offered' | 'confirmed'
-  // Emily's idle position snapshot during a Revery — written at
-  // Omen → Observing, read+cleared at Closing.
-  emilyReveryReturn: Position | null
   // RP-34 — one-shot latch for the first-wake dialog. False on a
   // fresh GameState; flipped to true on the first eligible gameplay
   // frame when firstWakeTrigger auto-opens Emily's dialog. Persists

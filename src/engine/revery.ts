@@ -134,20 +134,34 @@ const runSummonsSequence = (state: GameState, r: ReveryState): void => {
       break
     }
   }
+  // RP-36 fix — only teleport Gron and open his dialog when he is in
+  // the SAME zone as the steward at summons time. The confirm-in-house
+  // path (RP-33) leaves Gron in the overworld; cross-zone teleport
+  // would drag him into the house with the wrong EntityZone, and the
+  // dialog overlay would obscure the Revery Summary (the dialog content
+  // also flips to the wrong register once phase advances past Omen). Per
+  // the RP-33 spec confirm-path-scene-no-swap edge case, no Gron-summons
+  // dialog opens when Gron is unreachable.
   let dialogReady = false
   if (gronEid !== null) {
-    const target = pickAdjacentWalkableTile(state, state.player.x, state.player.y)
-    if (target) {
-      const pos = state.world.getComponent(gronEid, ComponentType.Position)
-      if (pos) {
-        state.world.spatial.move(gronEid, pos.x, pos.y, target.x, target.y)
-        pos.x = target.x
-        pos.y = target.y
+    const gronZone = state.world.getComponent(gronEid, ComponentType.EntityZone)
+    const sameZone = gronZone?.zone === state.currentZone
+    if (sameZone) {
+      const target = pickAdjacentWalkableTile(state, state.player.x, state.player.y)
+      if (target) {
+        const pos = state.world.getComponent(gronEid, ComponentType.Position)
+        if (pos) {
+          state.world.spatial.move(gronEid, pos.x, pos.y, target.x, target.y)
+          pos.x = target.x
+          pos.y = target.y
+        }
+        // Open Gron's solstice-summons dialog. getGronDialog returns
+        // GRON_DIALOG_SOLSTICE_SUMMONS while r.summons === true and phase
+        // is Omen. The dialog only opens when the teleport succeeds —
+        // otherwise the steward sees nothing relating to Gron.
+        dialogReady = true
       }
     }
-    // Open Gron's solstice-summons dialog. getGronDialog returns
-    // GRON_DIALOG_SOLSTICE_SUMMONS while r.summons === true and phase is Omen.
-    dialogReady = true
   }
   if (dialogReady) {
     state.activeDialog = {
@@ -162,10 +176,13 @@ const runSummonsSequence = (state: GameState, r: ReveryState): void => {
   }
 }
 
-// RP-33 — the Revery scene is always the house interior. Called at
-// the Omen → Observing transition. Performs an immediate synchronous
-// zone swap if the steward is not already inside; then repositions the
-// steward to the bed and Emily to her chair. The existing fade between
+// RP-33 + v11 R7 — the Revery scene is the house interior, the hearth
+// opposite Emily across the fireplace. Called at the Omen → Observing
+// transition. Performs an immediate synchronous zone swap if the
+// steward is not already inside, then anchors the steward at
+// houseEntranceInterior (the hearth tile east of the fireplace,
+// mirroring Emily across the fire). Emily does not move — she stays
+// aside the fire where the player meets her. The existing fade between
 // Omen and Observing covers the visual gap. The collapse tile field
 // from RP-32 is preserved on r.summonsCollapseTile so Closing can
 // commit on the overworld map regardless of where the player ended up.
@@ -189,45 +206,20 @@ const transitionToHouseScene = (state: GameState): void => {
     state.trail = []
   }
 
-  // Reposition steward to the bed; face left so the steward visually
-  // rests with their head toward the wall.
-  state.player = { x: state.houseBedInterior.x, y: state.houseBedInterior.y }
+  // Anchor steward at the hearth opposite Emily across the fireplace.
+  // Face left so the steward is visually turned toward Emily across the
+  // fire. The bed and chair were dropped in v11 R7 — the Revery happens
+  // in place at the hearth tableau, not in furniture.
+  state.player = { x: state.houseEntranceInterior.x, y: state.houseEntranceInterior.y }
   state.playerFacing = 'left'
-
-  // Capture Emily's idle position and move her to the chair.
-  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
-    const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-    if (ident?.definitionId !== 'emily') continue
-    const pos = state.world.getComponent(eid, ComponentType.Position)
-    if (!pos) continue
-    state.emilyReveryReturn = { x: pos.x, y: pos.y }
-    state.world.spatial.move(eid, pos.x, pos.y, state.houseChairInterior.x, state.houseChairInterior.y)
-    pos.x = state.houseChairInterior.x
-    pos.y = state.houseChairInterior.y
-    break
-  }
 
   updateCamera(state)
 }
 
-// RP-33 — Closing-phase revert. Restore Emily to her idle position
-// and reset emilyInvitation so she can offer again next autumn. Steward
-// stays on the bed and walks off at their pace.
+// RP-33 — Closing-phase reset. Emily never moved (v11 R7 amendment),
+// so there is nothing to revert; the only state to clear is the
+// emilyInvitation flag so she can offer again next autumn.
 const revertHouseScene = (state: GameState): void => {
-  if (state.emilyReveryReturn) {
-    for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
-      const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-      if (ident?.definitionId !== 'emily') continue
-      const pos = state.world.getComponent(eid, ComponentType.Position)
-      if (!pos) continue
-      const dest = state.emilyReveryReturn
-      state.world.spatial.move(eid, pos.x, pos.y, dest.x, dest.y)
-      pos.x = dest.x
-      pos.y = dest.y
-      break
-    }
-  }
-  state.emilyReveryReturn = null
   if (state.emilyInvitation === 'confirmed') {
     state.emilyInvitation = 'unoffered'
   }

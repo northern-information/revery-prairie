@@ -110,7 +110,11 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     expect(state.revery?.phase).toBe(ReveryPhase.Observing)
   })
 
-  it('does not crash when no adjacent walkable tile exists (Gron not teleported, dialog still opens)', () => {
+  it('does not crash when no adjacent walkable tile exists (Gron not teleported, no dialog opens)', () => {
+    // RP-36 — when Gron cannot teleport adjacent, the Gron-summons
+    // dialog is suppressed. Per RP-33 confirm-path-scene-no-swap and
+    // the doctrine that the Summary overlay should not be obscured by
+    // an unreachable-Gron dialog. The Revery still proceeds.
     const state = createTestState()
     setupSummonsState(state)
     // Surround player with truly unwalkable tiles (Water is walkable per
@@ -134,8 +138,8 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     // Gron position unchanged
     expect(finalPos?.x).toBe(ox)
     expect(finalPos?.y).toBe(oy)
-    // Dialog still opens
-    expect(state.activeDialog).not.toBeNull()
+    // Dialog does NOT open — degrades silently per the spec.
+    expect(state.activeDialog).toBeNull()
   })
 
   it('non-summons Revery (r.summons !== true) does not run the sequence', () => {

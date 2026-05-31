@@ -53,10 +53,6 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.HouseApron]: '·',
   [TileType.HouseFloor]: '·',
   [TileType.HouseWall]: '#',
-  // Bed and chair render as floor glyphs — furniture identity lives on
-  // the tile type alone, not the on-screen character.
-  [TileType.HouseBed]: '·',
-  [TileType.HouseChair]: '·',
   [TileType.Fireplace]: '^',
   // Hearth — stone slab in front of the fireplace, walkable.
   [TileType.HouseHearth]: '·',
@@ -99,10 +95,6 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.HouseApron]: '#5A4128',
   [TileType.HouseFloor]: '#6B4A2B',
   [TileType.HouseWall]: '#4A2F1B',
-  // Bed and chair use the same floor color so the glyph reads as floor;
-  // furniture identity is encoded only in the tile type.
-  [TileType.HouseBed]: '#6B4A2B',
-  [TileType.HouseChair]: '#6B4A2B',
   [TileType.Fireplace]: '#FF8C42',
   // Hearth — slightly darker than floor; reads as worn stone slab.
   [TileType.HouseHearth]: '#7A5A38',
