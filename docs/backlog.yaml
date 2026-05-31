@@ -2735,3 +2735,58 @@ features:
       RP-38 (overworld fog of war, shipped) is a useful precedent
       for "per-frame state-aware visibility modification on top of
       cached terrain."
+
+  - id: 'RP-66'
+    name: Typewriter, paper, and ink ribbon (decor-pending-a-problem)
+    summary: >
+      A typewriter sits on the desk in the little house, with a
+      stack of paper next to it and a ribbon spool. The object is
+      decor — no state changes, no consumables, no new fields in
+      `GameState`, no new verbs. Interacting with the tile once per
+      tenure shows a single prairie-voiced refusal line (copy
+      deferred) acknowledging the object without promising a
+      system. Item exists in the backlog so the round's reasoning
+      persists and the room can return to it when a real problem
+      demands it.
+    depends_on: []
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 6 (2026-05-31). Tyler brought the object
+      and the Resident Evil reference — the save-point typewriter
+      as evocative ritual — and was honest that he didn't yet know
+      what problem it solves.
+
+
+      The room landed on _not a system yet_. Astrid: the RE
+      typewriter saves against Jill's dying; the prairie has no
+      stay of execution, and a save-point typewriter is a heresy
+      against _tending is the verb, not preserving_. FromSoft-style
+      template messaging is also out — the prairie is solitary
+      within a tenure; cross-tenure speech already has a channel
+      (the cellar Knot, the lineage). Boon: zero LOC outside the
+      render path; furniture doesn't earn a system. Calla: a
+      visible-but-inert object is a Chekhov problem and trains the
+      steward that little-house objects don't respond, which bleeds
+      into every other diegetic surface — hence the one-time
+      refusal line as Chekhov mitigation.
+
+
+      Delta's reframe is the line the round is remembered by: _the
+      camera is already the save point. The shutter is the ribbon
+      striking the platen._ Both are slow, costly, deliberate acts
+      consuming a finite resource (film, ribbon) and producing an
+      artifact that outlives the tenure. The real question the
+      round opened, parked rather than answered, is whether the
+      cellar Knot eventually wants a diegetic interface in the
+      little house — and if so, whether the typewriter is the
+      candidate object. If that question resolves yes, this item
+      becomes the surface where the Knot deposit ritual gets
+      composed. If no, the typewriter remains decor.
+
+
+      Not amended onto `RP-33` (the little house and the girl who
+      waits) because `RP-33` is shipped; tracked as its own item so
+      the room's reasoning is preserved.
