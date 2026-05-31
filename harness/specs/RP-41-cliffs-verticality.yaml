@@ -89,33 +89,26 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: genesis-elevation-amplitude-raised
+  - id: genesis-elevation-amplitude-unchanged
     description: >
-      TectonicUplift in src/engine/genesis/epochs/03-tectonicUplift.ts
-      raises the per-axis intensity ceiling so that uplifted peaks
-      reach the 70-95 range on the 0-100 elevation scale (current
-      ceiling is +18..+23 added to the 50 baseline, producing peaks
-      around 68-73). New intensity range: +28..+40, producing peaks
-      around 78-90 after the 75/25 smoothing pass dampens the raw
-      peak. Number of axes (2-3), axis-length sampling (24-40),
-      radius (6), and the two-pass diffusion smoothing are
-      unchanged — only the intensity range moves. Existing
-      cosine-falloff math and clamp to [0,100] are preserved. This
-      is the substrate change that makes the new isClimbableStep
-      gate meaningful — at the old amplitude, no adjacent tiles
-      cross the threshold.
-    inputs:
-      - 'genesis sim with non-empty landMask entering the TectonicUplift epoch'
-      - 'sim.rng() returning values in [0, 1)'
-    outputs:
-      - 'per-axis intensity samples lie in [28, 40]'
-      - 'post-epoch sim.elevation has at least one entry with value >= 75 (probabilistic but overwhelmingly likely with 2-3 axes at this amplitude — confirmed via seeded test)'
-    state_changes:
-      - field: sim.elevation
-        effect: 'uplifted peaks reach higher absolute values; baseline tiles (no axis nearby) unchanged at 50'
-      - field: sim.tectonicAxes
-        effect: 'per-axis intensity reflects the new range'
-    determinism: probabilistic
+      **REVISED FROM ORIGINAL.** The spec originally called for
+      raising the tectonic-uplift intensity from +18..+23 to
+      +28..+40 to make cliffs more plentiful. Empirical verify
+      runs (`sandWaterOnly`, `terrainConnectivity`, `genesis`
+      water-budget) showed the amplitude bump destabilized
+      downstream water/sand placement invariants — higher peaks
+      rearranged pond placement and created enclosed dirt islands
+      that the island-elimination pass turned into orphan sand.
+      The amplitude stays at +18..+23. Empirical measurement
+      across six genesis seeds shows ~1-2% of adjacent pairs
+      already exceed the CLIMBABLE_STEP_THRESHOLD at the existing
+      amplitude — enough for sparse landmark-scale cliffs without
+      breaking water. Tuning the amplitude further is deferred;
+      the threshold alone surfaces cliffs on the natural gradient.
+    inputs: []
+    outputs: []
+    state_changes: []
+    determinism: deterministic
 
   - id: reachable-mass-computed-at-genesis
     description: >
