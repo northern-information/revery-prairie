@@ -1,5 +1,7 @@
 import { updateProximityMusic } from './audio'
 import { ComponentType } from './ecs/types'
+import { WATERFALL_AUDIO_RADIUS, WATERFALL_AUDIO_URL } from './tileBg'
+import { Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 
 import type { ProximityEmitterSample } from './audio'
@@ -40,6 +42,25 @@ export const tickProximityMusic = (state: GameState): void => {
       distSq: dx * dx + dy * dy,
       radiusSq: emitter.radius * emitter.radius,
     })
+  }
+
+  // RP-64 — Waterfall positional emitters. Overworld only (no
+  // waterfalls in caves/ruins/house). Frozen waterfalls are
+  // silent (silence reads as ice). All waterfalls share one URL
+  // so updateProximityMusic's max-across-same-url logic caps the
+  // audible volume at 1 — the closest waterfall wins.
+  if (state.currentZone === Zone.Overworld) {
+    const radiusSq = WATERFALL_AUDIO_RADIUS * WATERFALL_AUDIO_RADIUS
+    for (const waterfall of state.waterfalls.values()) {
+      if (waterfall.frozen) continue
+      const dx = px - waterfall.topX
+      const dy = py - waterfall.topY
+      samples.push({
+        url: WATERFALL_AUDIO_URL,
+        distSq: dx * dx + dy * dy,
+        radiusSq,
+      })
+    }
   }
 
   updateProximityMusic(samples)

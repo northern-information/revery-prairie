@@ -1,0 +1,363 @@
+id: rp-41-cliffs-verticality
+name: 'Cliffs and verticality (elevation + walkable-step threshold)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/position.ts
+  - src/engine/movement.ts
+  - src/engine/pathfinding.ts
+  - src/engine/genesis/epochs/03-tectonicUplift.ts
+  - src/engine/genesis/shared/reachableMass.ts
+  - src/engine/genesis/state.ts
+  - src/engine/genesisTypes.ts
+  - src/engine/state.ts
+  - src/engine/projection.ts
+  - src/engine/tileBgCache.ts
+  - src/engine/render/passes/tileBgComposite.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies: []
+
+behaviors:
+  - id: climbable-step-predicate
+    description: >
+      isClimbableStep(state, fromX, fromY, toX, toY) returns true when
+      the absolute elevation delta between the two tiles is less than
+      or equal to CLIMBABLE_STEP_THRESHOLD. Returns true when either
+      tile has no elevation entry in state.elevation (cave tiles,
+      out-of-bounds, ungenerated zones — elevation is overworld-only).
+      The threshold is a single exported constant in position.ts;
+      initial value 12 (on the existing 0-100 elevation scale, where
+      Round 3's amplitude bump pushes peak uplift into the 70-95
+      range). Constant, terrain-agnostic — terrain-varied thresholds
+      are deferred to a future spec. The predicate is pure and reads
+      only from state.elevation; it does not consult tile types,
+      entities, or weather.
+    inputs:
+      - 'GameState with state.elevation populated for overworld'
+      - 'two tile coordinates (fromX, fromY) and (toX, toY)'
+    outputs:
+      - 'boolean: true when |elev(to) - elev(from)| <= CLIMBABLE_STEP_THRESHOLD or either tile lacks an elevation entry'
+    state_changes: []
+    determinism: deterministic
+
+  - id: movement-gated-by-climbable-step
+    description: >
+      movePlayer in src/engine/movement.ts gates the destination on
+      both isWalkableTile (existing behavior) and isClimbableStep
+      (new). When the destination tile is walkable by type but the
+      elevation delta from the player's current tile exceeds
+      CLIMBABLE_STEP_THRESHOLD, movePlayer returns false. The check
+      runs immediately after the existing isWalkableTile gate at
+      src/engine/movement.ts:106, before the corner-cut and entity
+      checks. For diagonal moves, isClimbableStep is also applied to
+      both adjacent cardinal tiles (the corner-cut check) — if either
+      cardinal step would be unclimbable, the diagonal is rejected.
+      Facing-entity update still runs on the rejected step (matches
+      existing rejection semantics in player-movement.yaml).
+    inputs:
+      - 'GameState with player at a tile whose elevation differs from an adjacent tile by more than CLIMBABLE_STEP_THRESHOLD'
+      - "Direction: any of the eight directions toward an unclimbable tile"
+    outputs:
+      - 'boolean: false'
+    state_changes:
+      - field: playerFacing
+        effect: 'set to dir (matches existing rejection semantics)'
+      - field: facingEntityPos
+        effect: 'recalculated (matches existing rejection semantics)'
+      - field: player.x
+        effect: 'unchanged'
+      - field: player.y
+        effect: 'unchanged'
+    determinism: deterministic
+
+  - id: pathfinding-respects-climbable-step
+    description: >
+      The A* search in src/engine/pathfinding.ts treats a neighbor as
+      non-traversable when isClimbableStep(state, current, neighbor)
+      returns false. The check is added alongside the existing
+      isWalkableTile filter at the cardinal-expansion (line 112) and
+      diagonal-expansion (line 121) sites. Click-to-move paths cannot
+      include a step that movePlayer would reject. Pathfinder still
+      treats water as walkable (no regression to water-traversable
+      behavior from player-movement.yaml).
+    inputs:
+      - 'click-to-move target on the other side of an unclimbable elevation step from the player'
+      - 'GameState with state.elevation populated'
+    outputs:
+      - 'A* either finds a path that routes around the elevation barrier or returns null'
+      - 'no returned path contains a step whose elevation delta exceeds CLIMBABLE_STEP_THRESHOLD'
+    state_changes: []
+    determinism: deterministic
+
+  - id: genesis-elevation-amplitude-unchanged
+    description: >
+      **REVISED FROM ORIGINAL.** The spec originally called for
+      raising the tectonic-uplift intensity from +18..+23 to
+      +28..+40 to make cliffs more plentiful. Empirical verify
+      runs (`sandWaterOnly`, `terrainConnectivity`, `genesis`
+      water-budget) showed the amplitude bump destabilized
+      downstream water/sand placement invariants — higher peaks
+      rearranged pond placement and created enclosed dirt islands
+      that the island-elimination pass turned into orphan sand.
+      The amplitude stays at +18..+23. Empirical measurement
+      across six genesis seeds shows ~1-2% of adjacent pairs
+      already exceed the CLIMBABLE_STEP_THRESHOLD at the existing
+      amplitude — enough for sparse landmark-scale cliffs without
+      breaking water. Tuning the amplitude further is deferred;
+      the threshold alone surfaces cliffs on the natural gradient.
+    inputs: []
+    outputs: []
+    state_changes: []
+    determinism: deterministic
+
+  - id: reachable-mass-computed-at-genesis
+    description: >
+      A new module src/engine/genesis/shared/reachableMass.ts exports
+      computeReachableMass(grid, elevation, width, height, spawnX,
+      spawnY, threshold): Set<string>. The function runs a BFS from
+      the spawn tile (matching enforceConnectivity's center-of-map
+      seed at src/engine/genesis/shared/connectivity.ts:11-12),
+      expanding into the four cardinal neighbors whenever the
+      neighbor is on-grid, has a walkable tile type, AND
+      |elev(neighbor) - elev(current)| <= threshold. The returned
+      Set holds the posKey of every reachable tile, including the
+      spawn. The pass runs after enforceConnectivity (so it never
+      considers tiles that enforceConnectivity already deleted) and
+      before extractGenesisResult. The resulting Set is attached to
+      the genesis result and hoisted onto GameState.reachableMass.
+    inputs:
+      - 'completed genesis sim with elevation populated and connectivity already enforced'
+      - 'spawnX, spawnY = floor(width/2), floor(height/2)'
+      - 'threshold = CLIMBABLE_STEP_THRESHOLD'
+    outputs:
+      - 'Set<string> containing the spawn tile and every cardinal-adjacent walkable tile reachable through climbable steps'
+    state_changes:
+      - field: GameState.reachableMass
+        effect: 'populated at state initialization from the genesis result'
+    determinism: deterministic
+
+  - id: unreachable-tiles-preserved
+    description: >
+      The reachable-mass pass is read-only with respect to the grid
+      and elevation map — unlike enforceConnectivity (which deletes
+      unreachable walkable tiles and converts them to Space at
+      src/engine/genesis/shared/connectivity.ts:65), the new pass
+      only computes a Set and writes nothing back to sim.grid,
+      sim.elevation, sim.landMask, sim.coastlineTiles, or
+      sim.soilHealth. Tiles outside the reachable mass remain
+      walkable-by-type (so neighboring systems like flora, weather,
+      and rendering still treat them as land), elevated, and
+      rendered — they are simply unreachable for the player's feet.
+      _The prairie does not owe the steward access._
+    inputs:
+      - 'genesis sim where elevation amplitude creates a topographically isolated cohort outside the spawn-connected mass'
+    outputs:
+      - 'sim.grid, sim.elevation, sim.landMask, sim.coastlineTiles, sim.soilHealth all byte-identical before and after computeReachableMass runs'
+    state_changes: []
+    determinism: deterministic
+
+  - id: reachable-mass-on-game-state
+    description: >
+      GameState gains a new field reachableMass: Set<string>. It is
+      populated at state.ts initialization from the genesis result,
+      registered in EXPECTED_FIELDS at
+      src/harness/__tests__/serialization/schema.test.ts in
+      alphabetical position. Single-owner write — only state
+      initialization and (future) RP-44 winter-geology updates may
+      mutate it. The field is empty (`new Set()`) in cave and other
+      non-overworld zone constructions where elevation is not
+      meaningful.
+    inputs:
+      - 'createInitialGameState called with a completed genesis result'
+    outputs:
+      - 'state.reachableMass is a Set<string> matching the computed reachable cohort'
+      - 'state.reachableMass.has(posKey(playerSpawnX, playerSpawnY)) is true'
+    state_changes:
+      - field: GameState.reachableMass
+        effect: 'initialized once at state construction; not mutated by movement, weather, flora, or any other live system'
+    determinism: deterministic
+
+  - id: cliff-face-shadow-rendered
+    description: >
+      The overworld tile rendering layer
+      (src/engine/render/passes/tileBgComposite.ts, with geometry
+      helpers in src/engine/projection.ts) draws a dark side-wall
+      shadow on the iso side of any tile whose lifted top exceeds
+      its south or east neighbor's top by more than
+      SHADOW_TRIGGER_DELTA pixels. The shadow uses the existing
+      getCellSideQuads geometry at src/engine/projection.ts:227 and
+      a new constant CLIFF_SHADOW_COLOR (`rgba(0,0,0,0.55)` —
+      deliberately dark, no hue) drawn under the existing wall pass
+      (or as its sole fill when no wall was previously drawn).
+      SHADOW_TRIGGER_DELTA corresponds to roughly half the iso
+      character height — confirmed at spec time against the current
+      LIFT_PX. When two neighboring tiles are within the trigger
+      delta, no shadow is drawn — micro-bumps stay quiet. This is an
+      extension to the existing tile composition pass, not a new
+      render pass (per v11 R2's one-visual-language lock and v11 R3's
+      "no new pass" lock).
+    inputs:
+      - 'overworld render frame where a tile has elevation lift greater than its south or east neighbor by >= SHADOW_TRIGGER_DELTA pixels'
+    outputs:
+      - 'iso side-wall quad filled with CLIFF_SHADOW_COLOR'
+      - 'visible dark line at the base of the lifted tile'
+    state_changes: []
+    determinism: time-based
+
+  - id: x-ray-alpha-on-occluding-lifted-tiles
+    description: >
+      **DEFERRED TO RP-65** (filed 2026-05-30 during RP-41
+      implementation). Originally specced as a per-frame alpha rule
+      on any lifted tile occluding the player avatar's bounding
+      box. The bg-cache architecture in `tileBgCache.ts`
+      precomputes the full map into an offscreen canvas and the
+      composite pass blits it with one `drawImage` per frame — per-
+      tile per-frame alpha needs a different pattern than this
+      spec assumed. Helpers ARE shipped as part of RP-41 (see
+      `src/engine/projection.ts`: `XRAY_ALPHA`,
+      `AVATAR_OCCLUSION_PAD`, `getTileScreenRect`,
+      `getAvatarScreenRect`, `rectsOverlap`,
+      `isTileOccludingAvatar`) so RP-65 can pick up without
+      re-doing the geometry work.
+    inputs: []
+    outputs: []
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: flat-prairie-seed
+    description: >
+      Genesis produces a seed where the tectonic uplift epoch's
+      axes happen to all fall on tiles that the smoothing pass
+      flattens, leaving the entire reachable map within
+      CLIMBABLE_STEP_THRESHOLD of every neighbor.
+    expected: >
+      reachableMass equals the full walkable overworld grid. No
+      cliff shadows render. isClimbableStep returns true for every
+      adjacent pair. Game is playable exactly as before, with the
+      elevation field functioning as cosmetic-only lift (the
+      pre-RP-41 behavior).
+
+  - id: isolated-mesa-not-in-reachable-mass
+    description: >
+      Genesis produces a mesa region whose lowest perimeter step
+      to the surrounding map exceeds CLIMBABLE_STEP_THRESHOLD,
+      with no climbable path in from any direction.
+    expected: >
+      The mesa tiles are NOT in state.reachableMass. The tiles
+      remain in sim.grid, sim.elevation, sim.landMask. Flora,
+      weather, rendering, and pickup systems all continue to
+      operate on those tiles as normal. The player cannot walk
+      onto the mesa from any direction or by any path.
+      Pathfinder's A* returns null for a click whose target is on
+      the mesa.
+
+  - id: tiny-reachable-mass-seed
+    description: >
+      A rare seed where the spawn tile is in a small reachable
+      pocket (e.g. < 30% of the walkable overworld). Per v11 R3's
+      "honor the seed" lock, no re-roll is triggered.
+    expected: >
+      reachableMass holds only the small pocket. Game proceeds.
+      Player has a smaller-than-typical prairie to inhabit. No
+      warning, no logging, no special UI — the cosmology does not
+      negotiate with the seed.
+
+  - id: cave-zone-reachable-mass-empty
+    description: >
+      Player enters a cave. The cave zone has no elevation
+      entries (caves render flat).
+    expected: >
+      state.reachableMass remains the overworld value (it is not
+      recomputed per-zone). isClimbableStep returns true for every
+      cave-tile pair (both have undefined elevation). Cave
+      movement is identical to current behavior; no spurious
+      blocking.
+
+  - id: diagonal-into-cliff-corner
+    description: >
+      Player attempts a diagonal step where the destination is
+      climbable but one of the two cardinal adjacents has an
+      unclimbable elevation delta from the player's current tile
+      (the corner tile is on top of a cliff edge).
+    expected: >
+      Diagonal move is rejected. movePlayer returns false.
+      Matches the corner-cut-blocked behavior from
+      player-movement.yaml — isClimbableStep is added to the
+      cardinal-neighbor check the same way isWalkableTile is.
+
+  - id: player-behind-mesa
+    description: >
+      Player walks behind a multi-tile lifted region so the iso
+      projection would draw the mesa over the player's screen-space
+      rect.
+    expected: >
+      **DEFERRED TO RP-65.** Under RP-41 alone, the mesa may
+      occlude the avatar. RP-65 ships the x-ray rule that restores
+      avatar visibility.
+
+  - id: micro-bump-between-tiles
+    description: >
+      Two adjacent tiles have an elevation delta less than
+      SHADOW_TRIGGER_DELTA but greater than zero.
+    expected: >
+      No cliff-face shadow drawn. Existing side-wall geometry (if
+      any) renders unchanged. Micro-bumps stay visually quiet.
+
+  - id: rp-44-future-elevation-change
+    description: >
+      A future RP-44 winter-geology system mutates state.elevation
+      at year boundary.
+    expected: >
+      Out of scope for this spec. RP-44's spec will be responsible
+      for recomputing state.reachableMass after any elevation
+      mutation. The reachable-mass module exports
+      computeReachableMass so RP-44 can call it with the current
+      grid + mutated elevation. This spec ships only the
+      genesis-time computation and the GameState field.
+
+failure_conditions:
+  - trigger: 'movePlayer accepts a step whose elevation delta exceeds CLIMBABLE_STEP_THRESHOLD'
+    expected: >
+      fail — player walks up vertical walls; threshold is
+      ignored; the entire feature is moot.
+
+  - trigger: 'pathfinding includes a step whose elevation delta exceeds CLIMBABLE_STEP_THRESHOLD in a returned path'
+    expected: >
+      fail — click-to-move can route the player along a path
+      that they cannot manually traverse; the player ends up
+      stalled mid-route.
+
+  - trigger: 'computeReachableMass mutates sim.grid, sim.elevation, sim.landMask, sim.coastlineTiles, or sim.soilHealth'
+    expected: >
+      fail — unreachable tiles vanish from the prairie, defeating
+      the v11 R3 lock that visible-but-unwalkable terrain is the
+      feature. Regression to enforceConnectivity's destructive
+      behavior.
+
+  - trigger: 'state.reachableMass is missing from EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts'
+    expected: >
+      fail — serialization schema test fails on the new field
+      not being declared.
+
+  - trigger: 'GameState.reachableMass is mutated outside state initialization (and the future RP-44 hook)'
+    expected: >
+      fail — violates single-owner write convention from
+      docs/claude/state.md; reachability becomes inconsistent
+      with elevation.
+
+  - trigger: 'cliff-face shadow is drawn between two same-elevation tiles or tiles within the climbable-step threshold'
+    expected: >
+      fail — visual noise in flat prairie regions, distracting
+      from real cliff edges.
+
+  - trigger: 'genesis amplitude bump is added but the existing 75/25 smoothing pass is bypassed or replaced'
+    expected: >
+      fail — peaks become spikes instead of ridges; the noise
+      reads as warts rather than landmark-scale terrain (v11 R3
+      "amplitude tuning targets landmark scale" lock).
+
+verification:
+  test_file: src/engine/__tests__/cliffsVerticality.test.ts
+  test_pattern: 'cliffs and verticality'
+  command: 'npx vitest run src/engine/__tests__/cliffsVerticality.test.ts -t "cliffs and verticality"'

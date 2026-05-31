@@ -90,6 +90,12 @@ export const createTestState = (opts?: {
   state.floraGrowthPreviews = createEmptyFloraGrowthPreviews()
   state.floraLifecycle = new Map()
   state.soilHealth = new Map()
+  // RP-41 — clear the genesis-derived elevation so tests are not
+  // accidentally blocked by isClimbableStep on natural cliff
+  // gradients near the test spawn. Tests that exercise cliffs/
+  // verticality (cliffsVerticality.test.ts) set elevation
+  // explicitly per scenario.
+  state.elevation = new Map()
   state.tileWater = new Map()
   // Ensure no rain so spawnBeeOrMonarch always creates bees in existing tests
   state.weather.sky = Sky.Sun

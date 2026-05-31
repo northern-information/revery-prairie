@@ -1,6 +1,7 @@
 import { SCAN_DURATION_MS } from './constants'
 import { tickDormancyPressure } from './omen'
 import { tickProximityMusic } from './proximityMusic'
+import { tickWaterfalls } from './waterfalls'
 import { initiateRevery, tickRevery } from './revery'
 import { commitScan } from './scan'
 import { AUTO_HIDE_THRESHOLD, createDefaultSystems } from './systems'
@@ -150,6 +151,10 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
     prevSeason = state.weather.season
     tickRevery(state, 0, time)
     state.lastSky = state.weather.sky
+
+    // RP-64 — Bring every waterfall's frozen flag into agreement
+    // with the current season. Idempotent; safe to run every frame.
+    tickWaterfalls(state)
 
     // Proximity music: query MusicEmitter components in the player's
     // zone, compute per-emitter gain, and drive the audio module. Run

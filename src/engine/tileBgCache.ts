@@ -1,4 +1,4 @@
-import { isInBounds, posKey } from './position'
+import { isClimbableStep, isInBounds, posKey } from './position'
 import { drawCellWalls } from './projection'
 import {
   darkenColor,
@@ -12,6 +12,7 @@ import {
   getTierLift,
   getTileBgColor,
   RUIN_ENTRANCE_LIFT_PX,
+  WALL_CLIFF_SHADE,
   WALL_LEFT_SHADE,
   WALL_RIGHT_SHADE,
   WATER_SINK_PX,
@@ -191,6 +192,14 @@ const paintTileBg = (entry: CacheEntry, state: GameState, map: Tile[][], x: numb
   const rightDepth = Math.max(0, eastLift - selfLift)
   if (leftDepth > 0 || rightDepth > 0) {
     const wallBg = getEffectiveBgColor(state, effectiveType, x, y)
+    // RP-41 — when the side faces an unclimbable elevation step,
+    // darken the wall heavily so the steward reads the boundary as
+    // "uncrossable." Climbable tier walls keep their existing shade.
+    // South wall (left in iso) faces (x, y+1); east wall (right) faces (x+1, y).
+    const southUnclimbable = !isClimbableStep(state.elevation, x, y, x, y + 1)
+    const eastUnclimbable = !isClimbableStep(state.elevation, x, y, x + 1, y)
+    const leftShade = southUnclimbable ? WALL_CLIFF_SHADE : WALL_LEFT_SHADE
+    const rightShade = eastUnclimbable ? WALL_CLIFF_SHADE : WALL_RIGHT_SHADE
     drawCellWalls(
       ctx as CanvasRenderingContext2D,
       px,
@@ -199,8 +208,8 @@ const paintTileBg = (entry: CacheEntry, state: GameState, map: Tile[][], x: numb
       charHeight,
       leftDepth,
       rightDepth,
-      darkenColor(wallBg, WALL_LEFT_SHADE),
-      darkenColor(wallBg, WALL_RIGHT_SHADE)
+      darkenColor(wallBg, leftShade),
+      darkenColor(wallBg, rightShade)
     )
   }
 }

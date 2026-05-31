@@ -5,8 +5,9 @@ import { ComponentType } from './ecs/types'
 import { emitPlayerFootstep, emitPlayerTrailBurst } from './flora'
 import { tryCoyoteRescueOnApproach, updateFacingEntity } from './interaction'
 import { recordDiscovery } from './manual'
-import { DIRECTIONS, isInBounds, isWalkableTile, posKey } from './position'
+import { CLIMBABLE_STEP_THRESHOLD, DIRECTIONS, isClimbableStep, isInBounds, isWalkableTile, posKey } from './position'
 import { isReveryLocked } from './revery'
+import { getFrozenStairwaySet } from './waterfalls'
 import { isDiagonalDirection, TileType, Zone } from './types'
 import { isEntityInCurrentZone } from './zone'
 import { isInputGated } from './zoneTransition'
@@ -107,9 +108,23 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     updateFacingEntity(state)
     return false
   }
+  // RP-41 — elevation-step gate. Adjacent tiles whose elevation
+  // delta exceeds CLIMBABLE_STEP_THRESHOLD are unclimbable, even
+  // when both tiles are walkable by type. Cave/ruin zones have no
+  // elevation entries, so isClimbableStep returns true there.
+  // RP-64 — in winter, frozen waterfalls are climbable bottom→top
+  // (upward only, asymmetric); the override is passed via
+  // frozenStairways.
+  const frozenStairways = getFrozenStairwaySet(state)
+  if (!isClimbableStep(state.elevation, state.player.x, state.player.y, nx, ny, CLIMBABLE_STEP_THRESHOLD, frozenStairways)) {
+    updateFacingEntity(state)
+    return false
+  }
   // Corner-cutting check for diagonal moves: both adjacent cardinal tiles
   // must also be walkable, otherwise the player would slip through the
-  // corner of a wall. Standard iso roguelike rule.
+  // corner of a wall. Standard iso roguelike rule. RP-41 extends this
+  // to also reject the diagonal when either cardinal step is
+  // unclimbable — the steward can't scramble over a cliff corner.
   if (isDiagonalDirection(dir)) {
     const cx = state.player.x + d.x
     const cy = state.player.y
@@ -118,6 +133,13 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     const tile1 = state.map[cy]?.[cx]
     const tile2 = state.map[cy2]?.[cx2]
     if (!tile1 || !tile2 || !isWalkableTile(tile1.type) || !isWalkableTile(tile2.type)) {
+      updateFacingEntity(state)
+      return false
+    }
+    if (
+      !isClimbableStep(state.elevation, state.player.x, state.player.y, cx, cy, CLIMBABLE_STEP_THRESHOLD, frozenStairways) ||
+      !isClimbableStep(state.elevation, state.player.x, state.player.y, cx2, cy2, CLIMBABLE_STEP_THRESHOLD, frozenStairways)
+    ) {
       updateFacingEntity(state)
       return false
     }

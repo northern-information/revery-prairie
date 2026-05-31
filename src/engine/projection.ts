@@ -260,6 +260,84 @@ export const getCellSideQuads = (
  * that face. The left face faces SOUTH in world coords (lower-left in
  * iso screen space); the right face faces EAST (lower-right).
  */
+// RP-41 — cliff-face shadow + x-ray constants. Trigger threshold is
+// in elevation units so it stays coupled with CLIMBABLE_STEP_THRESHOLD
+// in position.ts — shadows appear precisely where the step is
+// unclimbable. Picked the elevation-unit framing over the spec's
+// pixel-delta framing because the player-facing intent is "the
+// shadow marks where the feet can't go," not "the shadow marks where
+// the lift is big." Same outcome in practice.
+export const CLIFF_SHADOW_COLOR = 'rgba(0, 0, 0, 0.55)'
+export const XRAY_ALPHA = 0.45
+export const AVATAR_OCCLUSION_PAD = 4
+
+// Rectangle in screen-space pixels (axis-aligned). Used by the x-ray
+// occlusion check and any caller that needs to reason about a tile's
+// drawn footprint.
+export interface ScreenRect {
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
+
+// RP-41 — Axis-aligned bounding rect of a tile's lifted diamond. Caller
+// supplies the glyph anchor (px, py) and the lift value returned by
+// getElevationLift (negative = lifted up). The rect spans the full
+// diamond width (2*charWidth) and the diamond height plus the lifted
+// extension.
+export const getTileScreenRect = (
+  px: number,
+  py: number,
+  charWidth: number,
+  charHeight: number,
+  lift: number
+): ScreenRect => ({
+  left: px - charWidth,
+  right: px + charWidth,
+  top: py + lift,
+  bottom: py + charHeight,
+})
+
+// RP-41 — True when the two rects overlap on both axes. Used by the
+// x-ray rule to detect tiles whose lifted footprint would occlude
+// the player avatar's screen-space rect.
+export const rectsOverlap = (a: ScreenRect, b: ScreenRect): boolean =>
+  a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
+
+// RP-41 — Player avatar's screen-space rect, inflated by
+// AVATAR_OCCLUSION_PAD. The avatar is a single glyph, so its rect is
+// charWidth × charHeight centered on the projected player anchor.
+export const getAvatarScreenRect = (
+  playerPx: number,
+  playerPy: number,
+  charWidth: number,
+  charHeight: number,
+  pad: number = AVATAR_OCCLUSION_PAD
+): ScreenRect => ({
+  left: playerPx - charWidth / 2 - pad,
+  right: playerPx + charWidth / 2 + pad,
+  top: playerPy - pad,
+  bottom: playerPy + charHeight + pad,
+})
+
+// RP-41 — True when the tile sits "in front of" the player in iso
+// z-order (drawn later) AND its lifted screen rect overlaps the
+// avatar's rect. Tiles behind the player in z-order are never
+// occluders — they are drawn earlier and the avatar is drawn on top
+// of them by default.
+export const isTileOccludingAvatar = (
+  tileWorldX: number,
+  tileWorldY: number,
+  tileScreenRect: ScreenRect,
+  playerWorldX: number,
+  playerWorldY: number,
+  avatarRect: ScreenRect
+): boolean => {
+  if (tileWorldX + tileWorldY <= playerWorldX + playerWorldY) return false
+  return rectsOverlap(tileScreenRect, avatarRect)
+}
+
 export const drawCellWalls = (
   ctx: CanvasRenderingContext2D,
   px: number,
