@@ -26,6 +26,10 @@ const POOL = 'forks' as const
 const TEST_TIMEOUT_MS = 30_000
 const HOOK_TIMEOUT_MS = 30_000
 const TEARDOWN_TIMEOUT_MS = 60_000
+// Tests slower than this print with a `>` marker in the verbose reporter,
+// so `/maintain-tests` (and ad-hoc audits) can surface hotspots without
+// instrumented re-runs.
+const SLOW_TEST_THRESHOLD_MS = 500
 
 const COMMON = {
   pool: POOL,
@@ -33,6 +37,7 @@ const COMMON = {
   testTimeout: TEST_TIMEOUT_MS,
   hookTimeout: HOOK_TIMEOUT_MS,
   teardownTimeout: TEARDOWN_TIMEOUT_MS,
+  slowTestThreshold: SLOW_TEST_THRESHOLD_MS,
 } as const
 
 export default defineConfig({

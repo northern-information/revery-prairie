@@ -16,7 +16,7 @@ const RUIN_ARCHETYPE_LABEL: Record<string, string> = {
   [RuinArchetype.DormantGarden]: 'Dormant Garden',
 }
 
-const getDestinationLabel = (state: GameState, transition: ZoneTransition): string => {
+export const getDestinationLabel = (state: GameState, transition: ZoneTransition): string => {
   // RP-67: 'house-to-yard' exits route from the house interior to the
   // yard, so the destination label is 'Yard', not 'Revery Prairie'.
   if (transition.kind === 'house-to-yard') return 'Yard'
@@ -45,7 +45,7 @@ const getDestinationLabel = (state: GameState, transition: ZoneTransition): stri
 //   [0, fadeIn)                    -> alpha 0 -> 1, source scene
 //   [fadeIn, fadeIn + hold)        -> alpha 1, swap fires mid-hold
 //   [fadeIn + hold, total)         -> alpha 1 -> 0, destination scene
-const overlayAlpha = (elapsed: number): number => {
+export const overlayAlpha = (elapsed: number): number => {
   if (elapsed <= 0) return 0
   if (elapsed < ZONE_TRANSITION_FADE_IN_MS) {
     return elapsed / ZONE_TRANSITION_FADE_IN_MS
