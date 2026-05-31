@@ -1,0 +1,200 @@
+plan:
+  id: RP-67-little-house-yard
+  title: 'Precis RP-67: The yard around the little house — threshold zone between prairie and house interior'
+  created: 2026-05-31
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: yard-foundations
+    title: 'Add Zone.LittleHouseYard, five new TileTypes (HouseRoof, HouseEaves, HouseDoorClosed, Fence, FenceGate), yard dimension constants, walkability + render tables, and the five new GameState fields registered in EXPECTED_FIELDS'
+    spec_id: RP-67-little-house-yard
+    spec_sections:
+      - yard-tile-types
+      - yard-zone-and-map
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+      - src/engine/house.ts
+      - src/engine/movement.ts
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+      - src/engine/movement.ts
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/yard.test.ts
+    depends_on: []
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/yard.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: yard-map-creation
+    title: 'Implement createLittleHouseYard in src/engine/yard.ts; build state.yardMap at genesis with the locked 23x32 asymmetric layout (15x9 house roof+eaves at top, 3-tile back/side margins, 18-tile front, FenceGate centered on south edge, HouseDoorClosed 3-wide centered on house south edge)'
+    spec_id: RP-67-little-house-yard
+    spec_sections:
+      - yard-zone-and-map
+    context_files:
+      - src/engine/yard.ts
+      - src/engine/house.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/yard.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/yard.test.ts
+    depends_on:
+      - yard-foundations
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/yard.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: yard-transitions-and-detection
+    title: 'Wire enterLittleHouseYard, exitLittleHouseYardToOverworld, and the new house-to-yard handler through zoneTransition.ts; update checkHouseTransition so HouseApron/HouseEntrance triggers yard enter, FenceGate triggers yard exit, HouseDoorClosed triggers house enter, and HouseExit routes to the yard instead of the overworld; arm the yard re-entry lock on gate exit'
+    spec_id: RP-67-little-house-yard
+    spec_sections:
+      - yard-entry-from-overworld-apron
+      - yard-exit-via-gate
+      - yard-house-enter-via-door
+      - house-exit-to-yard
+      - house-interior-spawn-routes-through-yard-conceptually
+    context_files:
+      - src/engine/yard.ts
+      - src/engine/house.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/cave.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/yard.ts
+      - src/engine/house.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/cave.ts
+      - src/engine/__tests__/yard.test.ts
+    depends_on:
+      - yard-map-creation
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/yard.test.ts'
+      - command: 'npx vitest run src/engine/__tests__/house-interior.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: yard-flora-sampling
+    title: 'Implement flora-sampling pass at yard enter: tally species on the 8 HouseApron tiles, scatter proportional count onto walkable yard-interior tiles in deterministic (y, x) ascending order and alphabetical species order; store in state.yardFlora; re-sample on every yard enter event (gate path and house-to-yard path)'
+    spec_id: RP-67-little-house-yard
+    spec_sections:
+      - yard-flora-sampling-at-enter
+    context_files:
+      - src/engine/yard.ts
+      - src/engine/state.ts
+      - src/engine/clover.ts
+      - src/engine/types.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/yard.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/yard.test.ts
+    depends_on:
+      - yard-transitions-and-detection
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/yard.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: yard-clocks-camera-visibility
+    title: 'Freeze state.timeOfDay and state.season while currentZone === Zone.LittleHouseYard (per RP-51); clamp the camera viewport to yard map bounds; exclude the yard from fog-of-war; gate rain rendering on Zone.Overworld so it does not bleed into the yard'
+    spec_id: RP-67-little-house-yard
+    spec_sections:
+      - yard-pauses-player-time
+      - yard-camera-and-visibility
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/engine/visibility.ts
+      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/engine/visibility.ts
+      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/engine/__tests__/yard.test.ts
+    depends_on:
+      - yard-transitions-and-detection
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/yard.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: yard-integration-tests
+    title: 'Fill in the remaining vitest assertions for the full yard flow: tenure-open first house-exit lands in yard; apron→yard→front-door→house round trip; gate re-entry lock works; rain off in yard; flora re-samples on re-entry; walkability of all five new tiles'
+    spec_id: RP-67-little-house-yard
+    spec_sections:
+      - yard-tile-types
+      - yard-zone-and-map
+      - yard-entry-from-overworld-apron
+      - yard-exit-via-gate
+      - yard-house-enter-via-door
+      - house-exit-to-yard
+      - yard-flora-sampling-at-enter
+      - yard-pauses-player-time
+    context_files:
+      - src/engine/yard.ts
+      - src/engine/house.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/__tests__/yard.test.ts
+    depends_on:
+      - yard-flora-sampling
+      - yard-clocks-camera-visibility
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/yard.test.ts'
+      - command: 'npm run lint'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+      - testing
+    skip: false
