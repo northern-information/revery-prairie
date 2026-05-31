@@ -21,6 +21,7 @@ import { createHouseInterior } from './house'
 import { autoSort } from './inventory'
 import { createBackpack } from './items'
 import { isWalkableTile, posKey } from './position'
+import { detectNamedRegions } from './regions'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { buildWaterProximity } from './tileWater'
 import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, Sky, TileType, Zone } from './types'
@@ -387,6 +388,23 @@ export const createGameState = (
     namedRegions: [],
     chronicle: [],
   }
+
+  // RP-22 — Detect named regions once per tenure. Single writer; the
+  // returned array is assigned to state.namedRegions and never mutated
+  // by any tick handler. Deterministic per steward name because every
+  // input (ponds, ruins, craters, tectonic axes, cave entrance) is
+  // already deterministic from the seeded genesis simulation.
+  state.namedRegions = detectNamedRegions({
+    mapWidth: MAP_WIDTH,
+    mapHeight: MAP_HEIGHT,
+    map,
+    ponds: genesisData.ponds,
+    ruins: genesisData.ruins,
+    craters: new Set(genesisData.craters),
+    tectonicAxes: genesisData.tectonicAxes,
+    caveEntranceOverworld,
+    villageCenter: { x: gronX, y: gronY },
+  })
 
   // Glinting zone patches are seeded later, inside completeGenesis,
   // using performance.now() so all patches start in fade-in. Seeding
