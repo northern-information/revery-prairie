@@ -2580,10 +2580,10 @@ features:
       RP-61.
     size: XS
     depends_on: []
-    status: in-progress
+    status: shipped
     spec: harness/specs/RP-63-interactable-speakers.yaml
     plan: harness/plans/RP-63-interactable-speakers.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/481
     notes: >
       v11 thinktank round 2 (2026-05-25). Surfaced by Boon during
       the portrait-retirement audit and elevated by Delta as a
