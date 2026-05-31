@@ -235,24 +235,8 @@ tasks:
     tags:
       - tests
 
-  # --- Tier 7: Final verification ---
-
-  - id: final-verify
-    title: >
-      Run npm run verify (typecheck + lint + full test). Spot-check that no
-      existing lifecycle test broke from the new spawn-side mutation
-      (cloverLifecycle, RP-17 spread, RP-5 ruin recovery, monarch, lightning,
-      angels, recipes — anything that creates flora). If any did, the failure
-      is signal that the construction site needs to pre-set the flag (e.g.
-      tests that hand-build entries) or that test fixtures need updating.
-    spec_id: soil-depletion
-    spec_sections: []
-    context_files: []
-    output_files: []
-    depends_on:
-      - soil-depletion-tests
-    verification:
-      - npm run verify
-    repair: retry
-    tags:
-      - verify
+# Tier 7 (final verification) is omitted intentionally — plan.global_verification
+# runs `npm run typecheck && npm run test && npm run lint` after the last task
+# succeeds, which is the full verify pass. Any regression in cloverLifecycle,
+# RP-17 spread, RP-5 ruin recovery, monarch, lightning, angels, or recipes
+# (anything that creates flora) will surface there.
