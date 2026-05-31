@@ -574,7 +574,7 @@ features:
       a nitrogen fixer — the species choice already encoded the mechanic).
       Soil readability already shipped with RP-6; this adds the consequence.
     depends_on: []
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null
