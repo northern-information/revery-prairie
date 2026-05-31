@@ -220,3 +220,96 @@ describe('minimap viewport rect placement', () => {
     expect(after.cx).not.toBe(before.cx)
   })
 })
+
+// ─── draw lifecycle ─────────────────────────────────────────────────
+//
+// Tests below exercise the canvas-bound draw code in Minimap. They use
+// a recording ctx (replacing the global no-op stub from
+// `src/test/setup.ts` for the duration of the test) so paint calls
+// can be asserted. rAF is jsdom-polyfilled as setTimeout(fn, ~16ms),
+// so a `waitFor` lets the first draw frame fire.
+
+import { afterEach, vi } from 'vitest'
+import { waitFor } from '@testing-library/react'
+import { makeCanvasStub } from '@/engine/__tests__/canvasStub'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+const installRecordingCtx = () => {
+  const stub = makeCanvasStub()
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (
+    this: HTMLCanvasElement,
+    type: string
+  ) {
+    if (type === '2d') return stub.ctx
+    return null
+  } as typeof HTMLCanvasElement.prototype.getContext)
+  return stub
+}
+
+describe('Minimap draw lifecycle', () => {
+  it('sets the canvas to MINIMAP_CSS_SIZE on mount', () => {
+    const state = createGameState('Test', 80, 40)
+    const { getByTestId } = render(<Minimap state={state} />)
+    const canvas = getByTestId('minimap-canvas') as HTMLCanvasElement
+    expect(canvas.width).toBe(MINIMAP_CSS_SIZE)
+    expect(canvas.height).toBe(MINIMAP_CSS_SIZE)
+    expect(canvas.style.width).toBe(`${String(MINIMAP_CSS_SIZE)}px`)
+    expect(canvas.style.height).toBe(`${String(MINIMAP_CSS_SIZE)}px`)
+  })
+
+  it('clears the canvas on every animation frame', async () => {
+    const stub = installRecordingCtx()
+    const state = createGameState('Test', 80, 40)
+    render(<Minimap state={state} />)
+    await waitFor(() => {
+      const clearRectCalls = stub.paintSnapshots.filter(s => s.op === 'clearRect')
+      expect(clearRectCalls.length).toBeGreaterThan(0)
+    })
+  })
+
+  it('paints at least one tile on the overworld (the rebuilt cache or live drawTileLayer)', async () => {
+    const stub = installRecordingCtx()
+    const state = createGameState('Test', 80, 40)
+    state.currentZone = Zone.Overworld
+    render(<Minimap state={state} />)
+    await waitFor(() => {
+      // Either the cached overworld bitmap is drawn (drawImage) or, on
+      // cache rebuild, tiles paint individually (fillRect). One of the
+      // two must have happened.
+      const drewImage = stub.paintSnapshots.some(s => s.op === 'drawImage')
+      const filledRects = stub.paintSnapshots.filter(s => s.op === 'fillRect').length
+      expect(drewImage || filledRects > 0).toBe(true)
+    })
+  })
+
+  it('paints the player marker in pink (#ff69b4)', async () => {
+    const stub = installRecordingCtx()
+    const state = createGameState('Test', 80, 40)
+    render(<Minimap state={state} />)
+    await waitFor(() => {
+      const pinkFills = stub.paintSnapshots.filter(
+        s => s.op === 'fillRect' && (s.fillStyle === '#ff69b4' || s.fillStyle === '#FF69B4')
+      )
+      expect(pinkFills.length).toBeGreaterThan(0)
+    })
+  })
+
+  it('uses the live drawTileLayer path (fillRect per tile) inside a non-overworld zone', async () => {
+    const stub = installRecordingCtx()
+    const state = createGameState('Test', 80, 40)
+    state.currentZone = Zone.Cave
+    state.map = state.caveMap
+    state.mapWidth = state.caveMapWidth
+    state.mapHeight = state.caveMapHeight
+    render(<Minimap state={state} />)
+    await waitFor(() => {
+      // No cache in non-overworld zones — every visible tile paints
+      // through drawTileLayer's fillRect path.
+      const fillRectCount = stub.paintSnapshots.filter(s => s.op === 'fillRect').length
+      expect(fillRectCount).toBeGreaterThan(0)
+    })
+  })
+})
