@@ -1530,8 +1530,21 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           // FLORA_SPECIES registry. Dying-stage colors are shared across
           // species (the chromatic decline reads as "dying plant"
           // regardless of family).
+          //
+          // RP-67 — in the yard zone, flora are cosmetic snapshots in
+          // state.yardFlora (not state.floraLifecycle). Substitute the
+          // yard lookup so the renderer paints the sampled species
+          // glyph + healthy color over the Flora-mutated yardMap tile.
           const lifecycle = tile.type === TileType.Flora ? state.floraLifecycle.get(tileKey) : undefined
-          if (tile.type === TileType.Flora && lifecycle) {
+          const yardSpecies =
+            tile.type === TileType.Flora && state.currentZone === Zone.LittleHouseYard
+              ? state.yardFlora.get(tileKey)
+              : undefined
+          if (yardSpecies !== undefined) {
+            const speciesDef = FLORA_SPECIES[yardSpecies]
+            char = speciesDef.glyph
+            color = speciesDef.color
+          } else if (tile.type === TileType.Flora && lifecycle) {
             const speciesDef = FLORA_SPECIES[lifecycle.species]
             char = speciesDef.glyph
             color = speciesDef.color

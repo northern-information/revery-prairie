@@ -25,8 +25,8 @@ import {
 import { clearAllGrowthPreviews } from './floraGrowthPreviews'
 import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
-import { findSafeExitPosition } from './position'
-import { TileType, Zone } from './types'
+import { findSafeExitPosition, posKey } from './position'
+import { FloraSpecies, TileType, Zone } from './types'
 import { armReentryLock, registerZoneSwapHandler } from './zoneTransition'
 
 import type { GameState, Position, Tile } from './types'
@@ -97,6 +97,107 @@ export const createLittleHouseYard = (): LittleHouseYardResult => {
   }
 }
 
+// --- Flora sampling ---
+//
+// At every yard-enter event the yard's flora is cleared and re-sampled
+// from the prairie's species composition on the 8 HouseApron tiles
+// surrounding state.houseEntranceOverworld. The result is a
+// proportional scatter — _a yard ringed by wildflowers reads as a
+// wildflower yard_. The samples are cosmetic: no growth, no decay, no
+// weather response; they live entirely on state.yardFlora and the
+// yard map's TileType.Flora tiles.
+
+const APRON_OFFSETS: readonly (readonly [number, number])[] = [
+  [-1, -1],
+  [0, -1],
+  [1, -1],
+  [-1, 0],
+  [1, 0],
+  [-1, 1],
+  [0, 1],
+  [1, 1],
+] as const
+
+// Alphabetical species order for deterministic scatter assignment.
+// Matches Object.values(FloraSpecies) sorted ascending, hand-rolled so
+// the rule is visible in code.
+const SPECIES_ORDER: readonly FloraSpecies[] = [
+  FloraSpecies.Clover,
+  FloraSpecies.TallGrass,
+  FloraSpecies.Wildflower,
+] as const
+
+const tallyApronFlora = (state: GameState): Record<FloraSpecies, number> => {
+  const tally: Record<FloraSpecies, number> = {
+    [FloraSpecies.Clover]: 0,
+    [FloraSpecies.TallGrass]: 0,
+    [FloraSpecies.Wildflower]: 0,
+  }
+  const center = state.houseEntranceOverworld
+  for (const [dx, dy] of APRON_OFFSETS) {
+    const x = center.x + dx
+    const y = center.y + dy
+    const lifecycle = state.floraLifecycle.get(posKey(x, y))
+    if (lifecycle) {
+      tally[lifecycle.species] += 1
+    }
+  }
+  return tally
+}
+
+const collectWalkableYardInterior = (state: GameState): Position[] => {
+  // Yard-interior tiles that are currently Dirt (i.e. plain walkable
+  // ground, not yet flora-overlaid). Sorted by (y, x) ascending so the
+  // scatter order is deterministic and stable across re-entries.
+  const positions: Position[] = []
+  for (let y = 0; y < state.yardMapHeight; y++) {
+    for (let x = 0; x < state.yardMapWidth; x++) {
+      if (state.yardMap[y][x].type === TileType.Dirt) {
+        positions.push({ x, y })
+      }
+    }
+  }
+  return positions
+}
+
+export const sampleYardFlora = (state: GameState): void => {
+  // Clear stale samples — restore previously flora-overlaid tiles to
+  // Dirt before scattering the new tally.
+  for (const key of state.yardFlora.keys()) {
+    const [xs, ys] = key.split(',')
+    const x = Number(xs)
+    const y = Number(ys)
+    if (state.yardMap[y]?.[x]?.type === TileType.Flora) {
+      state.yardMap[y][x] = { type: TileType.Dirt }
+    }
+  }
+  state.yardFlora.clear()
+
+  const tally = tallyApronFlora(state)
+  // Short-circuit if the apron is barren — _a barren apron reads as a
+  // barren yard_.
+  const total = SPECIES_ORDER.reduce((sum, s) => sum + tally[s], 0)
+  if (total === 0) return
+
+  const walkable = collectWalkableYardInterior(state)
+  if (walkable.length === 0) return
+
+  // Walk the sorted walkable list, assigning each species N consecutive
+  // slots. If the apron tally exceeds the walkable count (unlikely —
+  // 8 apron tiles, ~520 walkable interior cells), later species in
+  // alphabetical order simply receive fewer placements.
+  let cursor = 0
+  for (const species of SPECIES_ORDER) {
+    const want = tally[species]
+    for (let i = 0; i < want && cursor < walkable.length; i++, cursor++) {
+      const { x, y } = walkable[cursor]
+      state.yardMap[y][x] = { type: TileType.Flora }
+      state.yardFlora.set(posKey(x, y), species)
+    }
+    if (cursor >= walkable.length) break
+  }
+}
+
 // --- Transition handlers ---
 // Mirror house.ts:90-122. The yard zone shares the overworld + house
 // pointer-pair pattern: state.yardMap persists for the tenure and is
@@ -132,6 +233,7 @@ export const enterLittleHouseYardFromApron = (state: GameState, apron: Position)
   state.player = { x: state.yardGatePosition.x, y: state.yardGatePosition.y }
   state.currentZone = Zone.LittleHouseYard
   state.yardEntryApron = { x: apron.x, y: apron.y }
+  sampleYardFlora(state)
   recordDiscovery(state, 'zone:yard')
   clearYardUiState(state)
 }
@@ -156,6 +258,7 @@ export const enterLittleHouseYardFromHouse = (state: GameState): void => {
     y: state.yardFrontDoorPosition.y + 1,
   }
   state.currentZone = Zone.LittleHouseYard
+  sampleYardFlora(state)
   recordDiscovery(state, 'zone:yard')
   clearYardUiState(state)
 }

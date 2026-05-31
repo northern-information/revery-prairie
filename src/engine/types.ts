@@ -494,6 +494,13 @@ export interface GameState {
   // overworld gate exit to return the player to where they came in.
   // Null when no yard-entry-from-apron is in flight.
   yardEntryApron: Position | null
+  // Yard flora samples — populated at every yard-enter event by the
+  // RP-67 flora-sampling pass. Keyed by posKey(x, y) within the yard's
+  // coordinate space (NOT overworld coords). Values are the species
+  // glyph the renderer paints over the Flora-mutated tile in yardMap.
+  // Cosmetic snapshots: no growth, no decay, cleared on the next
+  // sample. Parallel to state.floraLifecycle but never merged with it.
+  yardFlora: Map<string, FloraSpecies>
   // Emily's invitation state machine. 'unoffered' at genesis; flips to
   // 'offered' when her autumn last line arms awaitingConfirmation;
   // 'confirmed' on [f]-consume; resets to 'unoffered' at dialog close

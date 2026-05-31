@@ -16,15 +16,18 @@ import {
   YARD_SIDE_MARGIN,
   YARD_WIDTH,
 } from '../constants'
+import { createFloraLifecycleEntry } from '../floraLifecycleEntry'
+import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { checkHouseTransition, enterHouse } from '../house'
-import { isWalkableTile } from '../position'
+import { isWalkableTile, posKey } from '../position'
 import { createGameState } from '../state'
-import { TileType, Zone } from '../types'
+import { FloraSpecies, TileType, Zone } from '../types'
 import {
   createLittleHouseYard,
   enterLittleHouseYardFromApron,
   enterLittleHouseYardFromHouse,
   exitLittleHouseYardToOverworld,
+  sampleYardFlora,
 } from '../yard'
 import { isReentryLocked } from '../zoneTransition'
 import { createTestState } from './helpers'
@@ -319,7 +322,153 @@ describe('RP-67 yard zone', () => {
       expect(state.zoneTransition).toBeNull()
     })
   })
-  it.todo('yard enter samples the 8 HouseApron tiles deterministically')
+describe('flora sampling', () => {
+    const seedApron = (
+      state: ReturnType<typeof createTestState>,
+      mix: Partial<Record<FloraSpecies, number>>
+    ): void => {
+      // Walk the 8 apron neighbors of houseEntranceOverworld, dropping
+      // flora lifecycle entries one per tile until each species' quota
+      // from `mix` is met. Order is fixed (deterministic test setup).
+      const center = state.houseEntranceOverworld
+      const offsets: (readonly [number, number])[] = [
+        [-1, -1],
+        [0, -1],
+        [1, -1],
+        [-1, 0],
+        [1, 0],
+        [-1, 1],
+        [0, 1],
+        [1, 1],
+      ]
+      let i = 0
+      for (const species of [FloraSpecies.Clover, FloraSpecies.TallGrass, FloraSpecies.Wildflower]) {
+        const want = mix[species] ?? 0
+        for (let n = 0; n < want; n++, i++) {
+          const [dx, dy] = offsets[i]
+          const x = center.x + dx
+          const y = center.y + dy
+          const identity = generateGenesisIdentity(species, 0, posKey(x, y))
+          const traits = generateTraitBag(identity)
+          state.floraLifecycle.set(
+            posKey(x, y),
+            createFloraLifecycleEntry({
+              time: 0,
+              hasLight: true,
+              species,
+              identity,
+              traits,
+            })
+          )
+        }
+      }
+    }
+
+    it('tallies species on the 8 HouseApron neighbors and scatters proportionally onto yard-interior tiles', () => {
+      const state = createTestState()
+      seedApron(state, { [FloraSpecies.Clover]: 2, [FloraSpecies.Wildflower]: 1 })
+      enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
+
+      // 2 clover + 1 wildflower = 3 flora placed.
+      expect(state.yardFlora.size).toBe(3)
+      const speciesCounts = { clover: 0, wildflower: 0, tallGrass: 0 }
+      for (const s of state.yardFlora.values()) {
+        if (s === FloraSpecies.Clover) speciesCounts.clover++
+        else if (s === FloraSpecies.Wildflower) speciesCounts.wildflower++
+        else if (s === FloraSpecies.TallGrass) speciesCounts.tallGrass++
+      }
+      expect(speciesCounts.clover).toBe(2)
+      expect(speciesCounts.wildflower).toBe(1)
+      expect(speciesCounts.tallGrass).toBe(0)
+    })
+
+    it('mutates yard map tiles to TileType.Flora at each sampled position', () => {
+      const state = createTestState()
+      seedApron(state, { [FloraSpecies.Clover]: 1, [FloraSpecies.TallGrass]: 1 })
+      enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
+
+      for (const key of state.yardFlora.keys()) {
+        const [xs, ys] = key.split(',')
+        const x = Number(xs)
+        const y = Number(ys)
+        expect(state.yardMap[y][x].type).toBe(TileType.Flora)
+      }
+    })
+
+    it('places species in alphabetical order on the (y, x)-sorted walkable interior', () => {
+      // With 1 of each species placed, the first walkable Dirt tile gets
+      // clover, the second gets tall grass, the third gets wildflower.
+      const state = createTestState()
+      seedApron(state, {
+        [FloraSpecies.Clover]: 1,
+        [FloraSpecies.TallGrass]: 1,
+        [FloraSpecies.Wildflower]: 1,
+      })
+      // Compute the first three walkable Dirt tiles in (y, x) order
+      // from the yard map BEFORE sampling so the assertion isn't
+      // tautological.
+      const expectedSlots: { x: number; y: number }[] = []
+      outer: for (let y = 0; y < state.yardMapHeight; y++) {
+        for (let x = 0; x < state.yardMapWidth; x++) {
+          if (state.yardMap[y][x].type === TileType.Dirt) {
+            expectedSlots.push({ x, y })
+            if (expectedSlots.length === 3) break outer
+          }
+        }
+      }
+      enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
+
+      expect(state.yardFlora.get(posKey(expectedSlots[0].x, expectedSlots[0].y))).toBe(FloraSpecies.Clover)
+      expect(state.yardFlora.get(posKey(expectedSlots[1].x, expectedSlots[1].y))).toBe(FloraSpecies.TallGrass)
+      expect(state.yardFlora.get(posKey(expectedSlots[2].x, expectedSlots[2].y))).toBe(FloraSpecies.Wildflower)
+    })
+
+    it('clears stale samples and re-runs on every yard enter event', () => {
+      const state = createTestState()
+      seedApron(state, { [FloraSpecies.Clover]: 3 })
+      enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
+      expect(state.yardFlora.size).toBe(3)
+      const firstSamplePositions = Array.from(state.yardFlora.keys())
+
+      // Wipe the apron flora and re-enter: previous samples should clear,
+      // and an empty apron should produce an empty yard.
+      for (const key of Array.from(state.floraLifecycle.keys())) {
+        state.floraLifecycle.delete(key)
+      }
+      sampleYardFlora(state)
+      expect(state.yardFlora.size).toBe(0)
+      // The yardMap tiles that previously held Flora should be back to Dirt.
+      for (const key of firstSamplePositions) {
+        const [xs, ys] = key.split(',')
+        const x = Number(xs)
+        const y = Number(ys)
+        expect(state.yardMap[y][x].type).toBe(TileType.Dirt)
+      }
+    })
+
+    it('produces an empty yard when the apron has no flora', () => {
+      const state = createTestState()
+      // Defensive: clear any genesis flora that may have landed on the apron.
+      const center = state.houseEntranceOverworld
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          state.floraLifecycle.delete(posKey(center.x + dx, center.y + dy))
+        }
+      }
+      enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
+      expect(state.yardFlora.size).toBe(0)
+    })
+
+    it('samples on the house→yard path too (HouseExit transition fires the same pass)', () => {
+      const state = createTestState()
+      seedApron(state, { [FloraSpecies.Wildflower]: 2 })
+      enterLittleHouseYardFromHouse(state)
+      expect(state.yardFlora.size).toBe(2)
+      for (const s of state.yardFlora.values()) {
+        expect(s).toBe(FloraSpecies.Wildflower)
+      }
+    })
+  })
   it.todo('yard pauses state.timeOfDay and state.season')
   it.todo('yard re-entry lock prevents immediate yo-yo loop')
 })
