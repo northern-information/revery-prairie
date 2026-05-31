@@ -54,6 +54,31 @@ export const tileHash = (x: number, y: number): number => {
   return h >>> 0
 }
 
+// RP-41 — adjacent-tile elevation step the steward can climb. Tiles
+// whose abs(delta) on the 0-100 elevation scale exceeds this are
+// unclimbable; movement and pathfinding reject the step, and the
+// renderer draws a cliff-face shadow on the iso side wall.
+export const CLIMBABLE_STEP_THRESHOLD = 12
+
+// RP-41 — pure elevation-based step gate. Returns true when either
+// tile lacks an elevation entry (caves, ungenerated zones, out-of-
+// bounds), or when the absolute delta is within threshold. Reads
+// only from the elevation map; tile types and entities are gated
+// separately by isWalkableTile and the entity-block check.
+export const isClimbableStep = (
+  elevation: Map<string, number>,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  threshold: number = CLIMBABLE_STEP_THRESHOLD
+): boolean => {
+  const fromElev = elevation.get(posKey(fromX, fromY))
+  const toElev = elevation.get(posKey(toX, toY))
+  if (fromElev === undefined || toElev === undefined) return true
+  return Math.abs(toElev - fromElev) <= threshold
+}
+
 export const isWalkableTile = (tileType: TileType): boolean =>
   tileType !== TileType.Space &&
   tileType !== TileType.CaveWall &&

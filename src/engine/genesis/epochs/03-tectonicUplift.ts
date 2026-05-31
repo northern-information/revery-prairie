@@ -63,7 +63,7 @@ export const tectonicUplift: GenesisEpoch = {
       axes.push({
         polyline,
         orientationRadians: orientation,
-        intensity: 18 + Math.floor(sim.rng() * 6), // peak +18..+23
+        intensity: 28 + Math.floor(sim.rng() * 13), // RP-41 — peak +28..+40, lands in 78-90 after 75/25 smoothing
         radius: 6,
       })
     }
