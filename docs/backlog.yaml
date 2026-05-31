@@ -2840,10 +2840,10 @@ features:
       brings the total yard map to 23x32. RP-37 will later add the
       cellar bulkhead inside this yard.
     depends_on: ['RP-33']
-    status: todo
+    status: shipped
     spec: harness/specs/RP-67-little-house-yard.yaml
     plan: harness/plans/RP-67-little-house-yard.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/487
     notes: >
       v11 thinktank round 8 (2026-05-31). _The yard is the threshold,
       not the archive. The Knot ritual stays in the cellar's long
@@ -2854,7 +2854,7 @@ features:
       true at zone enter (RP-51 substrate). Out of scope: cellar
       bulkhead, Knot delivery landing in the yard, seating, lighting,
       lineage echoes. Spec + plan shipped as #485 (2026-05-31);
-      implementation pending.
+      implementation shipped as #487 (2026-05-31).
 
   - id: 'RP-68'
     name: Fog returns to memory
