@@ -28,6 +28,7 @@ import {
 import { RuinGenerationMode } from './genesisTypes'
 import { generateEgregoreGenome } from './genetics/egregore'
 import { createHouseInterior } from './house'
+import { createLittleHouseYard } from './yard'
 import { autoSort } from './inventory'
 import { createBackpack } from './items'
 import { isWalkableTile, posKey } from './position'
@@ -161,6 +162,7 @@ export const createGameState = (
   // overworld door is placed here so it appears on the same prairie
   // grid as Gron and the cave.
   const houseInterior = createHouseInterior()
+  const yard = createLittleHouseYard()
   const minHouseDist = rainRadius + 1
   const maxHouseDist = rainRadius + 4
   let houseEntranceOverworld: Position = { x: gronX - minHouseDist, y: gronY }
@@ -287,14 +289,12 @@ export const createGameState = (
     houseMapHeight: houseInterior.height,
     houseEntranceOverworld,
     houseEntranceInterior: houseInterior.spawnInterior,
-    // RP-67 yard fields are declared here with sentinel values; the
-    // yard map is built by createLittleHouseYard() in a later task and
-    // assigned to state at genesis.
-    yardMap: [],
-    yardMapWidth: 0,
-    yardMapHeight: 0,
-    yardGatePosition: { x: 0, y: 0 },
-    yardFrontDoorPosition: { x: 0, y: 0 },
+    // RP-67 — yard map built at genesis alongside the house interior.
+    yardMap: yard.map,
+    yardMapWidth: yard.width,
+    yardMapHeight: yard.height,
+    yardGatePosition: yard.gatePosition,
+    yardFrontDoorPosition: yard.frontDoorPosition,
     emilyInvitation: 'unoffered',
     tenureOpened: false,
     giftsReceived: new Set<string>(),

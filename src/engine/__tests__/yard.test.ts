@@ -19,6 +19,7 @@ import {
 import { isWalkableTile } from '../position'
 import { createGameState } from '../state'
 import { TileType, Zone } from '../types'
+import { createLittleHouseYard } from '../yard'
 
 describe('RP-67 yard zone', () => {
   describe('foundations', () => {
@@ -94,7 +95,107 @@ describe('RP-67 yard zone', () => {
     })
   })
 
-  it.todo('createLittleHouseYard produces a 23x32 map with the locked layout')
+  describe('createLittleHouseYard', () => {
+    const yard = createLittleHouseYard()
+
+    it('produces a 23x32 map', () => {
+      expect(yard.width).toBe(23)
+      expect(yard.height).toBe(32)
+      expect(yard.map.length).toBe(32)
+      expect(yard.map[0].length).toBe(23)
+    })
+
+    it('rings the perimeter with Fence, except for the gate', () => {
+      // top + bottom rows
+      for (let x = 0; x < yard.width; x++) {
+        const expectedTop = TileType.Fence
+        const expectedBottom = x === YARD_GATE_X ? TileType.FenceGate : TileType.Fence
+        expect(yard.map[0][x].type).toBe(expectedTop)
+        expect(yard.map[yard.height - 1][x].type).toBe(expectedBottom)
+      }
+      // left + right columns (skip the corners already tested)
+      for (let y = 1; y < yard.height - 1; y++) {
+        expect(yard.map[y][0].type).toBe(TileType.Fence)
+        expect(yard.map[y][yard.width - 1].type).toBe(TileType.Fence)
+      }
+    })
+
+    it('places exactly one FenceGate, at the south-edge center', () => {
+      let gateCount = 0
+      for (const row of yard.map) {
+        for (const tile of row) {
+          if (tile.type === TileType.FenceGate) gateCount++
+        }
+      }
+      expect(gateCount).toBe(1)
+      expect(yard.gatePosition).toEqual({ x: YARD_GATE_X, y: YARD_GATE_Y })
+      expect(yard.map[YARD_GATE_Y][YARD_GATE_X].type).toBe(TileType.FenceGate)
+    })
+
+    it('frames the house with HouseEaves and fills the interior with HouseRoof', () => {
+      const houseEastX = YARD_HOUSE_OFFSET_X + HOUSE_WIDTH - 1
+      const houseSouthY = YARD_HOUSE_OFFSET_Y + HOUSE_HEIGHT - 1
+      for (let y = YARD_HOUSE_OFFSET_Y; y <= houseSouthY; y++) {
+        for (let x = YARD_HOUSE_OFFSET_X; x <= houseEastX; x++) {
+          const tile = yard.map[y][x].type
+          const onPerimeter = x === YARD_HOUSE_OFFSET_X || x === houseEastX || y === YARD_HOUSE_OFFSET_Y || y === houseSouthY
+          const isFrontDoorCell = y === houseSouthY && Math.abs(x - YARD_FRONT_DOOR_X) <= 1
+          if (isFrontDoorCell) {
+            expect(tile).toBe(TileType.HouseDoorClosed)
+          } else if (onPerimeter) {
+            expect(tile).toBe(TileType.HouseEaves)
+          } else {
+            expect(tile).toBe(TileType.HouseRoof)
+          }
+        }
+      }
+    })
+
+    it('places exactly three HouseDoorClosed tiles, on the south face of the house roof', () => {
+      let doorCount = 0
+      for (const row of yard.map) {
+        for (const tile of row) {
+          if (tile.type === TileType.HouseDoorClosed) doorCount++
+        }
+      }
+      expect(doorCount).toBe(3)
+      expect(yard.map[YARD_FRONT_DOOR_Y][YARD_FRONT_DOOR_X - 1].type).toBe(TileType.HouseDoorClosed)
+      expect(yard.map[YARD_FRONT_DOOR_Y][YARD_FRONT_DOOR_X].type).toBe(TileType.HouseDoorClosed)
+      expect(yard.map[YARD_FRONT_DOOR_Y][YARD_FRONT_DOOR_X + 1].type).toBe(TileType.HouseDoorClosed)
+      expect(yard.frontDoorPosition).toEqual({ x: YARD_FRONT_DOOR_X, y: YARD_FRONT_DOOR_Y })
+    })
+
+    it('fills the walkable yard interior (everything not house, not fence) with Dirt', () => {
+      const houseEastX = YARD_HOUSE_OFFSET_X + HOUSE_WIDTH - 1
+      const houseSouthY = YARD_HOUSE_OFFSET_Y + HOUSE_HEIGHT - 1
+      // Spot-check: a tile north of the house, west of the house, south of the house, east of the house.
+      const sampleCoords = [
+        { x: 11, y: 1 }, // north of house, inside fence
+        { x: 1, y: 8 }, // west of house, inside fence
+        { x: 11, y: 13 }, // immediately south of house (will host the bulkhead when RP-37 lands)
+        { x: 21, y: 8 }, // east of house, inside fence
+        { x: 11, y: 25 }, // deep front yard
+      ]
+      for (const c of sampleCoords) {
+        expect(yard.map[c.y][c.x].type).toBe(TileType.Dirt)
+      }
+      // Sanity: house bounding box is not Dirt anywhere
+      for (let y = YARD_HOUSE_OFFSET_Y; y <= houseSouthY; y++) {
+        for (let x = YARD_HOUSE_OFFSET_X; x <= houseEastX; x++) {
+          expect(yard.map[y][x].type).not.toBe(TileType.Dirt)
+        }
+      }
+    })
+
+    it('exposes the yard via state at genesis', () => {
+      const state = createGameState('test-steward', 800, 600)
+      expect(state.yardMapWidth).toBe(23)
+      expect(state.yardMapHeight).toBe(32)
+      expect(state.yardGatePosition).toEqual({ x: YARD_GATE_X, y: YARD_GATE_Y })
+      expect(state.yardFrontDoorPosition).toEqual({ x: YARD_FRONT_DOOR_X, y: YARD_FRONT_DOOR_Y })
+      expect(state.yardMap[YARD_GATE_Y][YARD_GATE_X].type).toBe(TileType.FenceGate)
+    })
+  })
   it.todo('stepping on an overworld HouseApron triggers yard enter at the gate')
   it.todo('stepping on a FenceGate exits yard back to the apron entered from')
   it.todo('stepping on HouseDoorClosed enters the house interior')
