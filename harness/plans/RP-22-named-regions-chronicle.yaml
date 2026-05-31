@@ -1,0 +1,451 @@
+plan:
+  id: RP-22-named-regions-chronicle
+  title: Named regions + chronicle events — genesis-time region detection, world-driven event emission, three consumption surfaces
+  created: 2026-05-30
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine + dashboard status ---
+
+  - id: doctrine-status-links
+    title: Populate spec/plan paths on backlog.yaml RP-22 entry. Status already flipped to in-progress on main.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - schema-allowlist-updated
+    context_files:
+      - docs/backlog.yaml
+    output_files:
+      - docs/backlog.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Types + GameState fields + schema allowlist ---
+
+  - id: add-types-and-state-fields
+    title: Add NamedRegion, ChronicleEvent, and the supporting unions (region kind, template category, tone) to types.ts. Add state.namedRegions and state.chronicle to the GameState interface. Initialize both in createGameState as empty so the type system has them before downstream code lands.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - named-regions-detected-at-genesis
+      - chronicle-event-store
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+    depends_on:
+      - doctrine-status-links
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - types
+
+  - id: add-schema-allowlist
+    title: Add 'namedRegions' and 'chronicle' to EXPECTED_FIELDS in the serialization schema test.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - schema-allowlist-updated
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-types-and-state-fields
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - test
+      - schema
+
+  # --- Tier 2: Region detection ---
+
+  - id: implement-region-detection
+    title: Implement detectNamedRegions(state) in src/engine/regions.ts. Scan ponds, rivers, cave entrance, ruin entrances, the village/Gron-center, placedMeteorites for stone-circle anchors. Derive directional names from quadrant relative to map center. Always emit a 'prairie' fallback region covering all walkable Dirt + Flora tiles. Deterministic per steward name (no Math.random — derive any tiebreaks from a seeded RNG threaded through createGameState).
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - named-regions-detected-at-genesis
+      - prairie-fallback-region-always-present
+      - deterministic-region-detection
+    context_files:
+      - src/engine/regions.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/genesis.ts
+      - src/engine/position.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/regions.ts
+    depends_on:
+      - add-types-and-state-fields
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-region-detection-into-genesis
+    title: Call detectNamedRegions(state) from createGameState immediately after postProcessEgregoreTiles and before the existing player/cave placement work. Assign the result to state.namedRegions. Single-writer invariant — no other call site touches state.namedRegions.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - named-regions-detected-at-genesis
+    context_files:
+      - src/engine/state.ts
+      - src/engine/regions.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - implement-region-detection
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 3: Chronicle store + consumers ---
+
+  - id: implement-chronicle-store
+    title: Implement src/engine/chronicle/index.ts. Export addChronicleEvent(state, event) which (1) validates the regionId against state.namedRegions, (2) computes the deterministic id from (templateId, regionId, year, season, slot keys/values), (3) dedupes by id (no-op on collision), (4) appends to state.chronicle. Export resolveRegionForPosition(state, pos) which finds the NamedRegion whose tiles contain pos or returns the prairie fallback.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - chronicle-event-store
+      - duplicate-emission-within-frame
+      - prairie-fallback-anchor-resolution
+    context_files:
+      - src/engine/chronicle/index.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/chronicle/index.ts
+    depends_on:
+      - wire-region-detection-into-genesis
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: implement-chronicle-consumers
+    title: Implement src/engine/chronicle/consumers.ts exporting readChronicle(state, predicate?), readChronicleForRegion(state, regionId), readChronicleForSpecies(state, species), and readChronicleForYear(state, year). Pure read-only helpers, no state mutation. This is the API that the Revery summary, manual surfaces, and future RP-16 lineage surface all consume.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - lineage-consumer-stub-interface
+    context_files:
+      - src/engine/chronicle/index.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/chronicle/consumers.ts
+    depends_on:
+      - implement-chronicle-store
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 4: Template registry ---
+
+  - id: implement-template-registry
+    title: Implement src/engine/chronicle/templates.ts. Export CHRONICLE_TEMPLATES as an `as const satisfies Record<string, ChronicleTemplate>` registry. Cover all seven categories (season-rollover, species-extinction, egregore-reach, egregore-advance, meteorite-impact, stone-circle, hallowed-ground) with at least two templates each. Maintain ≥50% negative-tone entries across the registry. Each template's text function takes slot values and returns a past-tense sentence ≤12 words. No use of the word "invasive".
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - template-registry-with-negative-half
+    context_files:
+      - src/engine/chronicle/templates.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/chronicle/templates.ts
+    depends_on:
+      - implement-chronicle-store
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 5: Emitters wired into world-state ticks ---
+
+  - id: implement-emitters-module
+    title: Implement src/engine/chronicle/emitters.ts exporting emitSeasonRollover, emitSpeciesExtinction, emitEgregoreReach, emitEgregoreAdvance, emitMeteoriteImpact, emitStoneCircleComplete, emitHallowedGround. Each emitter resolves the region, picks a template from the matching category (preferring tone-appropriate templates with fallback to any), fills slots from world state, calls addChronicleEvent. Gate every emitter on state.currentZone === Zone.Overworld.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - chronicle-events-are-world-driven-only
+      - season-rollover-emitter
+      - species-extinction-emitter
+      - egregore-spread-emitter
+      - meteorite-event-emitter
+      - cave-or-ruin-emitters-frozen
+      - negative-template-pool-exhausted
+    context_files:
+      - src/engine/chronicle/emitters.ts
+      - src/engine/chronicle/index.ts
+      - src/engine/chronicle/templates.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/chronicle/emitters.ts
+    depends_on:
+      - implement-template-registry
+      - implement-chronicle-consumers
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-season-rollover-into-tickWeather
+    title: In tickWeather, capture priorSeason before calling deriveSeason. After weather.season is set, if it changed, call emitSeasonRollover(state, priorSeason, newSeason). No emission when the player is in cave/ruin (existing tickWeather phase-advance gate already covers this — the season won't change while the phase is frozen, but defense-in-depth check the zone in the emitter too).
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - season-rollover-emitter
+      - cave-or-ruin-emitters-frozen
+    context_files:
+      - src/engine/weather/index.ts
+      - src/engine/chronicle/emitters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/weather/index.ts
+    depends_on:
+      - implement-emitters-module
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/weather.test.ts
+    repair: retry
+    tags:
+      - engine
+      - weather
+
+  - id: wire-species-extinction-emitter
+    title: Add a per-tick presence-map scan in tickFloraLifecycle (or a sibling tick called from the same orchestrator). At the end of each tick, for each (region, native-species) pair, compare presence to the prior-tick snapshot. On present→absent transitions, fire emitSpeciesExtinction. Egregoric species are excluded. Store the prior-tick presence map on a non-serialized engine-local field (not on GameState) so it doesn't bloat saves.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - species-extinction-emitter
+    context_files:
+      - src/engine/floraLifecycle.ts
+      - src/engine/chronicle/emitters.ts
+      - src/engine/types.ts
+      - src/engine/flora/species.ts
+    output_files:
+      - src/engine/floraLifecycle.ts
+    depends_on:
+      - implement-emitters-module
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/cloverLifecycle.test.ts
+    repair: retry
+    tags:
+      - engine
+      - flora
+
+  - id: wire-egregore-spread-emitter
+    title: After egregore spread mutates state.egregorePositions or per-tile activity stage in spread.ts, run a per-region threshold scan. Emit emitEgregoreReach on the first egregore tile in a region. Emit emitEgregoreAdvance when the region's egregore tile count crosses ≥25% of its walkable footprint. Both use the addChronicleEvent dedupe contract to swallow threshold flicker.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - egregore-spread-emitter
+    context_files:
+      - src/engine/egregore/spread.ts
+      - src/engine/chronicle/emitters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/egregore/spread.ts
+    depends_on:
+      - implement-emitters-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - egregore
+
+  - id: wire-meteorite-emitters
+    title: Wire three trigger points in celestial.ts. (1) After Sundering/Ember meteorite landing creates a Pickupable, emit emitMeteoriteImpact(state, position). (2) After placedMeteorites is appended and a stone-circle ring reaches its target size, emit emitStoneCircleComplete. (3) On the first hallowed-ground tile forming in a region within a tenure, emit emitHallowedGround. Investigate placedMeteorites / hallowed-ground tile flow before writing the wire-in — celestial.ts may delegate some of these to RP-18 modules.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - meteorite-event-emitter
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/chronicle/emitters.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/celestial.ts
+    depends_on:
+      - implement-emitters-module
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - celestial
+
+  # --- Tier 6: UI surfaces ---
+
+  - id: revery-summary-chronicle-section
+    title: Add a Chronicle section to ReverySummary.tsx, rendered between the flora-delta list and the egregore voynich line. List every chronicle event whose year matches revery.snapshotBeforeRevery.reveryCount. Render via the template.text(slots) function. Omit the section entirely when there are zero matching events — no empty header. data-testid="revery-chronicle-lines" on the <ul>.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - revery-summary-renders-year-chronicle
+      - revery-summary-with-zero-chronicle
+    context_files:
+      - src/components/ReverySummary.tsx
+      - src/engine/chronicle/consumers.ts
+      - src/engine/chronicle/templates.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/ReverySummary.tsx
+    depends_on:
+      - implement-chronicle-consumers
+      - implement-template-registry
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/ReverySummary.test.tsx
+    repair: retry
+    tags:
+      - component
+
+  - id: manual-region-thread-surface
+    title: Extend ManualPanel.tsx and ManualPanel.constants.ts to render a new "Regions" manual section listing each NamedRegion. Use `{ lore: 'TODO' }` placeholders in MANUAL_LORE for each region kind — do not author lore. Each region entry shows region name, a one-line kind-derived description, and the chronicle events bound to that region across the tenure. Existing per-species entries gain a "Chronicle" subsection populated by readChronicleForSpecies. Discovery gating — a region appears in the manual once "region:{regionId}" lands in state.manualDiscoveries.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - manual-region-thread-surface
+    context_files:
+      - src/components/ManualPanel.tsx
+      - src/components/ManualPanel.constants.ts
+      - src/engine/chronicle/consumers.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/ManualPanel.tsx
+      - src/components/ManualPanel.constants.ts
+    depends_on:
+      - implement-chronicle-consumers
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/ManualPanel.test.tsx
+    repair: retry
+    tags:
+      - component
+      - manual
+
+  - id: manual-region-proximity-discovery
+    title: After a successful movePlayer in the overworld, scan state.namedRegions for any region whose tiles set contains a position within Chebyshev distance 1 of the player. For each such region not yet in manualDiscoveries, add "region:{regionId}". Single-writer pattern — only this hook writes region discovery entries.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - region-discovered-by-proximity
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/movement.ts
+    depends_on:
+      - wire-region-detection-into-genesis
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/movement.test.ts
+    repair: retry
+    tags:
+      - engine
+      - manual
+
+  # --- Tier 7: Architecture guards + behavior tests ---
+
+  - id: architecture-guard-tests
+    title: Add architecture guard tests in src/engine/__tests__/chronicle.test.ts. (1) Read movement.ts, dialog.ts, inventory.ts, recipes.ts and assert none import from src/engine/chronicle/. (2) Read every file under src/components/ and assert chronicle/ imports only land in ReverySummary.tsx, ManualPanel.tsx, ManualPanel.constants.ts. (3) Assert detectNamedRegions runs at most once per tenure (snapshot state.namedRegions identity after a tick, compare). (4) Add a unit test that walks CHRONICLE_TEMPLATES and asserts ≥50% have tone === 'negative', and that no template.text result contains the string 'invasive' for any plausible slot set.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - chronicle-events-are-world-driven-only
+      - no-running-feed-surface
+      - template-registry-with-negative-half
+    context_files:
+      - src/engine/__tests__/chronicle.test.ts
+      - src/engine/chronicle/index.ts
+      - src/engine/chronicle/templates.ts
+      - src/engine/chronicle/emitters.ts
+    output_files:
+      - src/engine/__tests__/chronicle.test.ts
+    depends_on:
+      - implement-emitters-module
+      - revery-summary-chronicle-section
+      - manual-region-thread-surface
+    verification:
+      - npx vitest run src/engine/__tests__/chronicle.test.ts
+    repair: retry
+    tags:
+      - test
+      - architecture
+
+  - id: behavior-tests-emitters-and-dedupe
+    title: Add behavior tests in src/engine/__tests__/chronicle.test.ts. Cover (1) season rollover emits exactly one event per detected transition, (2) species extinction fires once on present→absent and again on a subsequent extinction in a later year, (3) egregore reach fires once when the first egregore tile lands in a region, (4) addChronicleEvent dedupes by id within a frame, (5) resolveRegionForPosition falls back to prairie when no region contains the position, (6) cave/ruin gate suppresses emitters, (7) zero-chronicle Revery summary omits the section, (8) tenure boundary resets state.chronicle to [] while state.namedRegions regenerates identically for the same steward name.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - season-rollover-emitter
+      - species-extinction-emitter
+      - egregore-spread-emitter
+      - chronicle-event-store
+      - cave-or-ruin-emitters-frozen
+      - prairie-fallback-anchor-resolution
+      - tenure-boundary-chronicle-reset
+      - revery-summary-with-zero-chronicle
+    context_files:
+      - src/engine/__tests__/chronicle.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/chronicle/index.ts
+      - src/engine/chronicle/emitters.ts
+      - src/engine/regions.ts
+    output_files:
+      - src/engine/__tests__/chronicle.test.ts
+    depends_on:
+      - architecture-guard-tests
+    verification:
+      - npx vitest run src/engine/__tests__/chronicle.test.ts
+    repair: retry
+    tags:
+      - test
+      - engine
+
+  # --- Tier 8: Docs + final sweep ---
+
+  - id: claude-md-and-state-md
+    title: Update docs/claude/state.md with single-writer rows for state.namedRegions (writer createGameState/regions.ts) and state.chronicle (writer chronicle/index.ts addChronicleEvent). Update CLAUDE.md's "rules that fire when adding content" list to add a bullet for new world-state-transition emitters routing through src/engine/chronicle/emitters.ts.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections:
+      - schema-allowlist-updated
+      - no-running-feed-surface
+    context_files:
+      - docs/claude/state.md
+      - CLAUDE.md
+    output_files:
+      - docs/claude/state.md
+      - CLAUDE.md
+    depends_on:
+      - architecture-guard-tests
+      - behavior-tests-emitters-and-dedupe
+    verification: []
+    repair: retry
+    tags:
+      - docs
+
+  - id: final-sweep
+    title: Run the full quad — typecheck, lint, full test suite, spec:validate. Grep src/ for any stale references and confirm chronicle and regions are wired end-to-end.
+    spec_id: RP-22-named-regions-chronicle
+    spec_sections: []
+    context_files:
+      - src/
+    output_files: []
+    depends_on:
+      - claude-md-and-state-md
+    verification:
+      - npm run typecheck
+      - npm run lint
+      - npm run test
+      - npm run spec:validate
+    repair: retry
+    tags:
+      - sweep
