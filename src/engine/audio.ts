@@ -8,6 +8,9 @@ export const ZONE_MUSIC: Record<Zone, string> = {
   // RP-67 yard — reuse Emily's track for now; the threshold belongs to
   // the same diegetic space as the interior.
   [Zone.LittleHouseYard]: '/music/emily.mp3',
+  // RP-37 Knot Cellar — reuse Emily's track for now. The cellar is the
+  // archive sibling of the house; the diegetic space is shared.
+  [Zone.KnotCellar]: '/music/emily.mp3',
 }
 
 const FADE_MS = 300

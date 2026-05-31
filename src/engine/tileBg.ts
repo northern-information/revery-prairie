@@ -60,6 +60,14 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.HouseDoorClosed]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
   [TileType.Fence]: ['#3A2C1A', '#3C2E1C', '#382A18', '#3B2D1B'],
   [TileType.FenceGate]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
+  // RP-37 — Knot Cellar. Deep earthen browns for floor and alcove;
+  // near-black for the corridor walls; the bulkhead surfaces match
+  // the cave/ruin exit pink-on-warm-brown idiom.
+  [TileType.CellarFloor]: ['#2a1d12', '#2c1f13', '#281b11', '#2b1e12'],
+  [TileType.CellarWall]: ['#1a120b', '#1c140c', '#18100a', '#1b130b'],
+  [TileType.CellarAlcoveFloor]: ['#2a1d12', '#2c1f13', '#281b11', '#2b1e12'],
+  [TileType.CellarBulkhead]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
+  [TileType.CellarBulkheadInterior]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
 }
 
 export const getTileBgColor = (tileType: TileType, x: number, y: number): string => {

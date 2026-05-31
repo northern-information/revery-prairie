@@ -120,7 +120,11 @@ export const isWalkableTile = (tileType: TileType): boolean =>
   // their respective zone transitions.
   tileType !== TileType.HouseRoof &&
   tileType !== TileType.HouseEaves &&
-  tileType !== TileType.Fence
+  tileType !== TileType.Fence &&
+  // RP-37 — Knot Cellar walls. CellarFloor, CellarAlcoveFloor,
+  // CellarBulkhead, and CellarBulkheadInterior are walkable (the
+  // bulkhead pair triggers zone transitions on step).
+  tileType !== TileType.CellarWall
 
 // Tile types reserved by a placed structure. New entity placers (oaks today,
 // future multi-tile entities) must reject candidate positions whose footprint

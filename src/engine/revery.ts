@@ -10,10 +10,13 @@
 // docs/claude/revery.md for the full doctrine summary.
 
 import { updateCamera } from './camera'
+import { getAlcoveFacing, getAlcovePosition } from './cellar'
 import { REVERY_YEARS_PER_FRAME } from './constants'
 import { ComponentType } from './ecs/types'
 import { advanceEgregoreInRevery, commitEgregoreTiles } from './egregore/spread'
 import { pickAdjacentWalkableTile } from './interaction'
+import { recordDiscovery } from './manual'
+import { clearMovementTweens } from './movementTween'
 import { resolvePhenotypeLabel } from './phenotype'
 import { FloraSpecies, OmenKind, ReveryPhase, TileType, Zone } from './types'
 
@@ -225,6 +228,41 @@ const revertHouseScene = (state: GameState): void => {
   }
 }
 
+// RP-37 — post-Revery awaken in the Knot Cellar. Move the steward from
+// the house interior into the alcove of the year's knot (the one about
+// to be archived at Winter→Spring per RP-36). Idempotent — if already
+// in the cellar zone, the map swap is skipped and only the placement
+// and facing updates apply.
+const awakenInKnotCellar = (state: GameState): void => {
+  if (!state.cellarMap || state.cellarMap.length === 0) {
+    console.warn('awakenInKnotCellar: cellarMap is null; falling back to RP-33 hearth spawn')
+    return
+  }
+  const alcoveIndex = state.archivedKnots.length
+  const position = getAlcovePosition(alcoveIndex)
+  const facing = getAlcoveFacing(alcoveIndex)
+
+  if (state.currentZone !== Zone.KnotCellar) {
+    state.map = state.cellarMap
+    state.mapWidth = state.cellarMapWidth
+    state.mapHeight = state.cellarMapHeight
+    state.currentZone = Zone.KnotCellar
+  }
+  state.player = { x: position.x, y: position.y }
+  state.playerFacing = facing
+  state.path = null
+  state.pathWaypoints = []
+  state.pendingAction = null
+  state.pendingInteractionTarget = null
+  state.heldDirection = null
+  state.previewFn = null
+  state.facingEntityPos = null
+  state.trail = []
+  clearMovementTweens(state)
+  recordDiscovery(state, 'zone:knotCellar')
+  updateCamera(state)
+}
+
 // Per-frame state machine. Called by gameLoop AFTER the dormancy-pressure
 // tick (RP-32) and BEFORE input handlers, so the Omen → Observing
 // transition is reflected before movePlayer / keyboard tick this frame.
@@ -319,6 +357,11 @@ export const tickRevery = (state: GameState, _dt: number, time: number): void =>
     // RP-33 — restore Emily to her idle position; reset
     // emilyInvitation so the cycle can repeat next autumn.
     revertHouseScene(state)
+    // RP-37 — the steward awakens in the Knot Cellar in the alcove of
+    // the year's knot (the one about to be archived at Winter→Spring
+    // per RP-36). The cellar is now the destination of the Revery
+    // cycle; Emily stays at her hearth, and the steward wakes below.
+    awakenInKnotCellar(state)
     // RP-32 — pressure reset. Belt-and-suspenders with the Autumn →
     // Winter safety reset in gameLoop. dormancyPressure must zero out so
     // the next autumn starts from baseline.

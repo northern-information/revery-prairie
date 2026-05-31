@@ -508,7 +508,7 @@ features:
       v6 thinktank round 6 (2026-05-22). The tenure handoff includes a
       bed-knot transfer mechanic: the previous steward's final Revery
       Knot (`RP-36`) remains on the bed at tenure close — it was never moved
-      to the root cellar (`RP-37`), because the steward did not wake from
+      to the Knot Cellar (`RP-37`), because the steward did not wake from
       that Revery. On the new tenure's open (`RP-34`), Emily takes the old
       Knot down and hangs it last in the cellar, in the row of the
       previous steward's years. The new steward wakes next to a Knot
@@ -715,7 +715,7 @@ features:
 
 
       v6 thinktank round 6 (2026-05-22). Chronicle event sentences
-      additionally surface as Knot-bound text in the root cellar (`RP-37`).
+      additionally surface as Knot-bound text in the Knot Cellar (`RP-37`).
       Each Revery Knot (`RP-36`) hung in the cellar carries that year's
       chronicle sentences as a hover or interact surface. The cellar
       becomes the in-prairie reading surface for `RP-22`; the existing
@@ -1389,7 +1389,7 @@ features:
       traditions. She keeps a small persistent pool of pre-tied Knots in
       the house; the coyote and Emily are in cahoots, and the coyote
       carries one Knot to the steward each autumn. The little house
-      gains a root cellar (`RP-37`) with an alternate bulkhead entrance —
+      gains a Knot Cellar (`RP-37`) with an alternate bulkhead entrance —
       a new zone sibling to the cave where Revery Knots accumulate after
       each Revery. _The unchanged thing that waits is named Emily, and
       she has been in cahoots with the coyote the whole time._
@@ -1403,8 +1403,8 @@ features:
       both end with the steward in the bed and Emily in the chair —
       _fade to black. fade to house. revery begins._ The falling-star
       spawn ceremony is dropped wholesale (the player now spawns inside
-      the house at tenure start). The Revery Knots pool and the root
-      cellar (`RP-37`) remain out-of-scope for this PR.
+      the house at tenure start). The Revery Knots pool and the Knot
+      Cellar (`RP-37`) remain out-of-scope for this PR.
 
 
       v9 thinktank round 2 (2026-05-23). The little house gains
@@ -1526,7 +1526,7 @@ features:
       the backpack. Pickup contributes a bounded scalar to
       `dormancyPressure` per `RP-32`. The current year's Knot rests on the
       bed in the little house during its working winter; Emily moves it
-      to the root cellar (`RP-37`) at the Revery's spring.
+      to the Knot Cellar (`RP-37`) at the Revery's spring.
     depends_on: ['RP-33']
     status: shipped
     spec: harness/specs/RP-36-revery-knot.yaml
@@ -1601,9 +1601,9 @@ features:
       Delta's line: _the first knot is not yours._
 
   - id: 'RP-37'
-    name: The root cellar
+    name: The Knot Cellar
     summary: >
-      The little house (`RP-33`) gains a root cellar with an alternate
+      The little house (`RP-33`) gains a Knot Cellar with an alternate
       bulkhead entrance outside the house. The cellar is its own zone,
       sibling to the cave (`zoneTransition.ts` substrate). Footprint: a
       corridor 3 tiles wide, very long, where the existing fog-of-war
@@ -1616,13 +1616,13 @@ features:
       for chronicle events from `RP-22` — hung Knots carry that year's
       chronicle sentences as a hover or interact surface.
     depends_on: ['RP-33', 'RP-36', 'RP-67']
-    status: todo
-    spec: null
-    plan: null
+    status: in_progress
+    spec: harness/specs/RP-37-knot-cellar.yaml
+    plan: harness/plans/RP-37-knot-cellar.yaml
     pr: null
     notes: >
       v6 thinktank round 6 (2026-05-22). The Revery is the prairie
-      sleeping; the root cellar is where what survived the harvest
+      sleeping; the Knot Cellar is where what survived the harvest
       sleeps. The cellar is the Revery's architectural cognate. _Above
       sleeps the present; below sleeps the past._
 

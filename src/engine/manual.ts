@@ -123,6 +123,10 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[]; 
   },
   'zone:ruin-dormant-garden': { lore: 'TODO' },
   'zone:house': { lore: 'TODO' },
+  // RP-37 — the Knot Cellar. Discovery on first cellar enter (either
+  // via the back-yard bulkhead OR via the post-Revery awaken hook,
+  // whichever fires first). Lore is human-authored later.
+  'zone:knotCellar': { lore: 'TODO' },
   // Recipes
   'recipe:bee+clover': {
     lore: [
@@ -405,6 +409,20 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     glyph: TILE_CHARS[TileType.HouseEntrance],
     glyphColor: TILE_COLORS[TileType.HouseEntrance],
     unlockKey: 'zone:house',
+    sourceKind: 'zone',
+  },
+  {
+    // RP-37 — the Knot Cellar. Discovered the first time the steward
+    // enters via the back-yard bulkhead OR awakens here at the end of
+    // a Revery, whichever fires first. The cellar is the architectural
+    // cognate of the Revery: above sleeps the present, below sleeps
+    // the past.
+    id: 'zone:knotCellar',
+    name: 'The Knot Cellar',
+    category: ManualCategory.Zone,
+    glyph: TILE_CHARS[TileType.CellarBulkhead],
+    glyphColor: TILE_COLORS[TileType.CellarBulkhead],
+    unlockKey: 'zone:knotCellar',
     sourceKind: 'zone',
   },
   {

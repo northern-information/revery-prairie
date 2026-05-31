@@ -68,6 +68,15 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.HouseDoorClosed]: '█',
   [TileType.Fence]: '╫',
   [TileType.FenceGate]: '█',
+  // RP-37 — Knot Cellar tiles. Floor reads as cellar-dust dirt (`·`);
+  // walls are stone `#`; alcove floor reuses `·` (the knot glyph `§`
+  // is overlaid by the knotCellarKnots render pass when an alcove is
+  // occupied). Bulkhead surfaces use the pink-block threshold idiom.
+  [TileType.CellarFloor]: '·',
+  [TileType.CellarWall]: '#',
+  [TileType.CellarAlcoveFloor]: '·',
+  [TileType.CellarBulkhead]: '█',
+  [TileType.CellarBulkheadInterior]: '█',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -120,6 +129,14 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.HouseDoorClosed]: '#ff69b4',
   [TileType.Fence]: '#8B6F3D',
   [TileType.FenceGate]: '#ff69b4',
+  // RP-37 — Knot Cellar tile glyph colors. Floor and alcove glyphs are
+  // deep earthen browns; the wall is near-black; the bulkhead pair uses
+  // the reserved user-action pink per the cave/ruin exit idiom.
+  [TileType.CellarFloor]: '#3A2A1C',
+  [TileType.CellarWall]: '#2A1810',
+  [TileType.CellarAlcoveFloor]: '#3A2A1C',
+  [TileType.CellarBulkhead]: '#ff69b4',
+  [TileType.CellarBulkheadInterior]: '#ff69b4',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering
@@ -721,3 +738,40 @@ export const YARD_GATE_Y = YARD_HEIGHT - 1
 // center tile, used as the iris-center for the yard→house transition.
 export const YARD_FRONT_DOOR_X = YARD_HOUSE_OFFSET_X + Math.floor(HOUSE_WIDTH / 2)
 export const YARD_FRONT_DOOR_Y = YARD_HOUSE_OFFSET_Y + HOUSE_HEIGHT - 1
+// Back-yard bulkhead tile (RP-37). One tile north of the house roof's
+// back wall, x-centered on the house. The yard tile at this position is
+// mutated from its default walkable ground to TileType.CellarBulkhead
+// at genesis; stepping on it triggers the yard→Knot Cellar transition.
+export const YARD_BULKHEAD_X = YARD_FRONT_DOOR_X
+export const YARD_BULKHEAD_Y = YARD_HOUSE_OFFSET_Y - 1
+
+// RP-37 — the Knot Cellar. A long narrow corridor with alcoves cut into
+// the side walls at every CELLAR_ALCOVE_SPACING rows, alternating
+// left/right by alcove index parity. The first alcove (index 0) sits
+// closest to the door on the left; the second (index 1) deeper on the
+// right; etc. No two alcoves share a y-coordinate, so the steward in the
+// corridor never sees two knots framing them. Length is capped at
+// CELLAR_ROOM_CAP — chosen to outlive any realistic playthrough.
+// CELLAR_READ_DISTANCE and CELLAR_FADE_DISTANCE govern the
+// distance-fog pass that hides the far end at all times.
+export const CELLAR_WIDTH = 7
+export const CELLAR_ROOM_CAP = 256
+export const CELLAR_ALCOVE_SPACING = 3
+// Top row is back-of-bulkhead wall; cellar door spawn sits at y=1; the
+// last alcove sits at y = 2 + (CELLAR_ROOM_CAP-1) * CELLAR_ALCOVE_SPACING;
+// add a one-row back wall after that for closure.
+export const CELLAR_HEIGHT = 2 + CELLAR_ROOM_CAP * CELLAR_ALCOVE_SPACING
+export const CELLAR_READ_DISTANCE = 8
+export const CELLAR_FADE_DISTANCE = 12
+// Color tokens for the cellar tiles. Floor and walls are deep earthen
+// browns; the bulkhead surfaces reuse the reserved user-action pink per
+// the cave/ruin exit idiom.
+export const CELLAR_FLOOR_COLOR = '#2a1d12'
+export const CELLAR_WALL_COLOR = '#1a120b'
+export const CELLAR_ALCOVE_FLOOR_COLOR = '#2a1d12'
+export const CELLAR_BULKHEAD_COLOR = '#ff69b4'
+// The archived Revery Knot glyph and color match RP-36's in-inventory
+// item rendering: `§` (section sign — double-reads as a tied braid and a
+// section of parceled time) in warm prairie-straw.
+export const CELLAR_KNOT_GLYPH = '§'
+export const CELLAR_KNOT_COLOR = '#D4B58A'
