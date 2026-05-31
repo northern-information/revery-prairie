@@ -145,27 +145,11 @@ export interface FollowBehavior {
 export type CharacterBehavior = DriftBehavior | FollowBehavior
 
 // Time-lapse camera (precis #23). A camera placed on a tile records
-// "photographs" of meaningful events inside its 3x3 footprint. Each
-// photograph captures the {char, color} of the 9 cells at the moment the
-// event fired, plus the subject kind and timestamp. Film count is the
-// only wear surface; the body itself is eternal but unreloadable.
-export const CameraSubject = {
-  Pollination: 'pollination',
-  Rain: 'rain',
-  Bloom: 'bloom',
-  Ember: 'ember',
-  MonarchVisit: 'monarchVisit',
-  GhostPassage: 'ghostPassage',
-  EgregoreScan: 'egregoreScan',
-  CharacterApproach: 'characterApproach',
-  // Precis #23 v9 R3 — pre-seeded subject for the inherited Field
-  // Camera's four seasonal frames of the nearest oak. Authored at
-  // genesis time, not produced by recordCameraSubjectEvent.
-  SeasonalLandmark: 'seasonalLandmark',
-} as const
-
-export type CameraSubject = (typeof CameraSubject)[keyof typeof CameraSubject]
-
+// "photographs" of changes inside its 3x3 footprint. Each photograph
+// captures the {char, color} of the 9 cells at the moment a change
+// stabilizes (v11 R4 diff-driven capture), plus a timestamp. Film
+// count is the only wear surface; the body itself is eternal but
+// unreloadable.
 export interface TimeLapseCell {
   char: string
   color: string
@@ -173,7 +157,6 @@ export interface TimeLapseCell {
 
 export interface TimeLapseFrame {
   recordedAt: number
-  subject: CameraSubject
   // Row-major 3x3 snapshot: NW, N, NE, W, C, E, SW, S, SE.
   cells: TimeLapseCell[]
 }
@@ -191,6 +174,13 @@ export interface PlacedCamera {
   // now >= expiresAt even if film remains.
   expiresAt: number
   frames: TimeLapseFrame[]
+  // v11 R4 — diff-stability filter buffer. Transient, non-persistent.
+  // captureIfChanged sets these when the live cells diverge from the
+  // last committed frame; once `pendingCount` reaches
+  // STABILITY_THRESHOLD_TICKS, the candidate commits and both fields
+  // reset. Not serialized — save/load roundtrips drop them.
+  pendingCells?: TimeLapseCell[]
+  pendingCount?: number
 }
 
 export const MainQuestPhase = {

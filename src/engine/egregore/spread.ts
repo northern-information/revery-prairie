@@ -20,8 +20,7 @@ import { candidateDirtNeighborsContained } from '@/engine/egregore/positions'
 import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from '@/engine/egregore/species'
 import { generateEgregoreGenome } from '@/engine/genetics/egregore'
 import { posKey } from '@/engine/position'
-import { recordCameraSubjectEvent } from '@/engine/timeLapse'
-import { CameraSubject, EgregoreActivityStage, Season, TileType, Zone } from '@/engine/types'
+import { EgregoreActivityStage, Season, TileType, Zone } from '@/engine/types'
 import type { GameState, Position } from '@/engine/types'
 
 // Stewardship-time spread tick (RP-8b).
@@ -137,8 +136,7 @@ export const commitEgregoreTiles = (state: GameState, positions: Position[], tim
       species,
       genome,
     })
-    // Precis #23 — a new egregore tile appearing inside a placed
-    // camera's footprint registers as EgregoreScan.
-    recordCameraSubjectEvent(state, pos.x, pos.y, CameraSubject.EgregoreScan, time)
+    // v11 R4 — the camera notices change on its own sim-loop hook;
+    // no event call here.
   }
 }

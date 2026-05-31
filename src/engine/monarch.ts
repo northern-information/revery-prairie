@@ -21,8 +21,7 @@ import { tickCreatureHunger } from './hunger'
 import { setMapTile } from './map'
 import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
-import { recordCameraSubjectEvent } from './timeLapse'
-import { CameraSubject, FloraSpecies, Sky, TileType, Zone } from './types'
+import { FloraSpecies, Sky, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
@@ -314,9 +313,8 @@ const tickSettled = (state: GameState, eid: Entity, now: number): void => {
       const pick = clover.length > 0 ? clover : candidates
       const target = pick[Math.floor(Math.random() * pick.length)]
       state.world.moveEntity(eid, target.x, target.y, MONARCH_TICK_MS)
-      // Precis #23 — monarch entering a new tile registers as
-      // MonarchVisit for any covering placedCamera.
-      recordCameraSubjectEvent(state, target.x, target.y, CameraSubject.MonarchVisit, now)
+      // v11 R4 — the camera notices change on its own sim-loop hook;
+      // no event call here.
     }
   }
 

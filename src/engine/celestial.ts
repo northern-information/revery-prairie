@@ -20,8 +20,7 @@ import { emitMeteoriteImpact } from './chronicle/emitters'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { isInBounds, posKey } from './position'
-import { recordCameraSubjectEvent } from './timeLapse'
-import { CameraSubject, TileType, Zone } from './types'
+import { TileType, Zone } from './types'
 import { spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
@@ -134,9 +133,8 @@ export const tickShootingStars = (state: GameState, time: number): void => {
             state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
             state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
           }
-          // Precis #23 — targeted meteorite landing is an Ember
-          // subject for any covering placedCamera.
-          recordCameraSubjectEvent(state, x, y, CameraSubject.Ember, time)
+          // v11 R4 — the camera notices change on its own sim-loop hook;
+          // no event call here.
           // RP-22 — chronicle event for the impact. The emitter gates on
           // overworld and falls back to the prairie region when the
           // impact tile doesn't fall inside any specific named region.
@@ -163,9 +161,8 @@ export const tickShootingStars = (state: GameState, time: number): void => {
             state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
             state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
           }
-          // Precis #23 — meteorite landing is an Ember subject for any
-          // covering placedCamera, regardless of pickup outcome.
-          recordCameraSubjectEvent(state, x, y, CameraSubject.Ember, time)
+          // v11 R4 — the camera notices change on its own sim-loop hook;
+          // no event call here.
           // RP-22 — chronicle event for the impact.
           emitMeteoriteImpact(state, { x, y })
           const e = state.world.createEntity()

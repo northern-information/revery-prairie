@@ -281,10 +281,19 @@ export const WEATHER_TICK_MS = 5000
 export const SEASONAL_PHASE_PERIOD_MS = 20 * 60 * 1000
 
 // time-lapse camera (precis #23). Film roll holds 50 sparse frames.
-// Each meaningful event inside a placed camera's 3x3 footprint
-// records one frame and decrements this count by 1. At 0 the camera
-// is decoration — frames retained, no further capture, no reload.
+// Each stable change inside a placed camera's 3x3 footprint records
+// one frame and decrements this count by 1. At 0 the camera is
+// decoration — frames retained, no further capture, no reload.
 export const FRAMES_PER_TUBE = 50
+
+// v11 R4 — diff-driven capture's stability window. A candidate set of
+// cells must match the live 3x3 footprint for this many consecutive
+// time-lapse-capture ticks before it commits as a TimeLapseFrame.
+// Tuned to filter transient overlays (a bee crossing the footprint
+// for one tick, a ghost passing through) without smothering real
+// stage advances. captureIfChanged reads this constant; tests may
+// rely on it via the same import.
+export const STABILITY_THRESHOLD_TICKS = 3
 
 // ghosts
 export const GHOST_CHAR = 'ö'

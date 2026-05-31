@@ -1,5 +1,5 @@
 import { combineFromBackpack } from '../combine'
-import { FRAMES_PER_TUBE, SEASONAL_PHASE_PERIOD_MS } from '../constants'
+import { FRAMES_PER_TUBE, SEASONAL_PHASE_PERIOD_MS, STABILITY_THRESHOLD_TICKS } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { completeGenesis } from '../genesis'
 import { packUpPlaybackCamera, tryPlacedCameraInteraction } from '../interaction'
@@ -7,12 +7,18 @@ import { findFitPosition, placeItem } from '../inventory'
 import { getDefinition, ITEM_DEFINITIONS } from '../items'
 import { getPlaceableSpec } from '../placeable'
 import { createGameState } from '../state'
-import { archivePlacedCameraFrames, captureCells, createPlacedCamera, recordCameraSubjectEvent } from '../timeLapse'
-import { CameraSubject, ItemCategory, TileType, Zone } from '../types'
+import {
+  archivePlacedCameraFrames,
+  captureCells,
+  captureIfChanged,
+  createPlacedCamera,
+  tickTimeLapseCapture,
+} from '../timeLapse'
+import { ItemCategory, TileType, Zone } from '../types'
 import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
 import { describe, expect, it } from 'vitest'
 
-import type { GameState, ItemInstance } from '../types'
+import type { GameState, ItemInstance, PlacedCamera } from '../types'
 
 const SEASON_MS = SEASONAL_PHASE_PERIOD_MS / 4
 
@@ -66,6 +72,15 @@ const deployCamera = (state: GameState, uid: string): { x: number; y: number } =
     }
   }
   throw new Error('no valid adjacent tile to deploy camera')
+}
+
+// Mutate a tile in the camera's 3x3 footprint to a known new state.
+// Returns the (x, y) of the changed tile.
+const mutateFootprintTile = (state: GameState, camera: PlacedCamera, newType: TileType): { x: number; y: number } => {
+  const tx = camera.x + 1
+  const ty = camera.y
+  state.map[ty][tx] = { type: newType }
+  return { x: tx, y: ty }
 }
 
 describe('time-lapse camera', () => {
@@ -143,7 +158,7 @@ describe('time-lapse camera', () => {
   })
 
   describe('placement and pickup', () => {
-    it('drop creates a placedCamera entry and removes the item from the backpack', () => {
+    it('drop creates a placedCamera entry, removes the item from the backpack, and captures a baseline frame', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
@@ -154,24 +169,31 @@ describe('time-lapse camera', () => {
       const placed = state.placedCameras[0]
       expect(placed.uid).toBe(camera.uid)
       expect(placed.expiresAt - placed.startedAt).toBe(SEASON_MS)
-      expect(placed.frames).toEqual([])
+      // v11 R4 — baseline frame captured at placement.
+      expect(placed.frames).toHaveLength(1)
+      expect(placed.frames[0].cells).toHaveLength(9)
+      expect(placed.frames[0].recordedAt).toBe(placed.startedAt)
+      // Film decremented by 1 for the baseline.
+      expect(state.cameraFilm.get(camera.uid)).toBe(FRAMES_PER_TUBE - 1)
       // The camera is a unique artifact — set-up clears the hand entirely.
       expect(state.equippedItemUid).toBeNull()
     })
 
-    it('placement with no film leaves expiresAt === startedAt (no recording window)', () => {
+    it('placement with no film leaves expiresAt === startedAt and skips baseline capture', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
 
       deployCamera(state, camera.uid)
       const placed = state.placedCameras[0]
       expect(placed.expiresAt).toBe(placed.startedAt)
+      // No baseline when unarmed — decoration only.
+      expect(placed.frames).toEqual([])
     })
 
-    it('pickup returns empty-frame camera to backpack with original uid', () => {
+    it('pickup returns empty-frame (un-armed) camera to backpack with original uid', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
-      state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
+      // No film — placement skips baseline, frames stays empty.
       deployCamera(state, camera.uid)
 
       const result = tryPlacedCameraInteraction(state)
@@ -179,25 +201,20 @@ describe('time-lapse camera', () => {
       expect(state.placedCameras).toEqual([])
       const back = state.backpack.items.find(i => i.definitionId === 'camera')
       expect(back?.uid).toBe(camera.uid)
-      // Film count preserved across pickup.
-      expect(state.cameraFilm.get(camera.uid)).toBe(FRAMES_PER_TUBE)
     })
 
-    it('interaction with frames opens playback instead of picking up', () => {
+    it('interaction with frames (baseline) opens playback instead of picking up', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
       deployCamera(state, camera.uid)
 
-      // Fire one event inside the footprint so frames.length > 0.
-      const placed = state.placedCameras[0]
-      recordCameraSubjectEvent(state, placed.x, placed.y, CameraSubject.Pollination, placed.startedAt + 100)
-      expect(placed.frames.length).toBe(1)
+      // Baseline frame alone is enough to open playback.
+      expect(state.placedCameras[0].frames.length).toBe(1)
 
       const result = tryPlacedCameraInteraction(state)
       expect(result).toBe('playback')
       expect(state.playbackCameraUid).toBe(camera.uid)
-      // Placement is preserved while playback is open.
       expect(state.placedCameras).toHaveLength(1)
     })
 
@@ -207,8 +224,13 @@ describe('time-lapse camera', () => {
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
       deployCamera(state, camera.uid)
       const placed = state.placedCameras[0]
-      recordCameraSubjectEvent(state, placed.x, placed.y, CameraSubject.Pollination, placed.startedAt + 50)
-      recordCameraSubjectEvent(state, placed.x, placed.y, CameraSubject.Rain, placed.startedAt + 100)
+
+      // Drive a stable diff: change a tile and run the tick N times.
+      mutateFootprintTile(state, placed, TileType.Sand)
+      for (let i = 0; i < STABILITY_THRESHOLD_TICKS; i++) {
+        captureIfChanged(state, placed, placed.startedAt + 100 + i)
+      }
+      expect(placed.frames.length).toBe(2) // baseline + committed change
 
       const ok = packUpPlaybackCamera(state, camera.uid)
       expect(ok).toBe(true)
@@ -219,66 +241,211 @@ describe('time-lapse camera', () => {
     })
   })
 
-  describe('frame capture', () => {
-    it('appends a frame and decrements cameraFilm for events inside the 3x3 footprint', () => {
-      const state = setupOverworldState()
+  describe('diff-driven frame capture (v11 R4)', () => {
+    const armCamera = (state: GameState): PlacedCamera => {
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
       deployCamera(state, camera.uid)
-      const placed = state.placedCameras[0]
+      return state.placedCameras[0]
+    }
 
-      recordCameraSubjectEvent(state, placed.x + 1, placed.y, CameraSubject.Pollination, placed.startedAt + 100)
-
+    it('appends exactly one frame after STABILITY_THRESHOLD_TICKS consecutive stable diffs', () => {
+      const state = setupOverworldState()
+      const placed = armCamera(state)
+      // Baseline already at placement.
       expect(placed.frames.length).toBe(1)
-      expect(placed.frames[0].subject).toBe(CameraSubject.Pollination)
-      expect(placed.frames[0].cells.length).toBe(9)
-      expect(state.cameraFilm.get(camera.uid)).toBe(FRAMES_PER_TUBE - 1)
+
+      mutateFootprintTile(state, placed, TileType.Sand)
+
+      for (let i = 0; i < STABILITY_THRESHOLD_TICKS; i++) {
+        captureIfChanged(state, placed, placed.startedAt + 10 + i)
+      }
+      // Baseline + one committed change.
+      expect(placed.frames.length).toBe(2)
+      // Film 1:1 keyed: baseline + one diff = 2 decrements.
+      expect(state.cameraFilm.get(placed.uid)).toBe(FRAMES_PER_TUBE - 2)
+
+      // Further ticks at the same stable state do not commit more
+      // frames.
+      for (let i = 0; i < STABILITY_THRESHOLD_TICKS * 2; i++) {
+        captureIfChanged(state, placed, placed.startedAt + 100 + i)
+      }
+      expect(placed.frames.length).toBe(2)
+      expect(state.cameraFilm.get(placed.uid)).toBe(FRAMES_PER_TUBE - 2)
     })
 
-    it('ignores events outside the 3x3 footprint', () => {
+    it('transient one-tick change (bee crossing) does not commit a frame', () => {
+      const state = setupOverworldState()
+      const placed = armCamera(state)
+      expect(placed.frames.length).toBe(1) // baseline
+
+      // Tick 1: a transient overlay enters the footprint.
+      mutateFootprintTile(state, placed, TileType.Sand)
+      captureIfChanged(state, placed, placed.startedAt + 10)
+      // Candidate pending, not yet committed.
+      expect(placed.frames.length).toBe(1)
+
+      // Tick 2: the overlay reverts — back to baseline state.
+      const tx = placed.x + 1
+      state.map[placed.y][tx] = { type: TileType.Dirt }
+      captureIfChanged(state, placed, placed.startedAt + 20)
+
+      // The bee did not capture: still 1 frame on the roll, film
+      // unchanged after the baseline decrement, candidate buffer
+      // cleared.
+      expect(placed.frames.length).toBe(1)
+      expect(state.cameraFilm.get(placed.uid)).toBe(FRAMES_PER_TUBE - 1)
+      expect(placed.pendingCells).toBeUndefined()
+      expect(placed.pendingCount).toBeUndefined()
+    })
+
+    it('film count decrements 1:1 with captured stable changes including the baseline', () => {
+      const state = setupOverworldState()
+      const placed = armCamera(state)
+      expect(state.cameraFilm.get(placed.uid)).toBe(FRAMES_PER_TUBE - 1) // baseline
+
+      // Three sequential stable changes.
+      mutateFootprintTile(state, placed, TileType.Sand)
+      for (let i = 0; i < STABILITY_THRESHOLD_TICKS; i++) {
+        captureIfChanged(state, placed, placed.startedAt + 10 + i)
+      }
+      mutateFootprintTile(state, placed, TileType.Flora)
+      for (let i = 0; i < STABILITY_THRESHOLD_TICKS; i++) {
+        captureIfChanged(state, placed, placed.startedAt + 100 + i)
+      }
+      mutateFootprintTile(state, placed, TileType.Dirt)
+      for (let i = 0; i < STABILITY_THRESHOLD_TICKS; i++) {
+        captureIfChanged(state, placed, placed.startedAt + 200 + i)
+      }
+
+      // Baseline + 3 stable changes = 4 frames, 4 film decrements.
+      expect(placed.frames.length).toBe(4)
+      expect(state.cameraFilm.get(placed.uid)).toBe(FRAMES_PER_TUBE - 4)
+    })
+
+    it('multiple cameras with overlapping footprints each commit their own frame for the same change', () => {
+      const state = setupOverworldState()
+      // Camera A at player + (1, 0); Camera B at player + (2, 0).
+      // Both footprints include the tile at player + (2, 0) and the
+      // tile at player + (3, 0) is in B's footprint only — for this
+      // test we make a tile in the overlap region change.
+      const camA = placeBackpackItem(state, 'camera')
+      state.cameraFilm.set(camA.uid, FRAMES_PER_TUBE)
+      const specA = getPlaceableSpec('camera')
+      if (!specA) throw new Error('no spec')
+      const aX = state.player.x + 1
+      const aY = state.player.y
+      specA.place(state, aX, aY, camA.uid)
+
+      const camB = placeBackpackItem(state, 'camera')
+      state.cameraFilm.set(camB.uid, FRAMES_PER_TUBE)
+      const bX = state.player.x + 2
+      const bY = state.player.y + 1
+      // Ensure the tile is walkable for placement.
+      state.map[bY][bX] = { type: TileType.Dirt }
+      specA.place(state, bX, bY, camB.uid)
+
+      const placedA = state.placedCameras.find(c => c.uid === camA.uid)
+      const placedB = state.placedCameras.find(c => c.uid === camB.uid)
+      if (!placedA || !placedB) throw new Error('missing placed cameras')
+      // Both have baselines.
+      expect(placedA.frames.length).toBe(1)
+      expect(placedB.frames.length).toBe(1)
+
+      // Overlap tile — both footprints include (player.x + 2, player.y).
+      const ox = state.player.x + 2
+      const oy = state.player.y
+      state.map[oy][ox] = { type: TileType.Sand }
+
+      for (let i = 0; i < STABILITY_THRESHOLD_TICKS; i++) {
+        captureIfChanged(state, placedA, placedA.startedAt + 10 + i)
+        captureIfChanged(state, placedB, placedB.startedAt + 10 + i)
+      }
+
+      expect(placedA.frames.length).toBe(2)
+      expect(placedB.frames.length).toBe(2)
+      expect(state.cameraFilm.get(camA.uid)).toBe(FRAMES_PER_TUBE - 2)
+      expect(state.cameraFilm.get(camB.uid)).toBe(FRAMES_PER_TUBE - 2)
+    })
+
+    it('pickup mid-candidate discards the in-flight candidate; archive holds only committed frames', () => {
+      const state = setupOverworldState()
+      const placed = armCamera(state)
+
+      mutateFootprintTile(state, placed, TileType.Sand)
+      // Run only N-1 ticks — candidate is pending but not yet
+      // committed.
+      for (let i = 0; i < STABILITY_THRESHOLD_TICKS - 1; i++) {
+        captureIfChanged(state, placed, placed.startedAt + 10 + i)
+      }
+      expect(placed.frames.length).toBe(1) // baseline only
+      expect(placed.pendingCells).toBeDefined()
+
+      // Pack up while the candidate is mid-stabilization.
+      const ok = packUpPlaybackCamera(state, placed.uid)
+      expect(ok).toBe(true)
+      // Archive holds only the baseline; the candidate vanished.
+      expect(state.cameraArchive.get(placed.uid)?.length).toBe(1)
+      expect(state.cameraFilm.get(placed.uid)).toBe(FRAMES_PER_TUBE - 1)
+    })
+
+    it('is a no-op when film is exhausted; clears any candidate buffer', () => {
+      const state = setupOverworldState()
+      const placed = armCamera(state)
+      // Pretend a candidate was building.
+      placed.pendingCells = captureCells(state, placed.x, placed.y)
+      placed.pendingCount = 2
+      state.cameraFilm.set(placed.uid, 0)
+
+      mutateFootprintTile(state, placed, TileType.Sand)
+      captureIfChanged(state, placed, placed.startedAt + 10)
+
+      // No commit. Candidate buffer cleared on the no-op branch.
+      expect(placed.frames.length).toBe(1) // baseline only
+      expect(placed.pendingCells).toBeUndefined()
+      expect(placed.pendingCount).toBeUndefined()
+    })
+
+    it('is a no-op past the expiresAt boundary; clears any candidate buffer', () => {
+      const state = setupOverworldState()
+      const placed = armCamera(state)
+      mutateFootprintTile(state, placed, TileType.Sand)
+
+      // Build up a candidate, then cross expiresAt before commit.
+      captureIfChanged(state, placed, placed.startedAt + 10)
+      expect(placed.pendingCells).toBeDefined()
+
+      captureIfChanged(state, placed, placed.expiresAt + 1)
+      expect(placed.frames.length).toBe(1) // baseline only
+      expect(placed.pendingCells).toBeUndefined()
+    })
+
+    it('cross-zone camera: tick is a no-op; candidate buffer cleared', () => {
       const state = setupOverworldState()
       const camera = placeBackpackItem(state, 'camera')
       state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      deployCamera(state, camera.uid)
-      const placed = state.placedCameras[0]
+      const placed = createPlacedCamera(state, {
+        uid: camera.uid,
+        x: 5,
+        y: 5,
+        zone: Zone.Cave,
+        now: 0,
+        spanMs: SEASON_MS,
+      })
+      state.placedCameras.push(placed)
+      placed.pendingCells = captureCells(state, 5, 5)
+      placed.pendingCount = 2
 
-      recordCameraSubjectEvent(state, placed.x + 5, placed.y, CameraSubject.Pollination, placed.startedAt + 100)
-
-      expect(placed.frames.length).toBe(0)
-      expect(state.cameraFilm.get(camera.uid)).toBe(FRAMES_PER_TUBE)
+      captureIfChanged(state, placed, 10)
+      // state.currentZone === Overworld, so cave camera is a no-op.
+      expect(placed.pendingCells).toBeUndefined()
+      expect(placed.pendingCount).toBeUndefined()
     })
 
-    it('is a no-op when film is exhausted', () => {
-      const state = setupOverworldState()
-      const camera = placeBackpackItem(state, 'camera')
-      state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      deployCamera(state, camera.uid)
-      const placed = state.placedCameras[0]
-      state.cameraFilm.set(camera.uid, 0)
-
-      recordCameraSubjectEvent(state, placed.x, placed.y, CameraSubject.Pollination, placed.startedAt + 100)
-
-      expect(placed.frames.length).toBe(0)
-      expect(state.cameraFilm.get(camera.uid)).toBe(0)
-    })
-
-    it('is a no-op past the expiresAt boundary', () => {
-      const state = setupOverworldState()
-      const camera = placeBackpackItem(state, 'camera')
-      state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      deployCamera(state, camera.uid)
-      const placed = state.placedCameras[0]
-
-      recordCameraSubjectEvent(state, placed.x, placed.y, CameraSubject.Pollination, placed.expiresAt + 1)
-
-      expect(placed.frames.length).toBe(0)
-      expect(state.cameraFilm.get(camera.uid)).toBe(FRAMES_PER_TUBE)
-    })
-
-    it('is a no-op when placedCameras is empty', () => {
+    it('tickTimeLapseCapture is safe when placedCameras is empty', () => {
       const state = setupOverworldState()
       expect(() => {
-        recordCameraSubjectEvent(state, state.player.x, state.player.y, CameraSubject.Pollination, 1000)
+        tickTimeLapseCapture(state, 1000)
       }).not.toThrow()
     })
 
@@ -306,14 +473,22 @@ describe('time-lapse camera', () => {
         now: 0,
         spanMs: SEASON_MS,
       })
+      // Baseline captured by createPlacedCamera.
+      expect(placed.frames.length).toBe(1)
       state.placedCameras.push(placed)
-      recordCameraSubjectEvent(state, 5, 5, CameraSubject.Pollination, 10)
-      recordCameraSubjectEvent(state, 5, 5, CameraSubject.Rain, 20)
-      // First archive call moves 2 frames.
+      // Force one stable diff.
+      state.map[5][6] = { type: TileType.Sand }
+      for (let i = 0; i < STABILITY_THRESHOLD_TICKS; i++) {
+        captureIfChanged(state, placed, 10 + i)
+      }
+      expect(placed.frames.length).toBe(2)
+
       archivePlacedCameraFrames(state, placed)
       expect(state.cameraArchive.get(camera.uid)?.length).toBe(2)
 
-      // Second placement, 3 more frames, archive should hold 5.
+      // Second placement (baseline + one stable diff → 2 frames).
+      // Reset cameraFilm to ensure recording arms again.
+      state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
       const placed2 = createPlacedCamera(state, {
         uid: camera.uid,
         x: 8,
@@ -323,31 +498,13 @@ describe('time-lapse camera', () => {
         spanMs: SEASON_MS,
       })
       state.placedCameras.push(placed2)
-      recordCameraSubjectEvent(state, 8, 8, CameraSubject.Pollination, 1010)
-      recordCameraSubjectEvent(state, 8, 8, CameraSubject.Rain, 1020)
-      recordCameraSubjectEvent(state, 8, 8, CameraSubject.Bloom, 1030)
+      state.map[8][9] = { type: TileType.Sand }
+      for (let i = 0; i < STABILITY_THRESHOLD_TICKS; i++) {
+        captureIfChanged(state, placed2, 1010 + i)
+      }
+      expect(placed2.frames.length).toBe(2)
       archivePlacedCameraFrames(state, placed2)
-      expect(state.cameraArchive.get(camera.uid)?.length).toBe(5)
-    })
-  })
-
-  describe('zone scoping', () => {
-    it('does not record events for cameras in a different zone', () => {
-      const state = setupOverworldState()
-      const camera = placeBackpackItem(state, 'camera')
-      state.cameraFilm.set(camera.uid, FRAMES_PER_TUBE)
-      const placed = createPlacedCamera(state, {
-        uid: camera.uid,
-        x: 5,
-        y: 5,
-        zone: Zone.Cave,
-        now: 0,
-        spanMs: SEASON_MS,
-      })
-      state.placedCameras.push(placed)
-      // state.currentZone is Overworld via swapToOverworldForTest.
-      recordCameraSubjectEvent(state, 5, 5, CameraSubject.Pollination, 100)
-      expect(placed.frames.length).toBe(0)
+      expect(state.cameraArchive.get(camera.uid)?.length).toBe(4)
     })
   })
 
@@ -388,8 +545,13 @@ describe('time-lapse camera', () => {
       const archive = state.cameraArchive.get(placed.uid)
       expect(archive).toBeDefined()
       expect(archive?.length).toBe(4)
-      const subjects = archive?.map(f => f.subject)
-      expect(subjects?.every(s => s === CameraSubject.SeasonalLandmark)).toBe(true)
+      // v11 R4 — frames carry only { recordedAt, cells }; the subject
+      // field has retired with the event-driven model.
+      archive?.forEach(f => {
+        expect(typeof f.recordedAt).toBe('number')
+        expect(f.cells.length).toBe(9)
+        expect((f as { subject?: unknown }).subject).toBeUndefined()
+      })
     })
 
     it('initializes photographAlbum as an empty array', () => {
