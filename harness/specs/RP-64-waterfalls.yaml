@@ -1,0 +1,339 @@
+id: rp-64-waterfalls
+name: 'Waterfalls (system grounded in elevation + existing water)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/genesis/shared/waterfalls.ts
+  - src/engine/state.ts
+  - src/engine/position.ts
+  - src/engine/tileBgCache.ts
+  - src/engine/proximityMusic.ts
+  - src/engine/waterfalls.ts
+  - src/engine/tileBg.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - rp-41-cliffs-verticality
+
+behaviors:
+  - id: waterfall-detection-at-genesis
+    description: >
+      A new module src/engine/genesis/shared/waterfalls.ts exports
+      detectWaterfalls(grid, elevation, rivers, ponds, width,
+      height, threshold): Map<string, Waterfall>. The function
+      iterates the union of `rivers ∪ ponds`. For each water tile,
+      it checks the four cardinal neighbors via `isClimbableStep`
+      from position.ts (RP-41). When a neighbor is on-grid,
+      walkable by tile type, NOT part of rivers or ponds itself,
+      AND elev(water) - elev(neighbor) > threshold (i.e. the
+      neighbor is significantly lower AND the step is
+      unclimbable), the function records a `Waterfall` entry on
+      the upper-edge water tile. The returned Map is keyed by
+      posKey(topX, topY). When a water tile has multiple
+      qualifying lower neighbors, all are recorded; the upper key
+      may store a single Waterfall with the steepest drop (lean)
+      or be promoted to an array — implementation detail at spec
+      time, lean single (steepest). The function is pure with
+      respect to grid/elevation/rivers/ponds — read-only.
+    inputs:
+      - 'completed genesis sim with grid, elevation, rivers, ponds populated'
+      - 'threshold = CLIMBABLE_STEP_THRESHOLD from RP-41'
+    outputs:
+      - 'Map<string, Waterfall> keyed by posKey of the upper-edge water tile'
+    state_changes: []
+    determinism: deterministic
+
+  - id: waterfalls-on-game-state
+    description: >
+      GameState gains a new field `waterfalls: Map<string,
+      Waterfall>`. The Waterfall interface lives in src/engine/types.ts
+      and has shape `{ topX: number, topY: number, bottomX: number,
+      bottomY: number, frozen: boolean }`. The field is populated at
+      state.ts initialization by calling `detectWaterfalls(grid,
+      elevation, rivers, ponds, mapWidth, mapHeight)` after the
+      genesis result is extracted. Registered in EXPECTED_FIELDS at
+      src/harness/__tests__/serialization/schema.test.ts in
+      alphabetical position. Single-owner write — only state
+      initialization, the season-boundary freeze/thaw hook, and any
+      future RP-44 winter-geology recompute may mutate it. Empty
+      Map for cave and house zones (no overworld elevation).
+    inputs:
+      - 'createInitialGameState called with a completed genesis result'
+    outputs:
+      - 'state.waterfalls is a Map<string, Waterfall>'
+      - 'every entry references existing tiles in state.rivers or state.ponds at the top'
+    state_changes:
+      - field: GameState.waterfalls
+        effect: 'populated once at state construction; mutated only by season-boundary freeze/thaw and (future) RP-44 winter-geology recompute'
+    determinism: deterministic
+
+  - id: receiving-tile-water-bump
+    description: >
+      Upon detection, the bottom tile of each waterfall gets a
+      small `state.tileWater` increment so flora downstream of a
+      waterfall has access to the moisture the fall delivers. The
+      bump is local — no transitive propagation, no watershed
+      flooding. Bump value is a new constant
+      `WATERFALL_TILE_WATER_BUMP` in src/engine/tileWater.ts (or
+      equivalent), default 0.4. If the receiving tile is itself a
+      water tile (river/pond), no bump is applied (already wet).
+      The bump persists in `state.tileWater` and is read by
+      existing flora/dormancy systems unchanged.
+    inputs:
+      - 'detectWaterfalls returns a non-empty Map'
+      - 'state.tileWater is initialized'
+    outputs:
+      - 'state.tileWater has entries for every waterfall bottom tile not already in rivers/ponds'
+    state_changes:
+      - field: GameState.tileWater
+        effect: 'per-waterfall bottom tile gets +WATERFALL_TILE_WATER_BUMP; never bumped for tiles already in rivers/ponds'
+    determinism: deterministic
+
+  - id: cliff-side-wall-waterfall-render
+    description: >
+      `paintTileBg` in src/engine/tileBgCache.ts extends its
+      side-wall drawing pass so that for any tile recorded as a
+      waterfall TOP, an animated glyph cycle is composited onto the
+      iso side wall connecting top and bottom tiles. The glyph
+      cycle alternates 3 glyphs at WATERFALL_FLOW_CADENCE_MS
+      (default 200ms) for flowing state, drawn in the existing
+      water palette (the river/pond bg color of the upper tile).
+      For frozen state, a single static frozen-cascade glyph is
+      drawn (no animation), using a colder shade of the water
+      palette. The render reuses the side-wall geometry from
+      RP-41's cliff shadow (the diamond side quad) — no new
+      geometry function. Both cliff shadow AND waterfall render on
+      the same side wall; the waterfall is drawn AFTER the shadow
+      so the moving water reads as foreground.
+    inputs:
+      - 'paintTileBg invoked for a tile that is the TOP of a waterfall in state.waterfalls'
+      - 'frame time available via the existing tileBgCache invalidation/repaint path'
+    outputs:
+      - 'iso side wall connecting (topX, topY) to (bottomX, bottomY) shows the flowing or frozen glyph cycle'
+    state_changes: []
+    determinism: time-based
+
+  - id: frozen-stairway-upward
+    description: >
+      `isClimbableStep` in src/engine/position.ts is extended to
+      accept an optional `frozenWaterfalls?: Set<string>`
+      parameter representing the posKey set of frozen-waterfall
+      bottom tiles. When moving from (fromX, fromY) to (toX, toY)
+      and the move is UPWARD (toX/toY higher elevation) AND the
+      bottom (from) tile is in the frozen-waterfall bottom-tile
+      set AND the top (to) tile is the corresponding waterfall's
+      top, the predicate returns true regardless of the elevation
+      delta. The reverse direction (top→bottom, i.e. descending
+      onto the bottom tile) is NOT made climbable by this rule —
+      asymmetric, per the v11 R5 lock _walking off the top is
+      allowed, climbing up from the bottom requires a foothold
+      that the bottom of an open cliff lacks; the frozen ice
+      provides one_. Movement and pathfinding callers in
+      `src/engine/movement.ts` and `src/engine/pathfinding.ts`
+      pass the derived frozen-waterfall set (computed once per
+      tick or cached on state, implementation detail at spec
+      time).
+    inputs:
+      - 'state.weather.season === Winter'
+      - 'state.waterfalls contains an entry with frozen === true'
+      - 'movePlayer or findPath attempts a step matching the bottom→top transition of that waterfall'
+    outputs:
+      - 'isClimbableStep returns true for the bottom→top step even though the raw delta exceeds threshold'
+      - 'isClimbableStep returns false for the top→bottom step on the same waterfall (asymmetric — handled at the call site by checking direction)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: season-boundary-freeze-thaw
+    description: >
+      On the season-boundary transition Autumn→Winter, every
+      waterfall in state.waterfalls has its `frozen` flag flipped
+      to true. On Winter→Spring, every waterfall's frozen flag
+      flips back to false. The transition fires once per
+      boundary; idempotent within the same season. The hook lives
+      in src/engine/seasons.ts (or src/engine/weather.ts depending
+      on where the season-change event fires today) and runs
+      synchronously when the season transition is detected.
+    inputs:
+      - 'state.weather.season transitions from Autumn to Winter'
+      - 'state.weather.season transitions from Winter to Spring'
+    outputs:
+      - 'all state.waterfalls[*].frozen reflect the new season'
+    state_changes:
+      - field: GameState.waterfalls
+        effect: 'every entry"s frozen flag updated to match the season; structure of entries (top/bottom coords) unchanged'
+    determinism: deterministic
+
+  - id: positional-audio-per-waterfall
+    description: >
+      `tickProximityMusic` in src/engine/proximityMusic.ts is
+      extended to emit one `ProximityEmitterSample` per waterfall
+      visible to the player, in addition to the existing ECS
+      MusicEmitter samples. All waterfalls share a single audio
+      URL (`WATERFALL_AUDIO_URL = '/sfx/waterfall.mp3'`), so
+      `updateProximityMusic`'s existing max-across-same-url logic
+      automatically caps the audible volume at 1 (the loudest
+      waterfall wins). Per-waterfall sample uses radius
+      `WATERFALL_AUDIO_RADIUS = 10` tiles; distSq computed from
+      player to the waterfall TOP tile. Only fires when
+      `state.currentZone === Zone.Overworld`. Frozen waterfalls
+      do not emit audio (silence reads as ice).
+    inputs:
+      - 'tickProximityMusic called from the engine RAF loop'
+      - 'state.currentZone === Zone.Overworld'
+      - 'state.waterfalls non-empty'
+    outputs:
+      - 'updateProximityMusic receives one sample per non-frozen waterfall within WATERFALL_AUDIO_RADIUS of the player'
+      - 'no waterfall audio plays in cave/ruin/house zones'
+      - 'no waterfall audio plays for frozen waterfalls'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: water-tile-at-map-edge
+    description: >
+      A river or pond tile sits on the map edge with at least one
+      neighbor coordinate out of bounds.
+    expected: >
+      detectWaterfalls skips the out-of-bounds neighbor and
+      evaluates only the in-bounds neighbors. No waterfall
+      registered for the OOB direction.
+
+  - id: water-tile-with-no-elevation-entry
+    description: >
+      A river or pond tile lacks an entry in state.elevation
+      (theoretical — should not happen in practice).
+    expected: >
+      detectWaterfalls treats the missing entry the same way
+      isClimbableStep does — returns true (climbable) — so no
+      waterfall is recorded. Defensive, not common.
+
+  - id: pond-with-low-rim-on-all-sides
+    description: >
+      A pond sits in a basin where every cardinal neighbor is at
+      higher elevation (no overflow direction).
+    expected: >
+      detectWaterfalls returns no waterfall for any of this pond"s
+      tiles. The pond is a closed basin; water has nowhere to
+      fall.
+
+  - id: river-flowing-down-a-cliff-multiple-tiles
+    description: >
+      A river runs along the top of an escarpment, with every
+      river tile having an unclimbable step on the same downhill
+      side.
+    expected: >
+      Each river tile registers its own Waterfall entry. The
+      effect is a long cascade reading as a continuous waterfall
+      line rendered on each tile"s side wall.
+
+  - id: receiving-tile-is-water-itself
+    description: >
+      A waterfall"s bottom tile is itself in state.rivers or
+      state.ponds (e.g. a river pouring into a pond).
+    expected: >
+      Waterfall is recorded (visual is still meaningful) but the
+      receiving-tile-water-bump is skipped (the tile is already
+      wet).
+
+  - id: frozen-stairway-makes-isolated-mesa-reachable
+    description: >
+      A mesa above a waterfall is in state.reachableMass = false
+      during summer; winter freezes the waterfall and the mesa
+      becomes reachable.
+    expected: >
+      In winter, movePlayer succeeds for the bottom→top step on
+      the frozen cascade; the steward can walk onto the mesa.
+      `state.reachableMass` itself is NOT necessarily updated in
+      this spec (the seasonal reachableMass recompute hook is the
+      v11 R3 amendment from R5, implemented in RP-44 — RP-64
+      ships the predicate change without requiring the
+      reachableMass field to be re-derived). Pathfinding honors
+      isClimbableStep directly so click-to-move works regardless.
+
+  - id: descending-the-frozen-stairway
+    description: >
+      Steward at the top of a frozen waterfall attempts to walk
+      DOWN onto the bottom tile.
+    expected: >
+      The move is rejected — frozen stairway is upward-only
+      (asymmetric per v11 R5 lock). The steward stays at the
+      top of the cliff.
+
+  - id: spring-thaw-strands-the-steward
+    description: >
+      Steward walks up a frozen-waterfall stairway onto a mesa,
+      then spring arrives while they"re still up there.
+    expected: >
+      `frozen` flag flips to false at the Winter→Spring boundary.
+      The stairway is no longer climbable in either direction.
+      The steward is now stranded on the mesa until the next
+      winter (or some other future system rescues them). This is
+      a feature, not a bug — _go now or wait a year_ is the lock.
+
+  - id: cave-zone-no-waterfalls
+    description: >
+      Player enters a cave. The cave grid is separate from the
+      overworld and has no rivers/ponds/elevation.
+    expected: >
+      state.waterfalls is unchanged (it"s an overworld field).
+      tickProximityMusic does not emit waterfall samples when
+      currentZone !== Overworld; render path does not exercise
+      waterfall side walls for cave tiles (no entries match).
+
+  - id: audio-asset-missing
+    description: >
+      `/sfx/waterfall.mp3` is not present on disk (gitignored, not
+      yet downloaded by the contributor).
+    expected: >
+      createTrack rejects; updateProximityMusic"s catch silently
+      drops the failed track. No crash, no console error, no
+      audio. Matches existing audio.ts behavior for missing
+      assets.
+
+failure_conditions:
+  - trigger: 'detectWaterfalls mutates grid, elevation, rivers, ponds, or tileWater'
+    expected: >
+      fail — the detection is supposed to be read-only with
+      respect to its inputs; mutation breaks the contract and
+      can corrupt downstream consumers.
+
+  - trigger: 'A waterfall is recorded for a top tile that is not in state.rivers or state.ponds'
+    expected: >
+      fail — violates the cosmology lock that every waterfall
+      must trace to a source. _Water moves because the prairie
+      is being honest about elevation._
+
+  - trigger: 'isClimbableStep returns true for the top→bottom transition of a frozen waterfall'
+    expected: >
+      fail — frozen stairway is upward-only. Descending should
+      remain blocked (asymmetric).
+
+  - trigger: 'isClimbableStep returns false for the bottom→top transition of a frozen waterfall in winter'
+    expected: >
+      fail — the stairway should be climbable in winter; this
+      would break the mesa-access mechanic.
+
+  - trigger: 'season-boundary freeze/thaw fails to update every waterfall'
+    expected: >
+      fail — partial state is worse than no state. All
+      waterfalls flip together; idempotent within a season.
+
+  - trigger: 'waterfall audio plays in cave/ruin/house zones'
+    expected: >
+      fail — emitter would bleed across zones. The
+      tickProximityMusic existing zone gate is the precedent.
+
+  - trigger: 'positional-audio sample is emitted for a frozen waterfall'
+    expected: >
+      fail — frozen waterfalls are silent by design. _Silence
+      reads as ice._
+
+  - trigger: 'receiving-tile-water-bump is applied to a tile that is itself in rivers or ponds'
+    expected: >
+      fail — tileWater for a river tile would double-count
+      moisture; the bump is for downstream flora only.
+
+verification:
+  test_file: src/engine/__tests__/waterfalls.test.ts
+  test_pattern: 'waterfalls'
+  command: 'npx vitest run src/engine/__tests__/waterfalls.test.ts -t waterfalls'

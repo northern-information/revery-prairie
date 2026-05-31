@@ -1,0 +1,199 @@
+plan:
+  id: RP-64-waterfalls
+  title: 'RP-64: Waterfalls — detection, state, render, audio, frozen-stairway, freeze/thaw hook'
+  created: 2026-05-30
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-waterfall-type-and-constants
+    title: 'Add Waterfall interface to types.ts and waterfall constants to tileBg.ts (WATERFALL_FLOW_CADENCE_MS, WATERFALL_FLOW_GLYPHS, WATERFALL_FROZEN_GLYPH, WATERFALL_TILE_WATER_BUMP, WATERFALL_AUDIO_URL, WATERFALL_AUDIO_RADIUS)'
+    spec_id: rp-64-waterfalls
+    spec_sections:
+      - waterfalls-on-game-state
+      - cliff-side-wall-waterfall-render
+      - receiving-tile-water-bump
+      - positional-audio-per-waterfall
+    context_files:
+      - src/engine/types.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/tileBg.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: implement-detect-waterfalls
+    title: 'Implement detectWaterfalls in src/engine/genesis/shared/waterfalls.ts — read-only BFS-free linear pass over rivers ∪ ponds, recording waterfalls on tiles with unclimbable steps to lower walkable non-water neighbors (steepest drop wins per top tile)'
+    spec_id: rp-64-waterfalls
+    spec_sections:
+      - waterfall-detection-at-genesis
+    context_files:
+      - src/engine/genesis/shared/waterfalls.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/genesis/shared/waterfalls.ts
+    depends_on:
+      - add-waterfall-type-and-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, genesis]
+
+  - id: extend-isClimbableStep-for-frozen-stairway
+    title: 'Extend isClimbableStep in position.ts to accept an optional frozenStairwaySet (Set<string> of "bottomKey->topKey" transitions) that overrides the elevation gate for matching upward steps; return false unchanged for top→bottom (asymmetric per v11 R5)'
+    spec_id: rp-64-waterfalls
+    spec_sections:
+      - frozen-stairway-upward
+    context_files:
+      - src/engine/position.ts
+    output_files:
+      - src/engine/position.ts
+    depends_on:
+      - add-waterfall-type-and-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: implement-season-freeze-thaw
+    title: 'Implement tickWaterfalls in src/engine/waterfalls.ts — compares state.lastSeenSeason vs state.weather.season (the established pattern from torchbearer.ts:207), flips Waterfall.frozen on Autumn→Winter / Winter→Spring transitions, idempotent within a season'
+    spec_id: rp-64-waterfalls
+    spec_sections:
+      - season-boundary-freeze-thaw
+    context_files:
+      - src/engine/waterfalls.ts
+      - src/engine/torchbearer.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/waterfalls.ts
+    depends_on:
+      - add-waterfall-type-and-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: wire-detection-and-state-and-schema
+    title: 'Add waterfalls field to GameState; populate via detectWaterfalls in state.ts after genesis result is extracted; apply WATERFALL_TILE_WATER_BUMP to non-water bottom tiles; register waterfalls in EXPECTED_FIELDS'
+    spec_id: rp-64-waterfalls
+    spec_sections:
+      - waterfalls-on-game-state
+      - receiving-tile-water-bump
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/genesis/shared/waterfalls.ts
+      - src/engine/tileBg.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - implement-detect-waterfalls
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [engine, state, test]
+
+  - id: render-waterfall-on-side-wall
+    title: 'Extend paintTileBg in tileBgCache.ts to draw the animated waterfall glyph cycle (flowing) or static frozen glyph on the iso side wall connecting top to bottom — reuses RP-41 side-wall geometry, drawn AFTER the cliff shadow so water reads as foreground'
+    spec_id: rp-64-waterfalls
+    spec_sections:
+      - cliff-side-wall-waterfall-render
+    context_files:
+      - src/engine/tileBgCache.ts
+      - src/engine/projection.ts
+      - src/engine/tileBg.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/tileBgCache.ts
+    depends_on:
+      - wire-detection-and-state-and-schema
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, render]
+
+  - id: emit-positional-audio
+    title: 'Extend tickProximityMusic in proximityMusic.ts to also iterate state.waterfalls (overworld only, non-frozen only) and emit one ProximityEmitterSample per waterfall sharing WATERFALL_AUDIO_URL — leverages existing max-across-same-url logic'
+    spec_id: rp-64-waterfalls
+    spec_sections:
+      - positional-audio-per-waterfall
+    context_files:
+      - src/engine/proximityMusic.ts
+      - src/engine/audio.ts
+      - src/engine/tileBg.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/proximityMusic.ts
+    depends_on:
+      - wire-detection-and-state-and-schema
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, audio]
+
+  - id: wire-freeze-thaw-tick-and-isClimbableStep-callers
+    title: 'Invoke tickWaterfalls from the engine RAF loop alongside existing season-sensitive ticks; update movement.ts and pathfinding.ts isClimbableStep callers to pass a derived frozen-stairway set when state.weather.season === Winter'
+    spec_id: rp-64-waterfalls
+    spec_sections:
+      - season-boundary-freeze-thaw
+      - frozen-stairway-upward
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/waterfalls.ts
+      - src/engine/movement.ts
+      - src/engine/pathfinding.ts
+      - src/engine/types.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/gameLoop.ts
+      - src/engine/movement.ts
+      - src/engine/pathfinding.ts
+    depends_on:
+      - wire-detection-and-state-and-schema
+      - extend-isClimbableStep-for-frozen-stairway
+      - implement-season-freeze-thaw
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: write-regression-tests
+    title: 'Replace the stub waterfalls.test.ts with tests covering detectWaterfalls (basic, edge cases — map-edge, basin pond, river-along-escarpment, receiving water tile), Waterfall on GameState, receiving-tile-water-bump, frozen-stairway upward only (asymmetric), season-boundary freeze/thaw, positional audio only when overworld and non-frozen, missing audio asset graceful failure'
+    spec_id: rp-64-waterfalls
+    spec_sections:
+      - waterfall-detection-at-genesis
+      - waterfalls-on-game-state
+      - receiving-tile-water-bump
+      - frozen-stairway-upward
+      - season-boundary-freeze-thaw
+      - positional-audio-per-waterfall
+    context_files:
+      - src/engine/__tests__/waterfalls.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/genesis/shared/waterfalls.ts
+      - src/engine/waterfalls.ts
+      - src/engine/position.ts
+      - src/engine/state.ts
+      - src/engine/tileBg.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/waterfalls.test.ts
+    depends_on:
+      - wire-freeze-thaw-tick-and-isClimbableStep-callers
+      - render-waterfall-on-side-wall
+      - emit-positional-audio
+    verification:
+      - 'npx vitest run src/engine/__tests__/waterfalls.test.ts'
+    repair: retry
+    tags: [test, engine]
