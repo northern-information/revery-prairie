@@ -25,6 +25,10 @@ export const RENDER_PASS_SLOTS = [
   'bg-cache',
   'world-overlay',
   'tile-glyph',
+  // RP-65 — x-ray pass slot. Runs after terrain glyphs and before
+  // entities so it can fade occluding tile bg + cliff shadow
+  // without erasing the player avatar (which draws in `entity`).
+  'tile-xray',
   'entity',
   'effect',
   'screen-overlay',

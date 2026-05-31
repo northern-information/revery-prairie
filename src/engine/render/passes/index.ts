@@ -24,6 +24,9 @@ export { fogMaskPass } from './fogMask'
 // Film grain runs last in world-overlay so its tile-grid covers
 // everything below: bg-cache, halos, angel aura, prairie halo, fog mask.
 export { filmGrainOverlayPass } from './filmGrainOverlay'
+// tile-xray (RP-65 — fades occluding lifted tiles so the player avatar
+// stays visible; runs between tile-glyph and entity).
+export { tileXrayPass } from './tileXray'
 // effect (post-tile overlays)
 export { ruinEntrancePatinaPass } from './ruinEntrancePatina'
 export { rainAuraOverlayPass } from './rainAuraOverlay'
