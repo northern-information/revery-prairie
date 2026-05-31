@@ -163,7 +163,9 @@ const tickWalking = (state: GameState): void => {
     state.burnLineIndex += 1
     return
   }
-  const path = findPath(state.overworldMap, state.overworldMapWidth, state.overworldMapHeight, here, target)
+  const path = findPath(state.overworldMap, state.overworldMapWidth, state.overworldMapHeight, here, target, undefined, {
+    elevation: state.elevation,
+  })
   if (!path || path.length === 0) {
     // Blocked — wait this tick. If the obstruction persists through
     // Spring, summer cleanup will end the walk.
@@ -188,7 +190,9 @@ const tickReturning = (state: GameState): void => {
     state.overworldMapWidth,
     state.overworldMapHeight,
     here,
-    state.caveEntranceOverworld
+    state.caveEntranceOverworld,
+    undefined,
+    { elevation: state.elevation }
   )
   if (!path || path.length === 0) return
   setMoabPosition(state, path[0], MOAB_PACE_MS)

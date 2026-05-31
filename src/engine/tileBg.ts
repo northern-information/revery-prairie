@@ -220,6 +220,11 @@ export const applySeasonalWash = (hex: string, target: string, intensity: number
 // per-tile diamond grid — only honest cliff faces between plateaus.
 export const WALL_LEFT_SHADE = 0.78
 export const WALL_RIGHT_SHADE = 0.55
+// RP-41 — wall shade when the side faces an unclimbable elevation
+// step. Heavier darken than the standard tier wall so the steward
+// can read "uncrossable" at a glance. _The cliff is a shadow, not
+// a tile._
+export const WALL_CLIFF_SHADE = 0.18
 
 // Discrete elevation tiers ("Minecraft" style): each tile snaps to a
 // tier index 0..ELEVATION_TIER_COUNT-1 based on its raw elevation, and

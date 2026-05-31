@@ -151,7 +151,9 @@ const stepToward = (state: GameState, eid: Entity, target: Position, blocked: Se
   const selfKey = posKey(pos.x, pos.y)
   blocked.delete(selfKey)
 
-  const path = findPath(state.map, state.mapWidth, state.mapHeight, { x: pos.x, y: pos.y }, target, blocked)
+  const path = findPath(state.map, state.mapWidth, state.mapHeight, { x: pos.x, y: pos.y }, target, blocked, {
+    elevation: state.elevation,
+  })
   if (!path || path.length === 0) {
     blocked.add(selfKey)
     return false
@@ -245,7 +247,9 @@ const tickFollow = (state: GameState, eid: Entity, pos: { x: number; y: number }
   blocked.delete(playerKey)
   blocked.delete(selfKey)
 
-  const path = findPath(state.map, state.mapWidth, state.mapHeight, { x: pos.x, y: pos.y }, state.player, blocked)
+  const path = findPath(state.map, state.mapWidth, state.mapHeight, { x: pos.x, y: pos.y }, state.player, blocked, {
+    elevation: state.elevation,
+  })
 
   // Restore blocked set
   blocked.add(playerKey)

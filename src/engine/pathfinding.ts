@@ -1,4 +1,4 @@
-import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
+import { CARDINAL, isClimbableStep, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 
 import type { Position, Tile } from './types'
 
@@ -48,8 +48,14 @@ export const findPath = (
   from: Position,
   to: Position,
   blockedPositions?: Set<string>,
-  options: { allowDiagonal?: boolean } = {}
+  options: { allowDiagonal?: boolean; elevation?: Map<string, number> } = {}
 ): Position[] | null => {
+  // RP-41 — when an elevation map is supplied, A* honors
+  // isClimbableStep at both cardinal and diagonal expansion sites.
+  // Callers in cave/ruin contexts omit it; overworld callers pass
+  // state.elevation so click-to-move paths can't cross unclimbable
+  // cliffs.
+  const elevation = options.elevation
   const allowDiagonal = options.allowDiagonal === true
   const neighbors = allowDiagonal ? ORDINAL : CARDINAL
   // Reject out-of-bounds or unwalkable destination
@@ -111,6 +117,9 @@ export const findPath = (
       if (!isInBounds(nx, ny, mapWidth, mapHeight)) continue
       if (!isWalkableTile(map[ny][nx].type)) continue
       if (blockedPositions?.has(posKey(nx, ny))) continue
+      // RP-41 — reject the step when the elevation delta to the
+      // neighbor exceeds CLIMBABLE_STEP_THRESHOLD.
+      if (elevation && !isClimbableStep(elevation, cx, cy, nx, ny)) continue
 
       // Corner-cutting prevention for diagonals: both adjacent cardinal
       // tiles must be walkable, otherwise the path slips through walls.
@@ -120,6 +129,13 @@ export const findPath = (
         const t2 = map[cy + d.y]?.[cx]
         if (!t1 || !t2 || !isWalkableTile(t1.type) || !isWalkableTile(t2.type)) continue
         if (blockedPositions?.has(posKey(cx + d.x, cy)) || blockedPositions?.has(posKey(cx, cy + d.y))) continue
+        // RP-41 — diagonal must also be climbable through both cardinals.
+        if (
+          elevation &&
+          (!isClimbableStep(elevation, cx, cy, cx + d.x, cy) || !isClimbableStep(elevation, cx, cy, cx, cy + d.y))
+        ) {
+          continue
+        }
       }
 
       const nIdx = ny * mapWidth + nx

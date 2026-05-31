@@ -246,6 +246,7 @@ export const useMouse = ({
         if (lastWaypoint.x === target.x && lastWaypoint.y === target.y) return
         const appended = findPath(state.map, state.mapWidth, state.mapHeight, lastWaypoint, target, blocked, {
           allowDiagonal: true,
+          elevation: state.elevation,
         })
         if (!appended || appended.length === 0) return
         state.path = [...(state.path ?? []), ...appended]
@@ -261,6 +262,7 @@ export const useMouse = ({
       updateCamera(state)
       state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, target, blocked, {
         allowDiagonal: true,
+        elevation: state.elevation,
       })
       state.pathWaypoints = state.path ? [target] : []
       if (state.path) spawnClickTarget(state, target.x, target.y, performance.now())

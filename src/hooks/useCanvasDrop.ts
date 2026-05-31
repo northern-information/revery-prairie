@@ -166,6 +166,7 @@ export const useCanvasDrop = ({
         if (state.map[ay]?.[ax]?.type === TileType.Space) continue
         const p = findPath(state.map, state.mapWidth, state.mapHeight, state.player, { x: ax, y: ay }, blocked, {
           allowDiagonal: true,
+          elevation: state.elevation,
         })
         if (p && (!bestPath || p.length < bestPath.length)) {
           bestPath = p
