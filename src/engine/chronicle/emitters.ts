@@ -25,10 +25,11 @@ interface EmitterScanState {
   // emitEgregoreReach (zero→positive) and emitEgregoreAdvance
   // (crossing the 25% footprint threshold).
   egregoreCountByRegion: Map<string, number>
-  // True once the prior-scan maps are populated. The first scan in a
-  // tenure seeds the maps and emits nothing; subsequent scans diff
-  // against the prior state.
-  initialized: boolean
+  // Independent first-scan flags so species and egregore both seed
+  // silently on their first call without one half-initialized state
+  // shadowing the other.
+  speciesInitialized: boolean
+  egregoreInitialized: boolean
   // Hallowed-ground tile keys observed in any prior scan. Used by
   // emitHallowedGround to fire on a region's first-ever hallowed tile.
   regionsWithHallowedGround: Set<string>
@@ -45,7 +46,8 @@ const getScanState = (state: GameState): EmitterScanState => {
     s = {
       speciesPresenceByRegion: new Map(),
       egregoreCountByRegion: new Map(),
-      initialized: false,
+      speciesInitialized: false,
+      egregoreInitialized: false,
       regionsWithHallowedGround: new Set(),
       lastPolygonCount: 0,
     }
@@ -142,9 +144,9 @@ export const tickChronicleSpeciesExtinction = (state: GameState): void => {
   if (!isOverworld(state)) return
   const s = getScanState(state)
   const current = computeSpeciesPresence(state)
-  if (!s.initialized) {
+  if (!s.speciesInitialized) {
     s.speciesPresenceByRegion = current
-    s.initialized = true
+    s.speciesInitialized = true
     // Seed pass; emit nothing.
   } else {
     for (const [regionId, currentSet] of current) {
@@ -201,10 +203,11 @@ export const tickChronicleEgregoreScan = (state: GameState): void => {
   if (!isOverworld(state)) return
   const s = getScanState(state)
   const current = computeEgregoreCounts(state)
-  if (s.egregoreCountByRegion.size === 0 && !s.initialized) {
+  if (!s.egregoreInitialized) {
     s.egregoreCountByRegion = current
-    // Don't flip initialized here — that lives with the species scan
-    // since the two share a tick window. Seed silently.
+    s.egregoreInitialized = true
+    // Seed pass; emit nothing. Egregores placed at genesis are baseline,
+    // not "reach" events.
   } else {
     for (const [regionId, count] of current) {
       const prior = s.egregoreCountByRegion.get(regionId) ?? 0
