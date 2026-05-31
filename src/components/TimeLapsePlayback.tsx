@@ -1,52 +1,33 @@
 import { useEffect, useState } from 'react'
-import { GelBandView } from './GelBandView'
 
-import { HEX_GRID_SIZE } from '@/engine/genetics'
-import { identityForFrame } from '@/engine/timeLapse'
-import { CameraSubject } from '@/engine/types'
+import { Photograph } from './Photograph'
 import type { TimeLapseFrame } from '@/engine/types'
 
-// Per-photograph reveal pacing — column-major cell reveal across the
-// full 8x8 gel grid, matching ScanResultModal's cadence. The camera
-// ceremony is silent: the gel-band SFX (/sfx/sequence.mp3) is the
-// scan instrument's voice, not the camera's. A camera-specific SFX
-// can be added later.
-const HEADING_FADE_MS = 400
-const CELL_REVEAL_MS = 40
-const TOTAL_CELLS = HEX_GRID_SIZE * HEX_GRID_SIZE
-const TOTAL_CELL_REVEAL_MS = CELL_REVEAL_MS * TOTAL_CELLS
+// v11 R4 — playback is a contact sheet. Every frame in the queue
+// renders in a CSS grid at once, chronological left-to-right,
+// top-to-bottom (the same shape as a developed contact sheet from
+// the lab the camera came out of). The contact sheet itself does not
+// animate; clicking a frame opens an expanded single-frame view that
+// supports arrow-key step + cross-fade. Escape from the expanded
+// view returns to the sheet; a second Escape (or backdrop click)
+// dismisses the whole modal.
+
+// Contact-sheet thumbnail pitch — gives ~120px wide / ~60px tall
+// iso-projected diamonds with the diamond geometry from
+// src/engine/projection.ts (2 * charWidth wide, charHeight tall, 3x3
+// viewport).
+const SHEET_CELL_WIDTH = 14
+const SHEET_CELL_HEIGHT = 28
+
+// Expanded view pitch — roughly 4x the contact-sheet pitch.
+const EXPANDED_CELL_WIDTH = 56
+const EXPANDED_CELL_HEIGHT = 112
+
+const CROSS_FADE_MS = 220
 
 const prefersReducedMotion = (): boolean => {
   if (typeof window === 'undefined' || !window.matchMedia) return false
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
-
-// Subject heading copy. Falls through to the raw subject string when a
-// future CameraSubject value isn't yet wired here — keeps the modal
-// crash-free for forward-compatibility.
-const subjectLabel = (subject: TimeLapseFrame['subject']): string => {
-  switch (subject) {
-    case CameraSubject.Pollination:
-      return 'POLLINATION'
-    case CameraSubject.Rain:
-      return 'RAIN'
-    case CameraSubject.Bloom:
-      return 'BLOOM'
-    case CameraSubject.Ember:
-      return 'EMBER'
-    case CameraSubject.MonarchVisit:
-      return 'MONARCH'
-    case CameraSubject.GhostPassage:
-      return 'GHOST'
-    case CameraSubject.EgregoreScan:
-      return 'EGREGORE'
-    case CameraSubject.CharacterApproach:
-      return 'APPROACH'
-    case CameraSubject.SeasonalLandmark:
-      return 'SEASONAL LANDMARK'
-    default:
-      return (subject as string).toUpperCase()
-  }
 }
 
 const formatTimestamp = (recordedAt: number): string => {
@@ -58,121 +39,154 @@ interface TimeLapsePlaybackProps {
   cameraUid: string
   frames: TimeLapseFrame[]
   onDismiss: () => void
+  // Optional: open directly into expanded view at this index. Used by
+  // PhotographAlbumPanel rows, where clicking a row opens the
+  // single-frame view for that one photograph.
+  initialExpandedIndex?: number
 }
 
-export const TimeLapsePlayback = ({ cameraUid: _cameraUid, frames, onDismiss }: TimeLapsePlaybackProps) => {
+export const TimeLapsePlayback = ({
+  cameraUid: _cameraUid,
+  frames,
+  onDismiss,
+  initialExpandedIndex,
+}: TimeLapsePlaybackProps) => {
   const reducedMotion = prefersReducedMotion()
-  const [frameIndex, setFrameIndex] = useState(0)
-  const [headingVisible, setHeadingVisible] = useState(reducedMotion)
-  const [revealedCells, setRevealedCells] = useState(reducedMotion ? TOTAL_CELLS : 0)
-  const [fullyRevealed, setFullyRevealed] = useState(reducedMotion)
+  const initialIndex: number | null = initialExpandedIndex ?? null
+  const [expandedIndex, setExpandedIndex] = useState(initialIndex)
+  const [fadeKey, setFadeKey] = useState(0)
 
-  const frame = frames[frameIndex]
-  const isLastFrame = frameIndex >= frames.length - 1
-
+  // Cross-fade trigger: bumping `fadeKey` re-mounts the inner
+  // photograph wrapper, which has a CSS opacity transition that runs
+  // from 0 → 1 on mount.
   useEffect(() => {
-    if (reducedMotion) {
-      setHeadingVisible(true)
-      setRevealedCells(TOTAL_CELLS)
-      setFullyRevealed(true)
-      return
-    }
+    if (expandedIndex === null) return
+    setFadeKey(k => k + 1)
+  }, [expandedIndex])
 
-    setHeadingVisible(false)
-    setRevealedCells(0)
-    setFullyRevealed(false)
-
-    const timers: ReturnType<typeof setTimeout>[] = []
-    timers.push(
-      setTimeout(() => {
-        setHeadingVisible(true)
-      }, 50)
-    )
-    timers.push(
-      setTimeout(() => {
-        for (let i = 1; i <= TOTAL_CELLS; i++) {
-          timers.push(
-            setTimeout(() => {
-              setRevealedCells(i)
-            }, CELL_REVEAL_MS * i)
-          )
-        }
-      }, HEADING_FADE_MS)
-    )
-    timers.push(
-      setTimeout(() => {
-        setFullyRevealed(true)
-      }, HEADING_FADE_MS + TOTAL_CELL_REVEAL_MS)
-    )
-
-    return () => {
-      timers.forEach(t => {
-        clearTimeout(t)
-      })
-    }
-  }, [frameIndex, reducedMotion])
-
+  // Keyboard handling. The contact-sheet view consumes only Escape.
+  // The expanded view consumes Escape (returns to sheet) and the
+  // arrow keys (step). Arrow keys on the contact sheet are no-ops.
   useEffect(() => {
-    if (!fullyRevealed) return
     const onKey = (e: KeyboardEvent) => {
-      e.preventDefault()
-      if (e.key === 'Escape' || isLastFrame) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        if (expandedIndex !== null) {
+          setExpandedIndex(null)
+          return
+        }
         onDismiss()
         return
       }
-      setFrameIndex(idx => idx + 1)
+      if (expandedIndex === null) return
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setExpandedIndex(idx => (idx === null || idx <= 0 ? idx : idx - 1))
+        return
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        setExpandedIndex(idx => (idx === null || idx >= frames.length - 1 ? idx : idx + 1))
+        return
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
     }
-  }, [fullyRevealed, isLastFrame, onDismiss])
+  }, [expandedIndex, frames.length, onDismiss])
 
-  if (!frame) return null
-
-  const identity = identityForFrame(frame)
+  if (frames.length === 0) return null
 
   return (
     <div
       data-testid="time-lapse-playback"
-      className="pointer-events-auto fixed inset-0 z-30 flex items-center justify-center"
+      className="pointer-events-auto fixed inset-0 z-30 flex items-center justify-center bg-black/80"
       onClick={() => {
-        if (fullyRevealed && isLastFrame) onDismiss()
+        // Backdrop click — same rules as Escape.
+        if (expandedIndex !== null) {
+          setExpandedIndex(null)
+          return
+        }
+        onDismiss()
       }}
     >
       <div
-        data-testid="time-lapse-content"
-        className="film-grain-overlay border-border relative flex flex-col items-center gap-4 overflow-hidden border bg-black p-8 font-mono"
+        data-testid="time-lapse-sheet"
+        className="border-border relative flex max-h-[85vh] max-w-[90vw] flex-col gap-4 overflow-y-auto border bg-black p-6 font-mono"
         onClick={e => {
           e.stopPropagation()
         }}
       >
+        <h2 className="text-text text-sm uppercase tracking-widest">Contact Sheet</h2>
         <div
-          data-testid="time-lapse-heading"
-          data-revealed={headingVisible}
-          className="flex flex-col items-center gap-1 transition-opacity duration-[400ms]"
-          style={{ opacity: headingVisible ? 1 : 0 }}
+          data-testid="time-lapse-grid"
+          className="grid gap-3"
+          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))' }}
         >
-          <h2 data-testid="time-lapse-subject" className="text-text text-2xl">
-            {subjectLabel(frame.subject)}
-          </h2>
-          <p data-testid="time-lapse-timestamp" className="text-dim text-xs italic">
-            {formatTimestamp(frame.recordedAt)}
-          </p>
+          {frames.map((frame, i) => (
+            <button
+              key={`${String(frame.recordedAt)}-${String(i)}`}
+              type="button"
+              data-testid={`time-lapse-frame-${String(i)}`}
+              className="hover:border-bee/60 flex flex-col items-center gap-1 border border-transparent p-1 text-left focus:outline-none"
+              onClick={e => {
+                e.stopPropagation()
+                setExpandedIndex(i)
+              }}
+            >
+              <Photograph
+                cells={frame.cells}
+                cellWidth={SHEET_CELL_WIDTH}
+                cellHeight={SHEET_CELL_HEIGHT}
+                testIdPrefix={`time-lapse-thumb-${String(i)}`}
+              />
+              <span className="text-dim text-[10px] italic">{formatTimestamp(frame.recordedAt)}</span>
+            </button>
+          ))}
         </div>
-        <div
-          data-testid="time-lapse-photograph"
-          data-revealed-cells={revealedCells}
-          data-fully-revealed={fullyRevealed}
-        >
-          <GelBandView identity={identity} variant="flora" revealedCells={revealedCells} />
-        </div>
-        <p data-testid="time-lapse-hint" className="text-dim text-xs" style={{ opacity: fullyRevealed ? 0.7 : 0 }}>
-          {isLastFrame
-            ? 'Press any key to close'
-            : `Press any key to advance (${String(frameIndex + 1)} / ${String(frames.length)})`}
-        </p>
       </div>
+
+      {expandedIndex !== null && frames[expandedIndex] && (
+        <div
+          data-testid="time-lapse-expanded"
+          className="pointer-events-auto fixed inset-0 z-40 flex items-center justify-center bg-black/90"
+          onClick={() => {
+            setExpandedIndex(null)
+          }}
+        >
+          <div
+            data-testid="time-lapse-expanded-content"
+            className="border-border relative flex flex-col items-center gap-3 border bg-black p-6 font-mono"
+            onClick={e => {
+              e.stopPropagation()
+            }}
+          >
+            <div
+              key={fadeKey}
+              data-testid="time-lapse-expanded-fade"
+              style={{
+                opacity: 1,
+                animation: reducedMotion ? undefined : `time-lapse-fade-in ${String(CROSS_FADE_MS)}ms ease-out`,
+              }}
+            >
+              <Photograph
+                cells={frames[expandedIndex].cells}
+                cellWidth={EXPANDED_CELL_WIDTH}
+                cellHeight={EXPANDED_CELL_HEIGHT}
+                testIdPrefix="time-lapse-expanded-photo"
+              />
+            </div>
+            <p data-testid="time-lapse-expanded-timestamp" className="text-dim text-xs italic">
+              {formatTimestamp(frames[expandedIndex].recordedAt)} · {String(expandedIndex + 1)} / {String(frames.length)}
+            </p>
+            <p data-testid="time-lapse-expanded-hint" className="text-dim text-[10px]">
+              ← → to step · Esc to close
+            </p>
+          </div>
+          <style>{`@keyframes time-lapse-fade-in { from { opacity: 0; } to { opacity: 1; } }`}</style>
+        </div>
+      )}
     </div>
   )
 }

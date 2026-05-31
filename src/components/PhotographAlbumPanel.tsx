@@ -1,38 +1,12 @@
 import { useState } from 'react'
-import { TimeLapsePlayback } from './TimeLapsePlayback'
 
+import { TimeLapsePlayback } from './TimeLapsePlayback'
 import { identityForFrame } from '@/engine/timeLapse'
 import { playClick, playHover } from '@/engine/sfx'
-import { CameraSubject } from '@/engine/types'
-import type { GameState, TimeLapseFrame } from '@/engine/types'
+import type { GameState } from '@/engine/types'
 
 interface PhotographAlbumPanelProps {
   state: GameState
-}
-
-const subjectLabel = (subject: TimeLapseFrame['subject']): string => {
-  switch (subject) {
-    case CameraSubject.Pollination:
-      return 'POLLINATION'
-    case CameraSubject.Rain:
-      return 'RAIN'
-    case CameraSubject.Bloom:
-      return 'BLOOM'
-    case CameraSubject.Ember:
-      return 'EMBER'
-    case CameraSubject.MonarchVisit:
-      return 'MONARCH'
-    case CameraSubject.GhostPassage:
-      return 'GHOST'
-    case CameraSubject.EgregoreScan:
-      return 'EGREGORE'
-    case CameraSubject.CharacterApproach:
-      return 'APPROACH'
-    case CameraSubject.SeasonalLandmark:
-      return 'SEASONAL LANDMARK'
-    default:
-      return String(subject).toUpperCase()
-  }
 }
 
 const formatTimestamp = (recordedAt: number): string => {
@@ -75,10 +49,8 @@ export const PhotographAlbumPanel = ({ state }: PhotographAlbumPanelProps) => {
                 onMouseEnter={playHover}
                 className="text-text hover:bg-bee/10 hover:border-bee/40 flex w-full items-center justify-between rounded border border-transparent p-2 text-left focus:outline-none"
               >
-                <span className="text-text text-sm">{subjectLabel(frame.subject)}</span>
-                <span className="text-dim text-xs italic">
-                  {edgeCode} · {formatTimestamp(frame.recordedAt)}
-                </span>
+                <span className="text-text text-sm">{edgeCode}</span>
+                <span className="text-dim text-xs italic">{formatTimestamp(frame.recordedAt)}</span>
               </button>
             </li>
           )
@@ -88,6 +60,7 @@ export const PhotographAlbumPanel = ({ state }: PhotographAlbumPanelProps) => {
         <TimeLapsePlayback
           cameraUid={`album-${String(activeIndex)}`}
           frames={[entries[activeIndex]]}
+          initialExpandedIndex={0}
           onDismiss={() => {
             setActiveIndex(null)
           }}
