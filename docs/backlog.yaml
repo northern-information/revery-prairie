@@ -451,10 +451,10 @@ features:
       impermanence at the item layer as grammar for the steward's own
       Voynich drift in RP-4. Renewal loops replace stockpile loops.
     depends_on: []
-    status: in-progress
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/RP-15-item-wear.yaml
+    plan: harness/plans/RP-15-item-wear.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/471
     notes: >
       v4 thinktank round 1 (2026-05-19). Visible wear per Tyler — "it's a
       game about noticing. you notice your net not working as great
@@ -574,10 +574,10 @@ features:
       a nitrogen fixer — the species choice already encoded the mechanic).
       Soil readability already shipped with RP-6; this adds the consequence.
     depends_on: []
-    status: in-progress
+    status: shipped
     spec: harness/specs/soil-depletion.yaml
     plan: harness/plans/soil-depletion.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/470
     notes: >
       v4 thinktank round 3 (2026-05-19). One of the "leaks" Boon named when
       cosmology locked entropy as the antagonist. Soil readable in RP-6
@@ -690,10 +690,10 @@ features:
       per-species threads in the naturalist's manual (RP-6, shipped), and as
       predecessor lines in the lineage record (RP-16). Never a running log.
     depends_on: []
-    status: in-progress
+    status: shipped
     spec: harness/specs/RP-22-named-regions-chronicle.yaml
     plan: harness/plans/RP-22-named-regions-chronicle.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/472
     notes: >
       v4 thinktank round 6 (2026-05-19). Three operating constraints:
       (1) events are emitted by world-state transitions, not by player
@@ -848,10 +848,10 @@ features:
       oldest layer. The player will never know which were people and
       which were procedural; the cosmology says that is exactly right.
     depends_on: ['RP-23']
-    status: in-progress
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/RP-24-seeded-predecessors.yaml
+    plan: harness/plans/RP-24-seeded-predecessors.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/478
     notes: >
       v4 thinktank rounds 7 and 8 (2026-05-20). Procedural predecessors
       are not a placeholder for multiplayer — they are the substrate
@@ -1791,10 +1791,10 @@ features:
       delta exceeds the threshold. X-ray becomes an alpha rule on any
       lifted tile occluding the avatar's bounding box.
     depends_on: []
-    status: todo
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/RP-41-cliffs-verticality.yaml
+    plan: harness/plans/RP-41-cliffs-verticality.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/474
     size: M
     notes: >
       v7 thinktank round 3 (2026-05-23). Flat-prairie prior is a
@@ -2649,10 +2649,10 @@ features:
       hooks fire at season boundaries.
     size: L
     depends_on: ['RP-41', 'RP-43']
-    status: todo
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/RP-64-waterfalls.yaml
+    plan: harness/plans/RP-64-waterfalls.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/475
     notes: >
       v11 thinktank round 5 (2026-05-30). The line the room locked:
       **the prairie has gravity now.** Cliffs gave the prairie
@@ -2704,10 +2704,10 @@ features:
       behind a mesa or under a high ridge.
     size: M
     depends_on: ['RP-41']
-    status: todo
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/RP-65-xray-alpha.yaml
+    plan: harness/plans/RP-65-xray-alpha.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/477
     notes: >
       Filed 2026-05-30 during RP-41 implementation. The behavior was
       originally bundled into the RP-41 spec (behavior
