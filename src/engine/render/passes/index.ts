@@ -7,6 +7,10 @@
 // bg-cache
 export { tileBgCompositePass } from './tileBgComposite'
 // world-overlay
+// RP-64 — registered first in world-overlay so the waterfall sits
+// just above the bg cache (which carries the cliff shadow) but
+// below halos/fog/film-grain.
+export { waterfallFlowPass } from './waterfallFlow'
 export { ruinEntranceHaloPass } from './ruinEntranceHalo'
 export { angelGoldAuraPass } from './angelGoldAura'
 export { prairieHaloPass } from './prairieHalo'

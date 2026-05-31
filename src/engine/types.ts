@@ -74,6 +74,21 @@ export interface MovementTween {
   durationMs: number
 }
 
+// RP-64 — A waterfall: a river or pond tile (topX, topY) that drops
+// over an unclimbable elevation step to a lower walkable
+// neighbor (bottomX, bottomY). Frozen in winter (Autumn→Winter
+// boundary flips frozen=true; Winter→Spring flips it false). When
+// frozen, the bottom→top step becomes climbable per RP-41's
+// isClimbableStep — _the prairie that refused you in summer
+// welcomes you in winter_.
+export interface Waterfall {
+  topX: number
+  topY: number
+  bottomX: number
+  bottomY: number
+  frozen: boolean
+}
+
 export const ItemCategory = {
   Fauna: 'fauna',
   Flora: 'flora',
@@ -489,6 +504,14 @@ export interface GameState {
   // when elevation mutates. _The prairie does not owe the steward
   // access._
   reachableMass: Set<string>
+  // RP-64 — water tiles (river or pond) that drop over an
+  // unclimbable step to a lower walkable neighbor. Keyed by
+  // posKey of the upper-edge water tile. Frozen flag flips at
+  // season boundaries (Autumn↔Winter). In winter, a frozen
+  // waterfall's bottom→top transition is climbable (upward
+  // only, asymmetric) — see isClimbableStep in position.ts.
+  // _The prairie has gravity now._ (v11 R5, 2026-05-30)
+  waterfalls: Map<string, Waterfall>
   ponds: Set<string>
   rivers: Set<string>
   tileWater: Map<string, number>

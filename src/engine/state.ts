@@ -8,6 +8,7 @@ import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from './egregore/speci
 import { createCharacterEntity } from './entities'
 import { createEmptyFloraGrowthPreviews } from './floraGrowthPreviews'
 import { computeReachableMass } from './genesis/shared/reachableMass'
+import { detectWaterfalls } from './genesis/shared/waterfalls'
 import {
   createGenesisState,
   GENESIS_EPOCHS,
@@ -22,6 +23,7 @@ import { createHouseInterior } from './house'
 import { autoSort } from './inventory'
 import { createBackpack } from './items'
 import { isWalkableTile, posKey } from './position'
+import { WATERFALL_TILE_WATER_BUMP } from './tileBg'
 import { detectNamedRegions } from './regions'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { buildWaterProximity } from './tileWater'
@@ -316,6 +318,18 @@ export const createGameState = (
     // grid; tiles outside the set stay in the prairie as visible-
     // but-unwalkable terrain.
     reachableMass: computeReachableMass(map, genesisData.elevation, MAP_WIDTH, MAP_HEIGHT, playerX, playerY),
+    // RP-64 — water tiles that drop over an unclimbable elevation
+    // step. Detected once at genesis. Read by the renderer (side
+    // wall), audio (positional emitter), and movement/pathfinding
+    // (frozen-stairway override in winter).
+    waterfalls: detectWaterfalls(
+      map,
+      genesisData.elevation,
+      genesisData.riverPaths,
+      genesisData.ponds,
+      MAP_WIDTH,
+      MAP_HEIGHT
+    ),
     ponds: genesisData.ponds,
     rivers: genesisData.riverPaths,
     burnScars: genesisData.burnScars,
@@ -393,6 +407,18 @@ export const createGameState = (
     itemWear: {},
     namedRegions: [],
     chronicle: [],
+  }
+
+  // RP-64 — Receiving-tile water bump. Each waterfall's bottom
+  // tile gets a small tileWater increment so downstream flora has
+  // access to the moisture the fall delivers. Skipped when the
+  // bottom is itself a river or pond (already wet — would
+  // double-count). Local only; no transitive watershed propagation.
+  for (const waterfall of state.waterfalls.values()) {
+    const bottomKey = posKey(waterfall.bottomX, waterfall.bottomY)
+    if (state.rivers.has(bottomKey) || state.ponds.has(bottomKey)) continue
+    const existing = state.tileWater.get(bottomKey) ?? 0
+    state.tileWater.set(bottomKey, existing + WATERFALL_TILE_WATER_BUMP)
   }
 
   // RP-22 — Detect named regions once per tenure. Single writer; the
