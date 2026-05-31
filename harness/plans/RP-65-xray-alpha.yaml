@@ -1,0 +1,88 @@
+plan:
+  id: RP-65-xray-alpha
+  title: 'RP-65: X-ray alpha on lifted tiles occluding the avatar — new render slot + pass, clear-and-reblit-from-cache'
+  created: 2026-05-31
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npx vitest run src/engine/__tests__/tileXray.test.ts -t "tile x-ray"'
+
+tasks:
+  - id: add-tile-xray-slot
+    title: 'Add `tile-xray` slot to RENDER_PASS_SLOTS in src/engine/render/passes.ts, ordered between `tile-glyph` and `entity`'
+    spec_id: rp-65-xray-alpha
+    spec_sections:
+      - new-render-slot-pre-entity
+    context_files:
+      - src/engine/render/passes.ts
+    output_files:
+      - src/engine/render/passes.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, render]
+
+  - id: implement-tile-xray-pass
+    title: 'Implement tileXrayPass in src/engine/render/passes/tileXray.ts — iterate viewport tiles, detect occluders via isTileOccludingAvatar, clear bbox + drawImage from cache at XRAY_ALPHA, restore globalAlpha. Active only in Zone.Overworld'
+    spec_id: rp-65-xray-alpha
+    spec_sections:
+      - xray-occluder-detection
+      - xray-clear-and-reblit-from-cache
+      - terrain-only-scope
+    context_files:
+      - src/engine/render/passes/tileXray.ts
+      - src/engine/render/passes.ts
+      - src/engine/render/passes/tileBgComposite.ts
+      - src/engine/tileBgCache.ts
+      - src/engine/projection.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/render/passes/tileXray.ts
+    depends_on:
+      - add-tile-xray-slot
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, render]
+
+  - id: register-tile-xray-pass
+    title: 'Export tileXrayPass from src/engine/render/passes/index.ts so the registration side-effect runs at app load. Place under a new `// tile-xray` section between `tile-glyph` (implicit, no passes today) and `effect`'
+    spec_id: rp-65-xray-alpha
+    spec_sections:
+      - new-render-slot-pre-entity
+    context_files:
+      - src/engine/render/passes/index.ts
+      - src/engine/render/passes/tileXray.ts
+    output_files:
+      - src/engine/render/passes/index.ts
+    depends_on:
+      - implement-tile-xray-pass
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, render]
+
+  - id: write-regression-tests
+    title: 'Replace the stub tileXray.test.ts with tests covering: occluder detection (true positive: high tile in front of player overlaps avatar; true negative: tile behind player in iso z-order; tile not lifted), terrain-only-scope (flora/entities not faded — assert via render-pass isolation), pass disabled in non-overworld zones, globalAlpha restored after draw'
+    spec_id: rp-65-xray-alpha
+    spec_sections:
+      - xray-occluder-detection
+      - xray-clear-and-reblit-from-cache
+      - terrain-only-scope
+    context_files:
+      - src/engine/__tests__/tileXray.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/render/passes/tileXray.ts
+      - src/engine/render/passes.ts
+      - src/engine/projection.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/tileXray.test.ts
+    depends_on:
+      - register-tile-xray-pass
+    verification:
+      - 'npx vitest run src/engine/__tests__/tileXray.test.ts'
+    repair: retry
+    tags: [test, engine]

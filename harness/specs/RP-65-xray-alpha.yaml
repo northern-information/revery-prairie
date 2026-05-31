@@ -1,0 +1,181 @@
+id: rp-65-xray-alpha
+name: 'X-ray alpha on lifted tiles occluding the avatar'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/render/passes/tileXray.ts
+  - src/engine/render/passes/index.ts
+  - src/engine/render/passes.ts
+dependencies:
+  - rp-41-cliffs-verticality
+
+behaviors:
+  - id: xray-occluder-detection
+    description: >
+      A new render pass src/engine/render/passes/tileXray.ts
+      iterates the viewport's visible tiles each frame. For each
+      tile, it computes the tile's iso-screen rect (via
+      `getTileScreenRect` from `projection.ts`, supplied with the
+      tile's current lift) and the avatar's screen rect (via
+      `getAvatarScreenRect`). When `isTileOccludingAvatar(tx, ty,
+      tileRect, px, py, avatarRect)` returns true — i.e. the tile
+      sits "in front of" the player in iso z-order AND its rect
+      overlaps the avatar rect — the tile is recorded as an
+      occluder for this frame. Detection iterates only tiles
+      within the camera-viewport bounds; non-overworld tiles and
+      tiles whose lift is zero or positive (no occlusion possible)
+      are skipped.
+    inputs:
+      - 'overworld render frame with at least one lifted tile in the camera viewport'
+      - 'state.currentZone === Zone.Overworld'
+    outputs:
+      - 'a per-frame list of occluder tile coords (used immediately by the same pass, not persisted)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: xray-clear-and-reblit-from-cache
+    description: >
+      For each occluder tile detected this frame, the pass clears
+      the tile's bbox on the LIVE canvas via `ctx.clearRect`, then
+      blits the corresponding region from the bg cache canvas with
+      `ctx.globalAlpha = XRAY_ALPHA` (0.45 from RP-41's
+      projection.ts). The cache region's source rect is derived
+      from the tile's world coords + the cache's `worldOriginX/Y`
+      (exposed via `getCacheWorldOrigin` in `tileBgCache.ts`); the
+      destination rect is the tile's current camera-translated
+      screen rect. globalAlpha is restored after each tile so
+      subsequent passes are unaffected. The pass runs after
+      `tile-glyph` and before `entity` so the player avatar is
+      drawn opaque on top of the now-faded occluders.
+    inputs:
+      - 'an occluder tile coord (tx, ty) identified in the same frame'
+      - 'the bg cache for the current map (built/dirty-flushed by the prior tile-bg-composite pass)'
+    outputs:
+      - 'the occluder tile region on the live canvas is rendered at XRAY_ALPHA'
+      - 'globalAlpha is restored to 1 before the pass exits'
+    state_changes: []
+    determinism: deterministic
+
+  - id: terrain-only-scope
+    description: >
+      The x-ray applies only to bg cache content (terrain bg +
+      cliff side walls + cliff shadow). Flora glyphs, entities
+      (characters, bees, ghosts), oaks, ground items, and overlay
+      passes (waterfall flow, halos, weather) are NOT faded — they
+      draw normally per their own pass order. The decision is
+      pragmatic: the steward's visibility problem is overwhelmingly
+      about dark cliff faces crowding the avatar. Fading every
+      drawable on an occluding tile would require every pass to
+      consult the occluder set, ballooning the spec surface.
+    inputs:
+      - 'an occluding tile happens to contain a flora glyph or entity'
+    outputs:
+      - 'the flora glyph / entity draws at full opacity (not faded)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: new-render-slot-pre-entity
+    description: >
+      Adds a new render slot `tile-xray` to `RENDER_PASS_SLOTS` in
+      `src/engine/render/passes.ts`, ordered immediately after
+      `tile-glyph` and before `entity`. This is the slot
+      `tileXray.ts` registers in. The slot exists for this single
+      pass; future passes that need to render between terrain and
+      entities may share it. No other passes move slots.
+    inputs:
+      - 'render dispatch runs through RENDER_PASS_SLOTS in order'
+    outputs:
+      - 'tile-xray slot fires after tile-glyph, before entity'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: flat-prairie-no-occluders
+    description: >
+      Genesis seed produces a flat prairie with no lifted tiles.
+    expected: >
+      The detection loop finds zero occluders; the pass is a
+      no-op for the frame. Per-frame cost is the cost of the loop
+      itself (viewport-bounded iteration), no canvas operations.
+
+  - id: player-on-top-of-cliff
+    description: >
+      Player stands on the highest tile in the area. No tile in
+      front of them (in iso z-order) sits higher.
+    expected: >
+      isTileOccludingAvatar returns false for all visible tiles.
+      No fades. The avatar renders normally.
+
+  - id: cave-or-house-zone
+    description: >
+      Player enters a cave, ruin, or house interior.
+    expected: >
+      The pass's `isActive` returns false for non-overworld zones
+      (caves and ruins have no meaningful elevation; houses are
+      flat). Pass is skipped entirely.
+
+  - id: occluder-also-contains-flora
+    description: >
+      A lifted tile that occludes the avatar happens to have a
+      flora glyph drawn on it (e.g. tall grass on a mesa).
+    expected: >
+      The bg is faded (cache contribution drawn at XRAY_ALPHA);
+      the flora glyph is NOT faded (per terrain-only-scope). The
+      flora glyph reads as fully opaque on top of a faded bg.
+
+  - id: avatar-rect-spans-multiple-occluders
+    description: >
+      Several adjacent lifted tiles all overlap the avatar rect.
+    expected: >
+      Each tile is detected independently and faded independently.
+      The combined effect is a faded region behind the avatar.
+      No double-fading (each tile fades once).
+
+  - id: dirty-cache-region
+    description: >
+      The bg cache has dirty tiles flushed earlier in the same
+      frame (tile-bg-composite pass already ran `flushDirtyTiles`).
+    expected: >
+      The cache reflects the latest dirty-flushed state by the
+      time tileXray runs (passes are sequential within a frame).
+      The blit pulls the up-to-date cache content.
+
+failure_conditions:
+  - trigger: 'globalAlpha is not restored to 1 after the pass exits'
+    expected: >
+      fail — subsequent passes (entity, effect, screen-overlay)
+      would draw at 0.45 alpha, washing out the player and every
+      overlay.
+
+  - trigger: 'pass runs in slot effect or screen-overlay (after entity)'
+    expected: >
+      fail — would clear and re-paint regions where the player
+      has already been drawn, erasing the avatar.
+
+  - trigger: 'pass runs in slot bg-cache (before tile-glyph)'
+    expected: >
+      fail — would only fade the bg, leaving opaque terrain
+      glyphs floating on a faded background. Visual inconsistency.
+
+  - trigger: 'isTileOccludingAvatar called with tileScreenRect computed without the tile lift'
+    expected: >
+      fail — unlifted-rect occluders would miss the cliff faces
+      that are the actual visibility problem; lifted-rect non-
+      occluders would falsely fire.
+
+  - trigger: 'clearRect is called without accounting for the bg cache OVERLAP buffer (2px)'
+    expected: >
+      fail — neighbor tiles' 2px overlap fills would leak into
+      the cleared region and not be restored by the alpha blit.
+      Visible seams at the occluder borders.
+
+  - trigger: 'pass fires in non-overworld zones (cave, ruin, house)'
+    expected: >
+      fail — wasted cycles; also caves/ruins have no elevation
+      so isTileOccludingAvatar would silently no-op, but the
+      detection loop still runs.
+
+verification:
+  test_file: src/engine/__tests__/tileXray.test.ts
+  test_pattern: 'tile x-ray'
+  command: 'npx vitest run src/engine/__tests__/tileXray.test.ts -t "tile x-ray"'
