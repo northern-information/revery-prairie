@@ -7,10 +7,16 @@ source_files:
   - src/engine/genesis/shared/waterfalls.ts
   - src/engine/state.ts
   - src/engine/position.ts
-  - src/engine/tileBgCache.ts
+  - src/engine/render/passes/waterfallFlow.ts
+  - src/engine/render/passes/index.ts
   - src/engine/proximityMusic.ts
   - src/engine/waterfalls.ts
   - src/engine/tileBg.ts
+  - src/engine/gameLoop.ts
+  - src/engine/movement.ts
+  - src/engine/pathfinding.ts
+  - src/hooks/useMouse.ts
+  - src/hooks/useCanvasDrop.ts
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies:
   - rp-41-cliffs-verticality
@@ -91,25 +97,27 @@ behaviors:
 
   - id: cliff-side-wall-waterfall-render
     description: >
-      `paintTileBg` in src/engine/tileBgCache.ts extends its
-      side-wall drawing pass so that for any tile recorded as a
-      waterfall TOP, an animated glyph cycle is composited onto the
-      iso side wall connecting top and bottom tiles. The glyph
-      cycle alternates 3 glyphs at WATERFALL_FLOW_CADENCE_MS
-      (default 200ms) for flowing state, drawn in the existing
-      water palette (the river/pond bg color of the upper tile).
-      For frozen state, a single static frozen-cascade glyph is
-      drawn (no animation), using a colder shade of the water
-      palette. The render reuses the side-wall geometry from
-      RP-41's cliff shadow (the diamond side quad) — no new
-      geometry function. Both cliff shadow AND waterfall render on
-      the same side wall; the waterfall is drawn AFTER the shadow
-      so the moving water reads as foreground.
+      **REVISED FROM ORIGINAL.** Originally the spec called for
+      extending `paintTileBg` in src/engine/tileBgCache.ts. The bg
+      cache is static (rebuilt only on tile-dirty marks), and
+      animating the waterfall glyph cycle would invalidate the
+      cache every cadence step — defeats the whole point of the
+      cache. Shipped instead as a dedicated per-frame render pass
+      at src/engine/render/passes/waterfallFlow.ts, registered in
+      the `world-overlay` slot so it draws just above the bg cache
+      (the cliff shadow sits beneath) but below the entity pass
+      (the player avatar sits on top of the tile center, above the
+      side wall). For each waterfall, draws the current glyph
+      (WATERFALL_FLOW_GLYPHS cycled at WATERFALL_FLOW_CADENCE_MS
+      for flowing; WATERFALL_FROZEN_GLYPH static for frozen) at
+      the midpoint between top and bottom tile centers. Color
+      pulls from the source's water palette (river vs pond) so
+      feeder character carries through.
     inputs:
-      - 'paintTileBg invoked for a tile that is the TOP of a waterfall in state.waterfalls'
-      - 'frame time available via the existing tileBgCache invalidation/repaint path'
+      - 'overworld render frame with state.waterfalls non-empty'
+      - 'frame time available via the existing renderer.ts time parameter'
     outputs:
-      - 'iso side wall connecting (topX, topY) to (bottomX, bottomY) shows the flowing or frozen glyph cycle'
+      - 'iso side wall connecting (topX, topY) to (bottomX, bottomY) shows the flowing or frozen glyph'
     state_changes: []
     determinism: time-based
 
