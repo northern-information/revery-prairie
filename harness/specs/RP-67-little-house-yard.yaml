@@ -1,0 +1,482 @@
+id: RP-67-little-house-yard
+name: 'The yard around the little house (RP-67)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/state.ts
+  - src/engine/yard.ts
+  - src/engine/house.ts
+  - src/engine/zoneTransition.ts
+  - src/engine/cave.ts
+  - src/engine/movement.ts
+  - src/engine/renderer.ts
+  - src/engine/visibility.ts
+  - src/engine/zone.ts
+  - src/engine/tileBg.ts
+  - src/engine/structures.ts
+  - src/engine/celestial.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - RP-33-little-house-and-emily
+
+# Doctrine reference: docs/backlog.yaml id 'RP-67' and
+# docs/backlog-thinktank-v11.md round 7.
+#
+# The yard is the first threshold zone — a bounded place between the
+# prairie and the little house's interior. The 3x3 HouseApron heuristic
+# could not legibly host two distinct entrances (front door + cellar
+# bulkhead). The yard resolves the ambiguity by hosting both. RP-67 ships
+# the yard with two exits — the gate to the overworld and the front door
+# to the house interior. RP-37 will later add the cellar bulkhead inside
+# the yard.
+#
+# Locked numbers (v11 R7 + spec checkpoint 2026-05-31):
+#   - House footprint inside the yard: 15 × 9 (same as interior dims).
+#   - Walkable margins around the house: 3 tiles on the back (north) and
+#     sides (east, west), 18 tiles on the front (south).
+#     _The front yard is 15 tiles longer than the back._
+#   - Walkable interior: 21 × 30.
+#   - Plus a one-tile fence ring on all sides: 23 × 32 total yard map.
+#   - Gate: a single FenceGate tile centered on the south fence edge.
+#   - Bulkhead: deferred to RP-37 (no bulkhead tile placed in this PR).
+#
+# Locked behavior:
+#   - Yard ground is prairie-continuous but flora-sampled: at zone enter,
+#     the 8 overworld HouseApron tiles are inspected, their flora species
+#     tallied, and a proportional count is scattered onto walkable yard-
+#     interior tiles at deterministic positions.
+#   - pausesPlayerTime: true at zone enter (per RP-51 substrate).
+#   - The yard is the threshold, not the archive. The Knot ritual stays
+#     in the cellar's long hallway, per RP-37.
+#
+# Out of scope for this PR:
+#   - The cellar bulkhead inside the yard (RP-37 will place it).
+#   - The threshold-zone substrate generalization (RP-68).
+#   - Predecessor seed plantings reflecting on the yard (RP-24 follow-up).
+#   - Emily's autumn-Knot-delivery scene landing in the yard.
+#   - Seating, lighting, lineage echoes inside the yard.
+#
+# Sequencing note: RP-37 currently depends on RP-67. RP-67 ships first
+# with the yard zone, the gate exit, and the front-door exit. RP-37
+# later adds the bulkhead tile inside the existing yard zone — this PR
+# leaves the yard interior free of any cellar-related tile.
+
+behaviors:
+  - id: yard-tile-types
+    description: >
+      TileType gains FIVE new variants: HouseRoof (yard-only, walkable=false,
+      renders the body of the little house as seen from outside), HouseEaves
+      (yard-only, walkable=false, renders the roof edge / overhang at the
+      house perimeter), HouseDoorClosed (yard-only, walkable=true, the
+      closed-from-outside view of the front door — stepping on it triggers
+      the yard→house-interior transition), Fence (yard-only, walkable=false,
+      wooden post-and-rail), FenceGate (yard-only, walkable=true — stepping
+      on it triggers the yard→overworld transition). Walkability tables in
+      movement.ts and color/glyph tables in renderer.ts (or its pass
+      modules) are updated for each. None of these tiles are dirt-eligible
+      (cannot host egregore candidates).
+    inputs:
+      - 'TileType enum is read by renderer.ts, movement.ts, tileBg.ts'
+    outputs:
+      - 'Five new TileType variants exported from types.ts'
+      - 'Renderer color/glyph tables include each new variant'
+      - 'movement.ts walkability table marks HouseDoorClosed and FenceGate walkable; HouseRoof, HouseEaves, Fence non-walkable'
+    state_changes:
+      - field: 'TileType enum'
+        effect: 'five entries appended: HouseRoof, HouseEaves, HouseDoorClosed, Fence, FenceGate'
+    determinism: deterministic
+
+  - id: yard-zone-and-map
+    description: >
+      Zone gains a new variant LittleHouseYard. A new src/engine/yard.ts
+      module owns the zone. createLittleHouseYard() generates a 23 × 32
+      deterministic map (no RNG). Layout, indexed (yardX, yardY) where
+      yardX ∈ [0, 22] and yardY ∈ [0, 31]:
+        * Perimeter ring (yardX ∈ {0, 22} or yardY ∈ {0, 31}): Fence.
+        * FenceGate: a single tile at (11, 31) — centered on the south edge.
+        * House footprint: HouseRoof + HouseEaves filling the 15 × 9
+          rectangle at yardX ∈ [4, 18], yardY ∈ [4, 12].
+          - HouseEaves on the rectangle's perimeter cells (52 cells).
+          - HouseRoof on the inner 13 × 7 cells.
+          - HouseDoorClosed replaces the three south-perimeter eaves cells
+            at (10, 12), (11, 12), (12, 12) — mirrors the 3-wide pink-door
+            opening in the house interior (HouseExit row).
+        * All other cells (walkable yard ground) remain a base prairie
+          ground tile (the same tile type used for overworld walkable
+          ground), populated by the flora-sampling pass at zone enter.
+      The function returns `{ map, width, height, gatePosition,
+      frontDoorPosition }` where `width = 23`, `height = 32`,
+      `gatePosition = {x: 11, y: 31}`, `frontDoorPosition = {x: 11, y: 12}`
+      (the center HouseDoorClosed tile, used as iris-center for house
+      transition).
+      GameState gains five new fields: `yardMap: Tile[][] | null`,
+      `yardMapWidth: number`, `yardMapHeight: number`, `yardGatePosition:
+      Position`, `yardFrontDoorPosition: Position`. The yard map is built
+      once at genesis (alongside the house interior) and persists for the
+      tenure. All five fields are added to EXPECTED_FIELDS in
+      `src/harness/__tests__/serialization/schema.test.ts`.
+    inputs:
+      - 'createGameState invocation at tenure start'
+    outputs:
+      - 'state.yardMap is a 23 × 32 grid populated per the layout above'
+      - 'state.yardMapWidth = 23, state.yardMapHeight = 32'
+      - 'state.yardGatePosition = {x: 11, y: 31}'
+      - 'state.yardFrontDoorPosition = {x: 11, y: 12}'
+      - 'Zone.LittleHouseYard exported from types.ts'
+    state_changes:
+      - field: 'Zone enum'
+        effect: 'one variant appended: LittleHouseYard'
+      - field: 'state.yardMap'
+        effect: 'built once at genesis; deterministic layout'
+      - field: 'state.yardMapWidth, state.yardMapHeight, state.yardGatePosition, state.yardFrontDoorPosition'
+        effect: 'initialized at genesis; constant for the tenure'
+    determinism: deterministic
+
+  - id: yard-entry-from-overworld-apron
+    description: >
+      When state.currentZone === Zone.Overworld and the player steps onto
+      a tile of type HouseEntrance OR HouseApron, scheduleZoneTransition
+      fires with `{ direction: 'enter', kind: 'yard', irisCenter:
+      apronTile }`. The new enter handler (registerZoneSwapHandler('yard',
+      'enter', enterLittleHouseYard)) swaps state.map to state.yardMap,
+      updates state.mapWidth/Height, sets state.currentZone =
+      Zone.LittleHouseYard, places the player at state.yardGatePosition
+      ({x: 11, y: 31}), records discovery 'zone:yard', and stashes the
+      overworld apron coordinate so the gate exit knows where to return.
+      A new GameState field `yardEntryApron: Position | null` holds the
+      apron tile entered from. The transition also clears the same UI/
+      input state that enterHouse clears (path, pathWaypoints,
+      pendingAction, pendingInteractionTarget, heldDirection, previewFn,
+      facingEntityPos, activeDialog, trail, growth previews, movement
+      tweens).
+    inputs:
+      - 'player position equals an overworld HouseEntrance or HouseApron tile'
+      - 'state.currentZone === Zone.Overworld'
+      - 'no re-entry lock on the tile (per existing house re-entry guard)'
+    outputs:
+      - 'scheduleZoneTransition is invoked with kind=yard, direction=enter'
+      - 'the yard enter handler runs after the iris transition'
+    state_changes:
+      - field: 'state.map, state.mapWidth, state.mapHeight'
+        effect: 'swapped to yardMap and its dimensions'
+      - field: 'state.currentZone'
+        effect: 'set to Zone.LittleHouseYard'
+      - field: 'state.player'
+        effect: 'placed at state.yardGatePosition'
+      - field: 'state.yardEntryApron'
+        effect: 'set to the apron coordinate that triggered entry'
+      - field: 'state.path, state.pathWaypoints, state.pendingAction, state.pendingInteractionTarget, state.heldDirection, state.previewFn, state.facingEntityPos, state.activeDialog, state.trail'
+        effect: 'cleared'
+    determinism: deterministic
+
+  - id: yard-exit-via-gate
+    description: >
+      When state.currentZone === Zone.LittleHouseYard and the player
+      steps onto a FenceGate tile, scheduleZoneTransition fires with
+      `{ direction: 'exit', kind: 'yard', irisCenter: gatePosition }`.
+      The yard exit handler swaps state.map back to state.overworldMap,
+      restores state.mapWidth/Height, sets state.currentZone =
+      Zone.Overworld, and places the player at state.yardEntryApron (the
+      apron tile that was entered from). If yardEntryApron is null
+      (defensive — should not happen in normal flow), the player is
+      placed at an apron tile near houseEntranceOverworld via the
+      existing findSafeExitPosition helper. The yard re-entry lock is
+      armed on the apron tile (mirroring the house re-entry lock) to
+      prevent immediate yo-yo'ing back into the yard on the next tick.
+      Same UI/input state clears as on entry.
+    inputs:
+      - 'player position equals state.yardGatePosition'
+      - 'state.currentZone === Zone.LittleHouseYard'
+    outputs:
+      - 'scheduleZoneTransition invoked with kind=yard, direction=exit'
+      - 'player returns to the overworld at state.yardEntryApron'
+    state_changes:
+      - field: 'state.map, state.mapWidth, state.mapHeight'
+        effect: 'restored to overworldMap and its dimensions'
+      - field: 'state.currentZone'
+        effect: 'set to Zone.Overworld'
+      - field: 'state.player'
+        effect: 'placed at state.yardEntryApron (or a safe fallback)'
+      - field: 'yard re-entry lock'
+        effect: 'armed on the apron tile to suppress immediate re-entry'
+    determinism: deterministic
+
+  - id: yard-house-enter-via-door
+    description: >
+      When state.currentZone === Zone.LittleHouseYard and the player
+      steps onto a HouseDoorClosed tile, scheduleZoneTransition fires
+      with `{ direction: 'enter', kind: 'house', irisCenter:
+      doorTile }`. The existing house enter handler
+      (registerZoneSwapHandler('house', 'enter', enterHouse)) runs and
+      places the player at houseEntranceInterior. No change is required
+      to the house enter handler itself; the only change is the trigger
+      surface — house enter is now triggered by HouseDoorClosed inside
+      the yard, NOT by HouseEntrance inside the overworld (the overworld
+      3x3 HouseEntrance/HouseApron footprint now triggers yard enter, not
+      house enter).
+    inputs:
+      - 'player position equals a HouseDoorClosed tile in the yard'
+      - 'state.currentZone === Zone.LittleHouseYard'
+    outputs:
+      - 'scheduleZoneTransition invoked with kind=house, direction=enter'
+      - 'player enters the house interior at houseEntranceInterior'
+    state_changes:
+      - field: 'state.currentZone'
+        effect: 'set to Zone.HouseInterior'
+      - field: 'state.player'
+        effect: 'placed at state.houseEntranceInterior'
+    determinism: deterministic
+
+  - id: house-exit-to-yard
+    description: >
+      When state.currentZone === Zone.HouseInterior and the player steps
+      onto a HouseExit tile, scheduleZoneTransition now fires with
+      `{ direction: 'exit', kind: 'house-to-yard', irisCenter: exitTile }`
+      (was `kind: 'house'`). The new handler swaps state.map to
+      state.yardMap, sets state.currentZone = Zone.LittleHouseYard, and
+      places the player on the yard-interior side of the front door —
+      specifically at (state.yardFrontDoorPosition.x, state.yardFrontDoorPosition.y + 1)
+      so the steward exits one tile south of the closed-door tile,
+      facing the front yard. A new handler kind 'house-to-yard' is
+      registered with the zone-transition system. The existing
+      'house'/'exit' handler (exitHouse → overworld) is preserved for
+      backwards compatibility but the trigger from HouseExit now uses
+      the new kind. yardEntryApron is left untouched (it is consumed
+      only by the gate exit, not by the house→yard transition).
+    inputs:
+      - 'player position equals a HouseExit tile'
+      - 'state.currentZone === Zone.HouseInterior'
+    outputs:
+      - 'scheduleZoneTransition invoked with kind=house-to-yard'
+      - 'player ends up in the yard, one tile south of the front door'
+    state_changes:
+      - field: 'state.map, state.mapWidth, state.mapHeight'
+        effect: 'swapped to yardMap and its dimensions'
+      - field: 'state.currentZone'
+        effect: 'set to Zone.LittleHouseYard'
+      - field: 'state.player'
+        effect: 'placed one tile south of state.yardFrontDoorPosition'
+    determinism: deterministic
+
+  - id: yard-flora-sampling-at-enter
+    description: >
+      At every yard-enter event (both the apron→yard path and the
+      house→yard path), the flora-sampling pass runs. It walks the 8
+      overworld HouseApron tiles (the 8 neighbors of the HouseEntrance)
+      and tallies the flora species present on each. Species considered
+      are the three base flora species — clover, wildflower, tall grass —
+      detected via the existing flora lifecycle entries that index by
+      position. The tally is a Record<species, count>. The pass then
+      scatters that proportional count onto walkable yard-interior tiles
+      (Type === HouseFloor-equivalent; i.e. not Fence, FenceGate,
+      HouseRoof, HouseEaves, or HouseDoorClosed). Placement order is
+      deterministic: yard-interior tiles are sorted by (y, x) ascending,
+      and species are placed in alphabetical order (clover, tallGrass,
+      wildflower), each species claiming the next N walkable slots from
+      the sorted list. The yard's flora entries live in a separate
+      `state.yardFlora: FloraLifecycleEntry[]` array (parallel to the
+      existing overworld flora arrays) and are NOT merged into the
+      overworld lifecycle. The yard's flora are cosmetic snapshots —
+      they do not grow, decay, or respond to weather, and they are
+      cleared and re-sampled at every yard enter event.
+    inputs:
+      - 'yard enter event (kind=yard direction=enter OR kind=house-to-yard direction=exit)'
+      - 'overworld state.floraLifecycle entries indexed by HouseApron coordinates'
+    outputs:
+      - 'state.yardFlora populated with a proportional scatter of the apron'
+      - 'walkable yard-interior tiles that fall in the placement window carry a flora glyph'
+    state_changes:
+      - field: 'state.yardFlora'
+        effect: 'cleared, then populated by deterministic scatter based on apron species tally'
+    determinism: deterministic
+
+  - id: yard-pauses-player-time
+    description: >
+      Per RP-51, the yard sets pausesPlayerTime: true. While
+      state.currentZone === Zone.LittleHouseYard, state.timeOfDay and
+      state.season do not advance. The prairie's simulation tick
+      continues at its normal rate (bees, ghosts, coyote, flora lifecycle
+      in the overworld). The pause begins at zone enter; on yard exit
+      (either gate→overworld or yard→house), the clock resumes
+      immediately for the destination zone (overworld resumes normally;
+      house interior also pauses per existing RP-33/RP-51 behavior). The
+      yard is registered in the zone-pause table alongside HouseInterior,
+      RootCellar (once RP-37 ships), with cave and ruins as the
+      not-paused zones.
+    inputs:
+      - 'state.currentZone === Zone.LittleHouseYard'
+    outputs:
+      - 'state.timeOfDay does not advance'
+      - 'state.season does not advance'
+    state_changes:
+      - field: 'state.timeOfDay'
+        effect: 'frozen for the duration of yard occupancy'
+      - field: 'state.season'
+        effect: 'frozen for the duration of yard occupancy'
+    determinism: deterministic
+
+  - id: yard-camera-and-visibility
+    description: >
+      Camera follows the player in the yard at the same iso scale as the
+      overworld and the house interior. Visibility is full inside the
+      yard — no fog of war, no vision radius gating. The yard map is
+      always fully rendered while currentZone === Zone.LittleHouseYard.
+      The camera viewport clamps to yard map bounds (0..yardMapWidth,
+      0..yardMapHeight). Cursor state, click-to-move, and the bottom-bar
+      permacomputer affordances all work normally inside the yard. The
+      cursor's hot-pink-as-user-action conventions are preserved.
+    inputs:
+      - 'state.currentZone === Zone.LittleHouseYard'
+    outputs:
+      - 'camera.clamp uses yardMapWidth, yardMapHeight'
+      - 'no fog of war applied to yard tiles'
+    state_changes: []
+    determinism: deterministic
+
+  - id: house-interior-spawn-routes-through-yard-conceptually
+    description: >
+      RP-34 (tenure opens in little house) is unchanged — the steward
+      still spawns inside the house at tenure start. The first time the
+      steward walks out the south HouseExit, they now arrive in the
+      yard, not directly in the overworld. This is a behavioral change
+      from RP-34 only in the destination zone of the first house-exit
+      step. No code changes are required in RP-34's spec; the change is
+      entirely captured by `house-exit-to-yard` above. This behavior is
+      called out explicitly so the test suite covers it.
+    inputs:
+      - 'state.currentZone === Zone.HouseInterior at tenure start'
+      - 'player steps onto HouseExit for the first time'
+    outputs:
+      - 'state.currentZone transitions to Zone.LittleHouseYard, not Zone.Overworld'
+      - 'player ends up one tile south of state.yardFrontDoorPosition'
+    state_changes:
+      - field: '(none beyond house-exit-to-yard above)'
+        effect: 'documented for test coverage'
+    determinism: deterministic
+
+edge_cases:
+  - id: yard-enter-with-bot-on-apron-multiplayer
+    description: >
+      Multiplayer: another steward (network peer ghost) is standing on
+      a HouseApron tile when the local steward also walks onto an apron
+      tile. The yard is a single-occupant zone in this PR — network
+      peers in the same world remain in the overworld for rendering
+      purposes; the local steward enters the yard alone.
+    expected: >
+      The local steward enters the yard normally. Network peers are not
+      teleported. The peer ghost continues to render on the overworld
+      side; when the local steward exits the yard, they see the peer
+      back on the apron.
+
+  - id: re-enter-yard-immediately-after-exit
+    description: >
+      Player exits the yard via the gate; the next tick they are
+      standing on the apron tile (state.yardEntryApron). Without a re-
+      entry lock, the apron-trigger would immediately re-enter the
+      yard, causing a yo-yo loop.
+    expected: >
+      The yard re-entry lock is armed on the apron tile at the moment of
+      gate exit. Subsequent apron-trigger checks skip the locked tile
+      for one transition cycle (mirroring the existing isReentryLocked
+      pattern from house.ts). The lock clears after the player moves
+      off the locked apron tile.
+
+  - id: yard-enter-during-rain-or-storm
+    description: >
+      It is raining heavily and the player enters the yard. The rain
+      visual must not extend into the yard zone — the yard has its own
+      visual register, and the prairie clock is paused while the
+      steward is in the yard.
+    expected: >
+      Rain rendering is gated on state.currentZone === Zone.Overworld
+      (mirroring the existing cave/house gating). When the steward
+      enters the yard, the rain visual stops; the rain *state* (intensity,
+      front position) continues to advance in the overworld but the yard
+      renders no rain glyphs and no audio cue.
+
+  - id: house-on-southern-map-edge
+    description: >
+      RP-33 places the house at a deterministic location biased away
+      from the south map edge, but a small-map edge case could still
+      land the apron close to the boundary.
+    expected: >
+      Yard creation is independent of the apron's overworld coordinate —
+      the yard map is its own 23x32 grid. No clipping occurs because
+      the yard zone uses its own coordinate space. Apron-trigger detection
+      uses standard overworld bounds checks (already present in
+      checkHouseTransition).
+
+  - id: flora-sampling-with-zero-flora-apron
+    description: >
+      The HouseApron tiles have no flora at all (e.g. very late winter
+      with full dormancy, or a player who has trampled all apron flora).
+    expected: >
+      The flora-sampling tally yields all zeros; state.yardFlora is
+      cleared and remains empty. The yard renders as plain prairie
+      ground with no flora glyphs. This is correct — _a barren apron
+      reads as a barren yard_.
+
+  - id: re-entry-resamples-flora
+    description: >
+      Player walks onto apron in spring (yard fills with wildflowers),
+      walks back out to the prairie, lets a few seasons pass in the
+      overworld (since yard exit unfreezes time), and re-enters the
+      yard in autumn (apron flora composition has changed).
+    expected: >
+      Each yard enter event re-runs the flora-sampling pass; the yard
+      composition matches the apron's CURRENT composition, not a stale
+      snapshot. The yard is the threshold's current verdict on the
+      prairie at its edge.
+
+failure_conditions:
+  - trigger: >
+      Player attempts to walk through a Fence tile (left/right/up/down
+      onto a perimeter Fence cell that is not the FenceGate).
+    expected: >
+      Movement is blocked by the standard walkability gate in
+      movement.ts (Fence has walkable=false). The player remains on
+      the previous tile. No transition, no error.
+
+  - trigger: >
+      Player attempts to walk through a HouseRoof or HouseEaves tile.
+    expected: >
+      Movement is blocked by the standard walkability gate. HouseRoof
+      and HouseEaves are walkable=false. The player must enter the
+      house via HouseDoorClosed.
+
+  - trigger: >
+      A test or save load deserializes a GameState that predates RP-67
+      and therefore lacks yardMap / yardMapWidth / yardMapHeight /
+      yardGatePosition / yardFrontDoorPosition.
+    expected: >
+      schema.test.ts catches the missing EXPECTED_FIELDS entries at
+      build time. Deserialization paths that load old saves treat
+      missing yard fields as null/zero defaults and call
+      createLittleHouseYard() on the next genesis hook (defensive
+      default). This is the same pattern existing house/cave save
+      migration uses.
+
+  - trigger: >
+      scheduleZoneTransition is called with kind='yard' but yardMap is
+      null (genesis bug, save corruption).
+    expected: >
+      The yard enter handler logs a console.warn (mirroring
+      enterHouse's no-houseMap guard) and returns early without
+      mutating state. The player remains in the overworld. No throw.
+
+  - trigger: >
+      A network peer position update arrives while the local steward is
+      in the yard, placing the peer at a coordinate that is invalid for
+      the overworld map.
+    expected: >
+      Existing peer-position validation continues to operate on
+      overworld coordinates; the yard zone has no peer rendering in
+      this PR. The peer update is applied to state.peers (which is
+      always overworld-space), with no special yard handling.
+
+verification:
+  test_file: src/engine/__tests__/yard.test.ts
+  test_pattern: 'RP-67 yard zone'
+  command: 'npx vitest run src/engine/__tests__/yard.test.ts'
