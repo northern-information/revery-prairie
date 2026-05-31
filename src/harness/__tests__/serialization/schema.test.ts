@@ -71,6 +71,7 @@ const EXPECTED_FIELDS = [
   'dragHoverTile',
   'soilHealth',
   'elevation',
+  'reachableMass',
   'ponds',
   'rivers',
   'tileWater',

@@ -482,6 +482,13 @@ export interface GameState {
   dragHoverTile: Position | null
   soilHealth: Map<string, number>
   elevation: Map<string, number>
+  // RP-41 — spawn-connected tiles reachable through climbable
+  // elevation steps. Tiles outside this set are visible-but-
+  // unwalkable (isolated mesas, escarpments). Single-owner write
+  // at state construction; future RP-44 winter geology recomputes
+  // when elevation mutates. _The prairie does not owe the steward
+  // access._
+  reachableMass: Set<string>
   ponds: Set<string>
   rivers: Set<string>
   tileWater: Map<string, number>

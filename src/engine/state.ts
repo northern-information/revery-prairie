@@ -7,6 +7,7 @@ import { AURA_RADIUS } from './effects'
 import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from './egregore/species'
 import { createCharacterEntity } from './entities'
 import { createEmptyFloraGrowthPreviews } from './floraGrowthPreviews'
+import { computeReachableMass } from './genesis/shared/reachableMass'
 import {
   createGenesisState,
   GENESIS_EPOCHS,
@@ -310,6 +311,11 @@ export const createGameState = (
     tileWater: new Map<string, number>(),
     soilHealth: genesisData.soilHealth,
     elevation: genesisData.elevation,
+    // RP-41 — spawn-connected reachable cohort, computed from the
+    // genesis map + elevation field. Read-only with respect to the
+    // grid; tiles outside the set stay in the prairie as visible-
+    // but-unwalkable terrain.
+    reachableMass: computeReachableMass(map, genesisData.elevation, MAP_WIDTH, MAP_HEIGHT, playerX, playerY),
     ponds: genesisData.ponds,
     rivers: genesisData.riverPaths,
     burnScars: genesisData.burnScars,
