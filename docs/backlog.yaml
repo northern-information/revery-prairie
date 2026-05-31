@@ -809,6 +809,28 @@ features:
       affordance. RP-59 becomes a coordination partner for any
       remaining placement-path polish on this spec.
 
+      v11 thinktank round 4 (2026-05-30). Capture model and playback
+      redesigned. The camera records change, not events: capture
+      becomes diff-driven (one sim-loop hook at flora-lifecycle
+      cadence; append iff any cell differs), retiring
+      `recordCameraSubjectEvent` and its seven-or-eight site-specific
+      call sites, the `CameraSubject` use in the camera pipeline, and
+      the `subject` field on `TimeLapseFrame`. A baseline frame is
+      captured at placement so every subsequent frame diffs against
+      something real. Playback becomes a contact sheet — all frames
+      at once, iso-projected in the same register the world uses, in
+      a chronological grid — plus an optional click-to-expand
+      single-frame view (cross-fade between adjacent frames lives
+      only in the expanded view). `GelBandView` exits
+      `TimeLapsePlayback.tsx` and is preserved for the scan
+      instrument. The modal stays silent. Film count keys to
+      captured changes one-to-one, tightening the `RP-15` wear
+      coupling. Diff predicate, capture cadence specifics, and
+      contact-sheet layout deferred to spec. Implementation routes
+      through `/change-request` against this spec. The line the
+      room locked: _the camera notices change, not events; the roll
+      is the prairie's evidence of having been more than one thing._
+
   - id: 'RP-24'
     name: Seeded predecessor stewards
     summary: >
@@ -868,6 +890,21 @@ features:
       case carries the collapse tile coordinate so the cellar lineage
       (`RP-37`) can reference it directly. _The umbral steward is not a
       peer of the egregore. The umbral steward is the egregore._
+
+
+      v11 thinktank round 4 (2026-05-30). Predecessor footage rides
+      the redesigned `RP-23` pipeline. Procedural generation produces
+      a sequence of 9-cell `TimeLapseFrame` payloads in the same shape
+      as live-captured frames and renders into the same contact sheet.
+      Degradation is a `degradation` prop (`{ grain, tint, glyphLeak }`)
+      on the photograph component; current-tenure frames pass zero,
+      predecessor frames pass non-zero. The 30% / 10% egregoric content
+      bias from v4 R8 is unchanged; it is now expressed through
+      `glyphLeak` rather than a separate render path. Contact-sheet
+      density itself becomes a register the steward reads when
+      encountering a predecessor's camera — sparse roll says quiet
+      tenure, dense roll says loud one, before any single frame is
+      read.
 
   - id: 'RP-25'
     name: Egregoric fauna (the parallel fauna register)
@@ -1739,19 +1776,26 @@ features:
   - id: 'RP-41'
     name: Cliffs and verticality
     summary: >
-      Impassable cliff tile type rendered as a column of existing tile
-      glyphs stacked in the iso z-axis. No new glyphs — iso projection
-      handles 3D for free. X-ray (semi-transparent alpha) applied to
-      cliff tiles that occlude the player avatar or player-relevant
-      tiles, so the steward stays visible at all times. Camera rotation
-      is not in scope; only revisit if x-ray fails the feel test. Fog
-      of war (`RP-38`) handles LOS truncation naturally. Cave and ruin
-      entrances may be placed on cliff faces as arches.
+      Elevation finally matters. Raise the genesis amplitude on
+      `UpliftEpoch` so the existing `state.elevation` field (0-100
+      scale, already lifted cosmetically by `getElevationLift` in
+      `projection.ts`) produces structurally meaningful peaks. Add an
+      `isClimbableStep(state, from, to, threshold)` predicate that
+      returns false when adjacent elevation deltas exceed the
+      threshold; gate `movement.ts` and click-to-move pathfinding on
+      it. Post-genesis connectivity pass from spawn computes
+      `state.reachableMass: Set<string>` — tiles outside it remain
+      part of the prairie, visible and weathered, but unwalkable. No
+      new tile type, no new glyph; the iso lift already does the 3D.
+      The cliff is a dark side-wall shadow drawn between tiles whose
+      delta exceeds the threshold. X-ray becomes an alpha rule on any
+      lifted tile occluding the avatar's bounding box.
     depends_on: []
     status: todo
     spec: null
     plan: null
     pr: null
+    size: M
     notes: >
       v7 thinktank round 3 (2026-05-23). Flat-prairie prior is a
       cliché, not a biome — Loess Hills, Illinois hill prairies, Ozark
@@ -1759,9 +1803,30 @@ features:
       Verticality gives the prairie _shape_ — bones — landmarks the
       steward can carry in their head. Placement of major escarpments
       should consider firebreak geometry once RP-42 lands, not only
-      landmark legibility. Open at spec: cliff height (single-stack vs
-      2–3 tile bluffs), hand-placed majors vs procedural minors. Lean:
-      hand-placed major escarpments + procedural minor cliffs.
+      landmark legibility.
+
+
+      v11 thinktank round 3 (2026-05-30). **Amends the v7 framing.**
+      Cliffs are no longer an impassable tile type with stacked
+      glyphs and arches. The feature is implemented by extending the
+      existing `state.elevation` field rather than introducing a new
+      tile. Doctrine locked: _the prairie does not owe the steward
+      access._ A spawn-connected `reachableMass` is computed at
+      genesis; tiles outside it are visible-but-unwalkable, and that
+      inaccessibility is the feature — mesas-you-can-see-but-not-touch
+      are how the prairie expresses scale. No ramp-carving to force
+      full reachability. Open at spec: threshold value (constant vs
+      terrain-varied); whether a minimum reachable-mass size triggers
+      seed re-roll (Astrid's lean: no, honor the seed); cliff-face
+      shadow register (alpha, color, dither); x-ray alpha threshold
+      and whether it applies to flora/entities on lifted tiles;
+      whether amplitude tuning alone suppresses 2x2 micro-cliff
+      "warts" or explicit noise suppression is needed; cave/ruin
+      entrance geometry on cliff faces (the v7 "arches"). Substrate
+      reuse is high — `state.elevation`, `getElevationLift`,
+      `lightning.ts` elevation weighting all exist; the expensive
+      part is tuning amplitude and threshold against the genesis seed
+      corpus until ridges, bluffs, and mesas read as landmark-scale.
 
   - id: 'RP-42'
     name: Live wildfire (lightning-ignited)
@@ -1791,6 +1856,14 @@ features:
       probabilistic); whether burnt flora produces gatherable
       artifacts (ash, charred seeds — flag for future round if it
       becomes a system).
+
+
+      v11 thinktank round 3 (2026-05-30). Cliffs-as-firebreaks
+      survives the RP-41 reframing. Under the new elevation-based
+      cliff model, fire-spread BFS already adjacency-walks tiles;
+      gating it on `isClimbableStep` (or a fire-specific delta
+      threshold) preserves the firebreak behavior without referencing
+      a cliff tile type.
 
   - id: 'RP-43'
     name: Thermogenic egregores
@@ -1854,6 +1927,16 @@ features:
       is lifting `generateAllRuinInteriors` from genesis-time to
       runtime; ruin sinking is cheap (tile-flip + interior
       dereference).
+
+
+      v11 thinktank round 3 (2026-05-30). Under the RP-41 reframing,
+      any winter geology that lifts or drops elevation must recompute
+      `state.reachableMass`. The unreachable cohort can grow and
+      shrink across years — a mesa that was isolated last year may
+      become reachable this year if egregoric thermogenesis raises a
+      saddle. Sinking/surfacing of ruins now has a topographic
+      sibling: the prairie's reachable shape itself drifts year over
+      year.
 
   - id: 'RP-45'
     name: Seismographs
@@ -2504,3 +2587,33 @@ features:
       on and get a line back from." Deferred to its own round/spec
       so it does not bloat the portrait retirement. Open at spec:
       split the type, or move Gate to a wholly different system?
+
+  - id: 'RP-62'
+    name: Reachable-mass-aware placement
+    summary: >
+      Ruin placement (genesis and any future RP-44 re-rolls),
+      character spawning, and any other system that requires the
+      steward be able to reach its target reads `state.reachableMass`
+      as a precondition. Audit existing placement loops in
+      `src/engine/genesis/` and `src/engine/characters.ts` and route
+      them through the new precondition so nothing important spawns
+      inside the unreachable cohort introduced by RP-41.
+    size: S
+    depends_on: ['RP-41']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 3 (2026-05-30). Sibling to RP-41. The
+      reachable-mass concept is born with cliffs/verticality; this
+      item is the bookkeeping that prevents key items, characters,
+      and ruins from landing on tiles the steward cannot walk to.
+      Astrid's _the prairie does not owe the steward access_ holds
+      for the world's _shape_, not for the steward's _path to
+      meaningful systems_ — there is a difference between an
+      unreachable mesa being part of the scenery and an unreachable
+      ruin being a soft-lock. Open at spec: which existing placement
+      loops need auditing (ruins, characters, meteorites,
+      seeded-predecessor camera, future RP-44 re-rolled ruins);
+      whether the precondition is a hard filter or a weighted bias.
