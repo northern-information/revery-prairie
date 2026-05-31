@@ -67,8 +67,11 @@ export const createLittleHouseYard = (): LittleHouseYardResult => {
     map.push(row)
   }
 
-  // South gate, single tile centered on the bottom fence edge.
-  map[YARD_GATE_Y][YARD_GATE_X] = { type: TileType.FenceGate }
+  // South gate — 3-wide pink-block opening centered on the bottom
+  // fence edge, mirroring the cave/ruin/house exit idiom.
+  for (let dx = -1; dx <= 1; dx++) {
+    map[YARD_GATE_Y][YARD_GATE_X + dx] = { type: TileType.FenceGate }
+  }
 
   // House roof + eaves footprint. Eaves on the rectangle's perimeter,
   // roof on the inner cells.

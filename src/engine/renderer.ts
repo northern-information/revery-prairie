@@ -1221,6 +1221,13 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           // Ruin out-of-bounds: dark background. In-bounds Space tiles fall through to star rendering.
           continue
         }
+        // RP-67 — the yard is a bounded place inside the lineage's
+        // claim. The prairie's night sky does not belong inside the
+        // fence, so overscroll beyond the yard map renders as plain
+        // dark background, not twinkling stars.
+        if (state.currentZone === Zone.LittleHouseYard) {
+          continue
+        }
 
         // Deep time: space turns crimson during Burning and Simulating
         const deepTimeLocked = state.deepTime?.active === true && state.deepTime.phase !== DeepTimePhase.Wandering

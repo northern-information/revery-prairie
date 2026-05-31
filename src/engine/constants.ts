@@ -58,16 +58,16 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.HouseHearth]: '·',
   [TileType.HouseExit]: '█',
   // The yard (RP-67). Roof reads as a dense shingled block; eaves are
-  // the overhang's drip-edge; the closed front door reuses the alpha
-  // glyph (mirrors HouseEntrance on the overworld). The fence is a
-  // post-and-rail glyph (╫); the gate is the gap (╨) and uses the
-  // pink-exit idiom because stepping on it leaves the steward's
-  // claimed land for the prairie.
+  // the overhang's drip-edge. The closed front door and the south
+  // gate both render as pink-block thresholds (`█`), matching the
+  // cave/ruin/house exit idiom — every crossing into another zone
+  // uses the same glyph and the reserved user-action hot pink. The
+  // fence is a post-and-rail glyph (`╫`).
   [TileType.HouseRoof]: '▓',
   [TileType.HouseEaves]: '▀',
-  [TileType.HouseDoorClosed]: 'α',
+  [TileType.HouseDoorClosed]: '█',
   [TileType.Fence]: '╫',
-  [TileType.FenceGate]: '╨',
+  [TileType.FenceGate]: '█',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -111,12 +111,13 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.HouseHearth]: '#7A5A38',
   [TileType.HouseExit]: '#ff69b4',
   // RP-67 — yard exterior. Roof/eaves are warm browns in the house
-  // family; the closed front door mirrors HouseEntrance (#7A5A38). The
-  // fence is weathered wood; the gate uses the hot-pink exit idiom
-  // (`#ff69b4`) because crossing it leaves the lineage's claimed land.
+  // family; the fence is weathered wood. The closed front door and
+  // the south gate are both pink-block thresholds (`#ff69b4`) — the
+  // reserved user-action color used by every other zone-crossing tile
+  // (`CaveExit`, `RuinExit`, `HouseExit`).
   [TileType.HouseRoof]: '#5A3D24',
   [TileType.HouseEaves]: '#3D2A1A',
-  [TileType.HouseDoorClosed]: '#7A5A38',
+  [TileType.HouseDoorClosed]: '#ff69b4',
   [TileType.Fence]: '#8B6F3D',
   [TileType.FenceGate]: '#ff69b4',
 }

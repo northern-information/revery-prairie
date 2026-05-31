@@ -120,11 +120,12 @@ describe('RP-67 yard zone', () => {
       expect(yard.map[0].length).toBe(23)
     })
 
-    it('rings the perimeter with Fence, except for the gate', () => {
+    it('rings the perimeter with Fence, except for the 3-tile gate', () => {
       // top + bottom rows
       for (let x = 0; x < yard.width; x++) {
         const expectedTop = TileType.Fence
-        const expectedBottom = x === YARD_GATE_X ? TileType.FenceGate : TileType.Fence
+        const onGate = Math.abs(x - YARD_GATE_X) <= 1
+        const expectedBottom = onGate ? TileType.FenceGate : TileType.Fence
         expect(yard.map[0][x].type).toBe(expectedTop)
         expect(yard.map[yard.height - 1][x].type).toBe(expectedBottom)
       }
@@ -135,16 +136,18 @@ describe('RP-67 yard zone', () => {
       }
     })
 
-    it('places exactly one FenceGate, at the south-edge center', () => {
+    it('places exactly three FenceGate tiles, centered on the south fence edge', () => {
       let gateCount = 0
       for (const row of yard.map) {
         for (const tile of row) {
           if (tile.type === TileType.FenceGate) gateCount++
         }
       }
-      expect(gateCount).toBe(1)
+      expect(gateCount).toBe(3)
       expect(yard.gatePosition).toEqual({ x: YARD_GATE_X, y: YARD_GATE_Y })
+      expect(yard.map[YARD_GATE_Y][YARD_GATE_X - 1].type).toBe(TileType.FenceGate)
       expect(yard.map[YARD_GATE_Y][YARD_GATE_X].type).toBe(TileType.FenceGate)
+      expect(yard.map[YARD_GATE_Y][YARD_GATE_X + 1].type).toBe(TileType.FenceGate)
     })
 
     it('frames the house with HouseEaves and fills the interior with HouseRoof', () => {
