@@ -451,7 +451,7 @@ features:
       impermanence at the item layer as grammar for the steward's own
       Voynich drift in RP-4. Renewal loops replace stockpile loops.
     depends_on: []
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null
@@ -574,9 +574,9 @@ features:
       a nitrogen fixer — the species choice already encoded the mechanic).
       Soil readability already shipped with RP-6; this adds the consequence.
     depends_on: []
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/soil-depletion.yaml
+    plan: harness/plans/soil-depletion.yaml
     pr: null
     notes: >
       v4 thinktank round 3 (2026-05-19). One of the "leaks" Boon named when

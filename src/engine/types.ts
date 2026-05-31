@@ -688,6 +688,12 @@ export interface FloraLifecycleState {
   // derivation. Genesis-placed flora and orphaned previews leave this
   // undefined.
   parentPrefix?: string
+  // RP-19 — tracks whether the per-plant soil spawn-effect hook has
+  // fired for this entry. Required (no `?`) so every construction site
+  // decides explicitly. Defaults to false via createFloraLifecycleEntry;
+  // postProcessMultiSpeciesFlora overrides to true so genesis-seeded
+  // flora doesn't re-tax soil that genesis already derived for them.
+  soilEffectApplied: boolean
 }
 
 // RP-17 — bee-mediated pollination. A single load carried by a

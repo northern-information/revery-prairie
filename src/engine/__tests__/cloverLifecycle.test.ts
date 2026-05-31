@@ -5,6 +5,7 @@ import {
   CLOVER_DECOMPOSE_DURATION_MS,
   SOIL_HEALTH_DEFAULT,
   SOIL_HEALTH_FLORA_DEATH_BONUS,
+  SOIL_HEALTH_NITROGEN_FIXER_BONUS,
   WATER_MAX,
 } from '../constants'
 import { tickFloraLifecycle } from '../floraLifecycle'
@@ -158,7 +159,12 @@ describe('tickFloraLifecycle', () => {
 
       expect(state.map[py() + 1][px()].type).toBe(TileType.Dirt)
       expect(state.floraLifecycle.has(key)).toBe(false)
-      expect(state.soilHealth.get(key)).toBe(SOIL_HEALTH_DEFAULT + SOIL_HEALTH_FLORA_DEATH_BONUS)
+      // RP-19: clover credits the soil on its first Healthy tick
+      // (nitrogen fixer) and the death enrichment fires on Decomposing
+      // → Dirt; both contribute over the full lifecycle.
+      expect(state.soilHealth.get(key)).toBe(
+        SOIL_HEALTH_DEFAULT + SOIL_HEALTH_NITROGEN_FIXER_BONUS + SOIL_HEALTH_FLORA_DEATH_BONUS
+      )
     })
   })
 

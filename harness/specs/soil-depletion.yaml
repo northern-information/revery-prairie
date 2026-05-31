@@ -1,0 +1,215 @@
+id: soil-depletion
+name: 'Soil depletion (RP-19)'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/floraLifecycle.ts
+  - src/engine/floraLifecycleEntry.ts
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/genesis/state.ts
+dependencies:
+  - clover-lifecycle
+
+behaviors:
+  - id: per-plant-spawn-effect
+    description: >
+      Every flora entry applies a one-time soil effect on the first
+      tick at FloraStage.Healthy. The effect is per-species: clover is
+      a net-positive nitrogen fixer that adds
+      SOIL_HEALTH_NITROGEN_FIXER_BONUS (5) to soilHealth at its tile;
+      wildflower and tall grass each subtract
+      SOIL_HEALTH_FLORA_SPAWN_DEBIT (20). The effect fires exactly
+      once per entry, gated by a new boolean field
+      soilEffectApplied on FloraLifecycleState. The hook lives in
+      tickFloraLifecycle, runs after dormancy resolution and before
+      the existing stage-progression branch. Applies to every flora
+      regardless of origin (seed-planted, autonomous spread, ceremony
+      wave, ruin recovery, bee/clover combine, monarch trail, angel
+      gardens, lightning-recovered burnt flora that re-blooms),
+      except genesis-seeded flora (see
+      `genesis-seeded-flora-skips-spawn-effect`).
+    inputs:
+      - 'FloraLifecycleState entry with stage = Healthy and soilEffectApplied = false'
+      - 'GameState with soilHealth map'
+    outputs: []
+    state_changes:
+      - field: soilHealth
+        effect: >
+          tile soilHealth incremented by
+          SOIL_HEALTH_NITROGEN_FIXER_BONUS for clover, or decremented
+          by SOIL_HEALTH_FLORA_SPAWN_DEBIT for wildflower / tall grass,
+          clamped to [0, SOIL_HEALTH_MAX]
+      - field: floraLifecycle
+        effect: 'entry.soilEffectApplied set to true on the same tick the effect fires'
+    determinism: deterministic
+
+  - id: genesis-seeded-flora-skips-spawn-effect
+    description: >
+      Flora placed during genesis (via postProcessMultiSpeciesFlora
+      in src/engine/genesis/state.ts) is part of the world's baseline
+      and must not re-tax soilHealth at first tick — the
+      genesis-derived soilHealth already reflects the standing flora.
+      Genesis call sites pass `soilEffectApplied: true` to
+      createFloraLifecycleEntry. tickFloraLifecycle observes the flag
+      and skips the spawn effect on those entries.
+    inputs:
+      - 'flora entry created by postProcessMultiSpeciesFlora at genesis time 0'
+    outputs: []
+    state_changes:
+      - field: floraLifecycle
+        effect: 'entry.soilEffectApplied initialized to true at construction'
+      - field: soilHealth
+        effect: 'unchanged by the spawn-effect hook for genesis-seeded entries'
+    determinism: deterministic
+
+  - id: soil-effect-survives-stress-recovery
+    description: >
+      The spawn effect fires exactly once per entry. If the plant
+      enters Brown (stress), recovers to Healthy, and is ticked
+      again, the spawn-effect branch is skipped because
+      soilEffectApplied is already true. Same rule for any future
+      mid-lifecycle re-entry into Healthy.
+    inputs:
+      - 'flora entry that already applied its spawn effect, transitions Healthy → Brown → Healthy'
+    outputs: []
+    state_changes:
+      - field: soilHealth
+        effect: 'unchanged across the recovery; the spawn effect does not re-fire'
+    determinism: deterministic
+
+  - id: burnt-recovering-defers-spawn-effect
+    description: >
+      A flora entry created via the lightning recovery path
+      (createFloraLifecycleEntry with stage = BurntRecovering in
+      src/engine/lightning.ts and src/engine/floraLifecycle.ts) has
+      soilEffectApplied default false but no effect fires while the
+      entry sits in BurntRecovering. When recovery completes the tile
+      reverts to Dirt and the entry is deleted (per existing burnt
+      recovery logic), so the spawn effect never runs for this path.
+      A subsequent flora that sprouts on the recovered dirt has its
+      own fresh entry and applies its own spawn effect normally.
+    inputs:
+      - 'BurntRecovering entry created at fire-recovery time'
+    outputs: []
+    state_changes:
+      - field: soilHealth
+        effect: 'unchanged by BurntRecovering entries; lightning burn bonus (+25) and burnt-recovery flow remain as today'
+    determinism: deterministic
+
+  - id: death-enrichment-unchanged
+    description: >
+      Existing flora-death enrichment (+SOIL_HEALTH_FLORA_DEATH_BONUS,
+      15) at the Decomposing → Dirt transition is preserved exactly
+      as in src/engine/floraLifecycle.ts. RP-19 only adds the
+      spawn-side effect. Net per-plant cycle (full life → decompose):
+      clover +5 + 15 = +20 (restorer); wildflower / tall grass
+      −20 + 15 = −5 (net depleter, the soil-thinning consequence).
+    inputs:
+      - 'flora entry reaching Decomposing → Dirt transition'
+    outputs: []
+    state_changes:
+      - field: soilHealth
+        effect: '+15 at the tile via addSoilHealth (existing behavior)'
+    determinism: deterministic
+
+  - id: clamp-at-bounds
+    description: >
+      The spawn effect goes through the same clamping discipline as
+      the rest of soilHealth: depletion clamps at 0, replenishment at
+      SOIL_HEALTH_MAX (100). The same per-tile cell can receive
+      multiple debits across generations and saturate at 0 — at which
+      point further wildflower / tall grass sprouts on that tile fire
+      the effect but produce no further reduction.
+    inputs:
+      - 'tile soilHealth at 0; wildflower sprouts on it'
+      - 'tile soilHealth at 100; clover sprouts on it'
+    outputs: []
+    state_changes:
+      - field: soilHealth
+        effect: 'clamped to [0, SOIL_HEALTH_MAX]; sentinel cases produce no change'
+      - field: floraLifecycle
+        effect: 'soilEffectApplied still flips to true (the effect fired; clamping is independent)'
+    determinism: deterministic
+
+edge_cases:
+  - id: cave-flora-no-light
+    description: >
+      Flora placed in cave starts without light. stage transitions to
+      Brown on first tick. Does the spawn effect fire before the
+      stress transition?
+    expected: >
+      Yes. The spawn-effect hook runs before the stage-progression
+      branch (so the entry is still Healthy when the hook runs). On
+      first tick: spawn effect fires once, then stage transitions
+      Healthy → Brown the same tick. soilEffectApplied = true,
+      soilHealth changed.
+  - id: winter-spawned-flora
+    description: >
+      Flora entry created during winter starts with stage = Healthy,
+      then the dormancy branch immediately flips it to Dormant. The
+      spawn-effect hook runs after dormancy. Does it fire while the
+      entry is Dormant?
+    expected: >
+      No. The hook gates on stage === Healthy. The entry sits Dormant
+      until winter ends, then flips back to Healthy. The spawn effect
+      fires on the first non-winter tick after thaw, soilEffectApplied
+      flips to true. One-time fire preserved.
+  - id: dormant-thaw-no-double-fire
+    description: >
+      An entry that already applied its spawn effect (e.g. spawned in
+      summer), then went Dormant in winter, then thaws back to
+      Healthy.
+    expected: >
+      soilEffectApplied is already true at thaw, so the hook skips.
+      No re-application. Dormancy preserves stageStartTime per the
+      existing spec — it must also preserve soilEffectApplied.
+  - id: rapid-stress-death
+    description: >
+      Flora dies entirely without recovering (Healthy → Brown →
+      BlinkingRed → Black → Decomposing → Dirt) on a cave tile.
+    expected: >
+      Spawn effect fires on first tick (stage = Healthy at that
+      moment), then stage progresses through death stages, ending
+      with the existing +15 enrichment at Decomposing → Dirt. Net
+      effect for one wildflower in a cave: −20 + 15 = −5.
+  - id: ceremony-wave-and-autonomous-spread
+    description: >
+      RP-17 ceremony wave and autonomous spread create many new
+      flora entries in a single batch, possibly on the same dirt
+      cells across waves. Each entry applies its own spawn effect.
+    expected: >
+      Each entry fires its spawn effect once, on its first tick at
+      Healthy. Wave-sprouted clover credits the soil; wildflower /
+      tall grass spread debits it. No batching or aggregation —
+      each entry is independent.
+  - id: serialization-round-trip
+    description: >
+      A save/load cycle must preserve soilEffectApplied. An entry
+      with the flag = true that re-loads with the flag missing would
+      double-fire on the first post-load tick.
+    expected: >
+      The new field is serialized and rehydrated as part of
+      FloraLifecycleState. Schema test in
+      src/harness/__tests__/serialization/schema.test.ts updates the
+      EXPECTED_FIELDS for floraLifecycle to include
+      soilEffectApplied. Round-trip preserves the flag.
+
+failure_conditions:
+  - trigger: 'tile soilHealth already at 0, wildflower sprouts on it'
+    expected: 'soilHealth stays at 0 (clamped); soilEffectApplied still flips to true'
+  - trigger: 'tile soilHealth already at SOIL_HEALTH_MAX (100), clover sprouts on it'
+    expected: 'soilHealth stays at 100 (clamped); soilEffectApplied flips to true'
+  - trigger: >
+      A flora construction site is added in the future and forgets
+      to handle the new field
+    expected: >
+      Type-level enforcement: soilEffectApplied is a required field on
+      FloraLifecycleState (no `?`). createFloraLifecycleEntry defaults
+      it to false; genesis sites override to true. TypeScript catches
+      direct struct construction that omits the field.
+
+verification:
+  test_file: src/engine/__tests__/soilDepletion.test.ts
+  test_pattern: 'soil depletion'
+  command: 'npx vitest run src/engine/__tests__/soilDepletion.test.ts'

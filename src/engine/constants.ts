@@ -370,6 +370,15 @@ export const SOIL_HEALTH_FLORA_DEATH_BONUS = 15
 export const SOIL_HEALTH_CUT_BONUS = 10
 export const SOIL_HEALTH_BURN_BONUS = 25
 
+// RP-19 — per-plant spawn effect. Fires once per flora entry on its first
+// tick at FloraStage.Healthy via tickFloraLifecycle, gated by
+// FloraLifecycleState.soilEffectApplied. Clover (Trifolium repens) is a
+// nitrogen fixer and credits soilHealth; wildflower and tall grass debit it.
+// Net per full lifecycle (with the +15 death enrichment): clover +20
+// (restorer), wildflower / tall grass -5 (the soil-thinning consequence).
+export const SOIL_HEALTH_NITROGEN_FIXER_BONUS = 5
+export const SOIL_HEALTH_FLORA_SPAWN_DEBIT = 20
+
 // red → green gradient (0 = depleted, 100 = thriving)
 export const EARTH_SCAN_COLOR_LOW = '#FF3333' // red — depleted
 export const EARTH_SCAN_COLOR_HIGH = '#33CC33' // green — thriving
