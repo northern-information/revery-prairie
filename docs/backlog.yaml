@@ -451,7 +451,7 @@ features:
       impermanence at the item layer as grammar for the steward's own
       Voynich drift in RP-4. Renewal loops replace stockpile loops.
     depends_on: []
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null
