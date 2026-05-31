@@ -533,11 +533,14 @@ describe('time-lapse camera', () => {
 
     it('seeds one deployed Field Camera in the overworld with exhausted body and four pre-seeded frames', () => {
       // Field Camera spawn lives in completeGenesis (post-seedOaks),
-      // so this test runs the full genesis pipeline.
+      // so this test runs the full genesis pipeline. RP-24 also drops
+      // a handful of predecessor cameras here; the inherited Field
+      // Camera is the unique entry without a `predecessor` field.
       const state = createGameState('Test', 20, 20)
       completeGenesis(state, { skipTitleCard: true })
-      expect(state.placedCameras).toHaveLength(1)
-      const placed = state.placedCameras[0]
+      const inheritedCameras = state.placedCameras.filter(c => c.predecessor === undefined)
+      expect(inheritedCameras).toHaveLength(1)
+      const placed = inheritedCameras[0]
       expect(placed.zone).toBe(Zone.Overworld)
       // Body inherits exhausted.
       expect(state.cameraFilm.get(placed.uid)).toBe(0)
