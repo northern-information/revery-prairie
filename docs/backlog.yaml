@@ -2880,3 +2880,48 @@ features:
       doctrine. The post-Revery memory softening hook from RP-39 is
       retired by this feature, since the overworld is already dim
       memory the moment the steward looks away (see RP-39's notes).
+
+  - id: 'RP-69'
+    name: Whine, Haunted Village
+    summary: >
+      A hand-authored hub region near the little house, the same every
+      tenure — no procedural generation. ~30x20 footprint (exact
+      location and dims at spec), a main street running east-west, and
+      twelve fenced homes (six per side), each with its own per-home
+      yard threshold zone. Twelve named ghosts drift on bounded
+      deterministic paths around their assigned homes. Homes are not
+      enterable in v1; the yard is the destination, and the home
+      renders as exterior from inside its yard. Whine is itself a
+      threshold zone that pauses the prairie clock on enter; per-home
+      yards are nested threshold zones inheriting the pause. This PR
+      also generalizes `LittleHouseYard` into a `ThresholdZone`
+      registry (`state.yardMap` →
+      `state.thresholdZones: Record<ZoneId, ThresholdZoneState>`),
+      subsuming the R8-tracked "Threshold zones substrate" item.
+    size: L
+    depends_on: ['RP-67']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 9 (2026-05-31). _Whine is the prairie's
+      first plural._ The full name "Whine, Haunted Village" lives in
+      all copy — manual, chronicle, dialog, hover hints — matching
+      the register the prairie already speaks in (Dormant Garden,
+      named-regions chronicle). Items, dialog content, and quests are
+      out of scope for v1; this is the bones PR (layout, zone wiring,
+      ghost roster, drift). Ghost names are human-authored per the
+      lore rule — spec lists the slots only. Amendment to RP-22: the
+      chronicle's "the village" named-region binds to Whine when
+      RP-69 ships. Amendment to v11 R8: Whine is the second case that
+      forces `ThresholdZone` to become a registry rather than a
+      singleton, so the previously-tracked future-id "Threshold zones
+      substrate" item is folded into RP-69's scope. Open at spec:
+      exact overworld location/footprint and direction from the
+      little house (round proposes _near but not adjacent_); whether
+      ghosts are predecessor-stewards or older villager-ghosts;
+      whether ghosts carry dialog in v1 (round leans silent); whether
+      manual has one entry for Whine, twelve for the ghosts, or both;
+      whether per-home yards use the R8 flora-sampling rule or a
+      fixed long-abandoned composition.
