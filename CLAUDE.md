@@ -55,6 +55,7 @@ these are the always-on rules. fuller discussion lives in the doc cited at the e
 - **rain-related test** — set `state.rainIntensity = 1` (not just `weather.sky = Sky.Rain`) and place the test tile in the rain front's core zone. → `docs/claude/testing.md`
 - **new render concern** — write a pass under `src/engine/render/passes/`; don't edit `renderer.ts`. route map mutations through `cacheContract.ts`. → `docs/claude/rendering.md`
 - **new multiplayer wire change** — update `shared/src/protocol.ts`. neither client nor worker may duplicate types. → `docs/claude/multiplayer.md`
+- **new world-state-transition observer** — route through an emitter in `src/engine/chronicle/emitters.ts` and call `addChronicleEvent`. never call `addChronicleEvent` from player-action source files (movement, interaction, inventory, recipes); chronicle events are world-driven only. UI consumption goes through `src/engine/chronicle/consumers.ts`; only `ReverySummary.tsx`, `ManualPanel.tsx`, and `ManualPanel.constants.ts` are allowed to import from `chronicle/`. → `harness/specs/RP-22-named-regions-chronicle.yaml`
 
 ## commands
 
