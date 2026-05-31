@@ -104,7 +104,7 @@ describe('moab first interaction dialog', () => {
 
     const result = interactWithCharacter(state)
     expect(result.opened).toBe(true)
-    expect(state.activeDialog?.characterId).toBe('moab')
+    expect(state.activeDialog).toMatchObject({ speakerKind: 'character', characterId: 'moab' })
     expect(state.activeDialog?.lineIndex).toBe(0)
     expect(state.activeDialog?.typingDone).toBe(false)
   })
@@ -161,7 +161,6 @@ describe('moab torchbearer voice (RP-9a)', () => {
     it('characters without a title return title === undefined', () => {
       expect(getCharacterDefinition('gron').title).toBeUndefined()
       expect(getCharacterDefinition('coyote').title).toBeUndefined()
-      expect(getCharacterDefinition('gate').title).toBeUndefined()
     })
   })
 

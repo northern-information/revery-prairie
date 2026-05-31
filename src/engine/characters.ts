@@ -52,12 +52,6 @@ const CHARACTERS = {
     glyphColor: '#D4A054',
     dialog: ['Awoo!', 'Awoo!'],
   },
-  gate: {
-    name: 'Gate',
-    glyph: '#',
-    glyphColor: '#5FD3BC',
-    dialog: ['The gate is locked.'],
-  },
   // RP-33 — Emily, the girl who waits, inside the little house.
   // Stationary character at house-interior (14, 1), one tile west of
   // the fireplace. The runtime dispatcher in getCharacterDialog

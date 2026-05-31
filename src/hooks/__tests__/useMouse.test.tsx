@@ -114,6 +114,7 @@ describe('useMouse — right-click', () => {
 
   it('right-click while activeDialog is set does not move the player', () => {
     state.activeDialog = {
+      speakerKind: 'character',
       characterId: 'gron',
       lineIndex: 0,
       typingIndex: 0,

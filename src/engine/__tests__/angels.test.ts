@@ -167,6 +167,7 @@ describe('angel drifting', () => {
     const posBefore = { ...requireComponent(state.world.getComponent(eid, ComponentType.Position)) }
 
     state.activeDialog = {
+      speakerKind: 'character',
       characterId: 'test',
       lineIndex: 0,
       typingIndex: 0,

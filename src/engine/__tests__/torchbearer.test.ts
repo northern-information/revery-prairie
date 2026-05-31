@@ -269,6 +269,7 @@ describe('torchbearer (RP-9b)', () => {
     it('flips moabState to Dismissed when dialog completes while Walking', () => {
       state.moabState = MoabState.Walking
       state.activeDialog = {
+        speakerKind: 'character',
         characterId: 'moab',
         lineIndex: 99,
         typingIndex: 99,
@@ -295,6 +296,7 @@ describe('torchbearer (RP-9b)', () => {
     it('does not flip moabState when dialog completes while Idle', () => {
       state.moabState = MoabState.Idle
       state.activeDialog = {
+        speakerKind: 'character',
         characterId: 'moab',
         lineIndex: 0,
         typingIndex: 99,

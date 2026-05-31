@@ -87,6 +87,7 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     expect(state.activeDialog).toEqual({
+      speakerKind: 'character',
       characterId: 'gron',
       lineIndex: 0,
       typingIndex: 0,
@@ -256,7 +257,7 @@ describe('getGronDialog — solstice summons branch (RP-32)', () => {
     // was selected while phase was Omen — verified by the existing
     // sequence assertions above. This test pins the contract: dialog is
     // open at characterId=gron with lineIndex=0 after the summons.
-    expect(state.activeDialog?.characterId).toBe('gron')
+    expect(state.activeDialog).toMatchObject({ speakerKind: 'character', characterId: 'gron' })
     expect(state.activeDialog?.lineIndex).toBe(0)
   })
 })

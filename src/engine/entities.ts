@@ -216,7 +216,12 @@ export const tickBees = (state: GameState, zone?: Zone): Position[] => {
 // player) are intentionally ignored so a ghost enclosed by an oak canopy
 // or surrounded by other entities can still drift out.
 const tickDrift = (state: GameState, eid: Entity, definitionId: string, behavior: DriftBehavior): void => {
-  if (behavior.freezeOnDialog && state.activeDialog?.characterId === definitionId) return
+  if (
+    behavior.freezeOnDialog &&
+    state.activeDialog?.speakerKind === 'character' &&
+    state.activeDialog.characterId === definitionId
+  )
+    return
   if (Math.random() > behavior.moveChance) return
 
   const pos = state.world.getComponent(eid, ComponentType.Position)

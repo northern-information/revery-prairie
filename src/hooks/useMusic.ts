@@ -30,7 +30,8 @@ export const useMusic = (state: GameState): void => {
 
   useEffect(() => {
     const zone = state.currentZone
-    const charId = state.activeDialog?.characterId ?? null
+    const charId =
+      state.activeDialog?.speakerKind === 'character' ? state.activeDialog.characterId : null
     const audioEnabled = state.audioEnabled
 
     // Handle enable/disable toggle

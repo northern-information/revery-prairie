@@ -185,6 +185,7 @@ describe('tickCharacterBehaviors', () => {
       behavior: DRIFT_BEHAVIOR,
     })
     state.activeDialog = {
+      speakerKind: 'character',
       characterId: 'ghost-1',
       lineIndex: 0,
       typingIndex: 0,
@@ -294,6 +295,7 @@ describe('ghosts are non-corporeal (phase through entity blockers)', () => {
       vi.spyOn(Math, 'random').mockReturnValue(0)
       // Freeze ghost-2 in dialog so only ghost-1 drifts this tick
       state.activeDialog = {
+        speakerKind: 'character',
         characterId: 'ghost-2',
         lineIndex: 0,
         typingIndex: 0,
@@ -353,7 +355,7 @@ describe('ghost dialog', () => {
 
     const result = interactWithCharacter(state)
     expect(result.opened).toBe(true)
-    expect(state.activeDialog?.characterId).toBe('ghost-1')
+    expect(state.activeDialog).toMatchObject({ speakerKind: 'character', characterId: 'ghost-1' })
     expect(state.activeDialog?.lineIndex).toBe(0)
     expect(state.activeDialog?.typingDone).toBe(false)
   })

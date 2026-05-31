@@ -234,7 +234,7 @@ describe('main questline > combine seal', () => {
     const dx = Math.abs(gronPos.x - state.player.x)
     const dy = Math.abs(gronPos.y - state.player.y)
     expect(dx + dy).toBe(1)
-    expect(state.activeDialog?.characterId).toBe('gron')
+    expect(state.activeDialog).toMatchObject({ speakerKind: 'character', characterId: 'gron' })
     expect(state.manualDiscoveries.has('event:steward-sealed')).toBe(true)
   })
 
@@ -344,7 +344,7 @@ describe('main questline > combine seal', () => {
     expect(state.angelFlashTime).toBe(priorFlash)
     // Seal still completes
     expect(state.mainQuestPhase).toBe(MainQuestPhase.Sealed)
-    expect(state.activeDialog?.characterId).toBe('gron')
+    expect(state.activeDialog).toMatchObject({ speakerKind: 'character', characterId: 'gron' })
   })
 })
 

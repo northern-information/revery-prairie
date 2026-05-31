@@ -130,6 +130,7 @@ export const lifecycleSystems = (callbacks: GameLoopCallbacks): TickSystem[] => 
       // [f] re-engagements also skip it (see interaction.ts).
       const startLineIndex = state.weather.season === Season.Spring ? 0 : 1
       state.activeDialog = {
+        speakerKind: 'character',
         characterId: 'emily',
         lineIndex: startLineIndex,
         typingIndex: 0,

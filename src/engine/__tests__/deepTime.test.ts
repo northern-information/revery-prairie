@@ -39,6 +39,7 @@ describe('deep time', () => {
 
       // Set up active player state
       state.activeDialog = {
+        speakerKind: 'character',
         characterId: 'gron',
         lineIndex: 0,
         typingIndex: 0,

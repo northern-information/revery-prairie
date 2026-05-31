@@ -151,6 +151,7 @@ const runSummonsSequence = (state: GameState, r: ReveryState): void => {
   }
   if (dialogReady) {
     state.activeDialog = {
+      speakerKind: 'character',
       characterId: 'gron',
       lineIndex: 0,
       typingIndex: 0,

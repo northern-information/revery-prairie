@@ -390,15 +390,32 @@ export interface GameState {
   camera: Position
   viewportWidth: number
   viewportHeight: number
-  activeDialog: {
-    characterId: string
-    lineIndex: number
-    typingIndex: number
-    typingDone: boolean
-    transitioning: boolean
-    transitionStartTime: number
-    awaitingConfirmation?: boolean
-  } | null
+  // RP-63 — discriminated union on speakerKind. Character speakers are
+  // named persons (Gron, Moab, Coyote, Emily, ghosts); Interactable
+  // speakers are tile-anchored or system-synthetic (gate today). The
+  // characterId/interactableId branch carries the speaker reference;
+  // the rest of the fields are identical across both variants.
+  activeDialog:
+    | {
+        speakerKind: 'character'
+        characterId: string
+        lineIndex: number
+        typingIndex: number
+        typingDone: boolean
+        transitioning: boolean
+        transitionStartTime: number
+        awaitingConfirmation?: boolean
+      }
+    | {
+        speakerKind: 'interactable'
+        interactableId: string
+        lineIndex: number
+        typingIndex: number
+        typingDone: boolean
+        transitioning: boolean
+        transitionStartTime: number
+      }
+    | null
   discoveredRecipes: Set<string>
   previewFn:
     | ((state: GameState, time: number) => { pos: Position; char: string; color: string; isValid: boolean }[])
