@@ -265,7 +265,12 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
             data-panel="item-info"
             className="pointer-events-auto h-full w-48 self-stretch overflow-hidden font-mono text-xs"
           >
-            <ItemInfo ref={itemInfoRef} glintingCoins={state.glintingCoins} cameraFilm={state.cameraFilm} />
+            <ItemInfo
+              ref={itemInfoRef}
+              glintingCoins={state.glintingCoins}
+              cameraFilm={state.cameraFilm}
+              itemWear={state.itemWear}
+            />
           </div>
           <div className="pointer-events-auto self-start">
             <InventoryPanel

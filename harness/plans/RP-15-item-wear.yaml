@@ -1,0 +1,249 @@
+plan:
+  id: RP-15-item-wear
+  title: >
+    RP-15 — Item wear: optional ItemDefinition.maxUses + uid-keyed
+    state.itemWear, body-wear surface on camera (maxUses=12), per-archive
+    tick with 1.0 clamp, broken-state place-refusal, wear-bar UI in
+    ItemInfo + InHandSlot. Coexists with existing filmRoll consumption.
+    Repair path explicitly deferred.
+  created: 2026-05-30
+  # Cross-cutting: adds one GameState field (itemWear), one ItemDefinition
+  # field (maxUses), mutates archivePlacedCameraFrames and the camera place
+  # handler, introduces a shared WearBar component used in two surfaces,
+  # extends EXPECTED_FIELDS in the serialization schema test. Full suite
+  # required per the integration-layer rule.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: doctrine-update
+    title: >
+      Update docs/claude/state.md to register itemWear ownership (single
+      writer: wear-tick site in timeLapse.ts; readers: place handler,
+      ItemInfo, InHandSlot; uid-keyed, survives place/pickup). Update
+      docs/claude/entities.md to note camera body wear as a second wear
+      surface alongside film consumption, with the 'eternal body' phrasing
+      retired. Do NOT touch docs/backlog.yaml — RP-15 was already flipped
+      to in-progress on main by /churn (commit fdbcd4d); re-editing it
+      here would create a noisy duplicate diff.
+    spec_id: RP-15-item-wear
+    spec_sections: []
+    context_files:
+      - docs/claude/state.md
+      - docs/claude/entities.md
+    output_files:
+      - docs/claude/state.md
+      - docs/claude/entities.md
+    depends_on: []
+    verification: []
+    repair: { strategy: skip, max_retries: 0 }
+    tags: [docs]
+
+  - id: state-field-and-types
+    title: >
+      Add `maxUses?: number` to ItemDefinition in src/engine/types.ts. Add
+      `itemWear: Record<ItemUid, number>` to GameState (values in [0, 1],
+      keyed by ItemInstance.uid). Initialize itemWear to {} in
+      createInitialGameState (src/engine/state.ts). Set camera.maxUses = 12
+      in src/engine/items.ts and rewrite the items.ts:75-79 'body is
+      eternal but unreloadable' comment to describe the new two-surface
+      model (film = reloadable consumable, body = permanent wear in v1,
+      repair deferred). Add 'itemWear' to EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts.
+    spec_id: RP-15-item-wear
+    spec_sections:
+      - max-uses-on-definition
+      - item-wear-state-field
+      - serialization-roundtrip
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/items.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/items.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: [doctrine-update]
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: { strategy: fix-in-place, max_retries: 1 }
+    tags: [engine, state]
+
+  - id: wear-tick
+    title: >
+      In src/engine/timeLapse.ts, modify archivePlacedCameraFrames to
+      increment state.itemWear[camera.uid] by 1 / camera.maxUses after the
+      frames are migrated and before the PlacedCamera is removed. Treat
+      undefined existing wear as 0. Clamp the result to a maximum of 1.0.
+      Guard the tick: if the source ItemDefinition has undefined or
+      non-positive maxUses, the tick is a silent no-op (no division, no
+      thrown error). The increment is keyed by camera.uid — multiple
+      cameras wear independently.
+    spec_id: RP-15-item-wear
+    spec_sections:
+      - wear-tick-on-archive
+      - wear-clamp
+    context_files:
+      - src/engine/timeLapse.ts
+      - src/engine/types.ts
+      - src/engine/items.ts
+    output_files:
+      - src/engine/timeLapse.ts
+    depends_on: [state-field-and-types]
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/itemWear.test.ts
+    repair: { strategy: fix-in-place, max_retries: 1 }
+    tags: [engine]
+
+  - id: place-refusal
+    title: >
+      In src/engine/placeable.ts, update the camera PlaceableSpec so its
+      canPlace (or place, whichever is the canonical gate per the existing
+      PlaceableSpec contract) returns the placement-failed sentinel when
+      state.itemWear[uid] is greater than or equal to 1.0. The
+      ItemInstance must NOT be removed from the backpack and no
+      PlacedCamera must be appended to state.placedCameras when refused.
+      Other PlaceableSpec entries in the registry are unaffected.
+    spec_id: RP-15-item-wear
+    spec_sections:
+      - broken-camera-place-refusal
+    context_files:
+      - src/engine/placeable.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/placeable.ts
+    depends_on: [state-field-and-types]
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/itemWear.test.ts
+    repair: { strategy: fix-in-place, max_retries: 1 }
+    tags: [engine]
+
+  - id: wear-bar-component
+    title: >
+      Create src/components/WearBar.tsx — a tiny presentational primitive
+      that takes { wear: number; color: string } and renders a horizontal
+      bar: ~4px tall, container-width, fill width = (1 - clamp(wear, 0, 1))
+      * 100% (bar depletes left-to-right as wear rises). Fill uses the
+      passed color (caller passes item glyphColor). Track uses the existing
+      text-dim palette. Component must NOT use pink — pink is reserved for
+      user actions, not status. Pure, no engine reads. Snapshot-test a
+      few wear values (0, 0.5, 1) in src/components/__tests__/WearBar.test.tsx.
+    spec_id: RP-15-item-wear
+    spec_sections:
+      - iteminfo-wear-bar
+      - inhandslot-wear-bar
+    context_files:
+      - src/components/WearBar.tsx
+      - src/components/__tests__/WearBar.test.tsx
+      - src/styles/index.css
+    output_files:
+      - src/components/WearBar.tsx
+      - src/components/__tests__/WearBar.test.tsx
+    depends_on: [doctrine-update]
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/WearBar.test.tsx
+    repair: { strategy: fix-in-place, max_retries: 1 }
+    tags: [components]
+
+  - id: iteminfo-wear-bar
+    title: >
+      In src/components/ItemInfo.tsx, after the existing film-status block,
+      render <WearBar wear={state.itemWear[uid] ?? 0} color={def.glyphColor} />
+      when the hovered item definition has a maxUses field. When wear is
+      greater than or equal to 1.0, append an additional status line:
+      "Worn out — repair needed." (sentence case body text per CLAUDE.md
+      writing style — that's the exact string). Non-wear-bearing items
+      (those without maxUses) render unchanged.
+    spec_id: RP-15-item-wear
+    spec_sections:
+      - iteminfo-wear-bar
+    context_files:
+      - src/components/ItemInfo.tsx
+      - src/components/WearBar.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/ItemInfo.tsx
+    depends_on: [wear-bar-component, state-field-and-types]
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/ItemInfo.wear.test.tsx
+    repair: { strategy: fix-in-place, max_retries: 1 }
+    tags: [components]
+
+  - id: inhandslot-wear-bar
+    title: >
+      In src/components/InHandSlot.tsx, below the existing item name line,
+      render <WearBar wear={state.itemWear[uid] ?? 0} color={def.glyphColor} />
+      when the held item definition has a maxUses field. Visible whenever
+      the item is held — no hover gating. Visual rules match
+      iteminfo-wear-bar exactly. Non-wear-bearing in-hand items render
+      unchanged.
+    spec_id: RP-15-item-wear
+    spec_sections:
+      - inhandslot-wear-bar
+    context_files:
+      - src/components/InHandSlot.tsx
+      - src/components/WearBar.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/InHandSlot.tsx
+    depends_on: [wear-bar-component, state-field-and-types]
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/InHandSlot.wear.test.tsx
+    repair: { strategy: fix-in-place, max_retries: 1 }
+    tags: [components]
+
+  - id: tests
+    title: >
+      Replace the stub src/engine/__tests__/itemWear.test.ts with the real
+      engine suite: itemWear initialization, camera.maxUses === 12, wear
+      tick on archive (uses real archivePlacedCameraFrames against a small
+      placed-camera fixture), wear clamp at 1.0 across repeated archives,
+      place-refusal at wear >= 1.0 (backpack and placedCameras unchanged),
+      pickup preserves wear (uid stable across place / archive / pickup),
+      serialization round-trip via the schema test surface, undefined-wear
+      read = 0, maxUses-undefined defensive no-op. Create
+      src/components/__tests__/ItemInfo.wear.test.tsx and
+      src/components/__tests__/InHandSlot.wear.test.tsx — render with and
+      without wear, assert bar presence + "Worn out — repair needed." line
+      at wear === 1.0 (ItemInfo only). Mock state per the testing.md
+      conventions: vi.spyOn(Math, 'random') with vi.restoreAllMocks() in a
+      finally block when randomness is touched; reset state arrays before
+      asserting counts; clearAroundPlayer where the wear tick depends on
+      terrain.
+    spec_id: RP-15-item-wear
+    spec_sections: []
+    context_files:
+      - src/engine/__tests__/itemWear.test.ts
+      - src/components/__tests__/ItemInfo.wear.test.tsx
+      - src/components/__tests__/InHandSlot.wear.test.tsx
+      - src/engine/timeLapse.ts
+      - src/engine/placeable.ts
+      - src/engine/state.ts
+      - src/components/ItemInfo.tsx
+      - src/components/InHandSlot.tsx
+      - docs/claude/testing.md
+    output_files:
+      - src/engine/__tests__/itemWear.test.ts
+      - src/components/__tests__/ItemInfo.wear.test.tsx
+      - src/components/__tests__/InHandSlot.wear.test.tsx
+    depends_on:
+      - wear-tick
+      - place-refusal
+      - iteminfo-wear-bar
+      - inhandslot-wear-bar
+    verification:
+      - npm run typecheck
+      - npm run test
+      - npm run lint
+    repair: { strategy: fix-in-place, max_retries: 1 }
+    tags: [test]

@@ -8,6 +8,7 @@ interface ItemEntry {
   glyph: string
   glyphColor: string
   category: ItemCategoryType
+  maxUses?: number
 }
 
 const ITEMS = {
@@ -73,15 +74,19 @@ const ITEMS = {
     category: ItemCategory.Tool,
   },
   // Time-lapse camera (precis #23). Spawned in deep-time-regenerated
-  // ruins. Body is eternal but unreloadable — film is the only wear
-  // surface. Loaded by combining a filmRoll with the camera in the
-  // backpack. Dropped on a tile to record meaningful events in the
-  // 3x3 footprint for one season.
+  // ruins. Two wear surfaces (RP-15): film is the reloadable consumable
+  // — combine a filmRoll with the camera in the backpack to refill —
+  // and body wear is permanent in v1, ticking once per archived season
+  // (maxUses = 12, three game years) and gating placement at wear 1.0.
+  // Repair is deferred to a follow-up backlog item; a worn-out camera
+  // stays in inventory as an inert tool until then. Placed on a tile
+  // to record meaningful events in the 3x3 footprint for one season.
   camera: {
     name: 'Field Camera',
     glyph: '⌖',
     glyphColor: '#FFD700',
     category: ItemCategory.Tool,
+    maxUses: 12,
   },
   // N-INFO 400 film roll. Single-use loader for a camera. Spawned in
   // deep-time-regenerated ruins alongside the camera.

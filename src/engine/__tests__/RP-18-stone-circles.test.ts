@@ -252,7 +252,7 @@ describe('RP-18 — stone circles', () => {
       const tx = state.player.x + 1
       const ty = state.player.y
       const spec = getPlaceableSpec('meteorite')
-      expect(spec?.canPlace(state, tx, ty)).toBe(true)
+      expect(spec?.canPlace(state, tx, ty, uid)).toBe(true)
       spec?.place(state, tx, ty, uid)
 
       expect(state.placedMeteorites).toEqual([{ x: tx, y: ty }])
@@ -269,7 +269,7 @@ describe('RP-18 — stone circles', () => {
       const ty = state.player.y
       state.placedMeteorites = [{ x: tx, y: ty }]
 
-      expect(getPlaceableSpec('meteorite')?.canPlace(state, tx, ty)).toBe(false)
+      expect(getPlaceableSpec('meteorite')?.canPlace(state, tx, ty, 'any-uid')).toBe(false)
     })
 
     it('place auto-advances the hand to another meteorite in the stack', () => {

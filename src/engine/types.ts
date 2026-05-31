@@ -93,6 +93,11 @@ export interface ItemDefinition {
   glyph: string
   glyphColor: string
   category: ItemCategory
+  // RP-15. Optional body-wear surface. Definitions that declare maxUses
+  // accrue 1 / maxUses per use event; wear is read from state.itemWear
+  // keyed by ItemInstance.uid. Definitions that omit it are wear-free.
+  // Non-positive values are treated as wear-free by the tick site.
+  maxUses?: number
 }
 
 export type ItemUid = string
@@ -628,6 +633,13 @@ export interface GameState {
   placedCameras: PlacedCamera[]
   cameraArchive: Map<string, TimeLapseFrame[]>
   playbackCameraUid: string | null
+  // RP-15. Body-wear values in [0, 1] keyed by ItemInstance.uid.
+  // Single writer: archivePlacedCameraFrames in timeLapse.ts.
+  // Readers: camera PlaceableSpec, ItemInfo, InHandSlot. Missing
+  // entries are treated as 0. The uid is stable across the camera's
+  // destroy-on-place / recreate-on-pickup cycle, so wear survives the
+  // round trip without explicit copy.
+  itemWear: Record<ItemUid, number>
   // Precis #53 (v9 thinktank R3). Chronological photograph album.
   // Frames migrate here from cameraArchive[uid] + placedCameras[i].
   // frames whenever the TimeLapsePlayback modal dismisses. Persists

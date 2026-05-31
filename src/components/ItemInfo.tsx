@@ -1,5 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 import { SectionHeader } from './PanelPrimitives'
+import { WearBar } from './WearBar'
 
 import { COIN_DULL_COLOR, COIN_GLINTING_COLOR, FRAMES_PER_TUBE } from '@/engine/constants'
 import { getDefinition, ITEM_DEFINITIONS } from '@/engine/items'
@@ -17,9 +18,10 @@ export interface ItemInfoHandle {
 interface ItemInfoProps {
   glintingCoins?: Set<string>
   cameraFilm?: Map<string, number>
+  itemWear?: Record<string, number>
 }
 
-export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoins, cameraFilm }, ref) => {
+export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoins, cameraFilm, itemWear }, ref) => {
   const [item, setItem] = useState<ItemDefinition | null>(null)
   const currentIdRef = useRef<string | null>(null)
   const currentUidRef = useRef<string | null>(null)
@@ -87,6 +89,14 @@ export const ItemInfo = forwardRef<ItemInfoHandle, ItemInfoProps>(({ glintingCoi
           {filmStatus && (
             <div className="mt-1" style={{ color: filmStatus.color }}>
               {filmStatus.label}
+            </div>
+          )}
+          {item.maxUses !== undefined && item.maxUses > 0 && uid !== null && (
+            <div className="mt-2">
+              <WearBar wear={itemWear?.[uid] ?? 0} color={item.glyphColor} />
+              {(itemWear?.[uid] ?? 0) >= 1 && (
+                <div className="text-dim mt-1 text-xs">Worn out — repair needed.</div>
+              )}
             </div>
           )}
           {isCamera && (

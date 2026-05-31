@@ -184,7 +184,7 @@ export const useMouse = ({
       const inHand = getInHandItem(state)
       if (inHand) {
         const spec = getPlaceableSpec(inHand.definitionId)
-        if (spec?.canPlace(state, rawTile.x, rawTile.y)) {
+        if (spec?.canPlace(state, rawTile.x, rawTile.y, inHand.uid)) {
           spec.place(state, rawTile.x, rawTile.y, inHand.uid)
           spawnClickTarget(state, rawTile.x, rawTile.y, performance.now())
           playPlace()

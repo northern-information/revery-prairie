@@ -60,7 +60,7 @@ const deployCamera = (state: GameState, uid: string): { x: number; y: number } =
   ]) {
     const tx = state.player.x + d.x
     const ty = state.player.y + d.y
-    if (spec.canPlace(state, tx, ty)) {
+    if (spec.canPlace(state, tx, ty, uid)) {
       spec.place(state, tx, ty, uid)
       return { x: tx, y: ty }
     }

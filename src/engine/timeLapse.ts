@@ -6,10 +6,12 @@
 // fires inside a placed camera's footprint advances film count by 1
 // and appends a TimeLapseFrame snapshotting the 9 cells' {char, color}.
 //
-// Wear surface is film count only. The camera body is eternal but
-// unreloadable — `state.cameraFilm` keying on uid means once a camera
-// has any entry (including 0), the filmRoll+camera recipe is rejected
-// in recipes.ts.
+// Two wear surfaces (RP-15): film is the reloadable consumable
+// (`state.cameraFilm`, keyed by uid — once a camera has any entry the
+// filmRoll+camera recipe is rejected in recipes.ts), and body wear is
+// permanent in v1 (`state.itemWear[uid]`, ticked here on archive by
+// 1 / camera.maxUses, clamped to 1.0). Repair is deferred to a
+// follow-up backlog item.
 
 import {
   BEE_CHAR,
@@ -23,6 +25,7 @@ import {
 import { sha256Sync } from './crypto'
 import { ComponentType } from './ecs/types'
 import { FLORA_SPECIES } from './flora/species'
+import { getDefinition } from './items'
 import { isInBounds, isWalkableTile, posKey } from './position'
 import { CameraSubject, TileType, Zone } from './types'
 
@@ -147,8 +150,20 @@ export const archivePlacedCameraFrames = (state: GameState, camera: PlacedCamera
   if (camera.frames.length > 0) {
     state.cameraArchive.set(camera.uid, [...existing, ...camera.frames])
   }
+  tickBodyWear(state, camera.uid, 'camera')
   const idx = state.placedCameras.indexOf(camera)
   if (idx >= 0) state.placedCameras.splice(idx, 1)
+}
+
+// RP-15. Increment body wear for the given item uid by 1 / maxUses,
+// clamped to 1.0. No-op when the definition has no maxUses or a
+// non-positive maxUses — wear-free items never accrue wear.
+const tickBodyWear = (state: GameState, uid: string, definitionId: string): void => {
+  const def = getDefinition(definitionId)
+  const maxUses = def.maxUses
+  if (!maxUses || maxUses <= 0) return
+  const current = state.itemWear[uid] ?? 0
+  state.itemWear[uid] = Math.min(1, current + 1 / maxUses)
 }
 
 // Append a new PlacedCamera for a camera item being placed at (x, y).
