@@ -13,10 +13,24 @@ source_files:
   - src/engine/ruins.ts
   - src/engine/timeLapse.ts
   - src/engine/constants.ts
+  - src/engine/systems/flora.ts
+  - src/engine/projection.ts
   - src/components/TimeLapsePlayback.tsx
+  - src/components/PhotographAlbumPanel.tsx
   - src/components/GameCanvas.tsx
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies: []
+
+# v11 thinktank Round 4 (2026-05-30) — "the prairie's own evidence".
+# Capture model flips from event-driven (`recordCameraSubjectEvent`
+# at 5 site-specific call sites) to diff-driven (one sim-loop hook at
+# flora-lifecycle cadence; append iff cells changed). `CameraSubject`
+# and `TimeLapseFrame.subject` retire from the camera pipeline.
+# Playback rewrites from a flipbook with `GelBandView` to an
+# iso-projected contact sheet with click-to-expand. The seeded
+# predecessor camera (`seedTenureStartFieldCamera`) keeps its four
+# pre-authored frames; only the `subject` field drops. Film count
+# still keys 1:1 with captured changes — only the trigger changes.
 
 behaviors:
   - id: camera-item-defined
@@ -64,11 +78,12 @@ behaviors:
       `state.photographAlbum: TimeLapseFrame[]` (Round 3) —
       chronological list of every frame the steward has ever
       developed via playback dismissal. A TimeLapseFrame is
-      `{ recordedAt, subject, cells }` where `subject` is a
-      `CameraSubject` enum value and `cells` is a flat 9-entry
-      array of `{ char, color }` covering the 3x3 neighborhood
-      in row-major order (NW, N, NE, W, C, E, SW, S, SE). All
-      four new fields are added to EXPECTED_FIELDS in
+      `{ recordedAt, cells }` (v11 R4 — `subject` field
+      retired with the event-driven capture model) where
+      `cells` is a flat 9-entry array of `{ char, color }`
+      covering the 3x3 neighborhood in row-major order (NW,
+      N, NE, W, C, E, SW, S, SE). All four new fields are
+      added to EXPECTED_FIELDS in
       src/harness/__tests__/serialization/schema.test.ts.
       Save/load roundtrips each field without loss.
     inputs:
@@ -81,32 +96,32 @@ behaviors:
     state_changes: []
     determinism: deterministic
 
-  - id: camera-subject-enumeration
+  - id: camera-subject-retired
     description: >
-      A new `CameraSubject` as-const object enumerates the
-      meaningful events a camera registers a frame for. v1
-      kinds — `Pollination` (a bee deposits pollen on a flora
-      tile inside the 3x3, advancing its lifecycle stage),
-      `Rain` (rain front first reaches a tile inside the 3x3
-      this season), `Bloom` (a flora tile inside the 3x3
-      transitions from non-Flowering to Flowering stage),
-      `Ember` (a fire/ember entity arrives inside the 3x3 —
-      meteorite impact, future fire system),
-      `MonarchVisit` (a Monarch entity arrives inside the
-      3x3), `GhostPassage` (a ghost entity arrives inside the
-      3x3), `EgregoreScan` (a Voynich-rendered flora tile
-      appears or advances inside the 3x3),
-      `CharacterApproach` (a named character moves into the
-      3x3). Raw cosmetic tile changes (sand drift, palette
-      wash, cursor highlight) are NOT subjects. The list is
-      extensible — future event kinds add new constants
-      without breaking existing frames. Exhaustive switch
-      statements on CameraSubject must default to a no-op for
-      forward compatibility.
+      v11 R4 — the `CameraSubject` enum and the `subject`
+      field on `TimeLapseFrame` retire from the camera
+      pipeline. The camera notices change, not events; the
+      witness does not categorize. A codebase audit at spec
+      time (`grep -rn 'CameraSubject' src/`) confirmed the
+      only consumers were the camera pipeline itself
+      (`src/engine/timeLapse.ts`), the 5 retired call sites
+      (`src/engine/entities.ts`, `src/engine/celestial.ts` two
+      sites, `src/engine/monarch.ts`,
+      `src/engine/beePollination.ts`,
+      `src/engine/egregore/spread.ts`), the playback
+      heading switch (`src/components/TimeLapsePlayback.tsx`),
+      and the album panel heading switch
+      (`src/components/PhotographAlbumPanel.tsx`), plus the
+      camera tests. With all of those retired, the enum
+      itself deletes from `src/engine/types.ts`. Frames
+      captured in this model do not record a subject — only
+      `{ recordedAt, cells }`. The seeded predecessor
+      camera's four seasonal frames keep their `cells`
+      payload unchanged; only the `subject` field drops.
     inputs:
-      - 'CameraSubject lookup by key'
+      - 'grep for `CameraSubject` across src/ after the redesign'
     outputs:
-      - 'returns the string literal for that subject kind'
+      - 'no production usage remains; enum is deleted'
     state_changes: []
     determinism: deterministic
 
@@ -163,22 +178,34 @@ behaviors:
       (from state.cameraFilm) is preserved through
       placement. If filmRemaining > 0, recording is armed:
       `startedAt = now`, `expiresAt = now +
-      (SEASONAL_PHASE_PERIOD_MS / 4)`, `frames = []`. If the camera
-      was never loaded or filmRemaining is 0, `expiresAt`
-      equals `startedAt` so no recording occurs but
-      placement still succeeds. A world entity with
-      EntityTag = 'placedCamera' is added at the dropped
-      tile with the camera glyph.
+      (SEASONAL_PHASE_PERIOD_MS / 4)`. v11 R4 — a baseline
+      frame is captured at placement: when filmRemaining > 0,
+      `createPlacedCamera` (or its caller in placement
+      flow) calls `captureCells(state, x, y)` once and
+      pushes a `TimeLapseFrame` with `recordedAt = now`
+      onto the new placement's `frames` array, then
+      decrements `cameraFilm[uid]` by 1. The baseline
+      counts as the first detected change — it gives every
+      subsequent diff something real to compare against
+      and reads as the camera saying _here is what was
+      here when I started looking._ If the camera was
+      never loaded or filmRemaining is 0, `expiresAt`
+      equals `startedAt`, no baseline is captured, and
+      placement still succeeds (decoration). A world
+      entity with EntityTag = 'placedCamera' is added at
+      the placed tile with the camera glyph.
     inputs:
       - 'GameState with a camera in backpack and an adjacent walkable tile'
-      - 'drop intent at (x, y)'
+      - 'place intent at (x, y) via the PlaceableSpec (RP-59)'
     outputs:
       - 'boolean: true'
     state_changes:
       - field: backpack.items
         effect: 'camera ItemInstance removed'
       - field: placedCameras
-        effect: 'PlacedCamera entry appended with uid, x, y, zone, startedAt, expiresAt, frames=[]'
+        effect: 'PlacedCamera entry appended with uid, x, y, zone, startedAt, expiresAt; frames=[baseline] when filmRemaining > 0, else []'
+      - field: cameraFilm
+        effect: 'cameraFilm[uid] decremented by 1 iff a baseline was captured (filmRemaining was > 0)'
       - field: world
         effect: 'entity created with Position(x,y), EntityTag "placedCamera"'
     determinism: deterministic
@@ -215,51 +242,125 @@ behaviors:
         effect: 'PlacedCamera.frames appended (frames migrated, not duplicated)'
     determinism: deterministic
 
-  - id: frame-capture-on-meaningful-event
+  - id: frame-capture-diff-driven
     description: >
-      A new module src/engine/timeLapse.ts exposes
-      `recordCameraSubjectEvent(state, x, y, subject, now)`.
-      Callers across the engine invoke this function at the
-      site of each meaningful event listed in
-      `camera-subject-enumeration`. For each PlacedCamera
-      whose 3x3 footprint includes (x, y), with `now <
-      expiresAt` AND filmRemaining > 0, a new TimeLapseFrame
-      is appended to camera.frames with `recordedAt = now`,
-      `subject`, and `cells = captureCells(state, camera.x,
-      camera.y)`. `cameraFilm[uid]` decrements by 1.
-      `captureCells` resolves each of the 9 tiles to a
-      {char, color} via the same logic as the world-tile
-      render pass (terrain + flora + entity overlay). If
-      multiple cameras overlap (x, y), each receives a
-      frame. Engine call sites — bee pollination (monarch.ts
-      bee-clover deposit), rain front first touch
-      (weather.ts), flora bloom (flora lifecycle stage
-      transition), meteorite impact (meteorites.ts),
-      monarch arrival (monarch.ts movement), ghost arrival
-      (ghosts.ts movement), egregore advance (egregore.ts),
-      character movement into 3x3 (characters.ts).
+      v11 R4 — the camera records change, not events.
+      `recordCameraSubjectEvent` is retired along with its
+      5 production call sites (`src/engine/entities.ts:239`
+      ghost, `src/engine/celestial.ts:138` and `:163` ember,
+      `src/engine/monarch.ts:319` MonarchVisit,
+      `src/engine/beePollination.ts:108` Pollination,
+      `src/engine/egregore/spread.ts:142` EgregoreScan). A
+      single new sim-loop tick system —
+      `time-lapse-capture`, registered in
+      `src/engine/systems/flora.ts` (or a sibling systems
+      module) at `intervalMs: CLOVER_LIFECYCLE_TICK_MS`,
+      same heartbeat as `clover-lifecycle-overworld` /
+      `clover-lifecycle-cave` and the autonomous-spread
+      systems — calls a new function
+      `captureIfChanged(state, camera, now)` for every
+      camera in `state.placedCameras` where `camera.zone
+      === state.currentZone`, `now < camera.expiresAt`,
+      and `filmRemaining > 0`. `captureIfChanged` computes
+      `next = captureCells(state, camera.x, camera.y)` and
+      compares cell-by-cell against the latest frame on
+      `camera.frames` (the baseline frame, captured at
+      placement, guarantees one exists when recording is
+      armed). If any of the 9 cells differs in `char` OR
+      `color`, the candidate-buffer stability filter
+      (`stable-for-N-ticks`) runs — see
+      `diff-stability-filter`. Once a candidate is
+      stable, a new `TimeLapseFrame` with `recordedAt =
+      now` and `cells = next` appends to `camera.frames`,
+      and `cameraFilm[uid]` decrements by 1. If multiple
+      cameras' footprints overlap a changed tile, each
+      diffs and decrements independently. The
+      cross-zone, expired, or out-of-film camera is
+      skipped (no-op). The trigger is the sim-loop hook —
+      not any specific game event — so the camera
+      records whatever has changed in its footprint
+      since it last looked, regardless of cause.
     inputs:
-      - 'GameState with a PlacedCamera, filmRemaining > 0, now < expiresAt'
-      - 'recordCameraSubjectEvent(state, x, y, subject, now) where (x, y) overlaps camera 3x3'
+      - 'GameState with a PlacedCamera in the current zone, filmRemaining > 0, now < expiresAt'
+      - 'sim-loop tick at CLOVER_LIFECYCLE_TICK_MS cadence'
     outputs: []
     state_changes:
       - field: placedCameras[i].frames
-        effect: 'TimeLapseFrame appended with {recordedAt, subject, cells}'
+        effect: 'TimeLapseFrame appended with {recordedAt, cells} when a stable diff is detected'
       - field: cameraFilm
-        effect: 'cameraFilm[uid] decremented by 1'
+        effect: 'cameraFilm[uid] decremented by 1 per appended frame'
+    determinism: deterministic
+
+  - id: diff-stability-filter
+    description: >
+      v11 R4 — to prevent a bee crossing the footprint, a
+      ghost passing through, or any other one-tick
+      overlay flicker from generating a flurry of
+      near-identical frames, `captureIfChanged` uses a
+      stable-for-N-ticks predicate. A new per-camera
+      candidate buffer (transient, NOT persisted —
+      `camera.pendingCells?: TimeLapseCell[]` and
+      `camera.pendingCount?: number`, both optional and
+      cleared once a frame is committed or the candidate
+      is invalidated) holds the proposed next cells. On a
+      tick where the live cells differ from the last
+      committed frame: (a) if no candidate is pending,
+      record the live cells as `pendingCells` and set
+      `pendingCount = 1`; (b) if a candidate is pending
+      AND the live cells equal `pendingCells`, increment
+      `pendingCount`; (c) if a candidate is pending AND
+      the live cells differ from BOTH `pendingCells` AND
+      the last committed frame, replace the candidate
+      with the new live cells and reset `pendingCount =
+      1`. When `pendingCount` reaches the threshold N
+      (default `STABILITY_THRESHOLD_TICKS = 3`, added to
+      `src/engine/constants.ts`), the candidate commits:
+      a `TimeLapseFrame` with `cells = pendingCells` and
+      `recordedAt = now` appends to `camera.frames`,
+      `cameraFilm[uid]` decrements by 1, and the
+      candidate buffer clears. On a tick where the live
+      cells equal the last committed frame, the
+      candidate buffer (if any) clears — the change did
+      not stabilize. The threshold N is tunable at the
+      constant; the implementation must read from the
+      constant, not inline the number, so a future round
+      can shift it without touching the diff logic. The
+      candidate buffer is intentionally non-persistent —
+      it lives only across sim ticks within a session,
+      so save/load roundtrips do not need to carry it
+      and `EXPECTED_FIELDS` does not include it. A
+      session interrupted mid-candidate loses only the
+      transient candidate; the committed `camera.frames`
+      survive normally.
+    inputs:
+      - 'sequence of tick samples around a transient change (e.g. bee crosses footprint for 1 tick)'
+      - 'sequence of tick samples around a stable change (e.g. flora stage advance held for >= N ticks)'
+    outputs:
+      - 'transient change: no frame appended; candidate buffer cleared on revert'
+      - 'stable change: exactly one frame appended after N consecutive matching samples'
+    state_changes:
+      - field: placedCameras[i].frames
+        effect: 'TimeLapseFrame appended once the candidate stabilizes for N ticks'
+      - field: cameraFilm
+        effect: 'decremented by 1 only when the candidate commits'
     determinism: deterministic
 
   - id: frame-capture-rejected-when-out-of-budget
     description: >
-      `recordCameraSubjectEvent` is a no-op for a given
-      camera when `filmRemaining === 0` OR `now >=
-      expiresAt`. The placedCamera persists as a glyph at
-      its tile (decoration). Frames already captured are
-      retained. This implements the v4 framing — "an
-      empty body on a tile, a memory of a tool".
+      `captureIfChanged` is a no-op for a given camera when
+      `filmRemaining === 0` OR `now >= expiresAt` OR the
+      camera's zone does not match the current zone. The
+      placedCamera persists as a glyph at its tile
+      (decoration). Frames already captured are retained.
+      Any candidate buffer for the camera is also cleared
+      on entry to the no-op branch — the witness is no
+      longer watching, so transient candidates do not
+      survive into a later re-arming. This implements the
+      v4 framing — "an empty body on a tile, a memory of
+      a tool".
     inputs:
-      - 'GameState with PlacedCamera, cameraFilm[uid] === 0 OR now >= expiresAt'
-      - 'recordCameraSubjectEvent(state, x, y, subject, now)'
+      - 'GameState with PlacedCamera, cameraFilm[uid] === 0 OR now >= expiresAt OR zone mismatch'
+      - 'time-lapse-capture tick'
     outputs: []
     state_changes: []
     determinism: deterministic
@@ -267,19 +368,21 @@ behaviors:
   - id: span-expiry-freezes-recording
     description: >
       When `now >= camera.expiresAt`, recording stops
-      permanently for that placement. Future
-      recordCameraSubjectEvent calls find this camera
+      permanently for that placement. The
+      `time-lapse-capture` tick system finds this camera
       ineligible (see prior behavior). On pickup, the
       placement's frames migrate to
-      cameraArchive[uid]. If the player re-places the
+      `cameraArchive[uid]`. If the player re-places the
       same camera with filmRemaining > 0, the span clock
-      resets (startedAt = now_replace, expiresAt =
-      now_replace + (SEASONAL_PHASE_PERIOD_MS / 4)) and new frames
-      append to the new placement.frames buffer. Archive
-      frames from prior placements remain untouched.
+      resets (`startedAt = now_replace`, `expiresAt =
+      now_replace + (SEASONAL_PHASE_PERIOD_MS / 4)`), a
+      fresh baseline frame is captured at the new
+      placement, and subsequent diffs append to the new
+      placement.frames buffer. Archive frames from prior
+      placements remain untouched.
     inputs:
       - 'GameState with PlacedCamera, now >= expiresAt'
-      - 'recordCameraSubjectEvent during expired window'
+      - 'time-lapse-capture tick during expired window'
     outputs: []
     state_changes: []
     determinism: deterministic
@@ -289,14 +392,19 @@ behaviors:
       Adjacent interaction on a placedCamera that has at
       least one frame in either `camera.frames` OR
       `cameraArchive[uid]` opens the
-      `TimeLapsePlayback` modal and sets
+      `TimeLapsePlayback` modal (now a contact sheet,
+      per v11 R4) and sets
       `state.playbackCameraUid = uid`. Pickup
       affordance for cameras-with-frames lives inside
       the playback modal (a "Pack Up" control). The
       playback queue is `[...cameraArchive[uid] ??
       [], ...camera.frames]` in capture order — full
       history. Game continues to tick under the modal
-      (does not pause).
+      (does not pause); the diff-driven capture hook
+      keeps running underneath, and any new frames it
+      commits while the modal is open will appear in
+      the album after the modal dismisses (they merge
+      via `auto-unload-on-playback-dismissal`).
     inputs:
       - 'GameState with PlacedCamera, frames.length > 0 OR cameraArchive[uid].length > 0'
       - 'interaction input on adjacent placedCamera tile'
@@ -307,63 +415,147 @@ behaviors:
         effect: 'set to the placedCamera uid'
     determinism: deterministic
 
-  - id: playback-sequence-ceremony
+  - id: playback-contact-sheet
     description: >
-      TimeLapsePlayback.tsx mirrors the ScanResultModal
-      ceremony pattern. For each TimeLapseFrame in the
-      queue, the modal performs a per-photograph reveal —
-      (1) subject heading fades in (BINOMIAL_FADE_MS,
-      400ms), (2) the 3x3 photograph cells reveal one at
-      a time in column-major order (CELL_REVEAL_MS each,
-      reusing GelBandView's reveal animation pacing — 40ms
-      per cell × 9 cells = 360ms total per photograph), (3)
-      each cell reveal plays the existing
-      `/sfx/sequence.mp3` SFX, (4) `fullyRevealed` flag
-      flips when all 9 cells are visible, (5) any key
-      advances to the next photograph in the queue, (6)
-      the last photograph in the queue stays on screen
-      until dismissed (Escape or click outside the modal).
-      prefers-reduced-motion collapses the per-photograph
-      reveal to an instant render and plays the SFX once
-      per photograph. Dismissal sets playbackCameraUid =
-      null.
+      v11 R4 — `TimeLapsePlayback.tsx` rewrites from the
+      per-frame flipbook into a contact sheet. The modal
+      renders a CSS grid of every TimeLapseFrame in the
+      playback queue at once, chronological left-to-right,
+      top-to-bottom — the same shape as a developed
+      contact sheet from the lab the camera came out of.
+      The queue is unchanged: `[...cameraArchive[uid] ??
+      [], ...placedCamera.frames]` in capture order. The
+      modal stays silent — no review-instrument SFX,
+      removing the `/sfx/sequence.mp3` cue and the
+      per-cell reveal pacing from the prior design. The
+      contact sheet itself does not animate; all frames
+      are present from the moment the modal mounts. Each
+      grid cell is a small iso-projected 9-cell
+      photograph (see `contact-sheet-frame-render`) with
+      a timestamp caption underneath. The modal body is
+      a vertical-scroll container — long rolls scroll
+      within the modal; there is no cap, no pagination,
+      and no wrap mode. The `GelBandView` import retires
+      from `TimeLapsePlayback.tsx`; the component file
+      stays in the codebase for the scan instrument.
+      Escape or click-outside dismisses; dismissal sets
+      `playbackCameraUid = null` and migrates frames per
+      `auto-unload-on-playback-dismissal`.
     inputs:
       - 'state.playbackCameraUid is non-null and queue.length >= 1'
     outputs:
-      - 'modal cycles through frames with reveal animation; key advances; Escape dismisses'
+      - 'modal DOM contains a scroll container with a CSS grid of N frames, each captioned by timestamp'
+      - 'no `/sfx/sequence.mp3` is played; no `GelBandView` is rendered'
     state_changes:
       - field: playbackCameraUid
         effect: 'set to null on dismissal'
     determinism: deterministic
 
-  - id: photograph-visual-language
+  - id: contact-sheet-frame-render
     description: >
-      Each photograph is the 3x3 frame.cells rendered as
-      a 3x3 grid of monospaced ASCII cells (NO bitmap
-      images — char+color only). Cell size is 40px square
-      to match GelBandView's CELL_WIDTH. The grid is
-      wrapped in GelBandView-inherited chrome — reticle
-      crop corners (-top-4 -left-4 etc., 2px borders,
-      `border-bee` color), edge-printed side labels in
-      vertical-rl writing mode with `text-bee` color and
-      `font-mono text-[9px] tracking-[0.3em]`. Left edge
-      label reads `NORTHERN-INFORMATION ·
-      {camera.uid.slice(0,8)}` (rotated 180deg). Right
-      edge label reads `▶ {camera.uid.slice(0,8)} ◀ ·
-      N-INFO 400`. Modal background is solid black with
-      the `film-grain-overlay` class applied (re-using
-      the existing overlay component). Above the
-      photograph is the subject heading — a 2xl text-text
-      common name (e.g. 'POLLINATION', 'RAIN',
-      'EGREGORE SCAN') and a smaller text-dim italic
-      timestamp line (`Spring · Day 12 · 13:42`). The
-      heading style matches ScanResultModal's heading
-      slot. Dim-yellow palette throughout (bg-bee /
-      text-bee tokens).
+      Each frame in the contact sheet renders the
+      captured 9-cell payload as a small iso-projected
+      photograph using the same iso transform
+      `src/engine/renderer.ts` uses for the world (see
+      `worldToScreen` / `getCellDiamondCorners` /
+      `drawCellBackground` in `src/engine/projection.ts`).
+      The photograph component reuses that projection
+      logic at a reduced cell pitch — the
+      world's `charWidth` / `charHeight` scale down so
+      one contact-sheet frame fits a roughly 80–120px
+      tile (exact pitch deferred to implementation, but
+      it must read the same projection math, not
+      hand-roll a separate 3x3 layout). Each cell paints
+      its captured `char` in the captured `color`; no
+      cursor overlay, no fog, no seasonal wash, no path
+      dots — the photograph is what the camera saw of
+      the prairie itself. The whole photograph is
+      wrapped in the existing `film-grain-overlay` class
+      (re-using the overlay component); no other chrome
+      is added. No subject label, no species name, no
+      "what's here" annotation overlay — the
+      photographs speak. A timestamp caption renders
+      below the photograph in dim-yellow text-dim italic
+      type (e.g. `t = 42 s` or a more legible
+      season/day formatter — exact formatting deferred
+      to implementation but must be present). The
+      `degradation: { grain, tint, glyphLeak }` prop
+      interface is reserved on this component for
+      `RP-24` (predecessor footage) to plug into;
+      current-tenure frames pass zeros / no-op. This
+      spec does NOT author any glyphLeak content; RP-24
+      handles content authoring via the egregore
+      pipeline.
     inputs:
-      - 'TimeLapsePlayback rendering a frame with subject and cells'
+      - 'a TimeLapseFrame with 9 captured cells and a recordedAt timestamp'
     outputs:
-      - 'modal DOM contains the gel chrome, subject heading, 3x3 cell grid in the captured char+color'
+      - 'a rendered iso-projected photograph + timestamp caption using shared projection math'
+    state_changes: []
+    determinism: deterministic
+
+  - id: playback-click-to-expand
+    description: >
+      v11 R4 — clicking any frame in the contact sheet
+      opens a single-frame held view layered over the
+      sheet (the sheet stays peripherally visible
+      behind it OR the expanded view is its own modal
+      layer — implementation chooses; the spec
+      constraint is only that the sheet is
+      recoverable). The expanded view shows the same
+      iso-projected photograph at a larger cell pitch
+      (a roughly 4× scale-up is the lean; exact pitch
+      deferred to implementation). Left-arrow and
+      right-arrow keys step to the chronologically
+      adjacent frame in the queue (`ArrowLeft` →
+      previous, `ArrowRight` → next; both keys are
+      no-ops at the queue boundaries — no wrap). Step
+      transitions cross-fade the photograph (the old
+      photograph fades out while the new one fades in,
+      durations on the order of 200–400ms; cross-fade
+      is the only animation in the entire playback
+      layer). Escape or click-outside (on the
+      backdrop, not on the expanded frame itself)
+      closes the expanded view and returns to the
+      contact sheet; the contact-sheet modal itself
+      remains open. A second Escape from the contact
+      sheet dismisses the whole modal.
+      `prefers-reduced-motion: reduce` collapses the
+      cross-fade to an instant swap; the step keys
+      and dismissal behavior are unchanged.
+    inputs:
+      - 'contact sheet open, queue.length >= 1, user clicks a frame at index i'
+      - 'user presses ArrowLeft / ArrowRight in expanded view'
+      - 'user presses Escape in expanded view'
+    outputs:
+      - 'expanded view opens at index i'
+      - 'arrow keys step the expanded index by ±1 with cross-fade'
+      - 'Escape closes expanded view and returns to sheet'
+    state_changes: []
+    determinism: deterministic
+
+  - id: album-panel-no-subject-labels
+    description: >
+      v11 R4 — `src/components/PhotographAlbumPanel.tsx`
+      drops its subject-label column entirely. The
+      `subjectLabel` function and the per-photograph
+      subject `<span>` at the panel's row template (the
+      previous `'{subjectLabel(frame.subject)}'` slot)
+      retire with the `subject` field. Each row becomes a
+      timestamped photograph entry in the same register
+      as the new contact sheet — an 8-char edge-code
+      identity (`identityForFrame(frame).slice(0, 8)`)
+      and a formatted `recordedAt` timestamp, no subject
+      taxonomy. Clicking a row continues to open the
+      `TimeLapsePlayback` modal in single-frame
+      expanded-view mode for that one photograph. The
+      empty-album copy ("No photographs yet. Deploy a
+      Field Camera in the field.") is unchanged. The
+      panel's `CameraSubject` import retires alongside
+      the enum's deletion.
+    inputs:
+      - 'state.photographAlbum with mixed-timestamp entries'
+    outputs:
+      - 'panel DOM contains rows with only edge code + timestamp; no subject label'
     state_changes: []
     determinism: deterministic
 
@@ -491,75 +683,128 @@ behaviors:
   - id: pre-seeded-frame-content
     description: >
       The four pre-seeded frames at tenure start each depict the oak
-      tile with a season-tinted color override. The subject value is
-      a new `CameraSubject.SeasonalLandmark` enum value so the album
-      heading reads contextually (e.g. 'SPRING — OAK'). Each frame's
-      `cells` array is computed by calling captureCells(state, oakX,
-      oakY) with a temporary palette override at genesis time only —
-      no runtime mutation. recordedAt timestamps space the four
-      frames a quarter-year apart to imply a full year of witness.
+      tile with a season-tinted color override. v11 R4 — the
+      `subject` field drops; each frame is `{ recordedAt, cells }`
+      only. The four frames remain pre-authored at genesis (NOT
+      produced by the new diff-driven sim-loop hook), and they
+      appear in the contact sheet alongside any current-tenure
+      frames the steward later captures with the same camera body.
+      Each frame's `cells` array is computed by calling
+      `captureCells(state, oakX, oakY)` with a temporary palette
+      override at genesis time only — no runtime mutation.
+      `recordedAt` timestamps space the four frames a quarter-year
+      apart to imply a full year of witness. The
+      `CameraSubject.SeasonalLandmark` value previously written
+      onto these frames retires with the rest of the enum.
     inputs:
       - 'genesis-time oak coordinates'
     outputs:
-      - '4 TimeLapseFrame entries with subject = SeasonalLandmark'
+      - '4 TimeLapseFrame entries with { recordedAt, cells }; no subject field'
     state_changes: []
     determinism: deterministic
 
 edge_cases:
   - id: drop-blocked-by-non-walkable
-    description: 'Player attempts to drop camera onto a non-walkable adjacent tile (Space, CaveWall, etc.)'
-    expected: 'drop fails, camera remains in backpack, no PlacedCamera entry created'
+    description: 'Player attempts to place camera onto a non-walkable adjacent tile (Space, CaveWall, etc.)'
+    expected: 'placement fails, camera remains in-hand, no PlacedCamera entry created'
   - id: drop-blocked-by-occupied-tile
-    description: 'Player attempts to drop camera onto a tile already occupied by another placedCamera or ground item entity'
-    expected: 'drop fails, camera remains in backpack'
+    description: 'Player attempts to place camera onto a tile already occupied by another placedCamera or ground item entity'
+    expected: 'placement fails, camera remains in-hand'
   - id: pickup-with-full-backpack
     description: 'Player invokes Pack Up while backpack has no empty cell that fits a 1x1 item'
     expected: 'pickup fails, PlacedCamera remains in place, no state mutation, modal returns an error toast'
   - id: unloaded-camera-no-recording
-    description: 'A camera placed without ever having film loaded; many meaningful events fire in 3x3'
-    expected: 'no frames captured, no film entry created, camera remains decoration; pickup succeeds with empty frames'
+    description: 'A camera placed without ever having film loaded; many world changes occur in 3x3 over a season'
+    expected: 'no frames captured, no film entry created (no baseline), camera remains decoration; pickup succeeds with empty frames'
+  - id: baseline-frame-on-placement
+    description: 'v11 R4 — Player places a loaded camera with cameraFilm[uid] >= 1 on a walkable tile at time T'
+    expected: 'PlacedCamera.frames.length === 1 immediately after placement; frames[0].recordedAt === T; frames[0].cells === captureCells(state, x, y); cameraFilm[uid] decremented by 1'
+  - id: transient-bee-does-not-capture
+    description: 'v11 R4 — A bee enters and leaves the camera footprint within fewer than N (=3) sim ticks of the time-lapse-capture system'
+    expected: 'placedCamera.frames.length === 1 (baseline only); no commit; cameraFilm[uid] unchanged at FRAMES_PER_TUBE - 1; the candidate buffer cleared once cells returned to the baseline state'
+  - id: stable-change-commits-after-n-ticks
+    description: 'v11 R4 — A flora tile in the camera footprint advances to a new lifecycle stage; the new 3x3 state holds for at least N consecutive time-lapse-capture ticks'
+    expected: 'exactly one new TimeLapseFrame appended on the Nth tick with the advanced cells; cameraFilm[uid] decremented by 1; no duplicate frames on subsequent ticks while the cells stay stable'
   - id: pickup-mid-recording-preserves-frames
-    description: 'Player places, 4 events fire (4 frames captured), picks up via Pack Up'
-    expected: 'cameraArchive[uid].length === 4; cameraFilm[uid] === 46; placedCameras has the entry removed; world entity destroyed'
+    description: 'Player places (baseline = 1 frame), 4 stable diffs commit (4 more frames captured), picks up via Pack Up'
+    expected: 'cameraArchive[uid].length === 5; cameraFilm[uid] === FRAMES_PER_TUBE - 5; placedCameras has the entry removed; world entity destroyed; any pending candidate buffer discarded'
   - id: replacement-after-archive-merges-on-pickup
-    description: 'Player places, 3 frames captured, picks up (archive=3), places again, 5 more frames captured, picks up'
-    expected: 'cameraArchive[uid].length === 8 in capture order; cameraFilm[uid] === 42'
+    description: 'Player places (baseline + 2 diffs = 3 frames), picks up (archive=3), places again (baseline + 4 diffs = 5 more frames), picks up'
+    expected: 'cameraArchive[uid].length === 8 in capture order; cameraFilm[uid] === FRAMES_PER_TUBE - 8; the second placement opened with a fresh baseline frame against the new tile context'
   - id: starter-ruin-no-camera
     description: 'Starter zone with state.deepTime.castCount === 0 has 3 ruins spawned'
     expected: 'no camera or filmRoll ground item in any of the 3 ruins; aqueductKey/stoneTablet spawns unchanged'
   - id: quiet-season-underfills-tube
-    description: 'Camera placed at start of winter in a tile with no meaningful events for 10 game-seconds'
-    expected: 'frames.length === 0 after 10 seconds; cameraFilm[uid] unchanged at 50; the camera is a hum, not a record'
-  - id: identical-event-back-to-back
-    description: 'A bee pollinates the same flora tile twice in succession (two distinct pollination events)'
-    expected: 'two frames captured (one per event), two film decrements; subject="Pollination" on both; cells may match or differ depending on lifecycle stage change'
+    description: 'Camera placed at start of winter in a tile with no stable cell changes for 10 game-seconds'
+    expected: 'frames.length === 1 after 10 seconds (the baseline only); cameraFilm[uid] === FRAMES_PER_TUBE - 1; the camera is a hum, not a record'
   - id: load-into-exhausted-camera-rejected
     description: 'Player drags filmRoll onto a camera with cameraFilm[uid] === 0 (previously exhausted)'
     expected: 'combine returns false; filmRoll not consumed; cameraFilm[uid] remains 0'
   - id: playback-empty-frames-no-modal
-    description: 'Player interacts with a placedCamera that has zero frames and zero archived frames'
+    description: 'Player interacts with a placedCamera that has zero frames and zero archived frames (would only occur on a never-loaded placement)'
     expected: 'no playback modal opens; interaction routes to pickup path instead'
-  - id: multiple-cameras-overlap-event
-    description: 'Two placedCameras have 3x3 footprints that both include the tile (x, y) where a bee pollinates'
-    expected: 'each camera receives a Pollination frame and decrements its own filmRemaining by 1; frame cells may differ slightly because each camera centers on its own tile (different 3x3 windows)'
+  - id: multiple-cameras-overlap-change
+    description: 'v11 R4 — Two placedCameras have 3x3 footprints that both include a tile where the cells change stably for N ticks'
+    expected: 'each camera independently runs its own diff and commits its own frame against its own 3x3 window; each decrements its own filmRemaining by 1; the two committed frames may differ in the off-center cells because each camera centers on its own tile'
   - id: prefers-reduced-motion-playback
-    description: 'User has prefers-reduced-motion: reduce'
-    expected: 'each photograph renders instantly without the column-major cell reveal; SFX still plays once per photograph; advance and dismiss controls behave the same'
-  - id: extensible-subject-default
-    description: 'A future code path passes a CameraSubject value not yet handled in the playback heading switch'
-    expected: 'modal renders the photograph with the raw subject string as the heading (no crash, no missing render)'
+    description: 'v11 R4 — User has prefers-reduced-motion: reduce; opens the contact sheet and clicks a frame to expand'
+    expected: 'contact sheet renders all frames immediately (it has no animation either way); expanded view opens without cross-fade; arrow-key step swaps photographs instantly; Escape dismisses; all keyboard and pointer affordances behave the same as the animated path'
+  - id: long-roll-scrolls-within-modal
+    description: 'v11 R4 — Player opens a contact sheet whose total frame count overflows the modal viewport vertically'
+    expected: 'the modal body is a vertical scroll container; the steward can scroll to read every frame; no pagination, no cap, no horizontal wrap mode'
+  - id: pickup-mid-candidate-does-not-lose-committed-frames
+    description: 'v11 R4 — Player picks up a camera while a candidate buffer is mid-stabilization (e.g. tick 2 of N=3)'
+    expected: 'archive contains every committed frame (baseline + prior commits); the in-flight candidate is discarded (never committed, never archived); cameraFilm[uid] reflects only the committed decrements'
+  - id: contact-sheet-shows-pre-seeded-frames
+    description: 'v11 R4 — Player interacts with the tenure-start seeded predecessor camera (4 pre-seeded seasonal frames in cameraArchive, body exhausted)'
+    expected: 'contact sheet opens with exactly 4 frames in chronological order; each frame renders the iso-projected oak in its season-tinted palette; no subject label is shown above any frame; the four entries are { recordedAt, cells } only'
+  - id: arrow-key-step-at-queue-boundary
+    description: 'v11 R4 — Expanded view is open at index 0 and user presses ArrowLeft; or expanded view is open at index N-1 and user presses ArrowRight'
+    expected: 'no-op (or visible bump) — the expanded view stays on the same frame; no wrap to the opposite end; the cross-fade does not run'
 
 failure_conditions:
-  - trigger: 'Drop intent at a non-walkable or out-of-bounds tile'
-    expected: 'drop fails, no PlacedCamera created, no world entity created, camera remains in backpack'
+  - trigger: 'Place intent at a non-walkable or out-of-bounds tile'
+    expected: 'placement fails, no PlacedCamera created, no world entity created, camera remains in-hand'
   - trigger: 'filmRoll + camera combine when camera is already in cameraFilm (loaded or exhausted)'
     expected: 'combine returns false, filmRoll preserved, no recipe discovery recorded'
-  - trigger: 'recordCameraSubjectEvent called when state.placedCameras is empty'
-    expected: 'no-op, no errors'
+  - trigger: 'time-lapse-capture tick when state.placedCameras is empty'
+    expected: 'no-op, no errors, no allocations'
+  - trigger: 'time-lapse-capture tick for a placedCamera whose zone does not match state.currentZone'
+    expected: 'no-op for that camera; the cross-zone camera does not diff against the wrong map; any candidate buffer for the camera clears'
   - trigger: 'TimeLapsePlayback opened with playbackCameraUid pointing to a camera with empty queue'
     expected: 'modal does not mount, playbackCameraUid is reset to null'
+  - trigger: 'Arrow-key step on the contact sheet (not the expanded view)'
+    expected: 'no-op — arrow keys only step in the expanded view'
 
 verification:
   test_file: src/engine/__tests__/timeLapseCamera.test.ts
   test_pattern: 'time-lapse camera'
   command: 'npx vitest run src/engine/__tests__/timeLapseCamera.test.ts'
+  # v11 R4 expected test shape after the redesign:
+  # - "frame capture" describe block flips from event-driven assertions
+  #   (calling recordCameraSubjectEvent + CameraSubject) to tick-based
+  #   assertions (driving the new time-lapse-capture tick N times and
+  #   asserting frames append once a candidate stabilizes).
+  # - New cases: baseline frame on placement; transient bee does not
+  #   capture (stable filter); stable change commits after N ticks;
+  #   film count keys 1:1 with captured changes including the baseline;
+  #   multiple cameras overlap a stable change (each gets its own
+  #   frame); pickup mid-candidate discards the candidate; cross-zone
+  #   camera is skipped.
+  # - Existing recordCameraSubjectEvent-based tests in
+  #   "frame capture (sparse, event-driven)" become obsolete and are
+  #   replaced by their diff-driven equivalents.
+  # - The "tenure-start spawn (v9 R3)" describe keeps asserting the 4
+  #   pre-seeded frames exist and centre on the oak; its
+  #   `s => s === CameraSubject.SeasonalLandmark` assertion retires
+  #   (the subject field no longer exists on TimeLapseFrame).
+  # - New component test scope (src/components/__tests__/
+  #   TimeLapsePlayback.test.tsx or similar): contact-sheet grid renders
+  #   N frames; click on a frame opens expanded view; ArrowRight steps
+  #   to next index; Escape closes expanded view back to sheet; long
+  #   roll scrolls within modal; no GelBandView in the rendered DOM;
+  #   prefers-reduced-motion swaps without cross-fade.
+  # - Album panel test (src/engine/__tests__/photographAlbum.test.ts +
+  #   any PhotographAlbumPanel.test.tsx) updates: rows no longer carry
+  #   a subject label; the test fixtures drop the `subject` property
+  #   from constructed TimeLapseFrame entries.
