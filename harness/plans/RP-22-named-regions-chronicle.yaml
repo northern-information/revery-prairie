@@ -4,8 +4,9 @@ plan:
   created: 2026-05-30
   global_verification:
     - npm run typecheck
-    - npm run test
     - npm run lint
+    - npm run test
+    - npm run spec:validate
 
 tasks:
   # --- Tier 0: Doctrine + dashboard status ---
@@ -442,20 +443,3 @@ tasks:
     tags:
       - docs
 
-  - id: final-sweep
-    title: Run the full quad — typecheck, lint, full test suite, spec:validate. Grep src/ for any stale references and confirm chronicle and regions are wired end-to-end.
-    spec_id: RP-22-named-regions-chronicle
-    spec_sections: []
-    context_files:
-      - src/
-    output_files: []
-    depends_on:
-      - claude-md-and-state-md
-    verification:
-      - npm run typecheck
-      - npm run lint
-      - npm run test
-      - npm run spec:validate
-    repair: retry
-    tags:
-      - sweep
