@@ -3,6 +3,12 @@
 // Renders bilingual ASCII + Voynich change log when state.revery.summaryReady
 // is true and state.revery.phase is Summary. Dismissed by any keypress
 // (wired in GameScreen via advanceReveryToClosing).
+//
+// RP-22 — Also renders the "Chronicle" section: past-tense sentences
+// emitted by world-state transitions during the closing tenure-year.
+// The parent filters state.chronicle to the matching year and passes
+// pre-rendered strings in via chronicleLines. The section is omitted
+// entirely when the list is empty.
 
 import { EGREGORE_GLYPHS } from '@/engine/egregore'
 import { FLORA_SPECIES } from '@/engine/flora/species'
@@ -11,6 +17,7 @@ import type { ReveryChange, ReveryState } from '@/engine/types'
 
 interface ReverySummaryProps {
   revery: ReveryState | null
+  chronicleLines?: string[]
 }
 
 // Deterministic Voynich line for the egregore-grew entry. Sample N glyphs
@@ -37,7 +44,7 @@ const renderFloraDeltaLine = (change: Extract<ReveryChange, { kind: 'flora-delta
   return `${def.displayName}: ${sign}${String(delta)} tiles`
 }
 
-export const ReverySummary = ({ revery }: ReverySummaryProps) => {
+export const ReverySummary = ({ revery, chronicleLines = [] }: ReverySummaryProps) => {
   if (!revery || !revery.active || revery.phase !== ReveryPhase.Summary || !revery.summaryReady) {
     return null
   }
@@ -71,6 +78,16 @@ export const ReverySummary = ({ revery }: ReverySummaryProps) => {
               <li key={i}>{line}</li>
             ))}
           </ul>
+        )}
+        {chronicleLines.length > 0 && (
+          <>
+            <hr className="border-text/30 my-1 w-32" />
+            <ul className="flex flex-col items-center gap-1 text-sm" data-testid="revery-chronicle-lines">
+              {chronicleLines.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </>
         )}
         {voynichLine !== null && (
           <>

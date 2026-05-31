@@ -22,6 +22,10 @@ export const ManualCategory = {
   Object: 'object',
   Person: 'person',
   Zone: 'zone',
+  // RP-22 — named regions detected at genesis (the village, the cave
+  // mouth, the south ridge, the west pond, …). Per-tenure entries
+  // generated dynamically from state.namedRegions.
+  Region: 'region',
   Recipe: 'recipe',
   Control: 'control',
   // Egregoric flora — manual entries render in the Voynich typeface
@@ -742,6 +746,36 @@ export const hasAnyNativeFloraDiscovery = (state: GameState): boolean => {
   return false
 }
 
+// RP-22 — region manual entries. One per detected NamedRegion (except
+// the prairie fallback, which is the background and not surfaced as a
+// browsable entry). Discovery-gated via `region:{regionId}` keys in
+// state.manualDiscoveries; the proximity hook in movement.ts writes
+// those keys.
+export const getRegionManualEntries = (state: GameState): ManualEntry[] => {
+  const entries: ManualEntry[] = []
+  for (const region of state.namedRegions) {
+    if (region.kind === 'prairie') continue
+    const id = `region:${region.id}`
+    entries.push({
+      id,
+      name: capitalizeName(region.name),
+      category: ManualCategory.Region,
+      glyph: '~',
+      glyphColor: '#A0A0A0',
+      // Lore is human-authored; the chronicle subsection in ManualPanel
+      // is the dynamic content. Per the repo policy in CLAUDE.md, never
+      // author lore prose — keep this as a TODO until a human writes it.
+      lore: 'TODO',
+      hints: [],
+      unlockKey: id,
+      sourceKind: 'manual-only',
+    })
+  }
+  return entries
+}
+
+const capitalizeName = (s: string): string => (s.length === 0 ? s : s[0].toUpperCase() + s.slice(1))
+
 export const getEgregoreManualEntries = (state: GameState): ManualEntry[] => {
   if (state.egregorePositions.length === 0) return []
   const showFootnote = hasAnyNativeFloraDiscovery(state)
@@ -812,6 +846,7 @@ export const CATEGORY_ORDER: ManualCategory[] = [
   ManualCategory.Object,
   ManualCategory.Person,
   ManualCategory.Zone,
+  ManualCategory.Region,
   ManualCategory.Recipe,
   ManualCategory.Control,
   // Egregoric entries last — discovered late in play, resist naming.

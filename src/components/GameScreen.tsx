@@ -21,6 +21,8 @@ import { TimeLapsePlayback } from './TimeLapsePlayback'
 
 import { setAudioEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
+import { readChronicleForYear } from '@/engine/chronicle/consumers'
+import { CHRONICLE_TEMPLATES } from '@/engine/chronicle/templates'
 import { canCast } from '@/engine/hexagram'
 import { advanceDialog } from '@/engine/interaction'
 import { advanceReveryToClosing } from '@/engine/revery'
@@ -39,6 +41,21 @@ interface GameScreenProps {
   skipGenesis?: boolean
   onRestart: () => void
   multiplayer?: MultiplayerHookArgs
+}
+
+// RP-22 — Render the chronicle lines for the just-closing tenure-year.
+// The Revery captures snapshotBeforeRevery.reveryCount as the year that
+// just finished; chronicle events emitted during that year carry the
+// same year value. Lines render via their template's text function.
+const buildReveryChronicleLines = (state: ReturnType<typeof useGameEngine>['state']): string[] => {
+  const year = state.revery?.snapshotBeforeRevery.reveryCount
+  if (year === undefined) return []
+  return readChronicleForYear(state, year).map(event => {
+    const template = (CHRONICLE_TEMPLATES as Record<string, { text: (slots: Record<string, string>) => string }>)[
+      event.templateId
+    ]
+    return template ? template.text(event.slots) : ''
+  })
 }
 
 export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }: GameScreenProps) => {
@@ -155,7 +172,10 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
             />
           )
         })()}
-      <ReverySummary revery={state.revery} />
+      <ReverySummary
+        revery={state.revery}
+        chronicleLines={buildReveryChronicleLines(state)}
+      />
       {activeScreen && activeScreen !== 'scan-result' && (
         <PermacomputerShell
           state={state}

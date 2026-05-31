@@ -11,6 +11,7 @@ export const CATEGORY_LABELS: Record<ManualCategory, string> = {
   [ManualCategory.Object]: 'OBJECTS',
   [ManualCategory.Person]: 'PEOPLE',
   [ManualCategory.Zone]: 'ZONES',
+  [ManualCategory.Region]: 'REGIONS',
   [ManualCategory.Recipe]: 'RECIPES',
   [ManualCategory.Control]: 'CONTROLS',
   // Egregoric category — no English label. Renders as the first four
