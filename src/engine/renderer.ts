@@ -1868,9 +1868,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // pixel offset (angelTweenOffset) applied at flush time so the whole
   // body glides together.
   for (const t of tweenedEntities) {
+    const tx = Math.floor(t.lerpX)
+    const ty = Math.floor(t.lerpY)
+    // Gate this post-pass with the same fog rule as the main tile loop
+    // (renderer.ts ~1278): hide tweening glyphs whose lerp lands on a
+    // remembered or unexplored tile, otherwise a ghost mid-drift can paint
+    // its glyph straight over the fog.
+    if (fogActive && getTileVisibility(state, tx, ty, visibleSet ?? new Set()) !== 'visible') continue
     const { px, py } = worldToScreen(t.lerpX, t.lerpY, camera, charWidth, charHeight, viewportWidth, viewportHeight)
     ctx.fillStyle = t.color
-    ctx.fillText(t.char, px, py + liftAt(Math.floor(t.lerpX), Math.floor(t.lerpY)))
+    ctx.fillText(t.char, px, py + liftAt(tx, ty))
   }
 
   // Flush deferred flora glyphs — drawn after all terrain backgrounds so no
