@@ -691,8 +691,8 @@ features:
       predecessor lines in the lineage record (RP-16). Never a running log.
     depends_on: []
     status: in-progress
-    spec: null
-    plan: null
+    spec: harness/specs/RP-22-named-regions-chronicle.yaml
+    plan: harness/plans/RP-22-named-regions-chronicle.yaml
     pr: null
     notes: >
       v4 thinktank round 6 (2026-05-19). Three operating constraints:
