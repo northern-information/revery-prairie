@@ -1613,12 +1613,17 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
             char = getEgregoreGlyph(mx, my)
             color = TILE_COLORS[TileType.Egregore]
           } else if (tile.type === TileType.Dirt) {
-            if (state.craters.has(tileKey)) {
+            // state.craters and state.burnScars are overworld-coordinate
+            // sets — their posKeys can collide with Dirt coords on other
+            // maps (yard, house, future village zones), so the visual
+            // treatments only apply in the overworld.
+            const overworldDirt = state.currentZone === Zone.Overworld
+            if (overworldDirt && state.craters.has(tileKey)) {
               const h = tileHash(mx, my)
               char = BUILDING_CHARS[h % BUILDING_CHARS.length]
               const craterColors = ['#8B4513', '#7A3B10', '#6B320D', '#5C290A', '#4D2007']
               color = craterColors[h % craterColors.length]
-            } else if (state.burnScars.has(tileKey)) {
+            } else if (overworldDirt && state.burnScars.has(tileKey)) {
               color = BURN_SCAR_COLORS[tileHash(mx, my) % BURN_SCAR_COLORS.length]
             } else {
               color = DIRT_COLORS[tileHash(mx, my) % DIRT_COLORS.length]

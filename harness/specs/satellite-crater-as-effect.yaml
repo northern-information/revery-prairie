@@ -84,19 +84,46 @@ behaviors:
       (BUILDING_CHARS) with a reddish-brown foreground color palette and
       a CRATER_BG_PALETTE background palette that is approximately 20%
       darker than the corresponding standard DIRT bg palette. The
-      foreground gate remains state.craters.has(tileKey); the background
-      gate is added in tileBg.ts via a new getCraterBgColor(x, y) and
-      consumed by tileBgCache.getEffectiveBgColor for Dirt tiles whose
-      posKey is in state.craters. Like DIRT bg, the crater bg is per-tile
-      varied (hashed across the palette) rather than a single flat shade.
+      foreground gate is state.craters.has(tileKey) AND state.currentZone
+      === Zone.Overworld; the background gate is added in tileBg.ts via a
+      new getCraterBgColor(x, y) and consumed by
+      tileBgCache.getEffectiveBgColor for Dirt tiles whose posKey is in
+      state.craters. Like DIRT bg, the crater bg is per-tile varied
+      (hashed across the palette) rather than a single flat shade.
       Cratered clover tiles continue to render as clover for both glyph
       and background — the crater effect is still tracked but the bg
-      darkening only applies under Dirt.
+      darkening only applies under Dirt. state.craters is an overworld-
+      coordinate set; the renderer must not consult it while drawing
+      other zones (cave, ruin, house interior, little-house yard, and any
+      future zones) because those maps use independent coordinate spaces
+      that can collide with overworld crater posKeys.
     inputs:
       - 'Tile at position is Dirt and posKey is in state.craters'
+      - 'state.currentZone === Zone.Overworld'
     outputs:
       - 'Tile rendered with BUILDING_CHARS glyph and reddish-brown foreground color'
       - 'Tile background filled from CRATER_BG_PALETTE (≈20% darker than DIRT_BG_PALETTE), hashed per-tile'
+    state_changes: []
+    determinism: deterministic
+
+  - id: crater-rendering-overworld-only
+    description: >
+      The crater visual treatment is overworld-only. When state.currentZone
+      is any non-overworld zone (Cave, Ruin, HouseInterior, LittleHouseYard,
+      and any future zones), the renderer ignores state.craters entirely
+      for the purposes of glyph and color resolution. Dirt tiles in those
+      zones render with the standard DIRT_COLORS palette and TILE_CHARS
+      glyph. The same zone gate applies to state.burnScars (Dirt color
+      override), which is also an overworld-coordinate set populated by
+      clover burn recovery — burnScars must not color-shift Dirt tiles in
+      other zones whose coordinates happen to collide with overworld
+      burn-scar posKeys.
+    inputs:
+      - 'state.currentZone !== Zone.Overworld'
+      - 'Dirt tile at position whose posKey may or may not appear in state.craters / state.burnScars'
+    outputs:
+      - 'Tile renders with standard DIRT_COLORS color and TILE_CHARS[Dirt] glyph'
+      - 'BUILDING_CHARS, CRATER_BG_PALETTE, and BURN_SCAR_COLORS are not consulted'
     state_changes: []
     determinism: deterministic
 
@@ -168,6 +195,12 @@ edge_cases:
   - id: genesis-crater-bg-on-first-build
     description: 'Genesis-era craters are present in state.craters when createGameState completes'
     expected: 'The first tileBgCache build for the overworld map picks up the darker crater bg for those tiles (no separate invalidation needed)'
+  - id: crater-poskey-collides-with-yard-dirt
+    description: 'An overworld crater posKey (e.g. "11,2") collides with a Dirt tile coordinate on a non-overworld map (the little-house yard, a future village map, etc.)'
+    expected: 'The yard/village Dirt tile renders with standard DIRT_COLORS and TILE_CHARS[Dirt]. The crater glyph + reddish-brown does NOT appear in the yard. state.craters is unread during non-overworld renders.'
+  - id: burnscar-poskey-collides-with-yard-dirt
+    description: 'An overworld burnScar posKey collides with a Dirt tile coordinate on a non-overworld map'
+    expected: 'The yard/village Dirt tile renders with standard DIRT_COLORS. The BURN_SCAR_COLORS override does NOT apply.'
 
 failure_conditions:
   - trigger: 'Player plants clover on a cratered tile'
@@ -178,6 +211,8 @@ failure_conditions:
     expected: 'Returns a CRATER_BG_PALETTE color (≈20% darker than DIRT_BG_PALETTE), not the standard dirt bg'
   - trigger: 'A Clover tile is in state.craters'
     expected: 'getEffectiveBgColor returns the standard CLOVER bg (crater bg only applies under Dirt — the plant visually covers the scar)'
+  - trigger: 'Player enters the little-house yard (state.currentZone === Zone.LittleHouseYard) and a yard Dirt tile sits at a coordinate that exists in state.craters'
+    expected: 'The yard tile renders as standard Dirt (DIRT_COLORS, TILE_CHARS[Dirt]). The grey BUILDING_CHARS glyph from the overworld crater set does NOT bleed into the yard view. Same expectation for burnScars (no color shift on the yard Dirt).'
 
 verification:
   test_file: src/engine/__tests__/satelliteImpacts.test.ts
