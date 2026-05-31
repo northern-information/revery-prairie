@@ -1,6 +1,6 @@
 import { completeGenesis } from '../genesis'
 import { createGameState } from '../state'
-import { CameraSubject, Zone } from '../types'
+import { Zone } from '../types'
 import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -39,12 +39,12 @@ describe('photograph album', () => {
       startedAt: 0,
       expiresAt: 1000,
       frames: [
-        { recordedAt: 10, subject: CameraSubject.Pollination, cells: fakeCells() },
-        { recordedAt: 20, subject: CameraSubject.Rain, cells: fakeCells() },
+        { recordedAt: 10, cells: fakeCells() },
+        { recordedAt: 20, cells: fakeCells() },
       ],
     }
     state.placedCameras.push(placed)
-    state.cameraArchive.set('cam-1', [{ recordedAt: 5, subject: CameraSubject.MonarchVisit, cells: fakeCells() }])
+    state.cameraArchive.set('cam-1', [{ recordedAt: 5, cells: fakeCells() }])
 
     // Recreate the GameScreen onDismiss migration logic.
     const archive = state.cameraArchive.get('cam-1') ?? []
@@ -54,18 +54,18 @@ describe('photograph album', () => {
     state.cameraArchive.delete('cam-1')
 
     expect(state.photographAlbum).toHaveLength(3)
-    expect(state.photographAlbum[0].subject).toBe(CameraSubject.MonarchVisit)
-    expect(state.photographAlbum[1].subject).toBe(CameraSubject.Pollination)
-    expect(state.photographAlbum[2].subject).toBe(CameraSubject.Rain)
+    expect(state.photographAlbum[0].recordedAt).toBe(5)
+    expect(state.photographAlbum[1].recordedAt).toBe(10)
+    expect(state.photographAlbum[2].recordedAt).toBe(20)
     expect(placed.frames).toEqual([])
     expect(state.cameraArchive.has('cam-1')).toBe(false)
   })
 
   it('album persists across multiple migrations', () => {
     const state: GameState = createTestState()
-    state.photographAlbum.push({ recordedAt: 1, subject: CameraSubject.Bloom, cells: fakeCells() })
-    state.photographAlbum.push({ recordedAt: 2, subject: CameraSubject.Ember, cells: fakeCells() })
-    state.photographAlbum.push({ recordedAt: 3, subject: CameraSubject.GhostPassage, cells: fakeCells() })
+    state.photographAlbum.push({ recordedAt: 1, cells: fakeCells() })
+    state.photographAlbum.push({ recordedAt: 2, cells: fakeCells() })
+    state.photographAlbum.push({ recordedAt: 3, cells: fakeCells() })
     expect(state.photographAlbum).toHaveLength(3)
   })
 })
