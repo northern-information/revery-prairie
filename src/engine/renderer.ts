@@ -1225,7 +1225,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // claim. The prairie's night sky does not belong inside the
         // fence, so overscroll beyond the yard map renders as plain
         // dark background, not twinkling stars.
-        if (state.currentZone === Zone.LittleHouseYard) {
+        // RP-69 — Whine and its twelve home yards inherit the same
+        // rule: bounded threshold zones suppress the prairie's
+        // overscroll-star pass.
+        if (
+          state.currentZone === Zone.LittleHouseYard ||
+          state.currentZone === Zone.WhineVillage ||
+          state.currentZone === Zone.WhineHomeYard
+        ) {
           continue
         }
 

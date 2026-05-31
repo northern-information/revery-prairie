@@ -35,7 +35,21 @@ import { tickWeather } from '../weather'
 import { isReentryLocked } from '../zoneTransition'
 import { createTestState } from './helpers'
 
-import type { ZoneTransition } from '../types'
+import type { GameState, Position, ZoneTransition } from '../types'
+
+// Test helpers that assert the optional fields on the little house
+// yard's registry entry (flora and frontDoorPosition) so individual
+// assertions can read them without non-null bangs.
+const yardFlora = (state: GameState): Map<string, FloraSpecies> => {
+  const flora = getLittleHouseYard(state).flora
+  if (!flora) throw new Error('yard flora not registered')
+  return flora
+}
+const yardFrontDoor = (state: GameState): Position => {
+  const pos = getLittleHouseYard(state).frontDoorPosition
+  if (!pos) throw new Error('yard front door not registered')
+  return pos
+}
 
 describe('RP-67 yard zone', () => {
   describe('foundations', () => {
@@ -270,7 +284,7 @@ describe('RP-67 yard zone', () => {
       const state = createTestState()
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
       // Walk to the front door (center HouseDoorClosed tile).
-      const frontDoor = getLittleHouseYard(state).frontDoorPosition!
+      const frontDoor = yardFrontDoor(state)
       state.player = { x: frontDoor.x, y: frontDoor.y }
       state.zoneTransition = null
 
@@ -304,13 +318,10 @@ describe('RP-67 yard zone', () => {
 
       enterLittleHouseYardFromHouse(state)
       expect(state.currentZone).toBe(Zone.LittleHouseYard)
-      const houseExitEntry = getLittleHouseYard(state)
-      expect(state.player).toEqual({
-        x: houseExitEntry.frontDoorPosition!.x,
-        y: houseExitEntry.frontDoorPosition!.y + 1,
-      })
+      const frontDoor = yardFrontDoor(state)
+      expect(state.player).toEqual({ x: frontDoor.x, y: frontDoor.y + 1 })
       // entryReturnTile is untouched by the house→yard path.
-      expect(houseExitEntry.entryReturnTile).toBeNull()
+      expect(getLittleHouseYard(state).entryReturnTile).toBeNull()
     })
 
     it('re-entry lock: after gate exit, stepping back onto the same apron does not re-trigger yard enter until the lock clears', () => {
@@ -381,7 +392,7 @@ describe('flora sampling', () => {
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
 
       // 2 clover + 1 wildflower = 3 flora placed.
-      const flora = getLittleHouseYard(state).flora!
+      const flora = yardFlora(state)
       expect(flora.size).toBe(3)
       const speciesCounts = { clover: 0, wildflower: 0, tallGrass: 0 }
       for (const s of flora.values()) {
@@ -400,7 +411,8 @@ describe('flora sampling', () => {
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
 
       const mutEntry = getLittleHouseYard(state)
-      for (const key of mutEntry.flora!.keys()) {
+      const mutFlora = yardFlora(state)
+      for (const key of mutFlora.keys()) {
         const [xs, ys] = key.split(',')
         const x = Number(xs)
         const y = Number(ys)
@@ -432,7 +444,7 @@ describe('flora sampling', () => {
       }
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
 
-      const flora = getLittleHouseYard(state).flora!
+      const flora = yardFlora(state)
       expect(flora.get(posKey(expectedSlots[0].x, expectedSlots[0].y))).toBe(FloraSpecies.Clover)
       expect(flora.get(posKey(expectedSlots[1].x, expectedSlots[1].y))).toBe(FloraSpecies.TallGrass)
       expect(flora.get(posKey(expectedSlots[2].x, expectedSlots[2].y))).toBe(FloraSpecies.Wildflower)
@@ -442,7 +454,7 @@ describe('flora sampling', () => {
       const state = createTestState()
       seedApron(state, { [FloraSpecies.Clover]: 3 })
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
-      const flora = getLittleHouseYard(state).flora!
+      const flora = yardFlora(state)
       expect(flora.size).toBe(3)
       const firstSamplePositions: string[] = Array.from(flora.keys())
 
@@ -453,7 +465,7 @@ describe('flora sampling', () => {
       }
       sampleYardFlora(state)
       const after = getLittleHouseYard(state)
-      expect(after.flora!.size).toBe(0)
+      expect(yardFlora(state).size).toBe(0)
       // The yard tiles that previously held Flora should be back to Dirt.
       for (const key of firstSamplePositions) {
         const [xs, ys] = key.split(',')
@@ -473,14 +485,14 @@ describe('flora sampling', () => {
         }
       }
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
-      expect(getLittleHouseYard(state).flora!.size).toBe(0)
+      expect(yardFlora(state).size).toBe(0)
     })
 
     it('samples on the house→yard path too (HouseExit transition fires the same pass)', () => {
       const state = createTestState()
       seedApron(state, { [FloraSpecies.Wildflower]: 2 })
       enterLittleHouseYardFromHouse(state)
-      const flora = getLittleHouseYard(state).flora!
+      const flora = yardFlora(state)
       expect(flora.size).toBe(2)
       for (const s of flora.values()) {
         expect(s).toBe(FloraSpecies.Wildflower)

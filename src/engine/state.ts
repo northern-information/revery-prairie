@@ -1,6 +1,6 @@
 import { generateCave } from './cave'
 import { createKnotCellar } from './cellar'
-import { getCharacterDefinition, registerGhostDefinitions } from './characters'
+import { getCharacterDefinition, registerGhostDefinitions, registerWhineGhostDefinitions, whineGhostId } from './characters'
 import {
   CAVE_HEIGHT,
   CAVE_WIDTH,
@@ -42,6 +42,13 @@ import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, 
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 import { createLittleHouseYard, registerLittleHouseYard } from './yard'
+import {
+  createWhineVillage,
+  placeWhineOnOverworld,
+  registerWhineHomeYards,
+  registerWhineVillage,
+  WHINE_HOMES,
+} from './whine'
 
 import type { GenesisSimState } from './genesisTypes'
 import type { GameState, Position } from './types'
@@ -460,10 +467,48 @@ export const createGameState = (
     knotHarvestYears: new Map(),
   }
 
-  // RP-69 — register the little house yard into the threshold-zone
-  // registry now that the state object exists. Whine + its twelve home
-  // yards are registered alongside, lower in this function (RP-69 Task 3).
+  // RP-69 — register the little house yard, Whine, and its twelve
+  // home yards into the threshold-zone registry now that the state
+  // object exists. The Whine overworld entrance is placed in a
+  // deterministic east band from the little house; if no valid
+  // footprint is found, the entrance is null (village still
+  // registered, but unreachable this tenure).
   registerLittleHouseYard(state, yard)
+  const whineVillage = createWhineVillage()
+  registerWhineVillage(state, whineVillage)
+  registerWhineHomeYards(state)
+  state.whineEntranceOverworld = placeWhineOnOverworld(
+    state.overworldMap,
+    state.overworldMapWidth,
+    state.overworldMapHeight,
+    state.houseEntranceOverworld
+  )
+  // RP-69 — register the twelve Whine ghost CharacterDefinitions and
+  // spawn one ghost entity per home into Zone.WhineVillage with a
+  // bounded DriftBehavior. Names are TODO placeholders; dialog is
+  // silent ('...'); the bounds rectangle covers the corridor between
+  // the home's gate row and the main street row, ± 1 tile width.
+  registerWhineGhostDefinitions(WHINE_HOMES.length)
+  const WHINE_GHOST_BOUNDS_WIDTH = 1 // ± 1 tile around centerX
+  for (const home of WHINE_HOMES) {
+    const isNorth = home.side === 'north'
+    const initialY = isNorth ? home.footprintBottomY + 1 : home.footprintTopY - 1
+    const bounds = {
+      minX: home.centerX - WHINE_GHOST_BOUNDS_WIDTH,
+      maxX: home.centerX + WHINE_GHOST_BOUNDS_WIDTH,
+      minY: isNorth ? home.footprintBottomY + 1 : 11,
+      maxY: isNorth ? 9 : home.footprintTopY - 1,
+    }
+    createCharacterEntity(
+      state,
+      whineGhostId(home.homeNumber),
+      { x: home.centerX, y: initialY },
+      {
+        behavior: { type: 'drift', moveChance: 0.15, freezeOnDialog: false, bounds },
+        zone: Zone.WhineVillage,
+      }
+    )
+  }
 
   // RP-64 — Receiving-tile water bump. Each waterfall's bottom
   // tile gets a small tileWater increment so downstream flora has

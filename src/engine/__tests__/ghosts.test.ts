@@ -32,7 +32,13 @@ const makeState = (): GameState => {
   return state
 }
 
-const getGhostCharacters = (state: GameState) => getCharacterEntities(state).filter(c => c.behavior?.type === 'drift')
+// RP-69 — restrict to the three overworld ghosts (definitionId
+// matching /^ghost-N$/). Whine, Haunted Village adds twelve more
+// drift-behavior characters under the 'whine-ghost-NN' prefix; those
+// live in Zone.WhineVillage and are out of scope for these tests.
+const OVERWORLD_GHOST_ID_RE = /^ghost-\d+$/
+const getGhostCharacters = (state: GameState) =>
+  getCharacterEntities(state).filter(c => c.behavior?.type === 'drift' && OVERWORLD_GHOST_ID_RE.test(c.definitionId))
 
 describe('ghost spawning', () => {
   it('spawns 3 ghosts on game start', () => {

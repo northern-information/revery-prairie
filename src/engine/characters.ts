@@ -103,6 +103,30 @@ export const registerGhostDefinitions = (numbers: number[]): void => {
   }
 }
 
+// RP-69 — Whine, Haunted Village ghosts. Twelve named drifting
+// ghosts, one per home. Names are TODO placeholders authored by humans
+// later per the lore rule; dialog is empty ('...') so the v1 register
+// is silent drift only. Existing scan/interaction paths see a valid
+// CharacterDefinition either way.
+const padHomeNumber = (n: number): string => n.toString().padStart(2, '0')
+
+export const whineGhostId = (n: number): string => `whine-ghost-${padHomeNumber(n)}`
+
+export const createWhineGhostDefinition = (n: number): CharacterDefinition => ({
+  id: whineGhostId(n),
+  name: `TODO: Whine ghost ${padHomeNumber(n)}`,
+  glyph: 'ö',
+  glyphColor: '#FFFFFF',
+  dialog: ['...'],
+})
+
+export const registerWhineGhostDefinitions = (count: number): void => {
+  for (let n = 1; n <= count; n++) {
+    const def = createWhineGhostDefinition(n)
+    CHARACTER_DEFINITIONS[def.id] = def
+  }
+}
+
 export const removeCharacterDefinition = (id: string): void => {
   // Reflect.deleteProperty avoids the no-dynamic-delete lint rule on `delete obj[key]`
   Reflect.deleteProperty(CHARACTER_DEFINITIONS, id)

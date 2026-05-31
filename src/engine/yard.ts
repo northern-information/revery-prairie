@@ -217,7 +217,7 @@ const collectWalkableYardInterior = (entry: ThresholdZoneState): Position[] => {
 
 export const sampleYardFlora = (state: GameState): void => {
   const entry = state.thresholdZones.get(LITTLE_HOUSE_YARD_ID)
-  if (!entry || !entry.flora) return
+  if (!entry?.flora) return
 
   // Clear stale samples — restore previously flora-overlaid tiles to
   // Dirt before scattering the new tally.

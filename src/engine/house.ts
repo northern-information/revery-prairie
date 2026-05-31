@@ -239,6 +239,60 @@ export const checkHouseTransition = (state: GameState): boolean => {
     }
   }
 
+  // RP-69 — Whine, Haunted Village. Overworld 3x3 hitbox (entrance +
+  // apron) enters Whine at the west gate. Inside Whine, the perimeter
+  // FenceGate exits; the twelve home FenceGates enter the matching
+  // per-home yard zone (binding lookup in the registry). Inside a
+  // home yard, the south FenceGate exits back to Whine.
+  if (state.currentZone === Zone.Overworld) {
+    const standingTile = state.map[py]?.[px]?.type
+    if (standingTile === TileType.WhineEntrance || standingTile === TileType.WhineApron) {
+      const apronTile = { x: px, y: py }
+      if (!isReentryLocked(state, apronTile)) {
+        scheduleZoneTransition(state, performance.now(), {
+          direction: 'enter',
+          kind: 'whine',
+          irisCenter: apronTile,
+        })
+        return true
+      }
+    }
+  }
+  if (state.currentZone === Zone.WhineVillage) {
+    const tileType = state.map[py]?.[px]?.type
+    if (tileType === TileType.FenceGate) {
+      const village = state.thresholdZones.get('whineVillage')
+      const binding = village?.gatePositions.get(`${String(px)},${String(py)}`)
+      if (binding?.kind === 'exit') {
+        scheduleZoneTransition(state, performance.now(), {
+          direction: 'exit',
+          kind: 'whine',
+          irisCenter: { x: px, y: py },
+        })
+        return true
+      }
+      if (binding?.kind === 'enter') {
+        scheduleZoneTransition(state, performance.now(), {
+          direction: 'enter',
+          kind: 'whine-home',
+          irisCenter: { x: px, y: py },
+        })
+        return true
+      }
+    }
+  }
+  if (state.currentZone === Zone.WhineHomeYard) {
+    const tileType = state.map[py]?.[px]?.type
+    if (tileType === TileType.FenceGate) {
+      scheduleZoneTransition(state, performance.now(), {
+        direction: 'exit',
+        kind: 'whine-home',
+        irisCenter: { x: px, y: py },
+      })
+      return true
+    }
+  }
+
   return false
 }
 

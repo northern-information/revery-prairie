@@ -790,11 +790,12 @@ export const CELLAR_KNOT_GLYPH = '§'
 export const CELLAR_KNOT_COLOR = '#D4B58A'
 
 // RP-69 — Whine, Haunted Village. Hand-authored hub region near the
-// little house. The follow-up commit on this branch widens the map to
-// 66x40 and shifts the gate to the south fence near the SW corner; the
-// initial Tasks 1-2 numbers here will be replayed by that commit during
-// the rest of the rebase.
-export const WHINE_WIDTH = 30
+// little house. Spec proposed ~30x20 with stride-5 home centers
+// {3, 8, 13, 18, 23, 28}; at width 30 the 6th home's 4-wide footprint
+// would overlap the east fence at x=29. Widening to 33 here keeps the
+// stride-5 spacing intact at this point in history; a follow-up commit
+// on this branch then widens further to 66x40 and shifts the gate.
+export const WHINE_WIDTH = 33
 export const WHINE_HEIGHT = 20
 export const WHINE_GATE_X = 0
 export const WHINE_GATE_Y = 10
