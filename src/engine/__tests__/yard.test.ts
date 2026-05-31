@@ -29,6 +29,8 @@ import {
   exitLittleHouseYardToOverworld,
   sampleYardFlora,
 } from '../yard'
+import { hasFogOfWar } from '../visibility'
+import { tickWeather } from '../weather'
 import { isReentryLocked } from '../zoneTransition'
 import { createTestState } from './helpers'
 
@@ -469,6 +471,36 @@ describe('flora sampling', () => {
       }
     })
   })
-  it.todo('yard pauses state.timeOfDay and state.season')
-  it.todo('yard re-entry lock prevents immediate yo-yo loop')
+  describe('clocks, camera, and visibility', () => {
+    it('pauses state.seasonalPhase advancement while in the yard (RP-51 substrate)', () => {
+      const state = createTestState()
+      // Reset to a known baseline.
+      state.seasonalPhase = 0.1
+      // Confirm overworld advances.
+      tickWeather(state, 5000)
+      expect(state.seasonalPhase).toBeGreaterThan(0.1)
+
+      // Now enter the yard and tick again — phase should freeze.
+      enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
+      const frozenPhase = state.seasonalPhase
+      tickWeather(state, 5000)
+      expect(state.seasonalPhase).toBe(frozenPhase)
+    })
+
+    it('renders the yard without fog of war', () => {
+      // hasFogOfWar covers Cave, Ruin, Overworld. The yard zone is
+      // intentionally NOT in that list — full visibility inside the
+      // claim, per the v11 R8 lock.
+      expect(hasFogOfWar(Zone.LittleHouseYard)).toBe(false)
+    })
+
+    it('keeps camera bounds consistent with the active yard map after a swap', () => {
+      const state = createTestState()
+      enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
+      // The swap copies yardMapWidth/Height into state.mapWidth/Height.
+      // The camera reads those when computing offsets in updateCamera.
+      expect(state.mapWidth).toBe(state.yardMapWidth)
+      expect(state.mapHeight).toBe(state.yardMapHeight)
+    })
+  })
 })
