@@ -23,6 +23,7 @@ import { setAudioEnabled, stopAll } from '@/engine/audio'
 import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
 import { canCast } from '@/engine/hexagram'
 import { advanceDialog } from '@/engine/interaction'
+import { nameToSeed } from '@/engine/genesis/shared'
 import { advanceReveryToClosing } from '@/engine/revery'
 import { ReveryPhase } from '@/engine/types'
 import { useGameEngine } from '@/hooks/useGameEngine'
@@ -129,7 +130,8 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
       {state.playbackCameraUid !== null &&
         (() => {
           const uid = state.playbackCameraUid
-          const placed = state.placedCameras.find(c => c.uid === uid)
+          const placedCameraIndex = state.placedCameras.findIndex(c => c.uid === uid)
+          const placed = placedCameraIndex >= 0 ? state.placedCameras[placedCameraIndex] : undefined
           const archive = state.cameraArchive.get(uid) ?? []
           const frames = [...archive, ...(placed?.frames ?? [])]
           if (frames.length === 0) {
@@ -137,10 +139,19 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
             state.playbackCameraUid = null
             return null
           }
+          // RP-24 — seed pieces only matter when the playback target is
+          // a predecessor camera; passing them on every playback is
+          // harmless and lets the modal decide via its own predecessor
+          // guard.
+          const genesisSeed = nameToSeed(state.stewardName)
           return (
             <TimeLapsePlayback
               cameraUid={uid}
               frames={frames}
+              placedCamera={placed}
+              genesisSeed={genesisSeed}
+              placedCameraIndex={placedCameraIndex >= 0 ? placedCameraIndex : undefined}
+              filmRemaining={state.cameraFilm.get(uid) ?? 0}
               onDismiss={() => {
                 // Precis #23 v9 R3 — auto-unload. Migrate the
                 // playback queue into the album, clear the camera's
