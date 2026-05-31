@@ -1,0 +1,270 @@
+plan:
+  id: RP-37-knot-cellar
+  title: 'Precis RP-37: The Knot Cellar — long corridor archive, alternating staggered alcoves, post-Revery awaken next to the year''s knot'
+  created: 2026-05-31
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: cellar-foundations
+    title: 'Add Zone.KnotCellar, ZoneTransitionKind ''knot-cellar'', five new TileTypes (CellarFloor, CellarWall, CellarAlcoveFloor, CellarBulkhead, CellarBulkheadInterior), cellar dimension/spacing constants (CELLAR_WIDTH=7, CELLAR_HEIGHT=770, CELLAR_ROOM_CAP=256, CELLAR_ALCOVE_SPACING=3, CELLAR_READ_DISTANCE=8, CELLAR_FADE_DISTANCE=12), walkability + renderer color/glyph tables, and the six new GameState fields registered in EXPECTED_FIELDS (cellarMap, cellarMapWidth, cellarMapHeight, cellarDoorSpawn, cellarBulkheadInterior, cellarBulkheadYard)'
+    spec_id: RP-37-knot-cellar
+    spec_sections:
+      - cellar-tile-types
+      - cellar-zone-and-map
+      - schema-test-fields
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+      - src/engine/movement.ts
+      - src/engine/renderer.ts
+      - src/engine/yard.ts
+      - src/engine/house.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+      - src/engine/movement.ts
+      - src/engine/renderer.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/RP-37-knot-cellar.test.ts
+    depends_on: []
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/RP-37-knot-cellar.test.ts'
+      - command: 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: cellar-map-creation
+    title: 'Implement createKnotCellar in src/engine/cellar.ts; build state.cellarMap at genesis with the locked 7x770 layout (CellarBulkheadInterior at top-center, 3-wide central corridor, alternating left/right alcoves at y = 2 + i*3); export getAlcovePosition(index) and getAlcoveFacing(index) pure helpers; mutate state.yardMap to place the CellarBulkhead tile at (11, 3) in the back yard after createLittleHouseYard runs in createGameState'
+    spec_id: RP-37-knot-cellar
+    spec_sections:
+      - cellar-zone-and-map
+      - yard-bulkhead-placement
+      - alcove-position-derivation
+    context_files:
+      - src/engine/cellar.ts
+      - src/engine/yard.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/cellar.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/RP-37-knot-cellar.test.ts
+    depends_on:
+      - cellar-foundations
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/RP-37-knot-cellar.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: cellar-transitions
+    title: 'Wire enterKnotCellar and exitKnotCellar through zoneTransition.ts; register both via registerZoneSwapHandler(''knot-cellar'', ...); extend the transition-detection sweep so stepping on a CellarBulkhead tile in the yard triggers enter and stepping on a CellarBulkheadInterior tile triggers exit; arm the cellar re-entry lock on exit (mirroring the RP-67 yard re-entry lock pattern); clear the standard nav/UI state on both enter and exit'
+    spec_id: RP-37-knot-cellar
+    spec_sections:
+      - yard-to-cellar-enter
+      - cellar-to-yard-exit
+    context_files:
+      - src/engine/cellar.ts
+      - src/engine/yard.ts
+      - src/engine/house.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/cave.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/cellar.ts
+      - src/engine/yard.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/__tests__/RP-37-knot-cellar.test.ts
+    depends_on:
+      - cellar-map-creation
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/RP-37-knot-cellar.test.ts'
+      - command: 'npx vitest run src/engine/__tests__/yard.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: cellar-render-passes
+    title: 'Implement knotCellarKnots and knotCellarFog render passes; knotCellarKnots iterates state.archivedKnots and stamps `§` at getAlcovePosition(i) plus one extra at archivedKnots.length when bedKnotPresent is true; knotCellarFog overlays Chebyshev-distance alpha (full intensity within CELLAR_READ_DISTANCE, linear fade across CELLAR_FADE_DISTANCE, opaque beyond); register both passes in the render pipeline gated on currentZone === Zone.KnotCellar'
+    spec_id: RP-37-knot-cellar
+    spec_sections:
+      - cellar-knot-render-pass
+      - cellar-distance-fog-pass
+    context_files:
+      - src/engine/render/passes/knotCellarKnots.ts
+      - src/engine/render/passes/knotCellarFog.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/render/passes/lineageOverlay.ts
+      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/engine/renderer.ts
+      - src/engine/cellar.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/render/passes/knotCellarKnots.ts
+      - src/engine/render/passes/knotCellarFog.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/__tests__/RP-37-knot-cellar.test.ts
+    depends_on:
+      - cellar-transitions
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/RP-37-knot-cellar.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+      - render
+    skip: false
+
+  - id: post-revery-awaken
+    title: 'Insert the post-Revery cellar-awaken hook in tickRevery''s Closing branch (src/engine/revery.ts) after revertHouseScene(): compute alcoveIndex from state.archivedKnots.length, clamp to CELLAR_ROOM_CAP-1, swap maps to the cellar, place steward at getAlcovePosition(alcoveIndex) facing into the corridor, recenter camera, record discovery zone:knotCellar, clear navigation state; idempotent on re-entry (skip swap if already in Zone.KnotCellar)'
+    spec_id: RP-37-knot-cellar
+    spec_sections:
+      - post-revery-awaken-in-cellar
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/cellar.ts
+      - src/engine/camera.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/revery.ts
+      - src/engine/__tests__/RP-37-knot-cellar.test.ts
+    depends_on:
+      - cellar-transitions
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/RP-37-knot-cellar.test.ts'
+      - command: 'npx vitest run src/engine/__tests__/RP-36-revery-knot.test.ts'
+      - command: 'npx vitest run src/engine/__tests__/revery-house-scene.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: cellar-pause-camera-visibility
+    title: 'Add Zone.KnotCellar to the pause-player-time table alongside HouseInterior and LittleHouseYard (timeOfDay and seasonalPhase frozen while in the cellar); clamp the camera viewport to cellarMapWidth/cellarMapHeight; ensure rain rendering, fog-of-war substrate, and other overworld-gated systems exclude the cellar (no rain glyphs, no FOW mask — the distance-fog pass is the only obscuring layer)'
+    spec_id: RP-37-knot-cellar
+    spec_sections:
+      - cellar-pauses-player-time
+      - cellar-camera-and-visibility
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/engine/visibility.ts
+      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/engine/visibility.ts
+      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/engine/__tests__/RP-37-knot-cellar.test.ts
+    depends_on:
+      - cellar-transitions
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/RP-37-knot-cellar.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: manual-and-backlog-rename
+    title: 'Add the Knot Cellar manual entry to MANUAL_ENTRIES (id: knot-cellar, label: ''Knot Cellar'', lore: ''TODO'', discovery key: zone:knotCellar); apply the mechanical "root cellar" → "Knot Cellar" rename throughout docs/backlog.yaml across RP-37 (the name field), RP-22, RP-36, RP-39, and the pausesPlayerTime zone-flag entry near line 2182, preserving sentence-case in prose vs. Title Case in labels per CLAUDE.md writing style; do not author Knot Cellar lore'
+    spec_id: RP-37-knot-cellar
+    spec_sections:
+      - manual-knot-cellar-entry
+      - backlog-terminology-rename
+    context_files:
+      - src/engine/manual.ts
+      - docs/backlog.yaml
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/manual.ts
+      - docs/backlog.yaml
+      - src/engine/__tests__/RP-37-knot-cellar.test.ts
+    depends_on:
+      - cellar-foundations
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/RP-37-knot-cellar.test.ts'
+      - command: 'npm run spec:validate'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+      - docs
+    skip: false
+
+  - id: cellar-integration-tests
+    title: 'Fill in the remaining vitest assertions for the full Knot Cellar flow: alcove layout determinism (knot 0 left at y=2, knot 1 right at y=5, …, never across); bulkhead enter spawns at the door; post-Revery awaken spawns at archivedKnots.length alcove; bedKnotPresent renders an extra § that becomes the archived § at Winter→Spring without visual jump; cap clamp; re-entry lock; pause-time semantics; manual discovery on first cellar encounter (whichever path — bulkhead or awaken)'
+    spec_id: RP-37-knot-cellar
+    spec_sections:
+      - cellar-tile-types
+      - cellar-zone-and-map
+      - yard-bulkhead-placement
+      - yard-to-cellar-enter
+      - cellar-to-yard-exit
+      - alcove-position-derivation
+      - cellar-knot-render-pass
+      - cellar-distance-fog-pass
+      - post-revery-awaken-in-cellar
+      - cellar-pauses-player-time
+      - manual-knot-cellar-entry
+    context_files:
+      - src/engine/cellar.ts
+      - src/engine/yard.ts
+      - src/engine/revery.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/RP-37-knot-cellar.test.ts
+    depends_on:
+      - cellar-render-passes
+      - post-revery-awaken
+      - cellar-pause-camera-visibility
+      - manual-and-backlog-rename
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/RP-37-knot-cellar.test.ts'
+      - command: 'npm run lint'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+      - testing
+    skip: false
