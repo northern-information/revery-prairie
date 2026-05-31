@@ -2691,3 +2691,47 @@ features:
       Firebreak: waterfalls count as firebreaks once RP-42 lands.
       Fire-spread BFS will read `state.waterfalls` opportunistically;
       RP-42 is not a hard dependency.
+
+  - id: 'RP-65'
+    name: X-ray alpha on lifted tiles occluding the avatar
+    summary: >
+      Per-frame alpha rule: any lifted tile whose iso projection
+      would visually occlude the player avatar's bounding box
+      renders its terrain glyph and side-wall shadow at XRAY_ALPHA
+      (~0.45) instead of fully opaque. Generalizes the v7-round
+      "cliff x-ray" idea to any lifted tile, not just cliffs. Goal
+      is "the steward stays visible at all times" even when walking
+      behind a mesa or under a high ridge.
+    size: M
+    depends_on: ['RP-41']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      Filed 2026-05-30 during RP-41 implementation. The behavior was
+      originally bundled into the RP-41 spec (behavior
+      `x-ray-alpha-on-occluding-lifted-tiles`) but deferred mid-
+      implementation because the bg-cache architecture in
+      `src/engine/tileBgCache.ts` precomputes the full map tile-bg
+      into an offscreen canvas and the `tileBgCompositePass` blits
+      it with a single per-frame `drawImage` — per-tile per-frame
+      alpha needs a different pattern (overlay pass on top of the
+      player, sub-region re-paint, or a cache restructure).
+
+
+      Helpers already exist in `src/engine/projection.ts` from the
+      RP-41 tier-0 commit: `XRAY_ALPHA`, `AVATAR_OCCLUSION_PAD`,
+      `ScreenRect`, `getTileScreenRect`, `getAvatarScreenRect`,
+      `rectsOverlap`, `isTileOccludingAvatar`. The unfinished part
+      is the integration into the render dispatch — likely a new
+      pass in `src/engine/render/passes/` that runs after the
+      player pass and re-paints occluding tiles at reduced alpha
+      on top of the cache blit. Open at spec: exact render
+      ordering, whether `tileBgCache` needs to expose per-tile
+      sub-region access, and how flora/entities on x-rayed tiles
+      participate (the spec said they should inherit the alpha,
+      but the existing per-entity render passes are independent).
+      RP-38 (overworld fog of war, shipped) is a useful precedent
+      for "per-frame state-aware visibility modification on top of
+      cached terrain."
