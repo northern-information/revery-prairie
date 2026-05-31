@@ -27,6 +27,7 @@ import {
   enterLittleHouseYardFromApron,
   enterLittleHouseYardFromHouse,
   exitLittleHouseYardToOverworld,
+  getLittleHouseYard,
   sampleYardFlora,
 } from '../yard'
 import { hasFogOfWar } from '../visibility'
@@ -100,13 +101,14 @@ describe('RP-67 yard zone', () => {
       expect(TILE_COLORS[TileType.FenceGate]).toBe('#ff69b4')
     })
 
-    it('initializes the five new GameState yard fields at genesis', () => {
+    it('registers the little house yard in the threshold-zone registry at genesis', () => {
       const state = createGameState('test-steward', 800, 600)
-      expect(state.yardMap).toBeDefined()
-      expect(state.yardMapWidth).toBeDefined()
-      expect(state.yardMapHeight).toBeDefined()
-      expect(state.yardGatePosition).toBeDefined()
-      expect(state.yardFrontDoorPosition).toBeDefined()
+      const entry = getLittleHouseYard(state)
+      expect(entry.map).toBeDefined()
+      expect(entry.width).toBeDefined()
+      expect(entry.height).toBeDefined()
+      expect(entry.frontDoorPosition).toBeDefined()
+      expect(entry.gatePositions.size).toBeGreaterThan(0)
     })
   })
 
@@ -205,13 +207,13 @@ describe('RP-67 yard zone', () => {
       }
     })
 
-    it('exposes the yard via state at genesis', () => {
+    it('exposes the yard via the threshold-zone registry at genesis', () => {
       const state = createGameState('test-steward', 800, 600)
-      expect(state.yardMapWidth).toBe(23)
-      expect(state.yardMapHeight).toBe(32)
-      expect(state.yardGatePosition).toEqual({ x: YARD_GATE_X, y: YARD_GATE_Y })
-      expect(state.yardFrontDoorPosition).toEqual({ x: YARD_FRONT_DOOR_X, y: YARD_FRONT_DOOR_Y })
-      expect(state.yardMap[YARD_GATE_Y][YARD_GATE_X].type).toBe(TileType.FenceGate)
+      const entry = getLittleHouseYard(state)
+      expect(entry.width).toBe(23)
+      expect(entry.height).toBe(32)
+      expect(entry.frontDoorPosition).toEqual({ x: YARD_FRONT_DOOR_X, y: YARD_FRONT_DOOR_Y })
+      expect(entry.map[YARD_GATE_Y][YARD_GATE_X].type).toBe(TileType.FenceGate)
     })
   })
   describe('transitions', () => {
@@ -237,9 +239,10 @@ describe('RP-67 yard zone', () => {
       // Run the enter handler directly (simulating the deferred swap).
       enterLittleHouseYardFromApron(state, transition.irisCenter)
       expect(state.currentZone).toBe(Zone.LittleHouseYard)
-      expect(state.map).toBe(state.yardMap)
-      expect(state.player).toEqual(state.yardGatePosition)
-      expect(state.yardEntryApron).toEqual({ x: px, y: py })
+      const entry = getLittleHouseYard(state)
+      expect(state.map).toBe(entry.map)
+      expect(state.player).toEqual({ x: YARD_GATE_X, y: YARD_GATE_Y })
+      expect(entry.entryReturnTile).toEqual({ x: px, y: py })
     })
 
     it('gate→overworld: stepping on the FenceGate schedules a yard-exit; the exit handler returns the player to yardEntryApron and arms the re-entry lock', () => {
@@ -260,14 +263,15 @@ describe('RP-67 yard zone', () => {
       expect(state.map).toBe(state.overworldMap)
       expect(state.player).toEqual(apron)
       expect(isReentryLocked(state, apron)).toBe(true)
-      expect(state.yardEntryApron).toBeNull()
+      expect(getLittleHouseYard(state).entryReturnTile).toBeNull()
     })
 
     it('yard→house: stepping on a HouseDoorClosed tile schedules a house-enter transition', () => {
       const state = createTestState()
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
       // Walk to the front door (center HouseDoorClosed tile).
-      state.player = { x: state.yardFrontDoorPosition.x, y: state.yardFrontDoorPosition.y }
+      const frontDoor = getLittleHouseYard(state).frontDoorPosition!
+      state.player = { x: frontDoor.x, y: frontDoor.y }
       state.zoneTransition = null
 
       const detected = checkHouseTransition(state)
@@ -300,12 +304,13 @@ describe('RP-67 yard zone', () => {
 
       enterLittleHouseYardFromHouse(state)
       expect(state.currentZone).toBe(Zone.LittleHouseYard)
+      const houseExitEntry = getLittleHouseYard(state)
       expect(state.player).toEqual({
-        x: state.yardFrontDoorPosition.x,
-        y: state.yardFrontDoorPosition.y + 1,
+        x: houseExitEntry.frontDoorPosition!.x,
+        y: houseExitEntry.frontDoorPosition!.y + 1,
       })
-      // yardEntryApron is untouched by the house→yard path.
-      expect(state.yardEntryApron).toBeNull()
+      // entryReturnTile is untouched by the house→yard path.
+      expect(houseExitEntry.entryReturnTile).toBeNull()
     })
 
     it('re-entry lock: after gate exit, stepping back onto the same apron does not re-trigger yard enter until the lock clears', () => {
@@ -376,9 +381,10 @@ describe('flora sampling', () => {
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
 
       // 2 clover + 1 wildflower = 3 flora placed.
-      expect(state.yardFlora.size).toBe(3)
+      const flora = getLittleHouseYard(state).flora!
+      expect(flora.size).toBe(3)
       const speciesCounts = { clover: 0, wildflower: 0, tallGrass: 0 }
-      for (const s of state.yardFlora.values()) {
+      for (const s of flora.values()) {
         if (s === FloraSpecies.Clover) speciesCounts.clover++
         else if (s === FloraSpecies.Wildflower) speciesCounts.wildflower++
         else if (s === FloraSpecies.TallGrass) speciesCounts.tallGrass++
@@ -393,11 +399,12 @@ describe('flora sampling', () => {
       seedApron(state, { [FloraSpecies.Clover]: 1, [FloraSpecies.TallGrass]: 1 })
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
 
-      for (const key of state.yardFlora.keys()) {
+      const mutEntry = getLittleHouseYard(state)
+      for (const key of mutEntry.flora!.keys()) {
         const [xs, ys] = key.split(',')
         const x = Number(xs)
         const y = Number(ys)
-        expect(state.yardMap[y][x].type).toBe(TileType.Flora)
+        expect(mutEntry.map[y][x].type).toBe(TileType.Flora)
       }
     })
 
@@ -414,9 +421,10 @@ describe('flora sampling', () => {
       // from the yard map BEFORE sampling so the assertion isn't
       // tautological.
       const expectedSlots: { x: number; y: number }[] = []
-      outer: for (let y = 0; y < state.yardMapHeight; y++) {
-        for (let x = 0; x < state.yardMapWidth; x++) {
-          if (state.yardMap[y][x].type === TileType.Dirt) {
+      const preEntry = getLittleHouseYard(state)
+      outer: for (let y = 0; y < preEntry.height; y++) {
+        for (let x = 0; x < preEntry.width; x++) {
+          if (preEntry.map[y][x].type === TileType.Dirt) {
             expectedSlots.push({ x, y })
             if (expectedSlots.length === 3) break outer
           }
@@ -424,17 +432,19 @@ describe('flora sampling', () => {
       }
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
 
-      expect(state.yardFlora.get(posKey(expectedSlots[0].x, expectedSlots[0].y))).toBe(FloraSpecies.Clover)
-      expect(state.yardFlora.get(posKey(expectedSlots[1].x, expectedSlots[1].y))).toBe(FloraSpecies.TallGrass)
-      expect(state.yardFlora.get(posKey(expectedSlots[2].x, expectedSlots[2].y))).toBe(FloraSpecies.Wildflower)
+      const flora = getLittleHouseYard(state).flora!
+      expect(flora.get(posKey(expectedSlots[0].x, expectedSlots[0].y))).toBe(FloraSpecies.Clover)
+      expect(flora.get(posKey(expectedSlots[1].x, expectedSlots[1].y))).toBe(FloraSpecies.TallGrass)
+      expect(flora.get(posKey(expectedSlots[2].x, expectedSlots[2].y))).toBe(FloraSpecies.Wildflower)
     })
 
     it('clears stale samples and re-runs on every yard enter event', () => {
       const state = createTestState()
       seedApron(state, { [FloraSpecies.Clover]: 3 })
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
-      expect(state.yardFlora.size).toBe(3)
-      const firstSamplePositions = Array.from(state.yardFlora.keys())
+      const flora = getLittleHouseYard(state).flora!
+      expect(flora.size).toBe(3)
+      const firstSamplePositions: string[] = Array.from(flora.keys())
 
       // Wipe the apron flora and re-enter: previous samples should clear,
       // and an empty apron should produce an empty yard.
@@ -442,13 +452,14 @@ describe('flora sampling', () => {
         state.floraLifecycle.delete(key)
       }
       sampleYardFlora(state)
-      expect(state.yardFlora.size).toBe(0)
-      // The yardMap tiles that previously held Flora should be back to Dirt.
+      const after = getLittleHouseYard(state)
+      expect(after.flora!.size).toBe(0)
+      // The yard tiles that previously held Flora should be back to Dirt.
       for (const key of firstSamplePositions) {
         const [xs, ys] = key.split(',')
         const x = Number(xs)
         const y = Number(ys)
-        expect(state.yardMap[y][x].type).toBe(TileType.Dirt)
+        expect(after.map[y][x].type).toBe(TileType.Dirt)
       }
     })
 
@@ -462,15 +473,16 @@ describe('flora sampling', () => {
         }
       }
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
-      expect(state.yardFlora.size).toBe(0)
+      expect(getLittleHouseYard(state).flora!.size).toBe(0)
     })
 
     it('samples on the house→yard path too (HouseExit transition fires the same pass)', () => {
       const state = createTestState()
       seedApron(state, { [FloraSpecies.Wildflower]: 2 })
       enterLittleHouseYardFromHouse(state)
-      expect(state.yardFlora.size).toBe(2)
-      for (const s of state.yardFlora.values()) {
+      const flora = getLittleHouseYard(state).flora!
+      expect(flora.size).toBe(2)
+      for (const s of flora.values()) {
         expect(s).toBe(FloraSpecies.Wildflower)
       }
     })
@@ -501,10 +513,12 @@ describe('flora sampling', () => {
     it('keeps camera bounds consistent with the active yard map after a swap', () => {
       const state = createTestState()
       enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
-      // The swap copies yardMapWidth/Height into state.mapWidth/Height.
-      // The camera reads those when computing offsets in updateCamera.
-      expect(state.mapWidth).toBe(state.yardMapWidth)
-      expect(state.mapHeight).toBe(state.yardMapHeight)
+      // The swap copies the yard's width/height into state.mapWidth/
+      // mapHeight. The camera reads those when computing offsets in
+      // updateCamera.
+      const entry = getLittleHouseYard(state)
+      expect(state.mapWidth).toBe(entry.width)
+      expect(state.mapHeight).toBe(entry.height)
     })
   })
 })

@@ -73,6 +73,13 @@ export const TileType = {
   CellarAlcoveFloor: 'cellarAlcoveFloor',
   CellarBulkhead: 'cellarBulkhead',
   CellarBulkheadInterior: 'cellarBulkheadInterior',
+  // Whine, Haunted Village (RP-69). WhineEntrance is the single
+  // overworld tile that opens into the Whine zone; WhineApron the 8
+  // neighbors that also trigger entry — mirroring the house apron
+  // pattern but landing in Whine's threshold-zone region instead of
+  // a structure interior.
+  WhineEntrance: 'whineEntrance',
+  WhineApron: 'whineApron',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -161,6 +168,17 @@ export interface DriftBehavior {
   type: 'drift'
   moveChance: number // probability per tick (0.15 for ghosts)
   freezeOnDialog: boolean
+  // RP-69 — optional rectangular constraint applied before terrain
+  // and crater filters in tickDrift. When present, candidate
+  // destination tiles outside the inclusive rectangle are rejected.
+  // Whine ghosts use this to stay in the corridor in front of their
+  // assigned home; overworld ghosts omit it for unbounded drift.
+  bounds?: {
+    minX: number
+    minY: number
+    maxX: number
+    maxY: number
+  }
 }
 
 export interface FollowBehavior {
@@ -263,7 +281,15 @@ export interface BootTitleCard {
 }
 
 export type ZoneTransitionDirection = 'enter' | 'exit'
-export type ZoneTransitionKind = 'cave' | 'ruin' | 'house' | 'yard' | 'house-to-yard' | 'knot-cellar'
+export type ZoneTransitionKind =
+  | 'cave'
+  | 'ruin'
+  | 'house'
+  | 'yard'
+  | 'house-to-yard'
+  | 'knot-cellar'
+  | 'whine'
+  | 'whine-home'
 
 export interface ZoneTransition {
   startTime: number
@@ -496,31 +522,21 @@ export interface GameState {
   // start and Revery anchor) — this one sits one tile north of the
   // HouseExit row so the player faces into the room from the door.
   houseDoorInteriorEntry: Position
-  // Yard around the little house (RP-67). The yard is a ThresholdZone
-  // sibling to Zone.Cave and Zone.HouseInterior — a 23x32 bounded place
-  // between the prairie and the house's interior. yardMap is built at
-  // genesis (alongside the house interior) by createLittleHouseYard()
-  // and persists for the tenure. yardGatePosition is the single
-  // FenceGate tile centered on the south fence; yardFrontDoorPosition
-  // is the center of the 3-wide HouseDoorClosed on the house roof's
-  // south face (iris-center for the yard→house transition).
-  yardMap: Tile[][]
-  yardMapWidth: number
-  yardMapHeight: number
-  yardGatePosition: Position
-  yardFrontDoorPosition: Position
-  // Overworld apron tile that triggered the most recent yard enter.
-  // Captured on the apron→yard transition; consumed by the yard→
-  // overworld gate exit to return the player to where they came in.
-  // Null when no yard-entry-from-apron is in flight.
-  yardEntryApron: Position | null
-  // Yard flora samples — populated at every yard-enter event by the
-  // RP-67 flora-sampling pass. Keyed by posKey(x, y) within the yard's
-  // coordinate space (NOT overworld coords). Values are the species
-  // glyph the renderer paints over the Flora-mutated tile in yardMap.
-  // Cosmetic snapshots: no growth, no decay, cleared on the next
-  // sample. Parallel to state.floraLifecycle but never merged with it.
-  yardFlora: Map<string, FloraSpecies>
+  // RP-69 — threshold-zone registry. The substrate underneath
+  // Zone.LittleHouseYard (RP-67), Zone.WhineVillage and the twelve
+  // Zone.WhineHomeYard instances (RP-69), and any future bounded place
+  // that sits between the prairie and an interior. Each entry owns its
+  // own map, dims, gate bindings, return tile, pause flag, and any
+  // per-zone state (the little house yard uses `flora` for its sampled
+  // snapshot). v11 R8 named the singleton yard fields; v11 R9 folded
+  // the substrate generalization into RP-69 once Whine required twelve
+  // nested instances.
+  thresholdZones: Map<ZoneId, ThresholdZoneState>
+  // Overworld tile that opens into Whine, Haunted Village. Null if
+  // genesis exhausted its placement ring without finding a valid
+  // 3x3 Dirt footprint east of the little house — Whine is still
+  // registered but unreachable for the tenure.
+  whineEntranceOverworld: Position | null
   // Knot Cellar (RP-37). The cellar is a long narrow corridor with
   // alcoves cut into the side walls at every CELLAR_ALCOVE_SPACING
   // rows, alternating left/right by index parity. Built once at
@@ -529,7 +545,9 @@ export interface GameState {
   // bulkhead from the yard; cellarBulkheadInterior is the in-cellar
   // staircase that exits back to the yard; cellarBulkheadYard is the
   // mutated yard tile (one north of the house's back wall, x-centered)
-  // that triggers cellar entry.
+  // that triggers cellar entry. The yard map itself lives inside
+  // state.thresholdZones (RP-69 migration); the bulkhead is stamped
+  // into that map at genesis before the yard is registered.
   cellarMap: Tile[][]
   cellarMapWidth: number
   cellarMapHeight: number
@@ -1064,9 +1082,68 @@ export const Zone = {
   HouseInterior: 'houseInterior',
   LittleHouseYard: 'littleHouseYard',
   KnotCellar: 'knotCellar',
+  WhineVillage: 'whineVillage',
+  WhineHomeYard: 'whineHomeYard',
 } as const
 
 export type Zone = (typeof Zone)[keyof typeof Zone]
+
+// RP-69 — threshold-zone registry types. A ZoneId is a string key the
+// registry uses to look up a ThresholdZoneState. Multiple ZoneIds may
+// share a Zone variant (e.g. all twelve 'whine-home-NN' ids map to
+// Zone.WhineHomeYard).
+export type ZoneId = string
+
+// One gate tile inside a threshold zone. Keyed in the registry entry's
+// `gatePositions` map by posKey(x, y) of the FenceGate (or, for the
+// little house yard, the HouseDoorClosed tile that opens the front
+// door). The transition handlers look up the binding at the moment of
+// the step.
+export interface GateBinding {
+  // 'enter' — stepping on this tile opens another zone (the target).
+  // 'exit'  — stepping on this tile leaves the current zone.
+  kind: 'enter' | 'exit'
+  // For 'enter' bindings: the destination zone id (a ThresholdZoneState
+  // key). For 'exit' bindings: omitted unless the destination is also a
+  // threshold zone.
+  targetZoneId?: ZoneId
+  // For 'exit' bindings whose destination is the overworld. The exit
+  // handler restores the overworld map and places the player at the
+  // owning entry's entryReturnTile.
+  targetIsOverworld?: boolean
+}
+
+// One entry in state.thresholdZones. Holds everything a transition
+// handler needs to swap into the zone, walk around inside it, and swap
+// back out. New fields can be added per zone variant (the little house
+// yard uses `flora` for its sampled snapshot).
+export interface ThresholdZoneState {
+  id: ZoneId
+  zoneVariant: Zone
+  map: Tile[][]
+  width: number
+  height: number
+  // posKey(x, y) → binding for every gate tile inside the zone.
+  gatePositions: Map<string, GateBinding>
+  // Set on the SOURCE entry at the moment of an enter transition to
+  // the tile the steward should return to on the next exit. The
+  // little house yard stores the overworld apron tile here; a Whine
+  // home yard stores the Whine gate tile that opened it. Null when
+  // no enter is in flight (or after the next exit consumes it).
+  entryReturnTile: Position | null
+  // RP-51 — whether occupying this zone pauses state.timeOfDay /
+  // state.season advancement. All threshold zones in v11/v12 pause;
+  // the field exists so non-pausing future variants can opt out.
+  pausesPlayerTime: boolean
+  // The center HouseDoorClosed tile inside the little house yard — the
+  // iris-center for the yard→house transition. Optional; only the
+  // little house yard sets it. Whine home yards have no front door.
+  frontDoorPosition?: Position
+  // Per-zone flora snapshots — sampled at zone enter for the little
+  // house yard (RP-67). Other threshold zones omit this field.
+  // Keyed by posKey(x, y) inside the zone's coordinate space.
+  flora?: Map<string, FloraSpecies>
+}
 
 export const RuinArchetype = {
   DormantGarden: 'dormantGarden',

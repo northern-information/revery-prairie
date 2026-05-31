@@ -41,7 +41,7 @@ import { buildWaterProximity } from './tileWater'
 import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
-import { createLittleHouseYard } from './yard'
+import { createLittleHouseYard, registerLittleHouseYard } from './yard'
 
 import type { GenesisSimState } from './genesisTypes'
 import type { GameState, Position } from './types'
@@ -302,17 +302,17 @@ export const createGameState = (
     // steward lands here when entering via HouseDoorClosed from the
     // yard, facing the room.
     houseDoorInteriorEntry: { x: houseInterior.exitInterior.x, y: houseInterior.exitInterior.y - 1 },
-    // RP-67 — yard map built at genesis alongside the house interior.
-    yardMap: yard.map,
-    yardMapWidth: yard.width,
-    yardMapHeight: yard.height,
-    yardGatePosition: yard.gatePosition,
-    yardFrontDoorPosition: yard.frontDoorPosition,
-    yardEntryApron: null,
-    yardFlora: new Map(),
+    // RP-69 — threshold-zone registry. Populated below after the
+    // GameState object exists so registerLittleHouseYard (and Whine +
+    // its twelve home yards in subsequent commits) can mutate it in
+    // place using the canonical helpers.
+    thresholdZones: new Map(),
+    whineEntranceOverworld: null,
     // RP-37 — Knot Cellar map and the bulkhead anchors. The map is
     // 7x770; the corridor reads as effectively infinite because the
-    // knotCellarFog pass hides the far end at all times.
+    // knotCellarFog pass hides the far end at all times. The
+    // cellarBulkheadYard is the in-yard tile mutated at genesis (above)
+    // before the yard is registered into state.thresholdZones.
     cellarMap: cellar.map,
     cellarMapWidth: cellar.width,
     cellarMapHeight: cellar.height,
@@ -459,6 +459,11 @@ export const createGameState = (
     knotHarvestYearCounter: 1 - POOL_INITIAL_KNOTS,
     knotHarvestYears: new Map(),
   }
+
+  // RP-69 — register the little house yard into the threshold-zone
+  // registry now that the state object exists. Whine + its twelve home
+  // yards are registered alongside, lower in this function (RP-69 Task 3).
+  registerLittleHouseYard(state, yard)
 
   // RP-64 — Receiving-tile water bump. Each waterfall's bottom
   // tile gets a small tileWater increment so downstream flora has

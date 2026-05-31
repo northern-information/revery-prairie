@@ -183,7 +183,9 @@ describe('RP-37 — the Knot Cellar', () => {
   describe('back-yard bulkhead placement', () => {
     it('places a CellarBulkhead tile at YARD_BULKHEAD_X/Y in the back yard', () => {
       const state = createTestState()
-      expect(state.yardMap[YARD_BULKHEAD_Y][YARD_BULKHEAD_X].type).toBe(TileType.CellarBulkhead)
+      const yardEntry = state.thresholdZones.get('littleHouseYard')
+      if (!yardEntry) throw new Error('little house yard not registered')
+      expect(yardEntry.map[YARD_BULKHEAD_Y][YARD_BULKHEAD_X].type).toBe(TileType.CellarBulkhead)
       expect(state.cellarBulkheadYard).toEqual({ x: YARD_BULKHEAD_X, y: YARD_BULKHEAD_Y })
     })
 
@@ -201,9 +203,11 @@ describe('RP-37 — the Knot Cellar', () => {
     it('stepping on the yard bulkhead schedules a yard→cellar enter transition', () => {
       const state = createTestState()
       // Set up: steward in yard standing on the bulkhead tile.
-      state.map = state.yardMap
-      state.mapWidth = state.yardMapWidth
-      state.mapHeight = state.yardMapHeight
+      const yardEntry = state.thresholdZones.get('littleHouseYard')
+      if (!yardEntry) throw new Error('little house yard not registered')
+      state.map = yardEntry.map
+      state.mapWidth = yardEntry.width
+      state.mapHeight = yardEntry.height
       state.currentZone = Zone.LittleHouseYard
       state.player = { x: state.cellarBulkheadYard.x, y: state.cellarBulkheadYard.y }
       state.reentryLock = null
@@ -216,9 +220,11 @@ describe('RP-37 — the Knot Cellar', () => {
 
     it('on enter, the steward lands at cellarDoorSpawn facing down the corridor', () => {
       const state = createTestState()
-      state.map = state.yardMap
-      state.mapWidth = state.yardMapWidth
-      state.mapHeight = state.yardMapHeight
+      const yardEntry = state.thresholdZones.get('littleHouseYard')
+      if (!yardEntry) throw new Error('little house yard not registered')
+      state.map = yardEntry.map
+      state.mapWidth = yardEntry.width
+      state.mapHeight = yardEntry.height
       state.currentZone = Zone.LittleHouseYard
       state.player = { x: state.cellarBulkheadYard.x, y: state.cellarBulkheadYard.y }
       state.reentryLock = null

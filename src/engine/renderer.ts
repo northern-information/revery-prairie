@@ -1538,14 +1538,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           // species (the chromatic decline reads as "dying plant"
           // regardless of family).
           //
-          // RP-67 — in the yard zone, flora are cosmetic snapshots in
-          // state.yardFlora (not state.floraLifecycle). Substitute the
-          // yard lookup so the renderer paints the sampled species
-          // glyph + healthy color over the Flora-mutated yardMap tile.
+          // RP-67 — in the yard zone, flora are cosmetic snapshots
+          // stored on the threshold-zone registry entry's `flora` map
+          // (RP-69 migrated this off the singleton state.yardFlora).
+          // Substitute the yard lookup so the renderer paints the
+          // sampled species glyph + healthy color over the Flora-
+          // mutated yard-map tile.
           const lifecycle = tile.type === TileType.Flora ? state.floraLifecycle.get(tileKey) : undefined
           const yardSpecies =
             tile.type === TileType.Flora && state.currentZone === Zone.LittleHouseYard
-              ? state.yardFlora.get(tileKey)
+              ? state.thresholdZones.get('littleHouseYard')?.flora?.get(tileKey)
               : undefined
           if (yardSpecies !== undefined) {
             const speciesDef = FLORA_SPECIES[yardSpecies]

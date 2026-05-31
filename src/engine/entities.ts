@@ -247,6 +247,14 @@ const tickDrift = (state: GameState, eid: Entity, definitionId: string, behavior
     const nx = pos.x + d.x
     const ny = pos.y + d.y
     if (!isInBounds(nx, ny, state.mapWidth, state.mapHeight)) continue
+    // RP-69 — bounded drift for Whine ghosts. Reject candidates
+    // outside the inclusive rectangle before the terrain check; the
+    // ghost stays in front of its assigned home rather than wandering
+    // off the corridor. Unbounded drift (overworld ghosts) skips this.
+    if (behavior.bounds) {
+      const b = behavior.bounds
+      if (nx < b.minX || nx > b.maxX || ny < b.minY || ny > b.maxY) continue
+    }
     if (!isWalkableTile(state.map[ny][nx].type)) continue
     if (state.craters.has(posKey(nx, ny))) continue
     candidates.push({ x: nx, y: ny })

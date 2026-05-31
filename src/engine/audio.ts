@@ -11,6 +11,11 @@ export const ZONE_MUSIC: Record<Zone, string> = {
   // RP-37 Knot Cellar — reuse Emily's track for now. The cellar is the
   // archive sibling of the house; the diegetic space is shared.
   [Zone.KnotCellar]: '/music/emily.mp3',
+  // RP-69 Whine — reuse the overworld track for v1. The village is a
+  // hand-authored hub but its diegetic register is the prairie's; per-
+  // village ambient music can land in a follow-up.
+  [Zone.WhineVillage]: '/music/overworld.mp3',
+  [Zone.WhineHomeYard]: '/music/overworld.mp3',
 }
 
 const FADE_MS = 300

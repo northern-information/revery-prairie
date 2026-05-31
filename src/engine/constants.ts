@@ -77,6 +77,12 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.CellarAlcoveFloor]: '·',
   [TileType.CellarBulkhead]: '█',
   [TileType.CellarBulkheadInterior]: '█',
+  // RP-69 — Whine, Haunted Village approach tiles. Entrance reads as
+  // a stack of horizontal bars (the village as a row of houses seen
+  // from the prairie); the apron reuses the house apron's path glyph
+  // for visual continuity with the existing approach idiom.
+  [TileType.WhineEntrance]: '≡',
+  [TileType.WhineApron]: '·',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -137,6 +143,13 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.CellarAlcoveFloor]: '#3A2A1C',
   [TileType.CellarBulkhead]: '#ff69b4',
   [TileType.CellarBulkheadInterior]: '#ff69b4',
+  // RP-69 — muted dust-violet entrance reads as "village ahead" without
+  // colliding with the prairie's warm browns or the ruin's verdigris.
+  // Apron keeps the warm dirt color the house apron uses so the
+  // approach footprint reads continuously with the path the steward is
+  // already walking on.
+  [TileType.WhineEntrance]: '#8A6B92',
+  [TileType.WhineApron]: '#5A4128',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering
@@ -775,3 +788,49 @@ export const CELLAR_BULKHEAD_COLOR = '#ff69b4'
 // section of parceled time) in warm prairie-straw.
 export const CELLAR_KNOT_GLYPH = '§'
 export const CELLAR_KNOT_COLOR = '#D4B58A'
+
+// RP-69 — Whine, Haunted Village. Hand-authored hub region near the
+// little house. The follow-up commit on this branch widens the map to
+// 66x40 and shifts the gate to the south fence near the SW corner; the
+// initial Tasks 1-2 numbers here will be replayed by that commit during
+// the rest of the rebase.
+export const WHINE_WIDTH = 30
+export const WHINE_HEIGHT = 20
+export const WHINE_GATE_X = 0
+export const WHINE_GATE_Y = 10
+export const WHINE_MAIN_STREET_Y = 10
+// Six homes per side. Index i ∈ [0, 5]; centerX = 3 + 5 * i.
+export const WHINE_HOME_COUNT_PER_SIDE = 6
+export const WHINE_HOME_CENTER_X_BASE = 3
+export const WHINE_HOME_CENTER_X_STRIDE = 5
+// Home footprint extends from centerX-1..centerX+2 (4 wide) and
+// y ∈ [1, 4] (north) or y ∈ [15, 18] (south). 4 tall.
+export const WHINE_HOME_FOOTPRINT_WIDTH = 4
+export const WHINE_HOME_FOOTPRINT_HEIGHT = 4
+export const WHINE_NORTH_HOME_TOP_Y = 1
+export const WHINE_NORTH_HOME_BOTTOM_Y = 4 // south-facing gate row for north homes
+export const WHINE_SOUTH_HOME_TOP_Y = 15 // north-facing gate row for south homes
+export const WHINE_SOUTH_HOME_BOTTOM_Y = 18
+// Overworld placement offset east of houseEntranceOverworld. Genesis
+// walks a deterministic ring if the strict offset is blocked.
+export const WHINE_OVERWORLD_OFFSET_X = 25
+export const WHINE_OVERWORLD_OFFSET_Y = 0
+export const WHINE_PLACEMENT_DISTANCES = [22, 24, 26, 28] as const
+export const WHINE_PLACEMENT_DY_OFFSETS = [0, -2, 2, -4, 4] as const
+
+// Per-home yard template. Each of the twelve Whine homes opens into an
+// instance of this map. No HouseDoorClosed — homes are not enterable.
+export const WHINE_HOME_YARD_WIDTH = 9
+export const WHINE_HOME_YARD_HEIGHT = 7
+export const WHINE_HOME_YARD_GATE_X = 4
+export const WHINE_HOME_YARD_GATE_Y = 6
+// Roof block (5x3 cells of HouseEaves on the perimeter + HouseRoof on
+// the inner 3x1 row).
+export const WHINE_HOME_YARD_ROOF_MIN_X = 2
+export const WHINE_HOME_YARD_ROOF_MAX_X = 6
+export const WHINE_HOME_YARD_ROOF_MIN_Y = 1
+export const WHINE_HOME_YARD_ROOF_MAX_Y = 3
+
+// Whine ghost drift cadence.
+export const WHINE_GHOST_MOVE_CHANCE = 0.15
+export const WHINE_GHOST_COUNT = WHINE_HOME_COUNT_PER_SIDE * 2 // 12

@@ -235,17 +235,20 @@ export const enterKnotCellar = (state: GameState): void => {
  * move doesn't immediately re-enter.
  */
 export const exitKnotCellarToYard = (state: GameState): void => {
-  if (!state.yardMap || state.yardMap.length === 0) {
-    console.warn('exitKnotCellarToYard called with no yardMap; skipping')
+  // RP-69 — yard now lives in state.thresholdZones (the singleton
+  // yardMap fields were retired by the registry migration).
+  const yardEntry = state.thresholdZones.get('littleHouseYard')
+  if (!yardEntry || yardEntry.map.length === 0) {
+    console.warn('exitKnotCellarToYard called with no yard registered; skipping')
     return
   }
   const returnTile: Position = {
     x: state.cellarBulkheadYard.x,
     y: state.cellarBulkheadYard.y - 1,
   }
-  state.map = state.yardMap
-  state.mapWidth = state.yardMapWidth
-  state.mapHeight = state.yardMapHeight
+  state.map = yardEntry.map
+  state.mapWidth = yardEntry.width
+  state.mapHeight = yardEntry.height
   state.currentZone = Zone.LittleHouseYard
   state.player = returnTile
   state.playerFacing = 'up'
