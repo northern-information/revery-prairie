@@ -1,0 +1,58 @@
+plan:
+  id: crater-zone-gate-fix
+  title: 'Gate state.craters and state.burnScars rendering to Zone.Overworld so overworld posKeys cannot leak BUILDING_CHARS / burn colors into the little-house yard (or any future non-overworld zone with Dirt tiles)'
+  created: 2026-05-31
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: regression-test-crater-leak
+    title: 'Add a regression test asserting that an overworld crater posKey colliding with a yard Dirt coordinate does not change the yard tile rendering. Must fail on main and pass after the fix.'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-rendering-overworld-only
+    context_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+      - src/engine/renderer.ts
+      - src/engine/state.ts
+      - src/engine/yard.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+    depends_on: []
+    verification:
+      - command: 'npx vitest run src/engine/__tests__/satelliteImpacts.test.ts'
+
+  - id: zone-gate-fix
+    title: 'In renderer.ts the Dirt-tile resolution chain (around line 1606), wrap the state.craters.has(tileKey) and state.burnScars.has(tileKey) branches in a state.currentZone === Zone.Overworld guard so neither set is consulted in any non-overworld zone.'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-renders-visually
+      - crater-rendering-overworld-only
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - regression-test-crater-leak
+    verification:
+      - command: 'npx vitest run src/engine/__tests__/satelliteImpacts.test.ts'
+      - command: 'npx tsc -b --noEmit'
+
+  - id: verify-existing-crater-behavior-intact
+    title: 'Run the satelliteImpacts test suite and any other tests that touch crater rendering to ensure the overworld crater visuals (glyph + bg) are unchanged.'
+    spec_id: satellite-crater-as-effect
+    spec_sections:
+      - crater-renders-visually
+      - crater-is-effect-on-dirt
+    context_files:
+      - src/engine/__tests__/satelliteImpacts.test.ts
+      - src/engine/__tests__/combine.test.ts
+    output_files: []
+    depends_on:
+      - zone-gate-fix
+    verification:
+      - command: 'npx vitest run src/engine/__tests__/satelliteImpacts.test.ts src/engine/__tests__/combine.test.ts'
