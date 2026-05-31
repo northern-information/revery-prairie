@@ -476,6 +476,12 @@ export interface GameState {
   // opposite Emily across the fire. Also the Revery anchor: the steward
   // Reverys in place here, no bed teleport (v11 R7 amendment, RP-36).
   houseEntranceInterior: Position
+  // RP-67 — interior position the steward arrives at when walking
+  // through the front door (the HouseDoorClosed tile in the yard).
+  // Distinct from houseEntranceInterior (the hearth-spawn for tenure
+  // start and Revery anchor) — this one sits one tile north of the
+  // HouseExit row so the player faces into the room from the door.
+  houseDoorInteriorEntry: Position
   // Yard around the little house (RP-67). The yard is a ThresholdZone
   // sibling to Zone.Cave and Zone.HouseInterior — a 23x32 bounded place
   // between the prairie and the house's interior. yardMap is built at

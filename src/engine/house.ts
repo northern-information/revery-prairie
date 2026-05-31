@@ -87,7 +87,11 @@ export const enterHouse = (state: GameState): void => {
   state.map = state.houseMap
   state.mapWidth = state.houseMapWidth
   state.mapHeight = state.houseMapHeight
-  state.player = { x: state.houseEntranceInterior.x, y: state.houseEntranceInterior.y }
+  // RP-67 — enterHouse is only called via the yard→house front-door
+  // transition. Player lands one tile inside the south door, facing
+  // the room. The tenure-start spawn at houseEntranceInterior (hearth)
+  // is set directly in createGameState, not through this handler.
+  state.player = { x: state.houseDoorInteriorEntry.x, y: state.houseDoorInteriorEntry.y }
   state.currentZone = Zone.HouseInterior
   recordDiscovery(state, 'zone:house')
 

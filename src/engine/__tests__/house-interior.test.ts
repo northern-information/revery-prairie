@@ -68,7 +68,9 @@ describe('RP-33 — enter/exitHouse swap handlers', () => {
 
     expect(state.currentZone).toBe(Zone.HouseInterior)
     expect(state.map).toBe(state.houseMap)
-    expect(state.player).toEqual(state.houseEntranceInterior)
+    // RP-67 — entry via the front-door swap handler lands the steward at
+    // the door, not the hearth.
+    expect(state.player).toEqual(state.houseDoorInteriorEntry)
   })
 
   it('exitHouse swaps back to overworldMap and finds a safe exit position', () => {

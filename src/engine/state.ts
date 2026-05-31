@@ -289,6 +289,10 @@ export const createGameState = (
     houseMapHeight: houseInterior.height,
     houseEntranceOverworld,
     houseEntranceInterior: houseInterior.spawnInterior,
+    // One tile north of the south-door row inside the house. The
+    // steward lands here when entering via HouseDoorClosed from the
+    // yard, facing the room.
+    houseDoorInteriorEntry: { x: houseInterior.exitInterior.x, y: houseInterior.exitInterior.y - 1 },
     // RP-67 — yard map built at genesis alongside the house interior.
     yardMap: yard.map,
     yardMapWidth: yard.width,

@@ -55,6 +55,7 @@ const EXPECTED_FIELDS = [
   'houseMapHeight',
   'houseEntranceOverworld',
   'houseEntranceInterior',
+  'houseDoorInteriorEntry',
   'yardMap',
   'yardMapWidth',
   'yardMapHeight',

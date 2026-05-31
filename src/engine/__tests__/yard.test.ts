@@ -277,10 +277,11 @@ describe('RP-67 yard zone', () => {
       expect(transition.kind).toBe('house')
       expect(transition.direction).toBe('enter')
 
-      // Existing enterHouse handler runs and places the player inside the house.
+      // Existing enterHouse handler runs and places the player just
+      // inside the front door (RP-67: not the hearth).
       enterHouse(state)
       expect(state.currentZone).toBe(Zone.HouseInterior)
-      expect(state.player).toEqual(state.houseEntranceInterior)
+      expect(state.player).toEqual(state.houseDoorInteriorEntry)
     })
 
     it('house→yard: stepping on HouseExit schedules a house-to-yard exit; the handler places the player south of the front door', () => {
