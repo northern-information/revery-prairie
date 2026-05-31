@@ -1,0 +1,633 @@
+plan:
+  id: RP-36-revery-knot
+  title: 'The Revery Knot — item registration, coyote scripted-route delivery, dormancyPressure contribution, harvest-year tagging, bed → archivedKnots handoff, retire OmenKind triplet'
+  created: 2026-05-31
+  # Cross-cutting: ten new top-level GameState fields, OmenKind enum
+  # rewritten (cross-file fixture updates), coyote AI gains a new
+  # branch, gameLoop season-edge block gains three new edges, schema
+  # serialization touched, ItemInstance side-table added. Engine layer
+  # only — no React, no multiplayer wire changes. Full suite required
+  # because GameState shape changes propagate widely.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: doctrine + docs status ---
+
+  - id: doctrine-status-update
+    title: >
+      Flip RP-36 from todo to in-progress in docs/backlog.yaml. Set the
+      spec and plan paths under the RP-36 entry (spec:
+      harness/specs/RP-36-revery-knot.yaml, plan:
+      harness/plans/RP-36-revery-knot.yaml). The v6 R6 and v11 R6
+      thinktank paragraphs are already in the notes. Add a short
+      "Revery Knot (RP-36)" subhead to docs/claude/state.md listing
+      the ten new GameState fields and their single-owner write sites:
+      knotDelivery (gameLoop season edges + coyote scripted route),
+      bedKnotPresent (pickup site + spring archive), archivedKnots
+      (spring archive only), lastKnotDeliveryArmed (gameLoop season
+      edges), lastKnotPickupAt / lastKnotPickupTile /
+      lastKnotPickupHarvestYear (pickup site), lastArchiveReveryCount
+      (spring archive), knotHarvestYearCounter (autumn arming),
+      knotHarvestYears (pickup site + spring archive).
+    spec_id: RP-36-revery-knot
+    spec_sections: []
+    context_files:
+      - docs/backlog.yaml
+      - docs/claude/state.md
+    output_files:
+      - docs/backlog.yaml
+      - docs/claude/state.md
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: types — enum rewrite, new shapes, new fields ---
+
+  - id: rewrite-omenkind-enum
+    title: >
+      Rewrite the OmenKind enum in src/engine/types.ts:1000-1004 to a
+      single value:
+      `export const OmenKind = { ReveryKnot: 'revery-knot' } as const`.
+      Delete BeeOnShoulder, DistantMeteorite, CloudPassingSun. The
+      OmenKind type alias on line 1006 is preserved. Update three test
+      fixtures that reference the deleted values:
+      src/components/__tests__/ReverySummary.test.tsx (line 25:
+      omenKind: OmenKind.BeeOnShoulder → OmenKind.ReveryKnot),
+      src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
+      (line 7: same), src/engine/__tests__/revery-house-scene.test.ts
+      (line 26: same). Update src/engine/gameLoop.ts:141 to call
+      `initiateRevery(state, time, OmenKind.ReveryKnot)` and trim the
+      "RP-36 will surface a real Knot-pickup kind when it ships"
+      phrasing from the comment at lines 135-138 — that has now
+      shipped.
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - retire-omenkind-triplet
+    context_files:
+      - src/engine/types.ts
+      - src/engine/gameLoop.ts
+      - src/components/__tests__/ReverySummary.test.tsx
+      - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
+      - src/engine/__tests__/revery-house-scene.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/gameLoop.ts
+      - src/components/__tests__/ReverySummary.test.tsx
+      - src/engine/__tests__/RP-39-post-revery-memory-softening.test.ts
+      - src/engine/__tests__/revery-house-scene.test.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-knot-types-and-state-fields
+    title: >
+      Add new type exports to src/engine/types.ts:
+      `export interface KnotDeliveryState { stage: 'walkingToHouse' |
+      'enroute'; dispatchedAt: number; harvestYear: number }` and
+      `export interface ArchivedKnot { pickedUpAt: number;
+      pickedUpTile: Position; archivedAt: number; harvestYear: number }`.
+      Extend the GameState interface with TEN new top-level fields:
+      knotDelivery (KnotDeliveryState | null), bedKnotPresent (boolean),
+      archivedKnots (ArchivedKnot[]), lastKnotDeliveryArmed (boolean),
+      lastKnotPickupAt (number), lastKnotPickupTile (Position | null),
+      lastKnotPickupHarvestYear (number), lastArchiveReveryCount (number),
+      knotHarvestYearCounter (number), knotHarvestYears (Map<ItemUid,
+      number>). Group them under a "// RP-36 — Revery Knot" comment
+      block in GameState. No initialization here — that lands in
+      init-knot-state-fields.
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - knot-delivery-state-fields
+      - revery-spring-archives-knot
+      - pickup-bookkeeping-fields
+    context_files:
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on:
+      - rewrite-omenkind-enum
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 2: constants + item registration + manual stub ---
+
+  - id: add-knot-constants
+    title: >
+      Add two constants to src/engine/constants.ts under a "// RP-36 —
+      Revery Knot" subhead:
+      `export const KNOT_PRESSURE_AMOUNT = 0.5` (per-pickup contribution
+      to dormancyPressure) and `export const POOL_INITIAL_KNOTS = 1`
+      (initial pool size; the first delivery in tenure year 0 stamps
+      harvestYear = 0, which is the pre-play year). Add a one-line
+      comment naming v11 R6 doctrine.
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - knot-pickup-contributes-pressure
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: register-revery-knot-item
+    title: >
+      Append a `reveryKnot` entry to ITEMS in src/engine/items.ts after
+      the existing entries (preserving the file's `as const satisfies`
+      pattern at line 99). Shape:
+      `reveryKnot: { name: 'Revery Knot', glyph: '§',
+      glyphColor: '#D4B58A', category: ItemCategory.Artifact }`. No
+      maxUses (Knots are not tool-worn). Add a comment line above the
+      entry: "// RP-36 — harvest knot from prairie grass. Glyph '§'
+      reads as both a tied braided knot and a 'section' of parceled
+      time (one year, bound)." ITEM_DEFINITIONS auto-derives via the
+      existing Object.fromEntries pattern; no manual change to
+      ITEM_DEFINITIONS needed.
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - reveryknot-item-definition
+    context_files:
+      - src/engine/items.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/items.ts
+    depends_on:
+      - doctrine-status-update
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: add-knot-manual-lore-stub
+    title: >
+      Add `'item:reveryKnot': { lore: 'TODO' }` to MANUAL_LORE in
+      src/engine/manual.ts (around line 114 where 'character:emily' is
+      registered — same alphabetical grouping pattern is acceptable; or
+      append to the items section if there is one). Lore content is
+      a literal 'TODO' placeholder per feedback_manual_lore_only and
+      MANUAL_LORE doctrine. The manual auto-iteration at manual.ts:692
+      picks up the new item definition via ITEM_DEFINITIONS without
+      additional wiring.
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - reveryknot-item-definition
+    context_files:
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - register-revery-knot-item
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 3: state init + schema test ---
+
+  - id: init-knot-state-fields
+    title: >
+      Initialize the ten new GameState fields in createGameState
+      (src/engine/state.ts). Order them under a "// RP-36 — Revery
+      Knot" comment block near the existing reveryCount /
+      lastReveryEndTime block. Initial values:
+      knotDelivery: null,
+      bedKnotPresent: false,
+      archivedKnots: [],
+      lastKnotDeliveryArmed: false,
+      lastKnotPickupAt: 0,
+      lastKnotPickupTile: null,
+      lastKnotPickupHarvestYear: 0,
+      lastArchiveReveryCount: 0,
+      knotHarvestYearCounter: 1 - POOL_INITIAL_KNOTS,
+      knotHarvestYears: new Map().
+      Import POOL_INITIAL_KNOTS from ./constants. The
+      `1 - POOL_INITIAL_KNOTS` expression resolves to 0 with
+      POOL_INITIAL_KNOTS = 1; this is the harvestYear of the first
+      Knot Emily delivers (the pre-play year per v11 R6).
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - knot-delivery-state-fields
+    context_files:
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/state.ts
+    depends_on:
+      - add-knot-types-and-state-fields
+      - add-knot-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: extend-expected-fields-schema
+    title: >
+      Add the ten new field names to EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts (line 12-162).
+      Insertion is alphabetical within the existing flat list (the
+      list is .sort()ed at the end at line 162, so insertion order
+      does not affect equality — but match the existing per-section
+      grouping where reasonable). Names to add: 'knotDelivery',
+      'bedKnotPresent', 'archivedKnots', 'lastKnotDeliveryArmed',
+      'lastKnotPickupAt', 'lastKnotPickupTile',
+      'lastKnotPickupHarvestYear', 'lastArchiveReveryCount',
+      'knotHarvestYearCounter', 'knotHarvestYears'.
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - schema-test-fields
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - init-knot-state-fields
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 4: gameLoop season edges (arming, reset, archive) ---
+
+  - id: gameloop-autumn-arm-and-reset
+    title: >
+      Extend the gameLoop season-edge block (currently at
+      src/engine/gameLoop.ts:144-150 for the Autumn → Winter safety
+      reset). Add two new edges using the same prevSeason / current-
+      season pattern:
+      (1) Summer → Autumn arm: when prevSeason === Season.Summer &&
+      state.weather.season === Season.Autumn && state.lastKnotDeliveryArmed
+      === false && state.bedKnotPresent === false && state.knotDelivery
+      === null && state.houseEntranceOverworld != null:
+        const harvestYear = state.knotHarvestYearCounter
+        state.knotDelivery = { stage: 'walkingToHouse', dispatchedAt: time, harvestYear }
+        state.knotHarvestYearCounter += 1
+        state.lastKnotDeliveryArmed = true
+      (2) Autumn → Winter additional reset: state.lastKnotDeliveryArmed
+      = false (alongside the existing dormancyPressure safety reset).
+      Do NOT clear state.knotDelivery — an in-flight delivery survives
+      the autumn so the coyote can complete the route post-winter
+      (per knot-undelivered-at-winter edge case).
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - autumn-begin-arms-delivery
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - extend-expected-fields-schema
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: gameloop-winter-spring-archive
+    title: >
+      Add a third season-edge handler in the gameLoop block: Winter →
+      Spring archive. When prevSeason === Season.Winter &&
+      state.weather.season === Season.Spring && state.bedKnotPresent
+      === true && state.reveryCount > state.lastArchiveReveryCount:
+        (a) Find the Knot ItemInstance in state.backpack. Walk
+            state.backpack.items, filter where definitionId ===
+            'reveryKnot'. If multiple, pick the one with the latest
+            uid match in state.knotHarvestYears (or simply the only
+            one — defensive against the two-knots-in-one-autumn edge).
+        (b) Read its harvestYear from state.knotHarvestYears.get(uid).
+            Fall back to state.lastKnotPickupHarvestYear if the Map
+            lookup misses (defensive).
+        (c) Push to state.archivedKnots: { pickedUpAt:
+            state.lastKnotPickupAt, pickedUpTile:
+            { ...state.lastKnotPickupTile } (clone), archivedAt: time,
+            harvestYear }.
+        (d) Remove the ItemInstance from state.backpack via the
+            existing removeItem / clearGridCell helpers in inventory.ts
+            (route through inventory module to keep grid bookkeeping
+            consistent).
+        (e) state.knotHarvestYears.delete(uid).
+        (f) state.bedKnotPresent = false; state.lastKnotPickupTile =
+            null; state.lastKnotPickupAt = 0;
+            state.lastKnotPickupHarvestYear = 0;
+            state.lastArchiveReveryCount = state.reveryCount.
+      Run AFTER the existing season transition handling so the season
+      mutation has already landed.
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - revery-spring-archives-knot
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/types.ts
+      - src/engine/inventory.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - gameloop-autumn-arm-and-reset
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 5: coyote scripted route ---
+
+  - id: coyote-scripted-route
+    title: >
+      Insert a new branch into tickCoyote (src/engine/coyote.ts:191)
+      between the Zone.Ruin early-return (line 203-206) and the existing
+      cargo-delivery branch (line 209-212). The branch fires when
+      state.knotDelivery !== null AND state.houseEntranceOverworld !=
+      null:
+
+        const apronTile = {
+          x: state.houseEntranceOverworld.x,
+          y: state.houseEntranceOverworld.y + 1
+        }
+
+        if (state.knotDelivery.stage === 'walkingToHouse' &&
+            state.coyoteCargo === null) {
+          // Pathfind to apronTile. On Chebyshev-1 arrival, accept
+          // cargo and transition stage.
+          const dist = chebyshev({x: pos.x, y: pos.y}, apronTile)
+          if (dist <= 1) {
+            state.coyoteCargo = 'reveryKnot'
+            state.knotDelivery = { ...state.knotDelivery, stage: 'enroute' }
+            return result
+          }
+          stepToward(state, eid, apronTile, blocked)
+          return result
+        }
+
+      After the branch falls through to the existing cargo-delivery
+      path (state.coyoteCargo !== null with stage === 'enroute'), the
+      existing tickDeliver code completes the handoff. Post-tickDeliver
+      cleanup at the end of tickCoyote: if state.knotDelivery?.stage
+      === 'enroute' AND state.coyoteCargo === null, set
+      state.knotDelivery = null (scripted route complete). Make
+      `chebyshev` accessible to the new branch — it is already
+      file-local at coyote.ts:48.
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - coyote-scripted-route-walking-to-house
+      - coyote-scripted-route-enroute
+    context_files:
+      - src/engine/coyote.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/coyote.ts
+    depends_on:
+      - gameloop-winter-spring-archive
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 6: pickup contribution site ---
+
+  - id: knot-pickup-contribution-helper
+    title: >
+      Add a new exported function in src/engine/coyote.ts (or a new
+      sibling file src/engine/reveryKnot.ts if the helper grows past
+      ~30 LOC — prefer the new file for cleanliness, but keep it
+      engine-layer-only): `onReveryKnotEntered(state, knotUid, time)`.
+      This function consolidates the pickup bookkeeping called from
+      every code path that places a reveryKnot ItemInstance into the
+      backpack. Behavior:
+        - contributeDormancyPressure(state, KNOT_PRESSURE_AMOUNT)
+        - state.bedKnotPresent = true
+        - const harvestYear =
+            state.knotDelivery?.harvestYear ??
+            state.lastKnotPickupHarvestYear
+        - state.knotHarvestYears.set(knotUid, harvestYear)
+        - state.lastKnotPickupAt = time
+        - state.lastKnotPickupTile = { x: state.player.x, y: state.player.y }
+        - state.lastKnotPickupHarvestYear = harvestYear
+        - if (state.knotDelivery !== null && state.coyoteCargo === null)
+            state.knotDelivery = null  // defensive cleanup
+        - spawnPickupBloom(state, state.player.x, state.player.y, time)
+      Note: the bloom is fired here, not at the calling site, so the
+      "one pickup, one bloom" rule from CLAUDE.md is satisfied
+      regardless of which entry path triggered the pickup.
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - knot-pickup-contributes-pressure
+      - pickup-bookkeeping-fields
+    context_files:
+      - src/engine/coyote.ts
+      - src/engine/omen.ts
+      - src/engine/effects.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/coyote.ts
+    depends_on:
+      - coyote-scripted-route
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-knot-pickup-to-coyote-deliver
+    title: >
+      In src/engine/coyote.ts tickDeliver (lines 268-324), after the
+      successful `placeItem(state.backpack, state.coyoteCargo, fit.gridX,
+      fit.gridY)` call at line 282 — and BEFORE state.coyoteCargo is
+      cleared — check whether the placed item is a reveryKnot. If yes,
+      look up the newly-placed ItemInstance.uid from the backpack
+      (placeItem returns or mutates in a way that exposes the uid;
+      inspect inventory.ts:35 — placeItem creates the ItemInstance and
+      its uid is observable in state.backpack.items immediately after).
+      Call `onReveryKnotEntered(state, knotUid, time)`. The existing
+      spawnPickupBloom call at line 290 is REMOVED for the Knot path
+      (the helper fires its own bloom) — guard the existing call with
+      `if (state.coyoteCargo !== 'reveryKnot')` so coins/honey/etc.
+      retain their existing bloom. Reorder if necessary so the helper
+      sees state.coyoteCargo still set when it reads
+      state.knotDelivery (it doesn't strictly need it — the helper
+      reads state.knotDelivery, not state.coyoteCargo — but call
+      ordering matters: helper THEN cargo clear).
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - coyote-scripted-route-enroute
+      - knot-pickup-contributes-pressure
+    context_files:
+      - src/engine/coyote.ts
+      - src/engine/inventory.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/coyote.ts
+    depends_on:
+      - knot-pickup-contribution-helper
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/coyote.test.ts
+    repair: retry
+    tags:
+      - engine
+
+  - id: wire-knot-pickup-to-ground-item-path
+    title: >
+      In src/engine/entities.ts pickUpGroundItems (line 80), after the
+      ground item is successfully placed into the backpack, check
+      whether the definitionId was 'reveryKnot'. If yes, capture the
+      new ItemInstance uid and call onReveryKnotEntered(state, uid,
+      time). This handles the backpack-full → ground-item-drop →
+      walk-over fallback path. The existing pickupBloom firing pass
+      at the end of pickUpGroundItems should NOT double-fire for
+      Knots — gate the existing bloom on `if (knotPickedUp === false)`
+      where knotPickedUp tracks whether any reveryKnot was in this
+      pickup pass.
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - knot-pickup-contributes-pressure
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/coyote.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/entities.ts
+    depends_on:
+      - knot-pickup-contribution-helper
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 7: behavioral test suite ---
+
+  - id: author-rp36-test-suite
+    title: >
+      Author the RP-36 behavioral test suite at
+      src/engine/__tests__/RP-36-revery-knot.test.ts, replacing the
+      it.todo stubs with real tests. Cover (one `it()` per spec
+      behavior and edge case):
+        - reveryknot-item-definition: ITEM_DEFINITIONS["reveryKnot"]
+          has glyph '§', category Artifact; MANUAL_LORE entry exists.
+        - knot-delivery-state-fields: createGameState initializes all
+          ten new fields to their documented initial values.
+        - autumn-begin-arms-delivery: mock seasonalPhase / weather.season
+          to force a Summer → Autumn transition; assert state.knotDelivery
+          is non-null with stage='walkingToHouse' and harvestYear ===
+          pre-increment counter; counter advanced by 1.
+        - coyote-scripted-route-walking-to-house: place coyote within
+          pathfinding range of the house entrance; tick; assert coyote
+          stepped toward apronTile or, on arrival at Chebyshev-1,
+          state.coyoteCargo === 'reveryKnot' and stage flipped to
+          'enroute'.
+        - coyote-scripted-route-enroute: from stage='enroute' with cargo,
+          place coyote at Chebyshev-1 of player with a free backpack
+          slot; tick; assert Knot in backpack, state.coyoteCargo
+          === null, state.knotDelivery === null, state.bedKnotPresent
+          === true, dormancyPressure increased by 0.5.
+        - knot-pickup-contributes-pressure: post-pickup state.dormancyPressure
+          equals the prior value + 0.5 (clamped to 1).
+        - revery-spring-archives-knot: simulate a full autumn → Revery →
+          spring cycle (or construct the post-Revery state directly);
+          force the Winter → Spring edge; assert archivedKnots has one
+          entry with the correct harvestYear; backpack no longer
+          contains the Knot; bookkeeping fields cleared.
+        - pickup-bookkeeping-fields: assert lastKnotPickupAt,
+          lastKnotPickupTile, lastKnotPickupHarvestYear all written at
+          pickup.
+        - retire-omenkind-triplet: OmenKind has exactly one key
+          (ReveryKnot); the deleted values are not in the object.
+        - schema-test-fields: the schema.test.ts EXPECTED_FIELDS test
+          already runs in CI; this suite asserts the field names exist
+          on a fresh GameState (defensive duplicate to surface
+          failures inside the RP-36 suite rather than only via the
+          schema test).
+        - edge: first-knot-harvest-year-is-pre-play — first delivery
+          stamps harvestYear = 0; ArchivedKnot carries the tag.
+        - edge: knot-pickup-pushes-to-ceiling — set dormancyPressure
+          to 0.6 then trigger pickup; assert clamp at 1.0 and a Revery
+          initiates on the next gameLoop frame with summons=true.
+        - edge: knot-pickup-early-autumn — pickup at seasonalPhase
+          0.45 (pre-equinox); assert dormancyPressure = 0.5; no
+          threshold trigger.
+        - edge: backpack-full-at-delivery — fill backpack before
+          coyote enters Chebyshev-1; assert a 'reveryKnot' ground
+          item entity is created near Gron; the contribution does
+          NOT fire until the player walks over the ground item;
+          state.knotDelivery clears after the ground-item drop (cargo
+          is null post-drop).
+        - edge: house-entrance-blocked — block apronTile and its
+          cardinal neighbors; assert coyote idles, no cargo transfer.
+        - edge: knot-undelivered-at-winter — force Autumn → Winter
+          edge with knotDelivery still set; assert lastKnotDeliveryArmed
+          resets but knotDelivery persists.
+        - edge: confirm-path-already-active — set state.revery non-null
+          then trigger pickup; assert pressure clamps; no double Revery.
+        - edge: two-knots-in-one-autumn — force two pickups in one
+          autumn (defensive); assert each pickup contributes once and
+          state.knotHarvestYears has two entries (or one if the same
+          uid — name the scenario precisely in the test).
+        - edge: no-house-entrance-overworld — set
+          state.houseEntranceOverworld = null; force Summer → Autumn;
+          assert knotDelivery stays null; no crash.
+      Use clearAroundPlayer / direct map mutation to control terrain.
+      Mock Math.random via `vi.spyOn(Math, 'random')` + restoreAllMocks
+      in finally blocks per testing.md doctrine. Use a deterministic
+      seed for createGameState. Test pattern matches the suite header
+      "RP-36 — the Revery Knot".
+    spec_id: RP-36-revery-knot
+    spec_sections:
+      - reveryknot-item-definition
+      - knot-delivery-state-fields
+      - autumn-begin-arms-delivery
+      - coyote-scripted-route-walking-to-house
+      - coyote-scripted-route-enroute
+      - knot-pickup-contributes-pressure
+      - revery-spring-archives-knot
+      - pickup-bookkeeping-fields
+      - retire-omenkind-triplet
+      - schema-test-fields
+    context_files:
+      - src/engine/__tests__/RP-36-revery-knot.test.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/omen.ts
+      - src/engine/coyote.ts
+      - src/engine/items.ts
+      - src/engine/inventory.ts
+      - src/engine/constants.ts
+      - src/engine/gameLoop.ts
+      - src/engine/entities.ts
+      - docs/claude/testing.md
+    output_files:
+      - src/engine/__tests__/RP-36-revery-knot.test.ts
+    depends_on:
+      - wire-knot-pickup-to-coyote-deliver
+      - wire-knot-pickup-to-ground-item-path
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/RP-36-revery-knot.test.ts
+    repair: retry
+    tags:
+      - engine
+      - tests

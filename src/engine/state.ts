@@ -1,6 +1,14 @@
 import { generateCave } from './cave'
 import { getCharacterDefinition, registerGhostDefinitions } from './characters'
-import { CAVE_HEIGHT, CAVE_WIDTH, MAP_HEIGHT, MAP_WIDTH, SPACE_BORDER, WATER_MAX } from './constants'
+import {
+  CAVE_HEIGHT,
+  CAVE_WIDTH,
+  MAP_HEIGHT,
+  MAP_WIDTH,
+  POOL_INITIAL_KNOTS,
+  SPACE_BORDER,
+  WATER_MAX,
+} from './constants'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
 import { AURA_RADIUS } from './effects'
@@ -279,10 +287,7 @@ export const createGameState = (
     houseMapHeight: houseInterior.height,
     houseEntranceOverworld,
     houseEntranceInterior: houseInterior.spawnInterior,
-    houseBedInterior: houseInterior.bedInterior,
-    houseChairInterior: houseInterior.chairInterior,
     emilyInvitation: 'unoffered',
-    emilyReveryReturn: null,
     tenureOpened: false,
     giftsReceived: new Set<string>(),
     world: createWorld(),
@@ -407,6 +412,19 @@ export const createGameState = (
     itemWear: {},
     namedRegions: [],
     chronicle: [],
+    // RP-36 — Revery Knot. The first Summer → Autumn edge arms a
+    // scripted-route delivery; the first Knot stamps harvestYear = 0
+    // (= 1 - POOL_INITIAL_KNOTS), the pre-play year.
+    knotDelivery: null,
+    bedKnotPresent: false,
+    archivedKnots: [],
+    lastKnotDeliveryArmed: false,
+    lastKnotPickupAt: 0,
+    lastKnotPickupTile: null,
+    lastKnotPickupHarvestYear: 0,
+    lastArchiveReveryCount: 0,
+    knotHarvestYearCounter: 1 - POOL_INITIAL_KNOTS,
+    knotHarvestYears: new Map(),
   }
 
   // RP-64 — Receiving-tile water bump. Each waterfall's bottom

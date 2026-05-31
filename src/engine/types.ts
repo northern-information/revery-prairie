@@ -34,17 +34,16 @@ export const TileType = {
   Egregore: 'egregore',
   // The little house (RP-33). HouseEntrance is the single overworld
   // door tile (`α` glyph, warm brown); HouseApron the 8-neighbor path.
-  // HouseFloor / HouseWall make up the 30x18 interior. HouseBed sits on
-  // the east wall (Revery destination); HouseChair on the west wall
-  // (Emily's during-Revery position). Fireplace is animated `^~*` at
-  // FIRE_TICK_MS cadence. HouseExit is the 3-wide south door rendered
-  // in pink (`#ff69b4`) per the cave/ruin exit idiom.
+  // HouseFloor / HouseWall make up the interior. Fireplace is animated
+  // `^~*` at FIRE_TICK_MS cadence; HouseHearth is the walkable row in
+  // front of it. HouseExit is the 3-wide south door rendered in pink
+  // (`#ff69b4`) per the cave/ruin exit idiom. The Revery happens in
+  // place at the hearth opposite Emily across the fireplace — no
+  // furniture is required to host it (v11 R7 amendment, RP-36).
   HouseEntrance: 'houseEntrance',
   HouseApron: 'houseApron',
   HouseFloor: 'houseFloor',
   HouseWall: 'houseWall',
-  HouseBed: 'houseBed',
-  HouseChair: 'houseChair',
   Fireplace: 'fireplace',
   HouseHearth: 'houseHearth',
   HouseExit: 'houseExit',
@@ -461,20 +460,15 @@ export interface GameState {
   houseMapHeight: number
   // Overworld door tile (the `α` glyph), placed west of Gron at genesis.
   houseEntranceOverworld: Position
-  // Interior spawn position (one tile north of the middle exit).
+  // Interior spawn position — the hearth tile east of the fireplace,
+  // opposite Emily across the fire. Also the Revery anchor: the steward
+  // Reverys in place here, no bed teleport (v11 R7 amendment, RP-36).
   houseEntranceInterior: Position
-  // Interior bed position (Revery destination — east wall).
-  houseBedInterior: Position
-  // Interior chair position (Emily's during-Revery seat — west wall).
-  houseChairInterior: Position
   // Emily's invitation state machine. 'unoffered' at genesis; flips to
   // 'offered' when her autumn last line arms awaitingConfirmation;
   // 'confirmed' on [f]-consume; resets to 'unoffered' at dialog close
   // without confirm or at Revery Closing.
   emilyInvitation: 'unoffered' | 'offered' | 'confirmed'
-  // Emily's idle position snapshot during a Revery — written at
-  // Omen → Observing, read+cleared at Closing.
-  emilyReveryReturn: Position | null
   // RP-34 — one-shot latch for the first-wake dialog. False on a
   // fresh GameState; flipped to true on the first eligible gameplay
   // frame when firstWakeTrigger auto-opens Emily's dialog. Persists
@@ -713,6 +707,37 @@ export interface GameState {
   // within a tenure. Single writer: addChronicleEvent in chronicle/index.ts,
   // which enforces dedupe-by-id. Reset to [] on a new tenure.
   chronicle: ChronicleEvent[]
+  // RP-36 — Revery Knot. Ten fields land together; see docs/claude/state.md
+  // for single-owner write conventions. _The item is the omen. The omen is
+  // the item._
+  knotDelivery: KnotDeliveryState | null
+  bedKnotPresent: boolean
+  archivedKnots: ArchivedKnot[]
+  lastKnotDeliveryArmed: boolean
+  lastKnotPickupAt: number
+  lastKnotPickupTile: Position | null
+  lastKnotPickupHarvestYear: number
+  lastArchiveReveryCount: number
+  knotHarvestYearCounter: number
+  knotHarvestYears: Map<ItemUid, number>
+}
+
+// RP-36 — scripted coyote-delivery route. Armed at Summer → Autumn,
+// cleared when the Knot reaches the steward (or the bag fallback drops
+// it as a ground item near Gron).
+export interface KnotDeliveryState {
+  stage: 'walkingToHouse' | 'enroute'
+  dispatchedAt: number
+  harvestYear: number
+}
+
+// RP-36 — archive entry written at the Winter → Spring edge after a
+// Revery. RP-37 (the root cellar) reads this array when it ships.
+export interface ArchivedKnot {
+  pickedUpAt: number
+  pickedUpTile: Position
+  archivedAt: number
+  harvestYear: number
 }
 
 export const FloraStage = {
@@ -1037,10 +1062,14 @@ export const ReveryPhase = {
 
 export type ReveryPhase = (typeof ReveryPhase)[keyof typeof ReveryPhase]
 
+// RP-36 — single omen variant: the Revery Knot, delivered by the
+// coyote once per autumn. The original triplet (bee-on-shoulder,
+// distant-meteorite, cloud-passing-sun) was retired alongside the
+// detectOmen predicates in RP-32; this enum now carries one value
+// preserved on ReveryState.omenKind for shape compat. _The item is
+// the omen. The omen is the item._
 export const OmenKind = {
-  BeeOnShoulder: 'bee-on-shoulder',
-  DistantMeteorite: 'distant-meteorite',
-  CloudPassingSun: 'cloud-passing-sun',
+  ReveryKnot: 'revery-knot',
 } as const
 
 export type OmenKind = (typeof OmenKind)[keyof typeof OmenKind]

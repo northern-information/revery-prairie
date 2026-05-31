@@ -14,7 +14,7 @@ const findEmilyPos = (state: ReturnType<typeof createTestState>) => {
 }
 
 describe('RP-33 — Revery scene transition at Omen → Observing', () => {
-  it('repositions the steward to the bed and Emily to the chair when confirm-in-house', () => {
+  it('anchors the steward at houseEntranceInterior (hearth opposite Emily) when confirm-in-house', () => {
     const state = createTestState()
     // Set up: in the house already, Emily entity at her idle position.
     state.currentZone = Zone.HouseInterior
@@ -23,19 +23,18 @@ describe('RP-33 — Revery scene transition at Omen → Observing', () => {
     state.mapHeight = state.houseMapHeight
     createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // Omen → Observing
 
     expect(state.revery?.phase).toBe(ReveryPhase.Observing)
     expect(state.currentZone).toBe(Zone.HouseInterior)
-    expect(state.player).toEqual(state.houseBedInterior)
+    expect(state.player).toEqual(state.houseEntranceInterior)
     expect(state.playerFacing).toBe('left')
+    // v11 R7 — Emily never moves during Revery. She stays at (5, 2).
     const emilyPos = findEmilyPos(state)
-    expect(emilyPos).not.toBeNull()
-    expect(emilyPos?.x).toBe(state.houseChairInterior.x)
-    expect(emilyPos?.y).toBe(state.houseChairInterior.y)
-    expect(state.emilyReveryReturn).toEqual({ x: 5, y: 2 })
+    expect(emilyPos?.x).toBe(5)
+    expect(emilyPos?.y).toBe(2)
   })
 
   it('swaps Overworld → HouseInterior for field-summons path', () => {
@@ -47,18 +46,18 @@ describe('RP-33 — Revery scene transition at Omen → Observing', () => {
     state.mapHeight = state.overworldMapHeight
     createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // Omen → Observing
 
     expect(state.currentZone).toBe(Zone.HouseInterior)
     expect(state.map).toBe(state.houseMap)
-    expect(state.player).toEqual(state.houseBedInterior)
+    expect(state.player).toEqual(state.houseEntranceInterior)
   })
 })
 
-describe('RP-33 — Closing-phase revert', () => {
-  it('restores Emily to her idle position and resets emilyInvitation', () => {
+describe('RP-33 — Closing-phase reset', () => {
+  it('resets emilyInvitation and leaves Emily at her idle position (she never moved)', () => {
     const state = createTestState()
     state.currentZone = Zone.HouseInterior
     state.map = state.houseMap
@@ -66,7 +65,7 @@ describe('RP-33 — Closing-phase revert', () => {
     state.mapHeight = state.houseMapHeight
     createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // Omen → Observing
     state.emilyInvitation = 'confirmed'
@@ -75,7 +74,6 @@ describe('RP-33 — Closing-phase revert', () => {
 
     expect(state.revery).toBeNull()
     expect(state.emilyInvitation).toBe('unoffered')
-    expect(state.emilyReveryReturn).toBe(null)
     const emilyPos = findEmilyPos(state)
     expect(emilyPos?.x).toBe(5)
     expect(emilyPos?.y).toBe(2)
@@ -88,7 +86,7 @@ describe('RP-33 — Closing-phase revert', () => {
     createCharacterTestEntity(state, 'emily', 5, 2, undefined)
     const initialEgregoreCount = state.egregorePositions.length
 
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // Omen → Observing (captures collapse tile inside house)
     if (state.revery) state.revery.phase = ReveryPhase.Closing
@@ -111,7 +109,7 @@ describe('RP-33 — Closing-phase revert', () => {
     state.overworldMap[py][px] = { type: TileType.Dirt }
     createCharacterTestEntity(state, 'emily', 5, 2, undefined)
 
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // Omen → Observing captures collapse tile at (px, py) on overworld
     if (state.revery) state.revery.phase = ReveryPhase.Closing

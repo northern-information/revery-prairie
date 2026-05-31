@@ -55,10 +55,7 @@ const EXPECTED_FIELDS = [
   'houseMapHeight',
   'houseEntranceOverworld',
   'houseEntranceInterior',
-  'houseBedInterior',
-  'houseChairInterior',
   'emilyInvitation',
-  'emilyReveryReturn',
   'tenureOpened',
   'meteorShower',
   'lastSatelliteSpawnTime',
@@ -163,6 +160,16 @@ const EXPECTED_FIELDS = [
   'itemWear',
   'namedRegions',
   'chronicle',
+  'knotDelivery',
+  'bedKnotPresent',
+  'archivedKnots',
+  'lastKnotDeliveryArmed',
+  'lastKnotPickupAt',
+  'lastKnotPickupTile',
+  'lastKnotPickupHarvestYear',
+  'lastArchiveReveryCount',
+  'knotHarvestYearCounter',
+  'knotHarvestYears',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {

@@ -53,10 +53,6 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.HouseApron]: '·',
   [TileType.HouseFloor]: '·',
   [TileType.HouseWall]: '#',
-  // Bed and chair render as floor glyphs — furniture identity lives on
-  // the tile type alone, not the on-screen character.
-  [TileType.HouseBed]: '·',
-  [TileType.HouseChair]: '·',
   [TileType.Fireplace]: '^',
   // Hearth — stone slab in front of the fireplace, walkable.
   [TileType.HouseHearth]: '·',
@@ -99,10 +95,6 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.HouseApron]: '#5A4128',
   [TileType.HouseFloor]: '#6B4A2B',
   [TileType.HouseWall]: '#4A2F1B',
-  // Bed and chair use the same floor color so the glyph reads as floor;
-  // furniture identity is encoded only in the tile type.
-  [TileType.HouseBed]: '#6B4A2B',
-  [TileType.HouseChair]: '#6B4A2B',
   [TileType.Fireplace]: '#FF8C42',
   // Hearth — slightly darker than floor; reads as worn stone slab.
   [TileType.HouseHearth]: '#7A5A38',
@@ -508,6 +500,17 @@ export const REVERY_CAMERA_DRIFT_INTERVAL_MS = 800
 // the winter solstice, guaranteeing the Revery within a year.
 export const REVERY_PRESSURE_RAMP_START = 0.5 // autumn equinox
 export const REVERY_PRESSURE_RAMP_END = 0.75 // winter solstice
+// RP-36 — Revery Knot pickup contribution. Bounded scalar: a Knot
+// accelerates the Revery (half ceiling) but does not, on its own, force
+// threshold; the seasonal ramp carries the remainder.
+export const KNOT_PRESSURE_AMOUNT = 0.5
+// RP-36 — Emily's pre-tied Knot pool at createGameState. With the
+// default of 1, the first delivery in tenure year 0 stamps
+// harvestYear = 0 — the pre-play year (v11 R6 doctrine: _the first
+// knot is not yours_). Larger seedings shift the first harvestYear
+// further negative; deferred to a later round if RP-37's cellar wants
+// to show a row of inherited years on first wake.
+export const POOL_INITIAL_KNOTS = 1
 // First-Revery hardcoded egregoric advance per v3 doctrine 8a section.
 export const FIRST_REVERY_EGREGORE_COUNT = 3
 

@@ -22,7 +22,7 @@ const makeReverySummary = (overrides: Partial<ReveryState> = {}): ReveryState =>
   },
   scheduledChanges: [],
   summaryReady: true,
-  omenKind: OmenKind.BeeOnShoulder,
+  omenKind: OmenKind.ReveryKnot,
   ...overrides,
 })
 

@@ -34,7 +34,7 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     // tickRevery, since the Omen → Observing scene transition moves the
     // steward to the house bed.
     const expectedCollapse = { x: state.player.x, y: state.player.y }
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     expect(state.revery?.summonsCollapseTile).toEqual(expectedCollapse)
@@ -45,7 +45,7 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
     const expectedCollapse = { x: state.player.x, y: state.player.y }
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     expect(state.collapsedStewardTile).toEqual(expectedCollapse)
@@ -55,7 +55,7 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     const state = createTestState()
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     expect(state.revery?.summonsAudioCue).toBe(true)
@@ -69,7 +69,7 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     // PRE-scene-transition position (his current overworld spot at the
     // moment of summons). Capture that before tickRevery.
     const stewardAtSummons = { x: state.player.x, y: state.player.y }
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     const gronPos = state.world.getComponent(gron, ComponentType.Position)
@@ -83,7 +83,7 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     const state = createTestState()
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     expect(state.activeDialog).toEqual({
@@ -101,7 +101,7 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     const state = createTestState()
     setupSummonsState(state)
     // No Gron entity placed.
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     expect(() => {
       tickRevery(state, 0, 1000)
@@ -110,7 +110,11 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     expect(state.revery?.phase).toBe(ReveryPhase.Observing)
   })
 
-  it('does not crash when no adjacent walkable tile exists (Gron not teleported, dialog still opens)', () => {
+  it('does not crash when no adjacent walkable tile exists (Gron not teleported, no dialog opens)', () => {
+    // RP-36 — when Gron cannot teleport adjacent, the Gron-summons
+    // dialog is suppressed. Per RP-33 confirm-path-scene-no-swap and
+    // the doctrine that the Summary overlay should not be obscured by
+    // an unreachable-Gron dialog. The Revery still proceeds.
     const state = createTestState()
     setupSummonsState(state)
     // Surround player with truly unwalkable tiles (Water is walkable per
@@ -125,7 +129,7 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     const originalGronPos = state.world.getComponent(gron, ComponentType.Position)
     const ox = originalGronPos?.x
     const oy = originalGronPos?.y
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     expect(() => {
       tickRevery(state, 0, 1000)
@@ -134,15 +138,15 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     // Gron position unchanged
     expect(finalPos?.x).toBe(ox)
     expect(finalPos?.y).toBe(oy)
-    // Dialog still opens
-    expect(state.activeDialog).not.toBeNull()
+    // Dialog does NOT open — degrades silently per the spec.
+    expect(state.activeDialog).toBeNull()
   })
 
   it('non-summons Revery (r.summons !== true) does not run the sequence', () => {
     const state = createTestState()
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     // Deliberately not setting state.revery.summons
     tickRevery(state, 0, 1000)
     expect(state.revery?.summonsCollapseTile).toBeUndefined()
@@ -168,7 +172,7 @@ describe('Closing-phase egregoric commit + reset (RP-32)', () => {
     const px = state.player.x
     const py = state.player.y
     state.overworldMap[py][px] = { type: TileType.Dirt }
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000) // runs the summons sequence + Omen → Observing
     const before = state.egregorePositions.length
@@ -186,7 +190,7 @@ describe('Closing-phase egregoric commit + reset (RP-32)', () => {
     const px = state.player.x
     const py = state.player.y
     state.overworldMap[py][px] = { type: TileType.Dirt }
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     // Mutate the overworld tile to a non-Dirt type mid-Revery.
@@ -204,7 +208,7 @@ describe('Closing-phase egregoric commit + reset (RP-32)', () => {
     const px = state.player.x
     const py = state.player.y
     state.overworldMap[py][px] = { type: TileType.Dirt }
-    initiateRevery(state, 1000, OmenKind.BeeOnShoulder) // non-summons
+    initiateRevery(state, 1000, OmenKind.ReveryKnot) // non-summons
     tickRevery(state, 0, 1000)
     const before = state.egregorePositions.length
     advanceToClosing(state, 2000)
@@ -216,7 +220,7 @@ describe('Closing-phase egregoric commit + reset (RP-32)', () => {
     const state = createTestState()
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     expect(state.dormancyPressure).toBe(1) // still 1 mid-Revery
@@ -228,7 +232,7 @@ describe('Closing-phase egregoric commit + reset (RP-32)', () => {
     const state = createTestState()
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     expect(state.collapsedStewardTile).not.toBeNull()
@@ -249,7 +253,7 @@ describe('getGronDialog — solstice summons branch (RP-32)', () => {
     const state = createTestState()
     setupSummonsState(state)
     placeGron(state, state.player.x + 5, state.player.y + 5)
-    initiateRevery(state, 1000, OmenKind.CloudPassingSun)
+    initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
     // The dialog is open on Gron and the phase is Observing now (the

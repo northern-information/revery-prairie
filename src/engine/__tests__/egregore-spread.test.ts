@@ -65,7 +65,7 @@ describe('tickEgregoreSpread — gating (RP-8b)', () => {
       },
       scheduledChanges: [],
       summaryReady: false,
-      omenKind: OmenKind.BeeOnShoulder,
+      omenKind: OmenKind.ReveryKnot,
     }
     seedEgregoreAt(state, state.player.x + 3, state.player.y + 3)
     const before = state.egregorePositions.length

@@ -101,9 +101,7 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
     updateFacingEntity(state)
     return false
   }
-  // RP-33 — destination walkability check. The HouseBed is
-  // intentionally not walkable in the general table; the player can
-  // only land on it via the Revery scene transition.
+  // RP-33 — destination walkability check.
   if (!isWalkableTile(state.map[ny][nx].type)) {
     updateFacingEntity(state)
     return false

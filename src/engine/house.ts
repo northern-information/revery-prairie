@@ -18,12 +18,11 @@ const HOUSE_FIREPLACE_Y = 1
 const HOUSE_HEARTH_Y = 2
 const HOUSE_EXIT_CENTER_X = 7
 const HOUSE_EXIT_Y = 8
-const HOUSE_BED: Position = { x: 13, y: 4 }
-const HOUSE_CHAIR: Position = { x: 1, y: 4 }
 // Player tenure-start spawn — opposite Emily across the room's vertical
 // centerline (Emily at x=5, mirrored to x=9), same hearth row. Faces
 // west toward Emily so the first frame frames the two of them by the
-// fire.
+// fire. v11 R7 amendment (RP-36): this is also the Revery anchor —
+// the steward Reveries in place here, no bed teleport.
 const HOUSE_SPAWN: Position = { x: 9, y: 2 }
 
 export interface HouseInteriorResult {
@@ -32,8 +31,6 @@ export interface HouseInteriorResult {
   height: number
   exitInterior: Position
   spawnInterior: Position
-  bedInterior: Position
-  chairInterior: Position
 }
 
 /**
@@ -69,17 +66,12 @@ export const createHouseInterior = (): HouseInteriorResult => {
     map[HOUSE_HEARTH_Y][HOUSE_FIREPLACE_CENTER_X + dx] = { type: TileType.HouseHearth }
   }
 
-  map[HOUSE_BED.y][HOUSE_BED.x] = { type: TileType.HouseBed }
-  map[HOUSE_CHAIR.y][HOUSE_CHAIR.x] = { type: TileType.HouseChair }
-
   return {
     map,
     width,
     height,
     exitInterior: { x: HOUSE_EXIT_CENTER_X, y: HOUSE_EXIT_Y },
     spawnInterior: { x: HOUSE_SPAWN.x, y: HOUSE_SPAWN.y },
-    bedInterior: { x: HOUSE_BED.x, y: HOUSE_BED.y },
-    chairInterior: { x: HOUSE_CHAIR.x, y: HOUSE_CHAIR.y },
   }
 }
 

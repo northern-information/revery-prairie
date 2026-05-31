@@ -21,7 +21,7 @@ const summonsOmenRevery = (): ReveryState => ({
   snapshotBeforeRevery: emptySnapshot,
   scheduledChanges: [],
   summaryReady: false,
-  omenKind: OmenKind.CloudPassingSun,
+  omenKind: OmenKind.ReveryKnot,
   summons: true,
 })
 

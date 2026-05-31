@@ -96,6 +96,17 @@ const ITEMS = {
     glyphColor: '#C2B280',
     category: ItemCategory.Tool,
   },
+  // RP-36 — harvest knot from prairie grass. Glyph '§' reads as both a
+  // tied braided knot and a 'section' of parceled time (one year,
+  // bound). Emily ties one per autumn from clover, tall grass,
+  // milkweed silk, wildflower stems; the coyote delivers it to the
+  // steward. Pickup contributes KNOT_PRESSURE_AMOUNT to dormancyPressure.
+  reveryKnot: {
+    name: 'Revery Knot',
+    glyph: '§',
+    glyphColor: '#D4B58A',
+    category: ItemCategory.Artifact,
+  },
 } as const satisfies Record<string, ItemEntry>
 
 export const ITEM_DEFINITIONS: Record<string, ItemDefinition> = Object.fromEntries(

@@ -109,13 +109,10 @@ export const isWalkableTile = (tileType: TileType): boolean =>
   tileType !== TileType.RuinWall &&
   tileType !== TileType.RuinDebris &&
   tileType !== TileType.RuinDoorLocked &&
-  // RP-33 — house walls and the fireplace are not walkable. The
-  // bed is also not walkable for destination checks, but movement.ts
-  // adds an origin-from-bed exception so the player can step off it
-  // after a Revery closes. HouseHearth is walkable — the player can
-  // approach the fireplace by standing on the hearth.
+  // RP-33 — house walls and the fireplace are not walkable.
+  // HouseHearth is walkable — the player can approach the fireplace
+  // by standing on the hearth. (Bed and chair dropped in v11 R7.)
   tileType !== TileType.HouseWall &&
-  tileType !== TileType.HouseBed &&
   tileType !== TileType.Fireplace
 
 // Tile types reserved by a placed structure. New entity placers (oaks today,

@@ -1,4 +1,5 @@
 import { SCAN_DURATION_MS } from './constants'
+import { removeItem } from './inventory'
 import { tickDormancyPressure } from './omen'
 import { tickProximityMusic } from './proximityMusic'
 import { tickWaterfalls } from './waterfalls'
@@ -9,6 +10,35 @@ import { OmenKind, Season, Zone } from './types'
 
 import type { GameLoopCallbacks, TickSystem } from './systems/types'
 import type { GameState } from './types'
+
+// RP-36 — Winter → Spring archive of the bed Knot. Locates the Knot
+// ItemInstance in the backpack, reads its harvestYear from the
+// uid-keyed side table (falls back to the bookkeeping field if the
+// Map lookup misses), appends an ArchivedKnot to state.archivedKnots,
+// removes the ItemInstance and the side-table entry, and clears the
+// per-pickup bookkeeping. Sets lastArchiveReveryCount so the gate
+// closes until the next post-Revery spring.
+const archiveBedKnot = (state: GameState, time: number): void => {
+  const knot = state.backpack.items.find(i => i.definitionId === 'reveryKnot')
+  if (!knot) return
+  const harvestYear = state.knotHarvestYears.get(knot.uid) ?? state.lastKnotPickupHarvestYear
+  const pickedUpTile = state.lastKnotPickupTile
+    ? { x: state.lastKnotPickupTile.x, y: state.lastKnotPickupTile.y }
+    : { x: 0, y: 0 }
+  state.archivedKnots.push({
+    pickedUpAt: state.lastKnotPickupAt,
+    pickedUpTile,
+    archivedAt: time,
+    harvestYear,
+  })
+  removeItem(state.backpack, knot.uid)
+  state.knotHarvestYears.delete(knot.uid)
+  state.bedKnotPresent = false
+  state.lastKnotPickupTile = null
+  state.lastKnotPickupAt = 0
+  state.lastKnotPickupHarvestYear = 0
+  state.lastArchiveReveryCount = state.reveryCount
+}
 
 export { AUTO_HIDE_THRESHOLD }
 export type { GameLoopCallbacks, TickSystem }
@@ -132,13 +162,11 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
     // movePlayer / keyboard checks.
     tickDormancyPressure(state, time)
     // Threshold trigger: pressure crossing ceiling initiates the Revery.
-    // The placeholder OmenKind is the legacy enum value preserved for
-    // ReveryState.omenKind shape compat; RP-36 (Revery Knot) will
-    // surface a real Knot-pickup kind when it ships. summons=true marks
-    // this as a pressure-ceiling-path Revery for the summons sequence in
-    // tickRevery.
+    // OmenKind.ReveryKnot is the single surviving variant (RP-36 retired
+    // the original triplet). summons=true marks this as a pressure-
+    // ceiling-path Revery for the summons sequence in tickRevery.
     if (state.dormancyPressure >= 1 && state.revery === null) {
-      initiateRevery(state, time, OmenKind.CloudPassingSun)
+      initiateRevery(state, time, OmenKind.ReveryKnot)
       if (state.revery) (state.revery as { summons?: boolean }).summons = true
     }
     // Safety reset: if season transitioned Autumn → Winter without a
@@ -147,6 +175,33 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
     // ceiling at solstice), but documents the invariant.
     if (prevSeason === Season.Autumn && state.weather.season === Season.Winter && state.revery === null) {
       state.dormancyPressure = 0
+    }
+    // RP-36 — Revery Knot season edges. Arm at Summer → Autumn,
+    // reset the per-autumn dispatch guard at Autumn → Winter, archive
+    // the bed Knot at Winter → Spring after a Revery.
+    if (
+      prevSeason === Season.Summer &&
+      state.weather.season === Season.Autumn &&
+      !state.lastKnotDeliveryArmed &&
+      !state.bedKnotPresent &&
+      state.knotDelivery === null &&
+      state.houseEntranceOverworld != null
+    ) {
+      const harvestYear = state.knotHarvestYearCounter
+      state.knotDelivery = { stage: 'walkingToHouse', dispatchedAt: time, harvestYear }
+      state.knotHarvestYearCounter += 1
+      state.lastKnotDeliveryArmed = true
+    }
+    if (prevSeason === Season.Autumn && state.weather.season === Season.Winter) {
+      state.lastKnotDeliveryArmed = false
+    }
+    if (
+      prevSeason === Season.Winter &&
+      state.weather.season === Season.Spring &&
+      state.bedKnotPresent &&
+      state.reveryCount > state.lastArchiveReveryCount
+    ) {
+      archiveBedKnot(state, time)
     }
     prevSeason = state.weather.season
     tickRevery(state, 0, time)

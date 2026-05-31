@@ -18,8 +18,6 @@ describe('RP-33 — house interior layout', () => {
     expect(r.map[0].length).toBe(15)
     expect(r.spawnInterior).toEqual({ x: 9, y: 2 })
     expect(r.exitInterior).toEqual({ x: 7, y: 8 })
-    expect(r.bedInterior).toEqual({ x: 13, y: 4 })
-    expect(r.chairInterior).toEqual({ x: 1, y: 4 })
   })
 
   it('has an unbroken HouseWall perimeter except the 3-wide south door', () => {
@@ -50,10 +48,11 @@ describe('RP-33 — house interior layout', () => {
     expect(r.map[2][8].type).toBe(TileType.HouseHearth)
   })
 
-  it('places furniture tiles at the documented positions', () => {
+  it('fills the interior with HouseFloor outside the fireplace/hearth row', () => {
     const r = createHouseInterior()
-    expect(r.map[4][13].type).toBe(TileType.HouseBed)
-    expect(r.map[4][1].type).toBe(TileType.HouseChair)
+    // v11 R7 — bed and chair were dropped. The interior is now floor.
+    expect(r.map[4][13].type).toBe(TileType.HouseFloor)
+    expect(r.map[4][1].type).toBe(TileType.HouseFloor)
   })
 })
 

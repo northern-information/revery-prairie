@@ -2,6 +2,7 @@ import { COYOTE_FOLLOW_MAX_DIST, COYOTE_FOLLOW_MIN_DIST, COYOTE_TICK_MS } from '
 import { ComponentType } from './ecs/types'
 import { spawnPickupBloom } from './effects'
 import { findFitPosition, placeItem } from './inventory'
+import { onReveryKnotEntered } from './reveryKnot'
 import { getBlockedPositions } from './movement'
 import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
@@ -205,9 +206,38 @@ export const tickCoyote = (state: GameState, time?: number): CoyoteTickResult =>
     return result
   }
 
+  // RP-36 — scripted Revery Knot delivery. Top-priority branch when a
+  // delivery is armed: pathfind to the apron tile south of the house
+  // entrance, accept Emily's Knot as cargo at Chebyshev-1, then fall
+  // through to the cargo-delivery path on subsequent ticks.
+  if (
+    state.knotDelivery !== null &&
+    state.knotDelivery.stage === 'walkingToHouse' &&
+    state.coyoteCargo === null &&
+    state.houseEntranceOverworld != null
+  ) {
+    const apronTile = {
+      x: state.houseEntranceOverworld.x,
+      y: state.houseEntranceOverworld.y + 1,
+    }
+    if (chebyshev({ x: pos.x, y: pos.y }, apronTile) <= 1) {
+      state.coyoteCargo = 'reveryKnot'
+      state.knotDelivery = { ...state.knotDelivery, stage: 'enroute' }
+      return result
+    }
+    stepToward(state, eid, apronTile, blocked)
+    return result
+  }
+
   // Carrying cargo — try to deliver.
   if (state.coyoteCargo !== null) {
     tickDeliver(state, eid, pos, blocked, result, time)
+    // RP-36 — scripted route completes when the enroute Knot reaches
+    // its destination (tickDeliver clears coyoteCargo on auto-deposit
+    // or ground-item drop near Gron).
+    if (state.knotDelivery?.stage === 'enroute' && state.coyoteCargo === null) {
+      state.knotDelivery = null
+    }
     return result
   }
 
@@ -279,14 +309,20 @@ const tickDeliver = (
   if (playerDist <= 1) {
     const fit = findFitPosition(state.backpack, state.coyoteCargo)
     if (fit) {
-      placeItem(state.backpack, state.coyoteCargo, fit.gridX, fit.gridY)
+      const placed = placeItem(state.backpack, state.coyoteCargo, fit.gridX, fit.gridY)
+      const wasKnot = state.coyoteCargo === 'reveryKnot'
       result.delivered = {
         definitionId: state.coyoteCargo,
         x: state.player.x,
         y: state.player.y,
         toGron: false,
       }
-      if (time !== undefined) {
+      if (wasKnot && placed && time !== undefined) {
+        // RP-36 — the helper fires its own pickup bloom + pressure
+        // contribution + harvestYear tagging. Skip the default bloom
+        // below to keep "one pickup, one bloom".
+        onReveryKnotEntered(state, placed.uid, time)
+      } else if (time !== undefined) {
         spawnPickupBloom(state, state.player.x, state.player.y, time)
       }
       state.coyoteCargo = null

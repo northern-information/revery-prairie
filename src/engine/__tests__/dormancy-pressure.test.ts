@@ -89,7 +89,7 @@ describe('tickDormancyPressure — gates (RP-32)', () => {
       snapshotBeforeRevery: {} as ReverySnapshot,
       scheduledChanges: [],
       summaryReady: false,
-      omenKind: OmenKind.CloudPassingSun,
+      omenKind: OmenKind.ReveryKnot,
     }
     tickDormancyPressure(state, 60_000)
     expect(state.dormancyPressure).toBe(0)

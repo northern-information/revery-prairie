@@ -112,6 +112,10 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[]; 
     lore: 'Three ghosts drift across the land. They move slowly and unpredictably. Each has something to say if you stop to listen.',
   },
   'character:emily': { lore: 'TODO' },
+  // RP-36 — lore is human-authored; the entry exists so the manual
+  // auto-iteration over ITEM_DEFINITIONS picks up the Knot and surfaces
+  // it under Items with a TODO placeholder until it is filled in.
+  'item:reveryKnot': { lore: 'TODO' },
   // Zones
   'zone:overworld': { lore: 'A dirt island surrounded by stars. The land responds to care.' },
   'zone:cave': {

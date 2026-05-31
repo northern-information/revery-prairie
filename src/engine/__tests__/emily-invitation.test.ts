@@ -47,7 +47,6 @@ describe('RP-33 — emilyInvitation initialization', () => {
   it('createGameState (via createTestState) initializes emilyInvitation to "unoffered"', () => {
     const state = createTestState()
     expect(state.emilyInvitation).toBe('unoffered')
-    expect(state.emilyReveryReturn).toBe(null)
   })
 })
 
