@@ -127,6 +127,11 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[]; 
   // via the back-yard bulkhead OR via the post-Revery awaken hook,
   // whichever fires first). Lore is human-authored later.
   'zone:knotCellar': { lore: 'TODO' },
+  // RP-69 — Whine, Haunted Village. Lore TODO per the lore-authoring
+  // rule. The village's twelve named ghosts auto-derive into the
+  // manual via buildCharacterEntries; their character: keys land
+  // alongside in MANUAL_LORE (loop below this block).
+  'zone:whine': { lore: 'TODO' },
   // Recipes
   'recipe:bee+clover': {
     lore: [
@@ -211,6 +216,17 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[]; 
   'event:lineage-overlay-toggled': { lore: 'TODO' },
   'event:wildflower-growth': { lore: 'TODO' },
   'event:tallgrass-growth': { lore: 'TODO' },
+}
+
+// RP-69 — register MANUAL_LORE slots for the twelve Whine ghosts at
+// module-load time. Each entry is a TODO placeholder so the character-
+// entry auto-derivation in buildCharacterEntries surfaces the ghost
+// with a recognizable name; lore is human-authored later per the
+// lore-authoring rule.
+const WHINE_GHOST_COUNT_FOR_MANUAL = 12
+for (let n = 1; n <= WHINE_GHOST_COUNT_FOR_MANUAL; n++) {
+  const id = `character:whine-ghost-${n.toString().padStart(2, '0')}`
+  MANUAL_LORE[id] = { lore: 'TODO' }
 }
 
 // --- Lore lookup for UI components ---
@@ -441,6 +457,17 @@ const MANUAL_ONLY_SKELETONS: ManualOnlySkeleton[] = [
     glyph: TILE_CHARS[TileType.RuinAqueduct],
     glyphColor: TILE_COLORS[TileType.RuinAqueduct],
     unlockKey: 'zone:ruin-dormant-garden',
+    sourceKind: 'zone',
+  },
+  {
+    // RP-69 — Whine, Haunted Village. Unlocked on first Whine enter
+    // via recordDiscovery('zone:whine') in enterWhineVillage.
+    id: 'zone:whine',
+    name: 'Whine, Haunted Village',
+    category: ManualCategory.Zone,
+    glyph: TILE_CHARS[TileType.WhineEntrance],
+    glyphColor: TILE_COLORS[TileType.WhineEntrance],
+    unlockKey: 'zone:whine',
     sourceKind: 'zone',
   },
   {

@@ -174,11 +174,17 @@ describe('terrain connectivity', () => {
       const pos = state.world.getComponent(eid, ComponentType.Position)
       const zone = state.world.getComponent(eid, ComponentType.EntityZone)
       if (!pos) continue
-      // Skip cave-zone entities and house-interior entities (RP-33 —
-      // Emily lives at house-interior coordinates which don't map to
-      // walkable overworld tiles).
+      // Skip non-overworld entities. Their positions are in their
+      // own zone's coordinate space, not the overworld grid:
+      //   - Cave: cave map coords
+      //   - HouseInterior: house interior coords (Emily)
+      //   - WhineVillage / WhineHomeYard: Whine + per-home yard coords
+      //     (RP-69 — twelve named ghosts plus future placements).
       if (zone?.zone === Zone.Cave) continue
       if (zone?.zone === Zone.HouseInterior) continue
+      if (zone?.zone === Zone.LittleHouseYard) continue
+      if (zone?.zone === Zone.WhineVillage) continue
+      if (zone?.zone === Zone.WhineHomeYard) continue
 
       const key = posKey(pos.x, pos.y)
       const tile = state.map[pos.y]?.[pos.x]

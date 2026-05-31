@@ -1,6 +1,6 @@
 import { generateCave } from './cave'
 import { createKnotCellar } from './cellar'
-import { getCharacterDefinition, registerGhostDefinitions } from './characters'
+import { getCharacterDefinition, registerGhostDefinitions, registerWhineGhostDefinitions, whineGhostId } from './characters'
 import {
   CAVE_HEIGHT,
   CAVE_WIDTH,
@@ -41,7 +41,14 @@ import { buildWaterProximity } from './tileWater'
 import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
-import { createLittleHouseYard } from './yard'
+import { createLittleHouseYard, registerLittleHouseYard } from './yard'
+import {
+  createWhineVillage,
+  placeWhineOnOverworld,
+  registerWhineHomeYards,
+  registerWhineVillage,
+  WHINE_HOMES,
+} from './whine'
 
 import type { GenesisSimState } from './genesisTypes'
 import type { GameState, Position } from './types'
@@ -302,17 +309,17 @@ export const createGameState = (
     // steward lands here when entering via HouseDoorClosed from the
     // yard, facing the room.
     houseDoorInteriorEntry: { x: houseInterior.exitInterior.x, y: houseInterior.exitInterior.y - 1 },
-    // RP-67 — yard map built at genesis alongside the house interior.
-    yardMap: yard.map,
-    yardMapWidth: yard.width,
-    yardMapHeight: yard.height,
-    yardGatePosition: yard.gatePosition,
-    yardFrontDoorPosition: yard.frontDoorPosition,
-    yardEntryApron: null,
-    yardFlora: new Map(),
+    // RP-69 — threshold-zone registry. Populated below after the
+    // GameState object exists so registerLittleHouseYard (and Whine +
+    // its twelve home yards in subsequent commits) can mutate it in
+    // place using the canonical helpers.
+    thresholdZones: new Map(),
+    whineEntranceOverworld: null,
     // RP-37 — Knot Cellar map and the bulkhead anchors. The map is
     // 7x770; the corridor reads as effectively infinite because the
-    // knotCellarFog pass hides the far end at all times.
+    // knotCellarFog pass hides the far end at all times. The
+    // cellarBulkheadYard is the in-yard tile mutated at genesis (above)
+    // before the yard is registered into state.thresholdZones.
     cellarMap: cellar.map,
     cellarMapWidth: cellar.width,
     cellarMapHeight: cellar.height,
@@ -458,6 +465,43 @@ export const createGameState = (
     lastArchiveReveryCount: 0,
     knotHarvestYearCounter: 1 - POOL_INITIAL_KNOTS,
     knotHarvestYears: new Map(),
+  }
+
+  // RP-69 — register the little house yard, Whine, and its twelve
+  // home yards into the threshold-zone registry now that the state
+  // object exists. The Whine overworld entrance is placed in a
+  // deterministic east band from the little house; if no valid
+  // footprint is found, the entrance is null (village still
+  // registered, but unreachable this tenure).
+  registerLittleHouseYard(state, yard)
+  const whineVillage = createWhineVillage()
+  registerWhineVillage(state, whineVillage)
+  registerWhineHomeYards(state)
+  state.whineEntranceOverworld = placeWhineOnOverworld(
+    state.overworldMap,
+    state.overworldMapWidth,
+    state.overworldMapHeight,
+    state.houseEntranceOverworld
+  )
+  // RP-69 — register the twelve Whine ghost CharacterDefinitions and
+  // spawn one ghost entity per home into Zone.WhineVillage. Names are
+  // TODO placeholders; dialog is silent ('...'). Ghosts drift the full
+  // village walkable area like the three overworld ghosts — no bounds
+  // rectangle. They start in front of their assigned home and roam
+  // from there.
+  registerWhineGhostDefinitions(WHINE_HOMES.length)
+  for (const home of WHINE_HOMES) {
+    const isNorth = home.side === 'north'
+    const initialY = isNorth ? home.footprintBottomY + 1 : home.footprintTopY - 1
+    createCharacterEntity(
+      state,
+      whineGhostId(home.homeNumber),
+      { x: home.centerX, y: initialY },
+      {
+        behavior: { type: 'drift', moveChance: 0.15, freezeOnDialog: false },
+        zone: Zone.WhineVillage,
+      }
+    )
   }
 
   // RP-64 — Receiving-tile water bump. Each waterfall's bottom

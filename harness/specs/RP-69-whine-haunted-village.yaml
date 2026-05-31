@@ -1,0 +1,757 @@
+id: RP-69-whine-haunted-village
+name: 'Whine, Haunted Village (RP-69)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/state.ts
+  - src/engine/yard.ts
+  - src/engine/whine.ts
+  - src/engine/zoneTransition.ts
+  - src/engine/movement.ts
+  - src/engine/renderer.ts
+  - src/engine/tileBg.ts
+  - src/engine/entities.ts
+  - src/engine/characters.ts
+  - src/engine/celestial.ts
+  - src/engine/camera.ts
+  - src/engine/visibility.ts
+  - src/engine/manual.ts
+  - src/engine/render/passes/weatherRainOverlay.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - RP-67-little-house-yard
+
+# Doctrine reference: docs/backlog.yaml id 'RP-69' and
+# docs/backlog-thinktank-v11.md round 9.
+#
+# Whine, Haunted Village is the prairie's first plural — a hand-authored
+# hub region near the little house, the same every tenure. It also forces
+# the v11 R8-deferred "threshold zones substrate" generalization: the
+# singleton LittleHouseYard is migrated to a Record<ZoneId,
+# ThresholdZoneState> registry so Whine and its twelve per-home yards
+# can coexist with the little house's yard.
+#
+# Locked numbers (v11 R9 + spec checkpoint 2026-05-31):
+#   - Whine overworld placement: a single WhineEntrance tile placed at
+#     houseEntranceOverworld + (+25, 0) — twenty-five tiles east of the
+#     little house's overworld door, same y. Surrounded by a 3x3
+#     WhineApron footprint (8 neighbors). Genesis adjusts the offset
+#     downward if the strict offset would land off-map or on a
+#     non-Dirt tile (search ring r ∈ [22, 28] east, then snap to the
+#     nearest Dirt at that distance band).
+#   - Whine map dimensions: 30 wide × 20 tall.
+#   - Perimeter ring: Fence on all four edges, with a single FenceGate
+#     at (0, 10) — the west gate, centered on the west edge.
+#   - Main street: row y = 10 from x ∈ [1, 28], walkable Dirt.
+#   - Six homes on the north side (footprint y ∈ [1, 4]), centered at
+#     x columns 3, 8, 13, 18, 23, 28 → home N at x ∈ [centerX - 1,
+#     centerX + 2] for N ∈ [1, 6]. Each home's south-facing gate is at
+#     (centerX, 4).
+#   - Six homes on the south side (footprint y ∈ [15, 18]), same x
+#     centers → home N at the same x range for N ∈ [7, 12]. Each
+#     home's north-facing gate is at (centerX, 15).
+#   - Per-home yard zone map: 9 wide × 7 tall, shared template. Fence
+#     ring; FenceGate at (4, 6) (south edge center); 5×3 roof block
+#     (HouseRoof + HouseEaves) at yard x ∈ [2, 6], y ∈ [1, 3].
+#   - Twelve named ghosts. Each ghost's home is its position index:
+#     home N → ghost id 'whine-ghost-NN' (zero-padded), N ∈ [1, 12].
+#     Each ghost's initial position is in front of its home's south
+#     gate (for north homes) or north gate (for south homes); drift
+#     bounds are a rectangle covering the corridor between the home's
+#     gate row and the main street row, ± 1 tile width.
+#
+# Locked behavior:
+#   - Whine itself pauses the prairie clock on zone enter
+#     (pausesPlayerTime: true per RP-51). All twelve per-home yards
+#     inherit the pause through the threshold-zone substrate; no
+#     double-pause semantics required.
+#   - Ghost dialog is empty in v1 — silent drift only. The placeholder
+#     dialog array is ['...'] so existing scan/interaction paths see a
+#     valid CharacterDefinition. Character names are 'TODO: Whine
+#     ghost N' placeholders; human-authored later per the lore rule.
+#   - MANUAL_LORE gains 'zone:whine' and twelve 'character:whine-
+#     ghost-NN' entries, all with lore: 'TODO'.
+#
+# Out of scope for this PR:
+#   - Authored ghost names, ghost dialog, dialog routing, music cues.
+#   - Lore content (zone:whine, character:* — all stay 'TODO' for
+#     human authoring).
+#   - Items, quests, gifts, post-gift dialog, behavioral state for any
+#     Whine ghost beyond drift.
+#   - Enterable home interiors. The yard is the destination; the home
+#     renders as exterior from inside its yard. No front-door
+#     transition on Whine homes.
+#   - Per-home yard variation. v1 ships twelve identical home yards
+#     from a single template (deterministic, same every tenure as
+#     the round locked). Variation may land later.
+#   - Per-home yard flora sampling. The flora-sampling rule from v11
+#     R8 applies only to the little house yard in this PR. Whine home
+#     yards render as plain walkable grass (Dirt). Flora composition
+#     for Whine yards deferred per v11 R9 open question.
+#   - Predecessor-vs-villager-ghost lineage framing (v11 R9 open
+#     question, deferred to manual content pass).
+#   - The chronicle's "the village" named-region (RP-22) binding to
+#     Whine. The chronicle integration is a follow-up; RP-69 ships
+#     the zone, the registry, and the ghosts.
+
+behaviors:
+  - id: threshold-zones-registry
+    description: >
+      Replace the singleton little-house-yard state fields (yardMap,
+      yardMapWidth, yardMapHeight, yardGatePosition,
+      yardFrontDoorPosition, yardEntryApron, yardFlora) with a
+      `state.thresholdZones: Map<ZoneId, ThresholdZoneState>` registry.
+      `ZoneId` is a string identifier (e.g. 'littleHouseYard',
+      'whineVillage', 'whine-home-01' through 'whine-home-12'). Each
+      `ThresholdZoneState` holds: `id` (the ZoneId), `zoneVariant` (the
+      Zone enum value this id maps to — multiple home-yard ids share
+      Zone.WhineHomeYard), `map: Tile[][]`, `width`, `height`,
+      `gatePositions: Map<string, GateBinding>` (key is `posKey(x, y)`
+      of a FenceGate or HouseDoorClosed tile inside the zone, value is
+      `{ kind: 'exit' | 'enter'; targetZoneId: ZoneId | null;
+      targetIsOverworld?: true; returnTile?: Position }`),
+      `entryReturnTile: Position | null` (set when the steward
+      transitioned in from another zone, consumed on next exit),
+      `pausesPlayerTime: boolean`, plus per-zone optional fields
+      (`flora?: Map<...>` — currently only used by the little house
+      yard). The little house yard becomes the first registry entry at
+      genesis under id 'littleHouseYard'. The seven old yard fields
+      are removed from GameState; all call sites read from
+      `state.thresholdZones.get(id)` instead. EXPECTED_FIELDS is
+      updated: the seven yard fields are removed; `thresholdZones` is
+      added.
+    inputs:
+      - 'createGameState at tenure start'
+      - 'existing yard.ts call sites that read state.yardMap etc.'
+    outputs:
+      - 'state.thresholdZones is a Map populated with at least one entry (littleHouseYard) at genesis'
+      - 'GameState.yardMap / .yardMapWidth / .yardMapHeight / .yardGatePosition / .yardFrontDoorPosition / .yardEntryApron / .yardFlora fields are removed'
+      - 'EXPECTED_FIELDS reflects the registry-only schema'
+    state_changes:
+      - field: 'state.thresholdZones'
+        effect: 'new field; Map<ZoneId, ThresholdZoneState>; built once at genesis and mutated on transitions'
+      - field: 'state.yardMap (and the other six)'
+        effect: 'removed'
+      - field: 'EXPECTED_FIELDS'
+        effect: 'updated to drop the seven yard fields and add `thresholdZones`'
+    determinism: deterministic
+
+  - id: little-house-yard-migration
+    description: >
+      All RP-67 call sites in yard.ts, state.ts, zoneTransition.ts,
+      house.ts, celestial.ts, camera.ts, visibility.ts, and the rain
+      overlay pass read through the new registry. Concretely:
+      `createLittleHouseYard()` registers its result into
+      `state.thresholdZones.set('littleHouseYard', { ... })`;
+      `enterLittleHouseYardFromApron` and friends look the zone up by
+      id; the gate's FenceGate tile is registered in
+      `gatePositions` with `{ kind: 'exit', targetIsOverworld: true,
+      returnTile: <the apron tile> }` at zone-enter time;
+      `entryReturnTile` is set instead of `yardEntryApron`. Behavior is
+      otherwise unchanged from RP-67. The little house yard's
+      flora-sampling pass continues to fire on every enter and writes
+      to the registry entry's `flora` field.
+    inputs:
+      - 'existing RP-67 yard flow (apron → yard → house, gate → overworld)'
+    outputs:
+      - 'all RP-67 behaviors continue to pass — no behavioral change to the little house yard'
+      - 'state.thresholdZones.get("littleHouseYard") is the source of truth for yard map, dims, gate, front door, entry-return tile, flora'
+    state_changes:
+      - field: 'state.thresholdZones["littleHouseYard"]'
+        effect: 'mutated by yard transitions; flora cleared and re-populated on every enter'
+    determinism: deterministic
+
+  - id: whine-zone-variants-and-tile-types
+    description: >
+      Zone gains two new variants: `WhineVillage` and `WhineHomeYard`.
+      TileType gains TWO new variants: `WhineEntrance` (overworld,
+      walkable=true, glyph + color distinct from HouseEntrance — picks
+      a glyph not already used by HouseEntrance, e.g. 'W' or '≡', and a
+      muted purple tone; not dirt-eligible) and `WhineApron` (overworld,
+      walkable=true, glyph + color the same as HouseApron for visual
+      continuity — the 8 neighbors of WhineEntrance). Existing
+      TileTypes from RP-67 (Fence, FenceGate, HouseRoof, HouseEaves)
+      are reused inside Whine and Whine home yards; no new fence/roof
+      variants are introduced. `HouseDoorClosed` is NOT used inside
+      Whine — Whine homes are not enterable. ZoneTransitionKind gains
+      two new variants: `'whine'` (overworld ↔ Whine) and `'whine-
+      home'` (Whine ↔ Whine home yard).
+    inputs:
+      - 'Zone enum, TileType enum, ZoneTransitionKind union'
+    outputs:
+      - 'Zone.WhineVillage and Zone.WhineHomeYard exported'
+      - 'TileType.WhineEntrance and TileType.WhineApron exported'
+      - "ZoneTransitionKind = 'cave' | 'ruin' | 'house' | 'yard' | 'house-to-yard' | 'whine' | 'whine-home'"
+      - 'Renderer glyph/color tables include WhineEntrance and WhineApron'
+      - 'movement.ts walkability marks WhineEntrance and WhineApron walkable=true'
+      - 'tileBg.ts paints bg colors for the two new overworld tiles'
+    state_changes:
+      - field: 'Zone enum'
+        effect: 'two entries appended: WhineVillage, WhineHomeYard'
+      - field: 'TileType enum'
+        effect: 'two entries appended: WhineEntrance, WhineApron'
+      - field: 'ZoneTransitionKind'
+        effect: "two members appended: 'whine', 'whine-home'"
+    determinism: deterministic
+
+  - id: whine-map-and-registration
+    description: >
+      A new src/engine/whine.ts module owns the Whine zone.
+      `createWhineVillage()` returns a deterministic 30 × 20 map with
+      no RNG. Layout, indexed (whineX, whineY) where whineX ∈ [0, 29]
+      and whineY ∈ [0, 19]:
+        * Perimeter ring (whineX ∈ {0, 29} or whineY ∈ {0, 19}): Fence.
+        * West gate: FenceGate at (0, 10).
+        * Main street row: walkable Dirt at whineY = 10, whineX ∈
+          [1, 28].
+        * Six north homes. For i ∈ [0, 5], home centerX = 3 + 5 * i
+          (so centers 3, 8, 13, 18, 23, 28). Home footprint cells:
+          whineX ∈ [centerX - 1, centerX + 2], whineY ∈ [1, 4].
+          - Roof: HouseRoof at whineX ∈ [centerX, centerX + 1],
+            whineY ∈ [2, 3]. HouseEaves on the surrounding home-
+            footprint cells (the 12 perimeter cells of the 4×4
+            footprint).
+          - South-facing gate (the home's threshold gate): FenceGate
+            at (centerX, 4). Replaces the south-edge eaves cell at
+            that column.
+        * Six south homes. Mirror image. For i ∈ [0, 5], same
+          centerX. Footprint whineY ∈ [15, 18]. Roof at whineY ∈
+          [16, 17]. North-facing gate at (centerX, 15) replacing
+          the north-edge eaves cell.
+        * All other walkable cells (between homes and street, between
+          street and homes): Dirt.
+      `createWhineVillage()` returns `{ map, width, height,
+      gatePositions }`. `gatePositions` is a `Map<string, GateBinding>`
+      keyed by `posKey(x, y)`:
+        - perimeter west gate (0, 10): `{ kind: 'exit',
+          targetIsOverworld: true }`.
+        - twelve home gates: each `{ kind: 'enter', targetZoneId:
+          'whine-home-NN' }` for NN ∈ [01, 12], where home 1..6 are
+          north (assigned to i=0..5 left-to-right) and home 7..12 are
+          south (assigned to i=0..5 left-to-right).
+      At genesis (alongside `createLittleHouseYard()`), Whine is
+      registered in `state.thresholdZones` under id 'whineVillage'
+      with `zoneVariant: Zone.WhineVillage`, `pausesPlayerTime: true`,
+      and the gate positions above.
+    inputs:
+      - 'createGameState at tenure start'
+    outputs:
+      - "state.thresholdZones.get('whineVillage') populated"
+      - 'Map is 30 × 20, deterministic, same every tenure'
+    state_changes:
+      - field: "state.thresholdZones['whineVillage']"
+        effect: 'created at genesis; map and gate bindings constant for the tenure'
+    determinism: deterministic
+
+  - id: whine-overworld-placement
+    description: >
+      Genesis places a single `WhineEntrance` tile on the overworld at
+      a deterministic east offset from `state.houseEntranceOverworld`.
+      Target offset: `(+25, 0)` — twenty-five tiles east of the little
+      house entrance on the same y row. If the target tile or any of
+      its 8 neighbors falls outside SPACE_BORDER, or any of the 3×3
+      footprint conflicts with an existing structure tile (CaveEntrance,
+      CaveApron, RuinEntrance, RuinApron, RuinWall, RuinDoor*,
+      RuinAqueduct, HouseEntrance, HouseApron), or any cell is not
+      Dirt, the placement search walks a deterministic ring: for d ∈
+      [22, 24, 26, 28] (in that order) and for dy ∈ [0, -2, 2, -4, 4]
+      (in that order), test the candidate at (houseEntrance.x + d,
+      houseEntrance.y + dy). The first candidate whose 3×3 footprint
+      is all Dirt and free of structure tiles wins. If no candidate is
+      found (degenerate genesis), genesis logs a console.warn and
+      Whine is registered without an overworld entrance — the steward
+      cannot reach it this tenure (graceful degradation; the zone is
+      still serialized and discoverable in saves). The chosen entrance
+      tile is set to `TileType.WhineEntrance`; its 8 neighbors are set
+      to `TileType.WhineApron`. The chosen position is stored as
+      `state.whineEntranceOverworld: Position | null` (null when the
+      degraded path fires).
+    inputs:
+      - 'state.houseEntranceOverworld at genesis'
+      - 'overworld map after house + cave + ruins have been placed'
+    outputs:
+      - 'state.whineEntranceOverworld set to the chosen tile or null on degradation'
+      - 'overworld map has one WhineEntrance + 8 WhineApron tiles at the chosen footprint'
+    state_changes:
+      - field: 'state.whineEntranceOverworld'
+        effect: 'set to Position or null at genesis; persisted for the tenure'
+      - field: 'state.map[y][x] for the 3×3 footprint'
+        effect: 'tiles set to WhineEntrance/WhineApron'
+      - field: 'EXPECTED_FIELDS'
+        effect: '`whineEntranceOverworld` added'
+    determinism: deterministic
+
+  - id: whine-entry-from-overworld
+    description: >
+      When `state.currentZone === Zone.Overworld` and the player steps
+      onto a `WhineEntrance` or `WhineApron` tile, scheduleZoneTransition
+      fires with `{ direction: 'enter', kind: 'whine', irisCenter:
+      stepTile }`. The new enter handler
+      (`registerZoneSwapHandler('whine', 'enter', enterWhineVillage)`)
+      swaps `state.map` to the Whine map (from
+      `state.thresholdZones.get('whineVillage')`), updates
+      `state.mapWidth/Height`, sets `state.currentZone =
+      Zone.WhineVillage`, places the player at the Whine west gate
+      `(0, 10)`, stashes the overworld step-tile as the registry
+      entry's `entryReturnTile`, records discovery `'zone:whine'`, and
+      clears the same UI/input state that `enterLittleHouseYard*` clears
+      (path, pathWaypoints, pendingAction, pendingInteractionTarget,
+      heldDirection, previewFn, facingEntityPos, activeDialog, trail,
+      growth previews, movement tweens). A re-entry lock is armed on
+      the apron tile to prevent immediate yo-yo'ing on exit.
+    inputs:
+      - 'player position equals an overworld WhineEntrance or WhineApron tile'
+      - 'state.currentZone === Zone.Overworld'
+      - 'no re-entry lock on the tile'
+    outputs:
+      - 'scheduleZoneTransition invoked with kind=whine, direction=enter'
+      - 'enterWhineVillage runs after the iris transition'
+    state_changes:
+      - field: 'state.map, state.mapWidth, state.mapHeight'
+        effect: 'swapped to Whine map and dims'
+      - field: 'state.currentZone'
+        effect: 'set to Zone.WhineVillage'
+      - field: 'state.player'
+        effect: 'placed at (0, 10) (Whine west gate)'
+      - field: "state.thresholdZones['whineVillage'].entryReturnTile"
+        effect: 'set to the apron coordinate that triggered entry'
+      - field: 'UI/input state'
+        effect: 'cleared (same set as RP-67 yard entry)'
+    determinism: deterministic
+
+  - id: whine-exit-to-overworld
+    description: >
+      When `state.currentZone === Zone.WhineVillage` and the player
+      steps onto the perimeter `FenceGate` at `(0, 10)`,
+      scheduleZoneTransition fires with `{ direction: 'exit', kind:
+      'whine', irisCenter: gateTile }`. The exit handler swaps
+      `state.map` back to `state.overworldMap`, restores
+      `state.mapWidth/Height`, sets `state.currentZone =
+      Zone.Overworld`, and places the player at the
+      `entryReturnTile` stored on the registry entry. If
+      `entryReturnTile` is null (defensive — should not occur in normal
+      flow), the player is placed adjacent to `state.whineEntranceOverworld`
+      via `findSafeExitPosition`. The Whine re-entry lock is armed on
+      the apron tile (same pattern as the yard re-entry lock from
+      RP-67). Same UI/input state clears as on entry.
+    inputs:
+      - 'player position equals (0, 10) inside Whine'
+      - 'state.currentZone === Zone.WhineVillage'
+    outputs:
+      - 'scheduleZoneTransition invoked with kind=whine, direction=exit'
+      - 'player returns to the overworld at the original entry tile'
+    state_changes:
+      - field: 'state.map, state.mapWidth, state.mapHeight'
+        effect: 'restored to overworldMap and its dims'
+      - field: 'state.currentZone'
+        effect: 'set to Zone.Overworld'
+      - field: 'state.player'
+        effect: 'placed at entryReturnTile (or safe fallback)'
+      - field: 'Whine re-entry lock'
+        effect: 'armed on the apron tile'
+    determinism: deterministic
+
+  - id: whine-home-yard-template
+    description: >
+      A single shared 9 × 7 template defines every Whine home yard.
+      `createWhineHomeYard(id: ZoneId)` returns a fresh map each call
+      so the registry can hold twelve independent instances without
+      shared references. Layout, indexed (yardX, yardY) where
+      yardX ∈ [0, 8] and yardY ∈ [0, 6]:
+        * Perimeter ring: Fence.
+        * FenceGate at (4, 6) — south edge center. Marked as `{ kind:
+          'exit', targetZoneId: 'whineVillage', returnTile: <set on
+          entry> }` in the registry entry's gatePositions.
+        * Roof block: HouseRoof at yardX ∈ [3, 5], yardY ∈ [1, 2];
+          HouseEaves on the surrounding 5 × 3 perimeter cells at
+          yardX ∈ [2, 6], yardY ∈ [1, 3] minus the inner roof cells.
+          NOTE: this template has NO HouseDoorClosed tile — Whine
+          homes are not enterable in v1.
+        * All other walkable cells: Dirt.
+      Twelve instances are registered at genesis under ids
+      'whine-home-01' through 'whine-home-12', each with `zoneVariant:
+      Zone.WhineHomeYard`, `pausesPlayerTime: true`, and the gate
+      bindings above. Home N's overworld counterpart (its parent
+      Whine home position) is stored on the registry entry as
+      `parentZoneId: 'whineVillage'` and `parentGateTile: Position`
+      (the Whine map gate tile that opens into this home yard).
+    inputs:
+      - 'createGameState at tenure start'
+    outputs:
+      - "state.thresholdZones.get('whine-home-NN') populated for NN ∈ [01, 12]"
+      - 'all twelve maps are independent instances of the same 9 × 7 template'
+    state_changes:
+      - field: "state.thresholdZones['whine-home-NN']"
+        effect: 'created at genesis for each NN ∈ [01, 12]'
+    determinism: deterministic
+
+  - id: whine-home-yard-entry-and-exit
+    description: >
+      When `state.currentZone === Zone.WhineVillage` and the player
+      steps onto a home gate FenceGate (one of the twelve gates at
+      `(centerX, 4)` for north homes or `(centerX, 15)` for south
+      homes), scheduleZoneTransition fires with `{ direction: 'enter',
+      kind: 'whine-home', irisCenter: gateTile }`. The enter handler
+      reads the gate's binding from
+      `state.thresholdZones['whineVillage'].gatePositions`, looks up
+      the targetZoneId (e.g. 'whine-home-03'), swaps `state.map` to
+      the home yard's map, sets `state.currentZone = Zone.WhineHomeYard`,
+      places the player just south of the home yard's south gate at
+      `(4, 6)`, and stashes the Whine gate tile as the home yard's
+      `entryReturnTile`. On exit (stepping onto the home yard's
+      FenceGate at `(4, 6)`), the player returns to Whine at the
+      `entryReturnTile` (the parent gate position). UI/input clears
+      mirror the other zone transitions. No re-entry lock is required
+      between Whine and home yards (both are paused zones and the
+      flow is already nested — the locking pattern exists to prevent
+      apron yo-yo, which does not apply inside Whine).
+    inputs:
+      - 'player position equals a home gate FenceGate inside Whine'
+      - 'state.currentZone === Zone.WhineVillage'
+    outputs:
+      - 'scheduleZoneTransition invoked with kind=whine-home'
+      - 'player enters the matching home yard zone'
+    state_changes:
+      - field: 'state.map, state.mapWidth, state.mapHeight'
+        effect: 'swapped to home yard map (9×7) on enter; restored to Whine on exit'
+      - field: 'state.currentZone'
+        effect: 'set to Zone.WhineHomeYard on enter, Zone.WhineVillage on exit'
+      - field: 'state.player'
+        effect: 'placed at home yard gate row on enter, parent gate tile on exit'
+      - field: "state.thresholdZones['whine-home-NN'].entryReturnTile"
+        effect: 'set on enter, consumed on exit'
+    determinism: deterministic
+
+  - id: drift-behavior-bounds
+    description: >
+      `DriftBehavior` gains an optional `bounds?: { minX: number; minY:
+      number; maxX: number; maxY: number }` field. When `bounds` is
+      present, `tickDrift` filters candidate destination tiles to those
+      whose (x, y) is inside the inclusive rectangle. Candidates
+      outside bounds are discarded before terrain/crater filters. If
+      the candidate list is empty after bounds-filtering, the ghost
+      does not move this tick (no error, no fallback). Existing
+      unbounded ghosts (overworld ghosts spawned by createGameState)
+      continue to work — bounds is optional and absent on those
+      definitions.
+    inputs:
+      - 'DriftBehavior interface'
+      - 'tickDrift candidate selection'
+    outputs:
+      - 'DriftBehavior.bounds typed as optional rectangle'
+      - 'tickDrift respects bounds when present'
+    state_changes:
+      - field: 'DriftBehavior'
+        effect: '`bounds?` added'
+      - field: 'tickDrift candidate filter'
+        effect: 'rectangular bounds gate inserted before terrain check'
+    determinism: probabilistic
+
+  - id: whine-ghost-definitions-and-population
+    description: >
+      Twelve named ghost definitions are registered at genesis with
+      stable ids `whine-ghost-01` through `whine-ghost-12`. Each
+      `CharacterDefinition` is built by a new
+      `createWhineGhostDefinition(n: number)` helper exported from
+      `src/engine/characters.ts`:
+        - id: `whine-ghost-${zeroPad(n, 2)}`
+        - name: `'TODO: Whine ghost ' + zeroPad(n, 2)` (human-authored
+          later per the lore rule — the spec lists the slot; the
+          string is a TODO placeholder)
+        - glyph: 'ö' (same as existing overworld ghosts)
+        - glyphColor: '#FFFFFF'
+        - dialog: ['...'] (silent — v1 lock)
+      A new `registerWhineGhostDefinitions()` helper writes all
+      twelve into `CHARACTER_DEFINITIONS`. At genesis, after Whine and
+      the twelve home yards are registered in `state.thresholdZones`,
+      genesis spawns twelve character entities — one per home — via
+      `createCharacterEntity`. Each ghost spawns inside the Whine zone
+      (`zone: Zone.WhineVillage`), at a deterministic initial position
+      directly in front of its assigned home's threshold gate:
+        - For north homes (i ∈ [0, 5], ghost N = i + 1): initial
+          position `(centerX, 5)` — one tile south of the home's
+          south gate at (centerX, 4).
+        - For south homes (i ∈ [0, 5], ghost N = i + 7): initial
+          position `(centerX, 14)` — one tile north of the home's
+          north gate at (centerX, 15).
+      Each ghost's behavior is
+        `{ type: 'drift', moveChance: 0.15, freezeOnDialog: false,
+          bounds: <home-front rectangle> }`
+      where the bounds rectangle covers the corridor between the
+      home's gate row and the main street row, ± 1 tile width:
+        - North ghost N (centerX): bounds `{ minX: centerX - 1, minY:
+          5, maxX: centerX + 1, maxY: 9 }`.
+        - South ghost N (centerX): bounds `{ minX: centerX - 1, minY:
+          11, maxX: centerX + 1, maxY: 14 }`.
+      `freezeOnDialog: false` is intentional — v1 has no dialog, so
+      the freeze hook never fires; the field is kept false to make
+      the v1 register explicit. Twelve `CharacterEntity` records live
+      in `state.world` with their `EntityZone` set to
+      `Zone.WhineVillage`.
+    inputs:
+      - 'createGameState invocation at tenure start'
+    outputs:
+      - 'CHARACTER_DEFINITIONS contains twelve whine-ghost-NN entries with TODO names and silent dialog'
+      - 'state.world contains twelve character entities tagged for Zone.WhineVillage'
+      - 'each ghost has DriftBehavior with bounds set to its home corridor'
+    state_changes:
+      - field: 'CHARACTER_DEFINITIONS'
+        effect: 'twelve entries added at genesis'
+      - field: 'state.world'
+        effect: 'twelve character entities spawned at genesis with EntityZone = WhineVillage'
+    determinism: deterministic
+
+  - id: whine-tick-character-behaviors
+    description: >
+      `tickCharacterBehaviors(state)` already ticks behaviors for
+      characters in `state.currentZone`. The function is unchanged in
+      shape — the new `Zone.WhineVillage` matching naturally falls
+      out of `isEntityInCurrentZone`. When the steward is in
+      `Zone.WhineVillage`, all twelve Whine ghosts tick on their
+      drift cadence (bounded to each ghost's home corridor). When the
+      steward is in `Zone.WhineHomeYard`, Whine ghosts do NOT tick
+      (the home yard is paused for both the prairie clock and the
+      ghosts — _the village holds its breath inside the fence_). No
+      changes to the function signature; the behavior is a property of
+      `isEntityInCurrentZone` correctly mapping entities to their
+      assigned zone.
+    inputs:
+      - 'state.currentZone === Zone.WhineVillage'
+      - 'twelve Whine ghost entities present in state.world'
+    outputs:
+      - 'each ghost runs tickDrift on its existing cadence; bounded movement only'
+    state_changes:
+      - field: 'ghost entity Position components'
+        effect: 'updated by tickDrift; constrained to bounds'
+    determinism: probabilistic
+
+  - id: whine-pauses-player-time
+    description: >
+      Per RP-51, `state.thresholdZones['whineVillage'].pausesPlayerTime
+      = true` and the same for all twelve `whine-home-NN` entries.
+      The celestial clock checks the registry entry for the active
+      zone (or, equivalently, a flat lookup table of paused Zone
+      variants — implementor's choice as long as Whine and all twelve
+      home yards are present). While `state.currentZone` is
+      `Zone.WhineVillage` or `Zone.WhineHomeYard`, `state.timeOfDay`
+      and `state.season` do not advance. The pause begins at zone
+      enter. The overworld simulation tick continues to advance for
+      the overworld (matching RP-67's yard behavior — only the player-
+      facing clock pauses).
+    inputs:
+      - 'state.currentZone is one of Zone.WhineVillage or Zone.WhineHomeYard'
+    outputs:
+      - 'state.timeOfDay does not advance'
+      - 'state.season does not advance'
+    state_changes:
+      - field: 'state.timeOfDay'
+        effect: 'frozen while in Whine or any Whine home yard'
+      - field: 'state.season'
+        effect: 'frozen while in Whine or any Whine home yard'
+    determinism: deterministic
+
+  - id: whine-camera-and-visibility
+    description: >
+      Camera follows the player in Whine and Whine home yards at the
+      same iso scale as the overworld and the little house yard.
+      Visibility is full inside both zones — no fog of war, no vision
+      radius gating. The camera viewport clamps to the active zone's
+      map bounds (Whine: 30 × 20; home yard: 9 × 7). Cursor state,
+      click-to-move, and the bottom-bar permacomputer affordances all
+      work normally. Hot-pink-as-user-action conventions are preserved.
+      Rain rendering is gated on `state.currentZone ===
+      Zone.Overworld` (the existing gate from RP-67's yard already
+      excludes non-overworld zones; verify Whine and home yards
+      inherit). When the steward enters Whine, the rain visual stops;
+      rain state continues to advance in the overworld but Whine and
+      its home yards render no rain glyphs and no audio cue.
+    inputs:
+      - 'state.currentZone === Zone.WhineVillage or Zone.WhineHomeYard'
+    outputs:
+      - 'camera viewport clamps to the active zone'
+      - 'no fog of war applied to Whine or home yard tiles'
+      - 'rain visual gated to overworld'
+    state_changes: []
+    determinism: deterministic
+
+  - id: whine-manual-slots
+    description: >
+      `MANUAL_LORE` gains thirteen new keys, all with `{ lore: 'TODO' }`:
+      `'zone:whine'` (one place entry for the village itself) and
+      `'character:whine-ghost-NN'` for NN ∈ [01, 12] (twelve character
+      entries). Names ARE written into the `CharacterDefinition.name`
+      field as TODO placeholders so the manual's renderer has
+      something to print; the lore content stays as 'TODO' per the
+      project's lore-authoring rule. No `glitched: true` flag, no
+      hints. The unlock keys remain `'zone:whine'` and
+      `'character:whine-ghost-NN'` — discoverable when the steward
+      first enters Whine (zone) or stands face-to-face with a ghost
+      (character, via the existing facing-entity pipeline). The
+      manual's renderer route through getCharacterDefinition; no
+      changes to ManualPanel.constants.ts are required beyond
+      ensuring the new character keys are reachable (they should be
+      automatic since `getAllCharacterDefinitions()` reads
+      `CHARACTER_DEFINITIONS`).
+    inputs:
+      - 'MANUAL_LORE table'
+      - 'CHARACTER_DEFINITIONS after registerWhineGhostDefinitions'
+    outputs:
+      - "MANUAL_LORE['zone:whine'] = { lore: 'TODO' }"
+      - "MANUAL_LORE['character:whine-ghost-NN'] = { lore: 'TODO' } for NN ∈ [01, 12]"
+      - "Discovery recordDiscovery(state, 'zone:whine') called at Whine zone enter"
+    state_changes:
+      - field: 'MANUAL_LORE'
+        effect: 'thirteen new keys, all { lore: "TODO" }'
+      - field: 'state.manualDiscoveries'
+        effect: "'zone:whine' added on first Whine enter; character keys discovered via existing facing-entity surface"
+    determinism: deterministic
+
+edge_cases:
+  - id: whine-enter-with-rain-active
+    description: >
+      Rain is falling heavily and the steward steps onto a WhineApron
+      tile.
+    expected: >
+      Whine enter transition fires normally; on completion the rain
+      overlay is no longer rendered (Whine is not Zone.Overworld).
+      Rain state in the overworld continues to advance during the
+      Whine visit.
+
+  - id: re-enter-whine-immediately-after-exit
+    description: >
+      Player exits Whine via the west gate; the next tick they are
+      standing on the apron tile (entryReturnTile). Without a re-entry
+      lock, the apron-trigger would immediately re-enter Whine,
+      causing a yo-yo loop.
+    expected: >
+      The Whine re-entry lock is armed on the apron tile at the moment
+      of gate exit (same pattern as the yard re-entry lock). Subsequent
+      apron-trigger checks skip the locked tile for one transition
+      cycle. The lock clears after the player moves off the locked
+      apron tile.
+
+  - id: whine-overworld-placement-blocked-by-existing-structure
+    description: >
+      The strict +25 east offset from the little house entrance falls
+      on a cave apron, ruin wall, or river tile.
+    expected: >
+      The placement search walks the deterministic ring described in
+      `whine-overworld-placement` and finds the next valid candidate.
+      Final placement is deterministic for a given genesis seed —
+      same world layout produces the same Whine location every time.
+
+  - id: whine-degraded-genesis-no-valid-placement
+    description: >
+      The placement search exhausts all candidates and finds no
+      suitable 3 × 3 Dirt footprint within the east-band ring.
+    expected: >
+      Genesis logs a console.warn ('whine: no overworld placement
+      found in east band; skipping entrance'), sets
+      `state.whineEntranceOverworld = null`, and continues. The Whine
+      zone is still registered in state.thresholdZones (the steward
+      cannot reach it this tenure but save/load is consistent).
+      No throw.
+
+  - id: ghost-drift-bounds-corner-trap
+    description: >
+      A ghost is at the corner of its bounds rectangle and all eight
+      ordinal candidates fall outside the rectangle.
+    expected: >
+      tickDrift's candidate list is empty after the bounds filter;
+      the ghost does not move this tick. No error. The ghost is
+      stuck for one tick and may move on a future tick if Math.random
+      produces a candidate that satisfies the filter. (In practice,
+      with a corridor-shaped rectangle ≥ 3 tiles wide, this is rare;
+      the spec accepts the no-op as the correct behavior.)
+
+  - id: ghost-spawns-on-roof-or-fence
+    description: >
+      A ghost's initial position computed from `(centerX, 5)` or
+      `(centerX, 14)` happens to fall on a non-walkable tile (e.g.
+      a layout regression places a roof or fence there).
+    expected: >
+      `createCharacterEntity` does not enforce walkability — the
+      ghost is placed at the requested position. This is a defensive
+      assertion in the Whine layout test: every ghost's initial
+      position must be a Dirt tile inside Whine. The test fails loud
+      if the layout drifts.
+
+  - id: enter-home-yard-from-whine-and-out
+    description: >
+      Steward walks down Whine main street, steps onto home 3's
+      south gate at (13, 4), enters home 3's yard, walks around, exits
+      via the home yard's south gate at (4, 6), and lands back in
+      Whine at (13, 4).
+    expected: >
+      Enter transition fires kind='whine-home' with the gate's binding
+      pointing at 'whine-home-03'. Exit transition restores the player
+      to (13, 4) on the Whine map. entryReturnTile on the home yard
+      registry entry is consumed (set to null after exit).
+
+  - id: gateway-binding-key-stability-across-save-load
+    description: >
+      A save is taken while the steward is in Whine, then loaded.
+    expected: >
+      `state.thresholdZones` round-trips through serialization. The
+      registry's Map<ZoneId, ThresholdZoneState> serializes to a
+      plain object with the same shape as the existing
+      `state.glintingCoins` Map pattern (or whichever serialization
+      convention is established at implementation time —
+      schema.test.ts is the authoritative check). The
+      gatePositions sub-Map round-trips to a similar shape.
+
+failure_conditions:
+  - trigger: >
+      scheduleZoneTransition is called with kind='whine' but
+      state.thresholdZones.get('whineVillage') is undefined.
+    expected: >
+      The Whine enter handler logs a console.warn ('whine:
+      thresholdZones entry missing; skipping') and returns early
+      without mutating state. The player remains in the overworld.
+      No throw.
+
+  - trigger: >
+      Player steps onto a FenceGate tile inside Whine whose key is
+      not in `state.thresholdZones['whineVillage'].gatePositions`.
+    expected: >
+      The home-enter handler logs a console.warn ('whine: gate at
+      <key> has no binding; skipping') and returns early. The player
+      remains on the gate tile. No throw, no transition.
+
+  - trigger: >
+      A test or save load deserializes a GameState that predates
+      RP-69 and therefore has the seven old yard fields and no
+      `thresholdZones` field.
+    expected: >
+      schema.test.ts catches the missing EXPECTED_FIELDS entry at
+      build time. Deserialization paths that load old saves treat
+      missing `thresholdZones` as a fresh registry and call
+      `createLittleHouseYard()` + Whine registration on the next
+      genesis hook (defensive default). This mirrors the existing
+      house/cave save migration pattern.
+
+  - trigger: >
+      A network peer position update arrives while the local steward
+      is in Whine, placing the peer at a coordinate inside Whine.
+    expected: >
+      Existing peer-position validation continues to operate on
+      overworld coordinates only; Whine has no peer rendering in
+      this PR. The peer update is applied to state.peers (which is
+      always overworld-space), with no special Whine handling.
+      Multiplayer in Whine is out of scope for v1.
+
+  - trigger: >
+      A ghost's bounds rectangle is degenerate (minX > maxX or
+      minY > maxY) due to a constants regression.
+    expected: >
+      tickDrift's bounds filter rejects all candidates; the ghost
+      never moves. No throw. A layout test asserts every Whine
+      ghost's bounds are non-degenerate and contain at least one
+      walkable Dirt tile.
+
+verification:
+  test_file: src/engine/__tests__/whine.test.ts
+  test_pattern: 'RP-69 Whine, Haunted Village'
+  command: 'npx vitest run src/engine/__tests__/whine.test.ts'

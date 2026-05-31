@@ -1225,7 +1225,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
         // claim. The prairie's night sky does not belong inside the
         // fence, so overscroll beyond the yard map renders as plain
         // dark background, not twinkling stars.
-        if (state.currentZone === Zone.LittleHouseYard) {
+        // RP-69 — Whine and its twelve home yards inherit the same
+        // rule: bounded threshold zones suppress the prairie's
+        // overscroll-star pass.
+        if (
+          state.currentZone === Zone.LittleHouseYard ||
+          state.currentZone === Zone.WhineVillage ||
+          state.currentZone === Zone.WhineHomeYard
+        ) {
           continue
         }
 
@@ -1538,14 +1545,16 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
           // species (the chromatic decline reads as "dying plant"
           // regardless of family).
           //
-          // RP-67 — in the yard zone, flora are cosmetic snapshots in
-          // state.yardFlora (not state.floraLifecycle). Substitute the
-          // yard lookup so the renderer paints the sampled species
-          // glyph + healthy color over the Flora-mutated yardMap tile.
+          // RP-67 — in the yard zone, flora are cosmetic snapshots
+          // stored on the threshold-zone registry entry's `flora` map
+          // (RP-69 migrated this off the singleton state.yardFlora).
+          // Substitute the yard lookup so the renderer paints the
+          // sampled species glyph + healthy color over the Flora-
+          // mutated yard-map tile.
           const lifecycle = tile.type === TileType.Flora ? state.floraLifecycle.get(tileKey) : undefined
           const yardSpecies =
             tile.type === TileType.Flora && state.currentZone === Zone.LittleHouseYard
-              ? state.yardFlora.get(tileKey)
+              ? state.thresholdZones.get('littleHouseYard')?.flora?.get(tileKey)
               : undefined
           if (yardSpecies !== undefined) {
             const speciesDef = FLORA_SPECIES[yardSpecies]

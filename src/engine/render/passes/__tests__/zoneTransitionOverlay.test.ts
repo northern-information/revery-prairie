@@ -136,6 +136,22 @@ describe('zoneTransitionOverlay', () => {
       const state = makeState()
       expect(getDestinationLabel(state, makeTransition('ruin', 'enter', null))).toBe('Ruin')
     })
+
+    it('returns "Whine, Haunted Village" for kind="whine" enter (RP-69 — v11 R9 full-name rule)', () => {
+      const state = makeState()
+      expect(getDestinationLabel(state, makeTransition('whine', 'enter'))).toBe('Whine, Haunted Village')
+    })
+
+    it('returns "Revery Prairie" for kind="whine" exit', () => {
+      const state = makeState()
+      expect(getDestinationLabel(state, makeTransition('whine', 'exit'))).toBe('Revery Prairie')
+    })
+
+    it('returns "Yard" for kind="whine-home" enter and "Whine, Haunted Village" for the corresponding exit', () => {
+      const state = makeState()
+      expect(getDestinationLabel(state, makeTransition('whine-home', 'enter'))).toBe('Yard')
+      expect(getDestinationLabel(state, makeTransition('whine-home', 'exit'))).toBe('Whine, Haunted Village')
+    })
   })
 
   describe('zoneTransitionOverlayPass', () => {
