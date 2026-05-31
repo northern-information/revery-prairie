@@ -1,0 +1,262 @@
+plan:
+  id: RP-69-whine-haunted-village
+  title: 'Precis RP-69: Whine, Haunted Village — hand-authored hub region near the little house, with twelve named drifting ghosts; folds in the v11 R8 threshold-zone substrate generalization'
+  created: 2026-05-31
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: whine-foundations
+    title: 'Add Zone.WhineVillage and Zone.WhineHomeYard, two new TileTypes (WhineEntrance, WhineApron), the two new ZoneTransitionKind members, Whine layout constants (dims, home centers, gate positions, home-yard template), walkability + render + tileBg tables, and the DriftBehavior.bounds extension'
+    spec_id: RP-69-whine-haunted-village
+    spec_sections:
+      - whine-zone-variants-and-tile-types
+      - drift-behavior-bounds
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/movement.ts
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/movement.ts
+      - src/engine/renderer.ts
+      - src/engine/tileBg.ts
+      - src/engine/entities.ts
+      - src/engine/__tests__/whine.test.ts
+    depends_on: []
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/whine.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: threshold-zones-registry-migration
+    title: 'Replace the seven singleton little-house-yard fields with state.thresholdZones: Map<ZoneId, ThresholdZoneState>; migrate RP-67 yard.ts call sites to read through the registry; update EXPECTED_FIELDS; preserve all RP-67 yard behavior'
+    spec_id: RP-69-whine-haunted-village
+    spec_sections:
+      - threshold-zones-registry
+      - little-house-yard-migration
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/yard.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/house.ts
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/engine/visibility.ts
+      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/yard.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/yard.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/house.ts
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/engine/visibility.ts
+      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/yard.test.ts
+    depends_on:
+      - whine-foundations
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/yard.test.ts'
+      - command: 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+      - refactor
+    skip: false
+
+  - id: whine-map-and-overworld-placement
+    title: 'Implement createWhineVillage() with the 30x20 deterministic layout and createWhineHomeYard() with the 9x7 shared template; register Whine + twelve home yards in state.thresholdZones at genesis; place WhineEntrance + WhineApron on the overworld at +25 east of houseEntranceOverworld with deterministic ring search; add state.whineEntranceOverworld; update EXPECTED_FIELDS'
+    spec_id: RP-69-whine-haunted-village
+    spec_sections:
+      - whine-map-and-registration
+      - whine-overworld-placement
+      - whine-home-yard-template
+    context_files:
+      - src/engine/whine.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+      - src/engine/yard.ts
+      - src/engine/position.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/whine.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/__tests__/whine.test.ts
+    depends_on:
+      - threshold-zones-registry-migration
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/whine.test.ts'
+      - command: 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: whine-transitions-and-detection
+    title: 'Register enterWhineVillage / exitWhineVillage / enterWhineHomeYard / exitWhineHomeYard handlers in zoneTransition.ts; update movement.ts so WhineEntrance and WhineApron trigger whine enter, perimeter FenceGate triggers whine exit, and home FenceGates trigger whine-home enter via the gatePositions lookup; arm the Whine re-entry lock on apron tiles at exit'
+    spec_id: RP-69-whine-haunted-village
+    spec_sections:
+      - whine-entry-from-overworld
+      - whine-exit-to-overworld
+      - whine-home-yard-entry-and-exit
+    context_files:
+      - src/engine/whine.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/movement.ts
+      - src/engine/house.ts
+      - src/engine/yard.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/whine.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/movement.ts
+      - src/engine/__tests__/whine.test.ts
+    depends_on:
+      - whine-map-and-overworld-placement
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/whine.test.ts'
+      - command: 'npx vitest run src/engine/__tests__/yard.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: whine-ghosts-and-manual
+    title: 'Add createWhineGhostDefinition and registerWhineGhostDefinitions in characters.ts; spawn twelve named ghost entities at genesis (Zone.WhineVillage, EntityZone tagged) with bounded DriftBehavior; add MANUAL_LORE slots for zone:whine and twelve character:whine-ghost-NN (all lore: TODO); record discovery zone:whine at Whine enter'
+    spec_id: RP-69-whine-haunted-village
+    spec_sections:
+      - whine-ghost-definitions-and-population
+      - whine-tick-character-behaviors
+      - whine-manual-slots
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/entities.ts
+      - src/engine/manual.ts
+      - src/engine/state.ts
+      - src/engine/whine.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/characters.ts
+      - src/engine/entities.ts
+      - src/engine/manual.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/whine.test.ts
+    depends_on:
+      - whine-transitions-and-detection
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/whine.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: whine-clocks-camera-visibility
+    title: 'Freeze state.timeOfDay and state.season while currentZone is Zone.WhineVillage or Zone.WhineHomeYard (per RP-51); clamp the camera viewport to the active zone bounds for both zones; exclude both zones from fog of war; verify rain rendering is gated to Zone.Overworld so Whine and home yards stay dry'
+    spec_id: RP-69-whine-haunted-village
+    spec_sections:
+      - whine-pauses-player-time
+      - whine-camera-and-visibility
+    context_files:
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/engine/visibility.ts
+      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/celestial.ts
+      - src/engine/camera.ts
+      - src/engine/visibility.ts
+      - src/engine/render/passes/weatherRainOverlay.ts
+      - src/engine/__tests__/whine.test.ts
+    depends_on:
+      - whine-ghosts-and-manual
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/whine.test.ts'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+    skip: false
+
+  - id: whine-integration-tests
+    title: 'Fill in the remaining vitest assertions for the full Whine flow: overworld→Whine→home-yard→Whine→overworld round trip; ghost drift bounded to corridors; thresholdZones registry round-trips through serialization; pause-time in both zones; rain gated; deterministic placement; layout invariants (every ghost spawns on Dirt; every gate has a binding); degenerate genesis falls back without throw'
+    spec_id: RP-69-whine-haunted-village
+    spec_sections:
+      - threshold-zones-registry
+      - little-house-yard-migration
+      - whine-zone-variants-and-tile-types
+      - whine-map-and-registration
+      - whine-overworld-placement
+      - whine-entry-from-overworld
+      - whine-exit-to-overworld
+      - whine-home-yard-template
+      - whine-home-yard-entry-and-exit
+      - drift-behavior-bounds
+      - whine-ghost-definitions-and-population
+      - whine-tick-character-behaviors
+      - whine-pauses-player-time
+      - whine-camera-and-visibility
+      - whine-manual-slots
+    context_files:
+      - src/engine/whine.ts
+      - src/engine/yard.ts
+      - src/engine/zoneTransition.ts
+      - src/engine/characters.ts
+      - src/engine/entities.ts
+      - src/engine/manual.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/engine/__tests__/whine.test.ts
+    depends_on:
+      - whine-clocks-camera-visibility
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npx vitest run src/engine/__tests__/whine.test.ts'
+      - command: 'npx vitest run src/engine/__tests__/yard.test.ts'
+      - command: 'npm run lint'
+    repair:
+      max_retries: 1
+      strategy: retry
+    tags:
+      - engine
+      - testing
+    skip: false
