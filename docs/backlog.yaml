@@ -1528,10 +1528,10 @@ features:
       bed in the little house during its working winter; Emily moves it
       to the root cellar (`RP-37`) at the Revery's spring.
     depends_on: ['RP-33']
-    status: in-progress
+    status: shipped
     spec: harness/specs/RP-36-revery-knot.yaml
     plan: harness/plans/RP-36-revery-knot.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/483
     notes: >
       v6 thinktank round 6 (2026-05-22). The omen variant under `RP-32`'s
       pressure model. The three existing omens in `omen.ts:36-58` are
@@ -2089,19 +2089,17 @@ features:
       spec'd independently from the overlay registry that hosts it.
 
   - id: 'RP-49'
-    name: '[reserved] ID gap from the precis → backlog migration'
+    name: Debug verticality
     summary: >
-      Intentional placeholder. RP-49 was never assigned a feature during
-      the legacy precis sequencing; this stub fills the gap so /churn
-      never surfaces it as NEXT, and so the renumbering pass that moved
-      a duplicate RP-52 to RP-60 has a clear record of why RP-49 stays
-      unfilled. Do not assign work to this id.
-    depends_on: []
-    status: shipped
+      Needs to be more dramatic with valleys, mesas, impassable routes,
+      etc.
+    depends_on: ['RP-41']
+    status: todo
     spec: null
     plan: null
     pr: null
-    notes: ''
+    notes: >
+      Repurposed 2026-05-31 from the reserved ID-gap placeholder.
 
   - id: 'RP-50'
     name: Knot per-year auto-derivation
