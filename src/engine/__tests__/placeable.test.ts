@@ -85,14 +85,15 @@ describe('PlaceableSpec registry', () => {
       const state = setup()
       const { x, y } = state.player
 
-      expect(canPlaceCameraAt(state, -1, y)).toBe(false)
-      expect(canPlaceCameraAt(state, x, y)).toBe(false)
+      const uid = 'fresh-camera-uid'
+      expect(canPlaceCameraAt(state, -1, y, uid)).toBe(false)
+      expect(canPlaceCameraAt(state, x, y, uid)).toBe(false)
 
       state.map[y][x + 1] = { type: TileType.Space }
-      expect(canPlaceCameraAt(state, x + 1, y)).toBe(false)
+      expect(canPlaceCameraAt(state, x + 1, y, uid)).toBe(false)
 
       state.map[y][x + 2] = { type: TileType.Dirt }
-      expect(canPlaceCameraAt(state, x + 2, y)).toBe(true)
+      expect(canPlaceCameraAt(state, x + 2, y, uid)).toBe(true)
     })
   })
 })

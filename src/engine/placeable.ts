@@ -16,14 +16,19 @@ import type { GameState, ItemUid } from './types'
 export interface PlaceableSpec {
   // Player-facing verb. Read by hover hints / prose, never a uniform substrate.
   verb: 'set' | 'set up' | 'sow' | 'lay' | 'place'
-  canPlace: (state: GameState, x: number, y: number) => boolean
+  // RP-15 — canPlace receives the held item's uid so wear-bearing
+  // placeables (currently only the camera) can refuse placement at
+  // wear ≥ 1.0. Wear-free placeables ignore the uid arg.
+  canPlace: (state: GameState, x: number, y: number, uid: ItemUid) => boolean
   place: (state: GameState, x: number, y: number, uid: ItemUid) => void
 }
 
 // RP-59 — a Field Camera can be set up on any walkable, unoccupied tile in
 // bounds. Mirrors canPlaceMeteoriteAt's shape; cameras are not restricted to
 // Dirt/Flora since they sit on the surface rather than mark hallowed ground.
-export const canPlaceCameraAt = (state: GameState, x: number, y: number): boolean => {
+// RP-15 — refuses placement when the camera's body wear has reached 1.0.
+export const canPlaceCameraAt = (state: GameState, x: number, y: number, uid: ItemUid): boolean => {
+  if ((state.itemWear[uid] ?? 0) >= 1) return false
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (!isWalkableTile(state.map[y][x].type)) return false
   if (x === state.player.x && y === state.player.y) return false
@@ -36,7 +41,7 @@ export const canPlaceCameraAt = (state: GameState, x: number, y: number): boolea
 const PLACEABLE_SPECS = {
   meteorite: {
     verb: 'place',
-    canPlace: canPlaceMeteoriteAt,
+    canPlace: (state, x, y, _uid) => canPlaceMeteoriteAt(state, x, y),
     place: (state, x, y, uid) => {
       const container = state.backpack
       placeMeteoriteAt(state, x, y, performance.now())

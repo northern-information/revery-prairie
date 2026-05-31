@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import { WearBar } from './WearBar'
+
 import { ACTION_COLOR, INVENTORY_CELL_SIZE } from '@/engine/constants'
 import { getInHandItem, releaseInHand, takeInHand } from '@/engine/inHand'
 import { getDefinition } from '@/engine/items'
@@ -123,6 +125,11 @@ export const InHandSlot = ({
       {def ? (
         <div className="text-center text-xs" style={{ color: 'var(--color-pink)' }}>
           {def.name}
+        </div>
+      ) : null}
+      {def && inHand && def.maxUses !== undefined && def.maxUses > 0 ? (
+        <div style={{ width: SLOT_PX }}>
+          <WearBar wear={state.itemWear[inHand.uid] ?? 0} color={def.glyphColor} />
         </div>
       ) : null}
     </div>

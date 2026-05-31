@@ -1,0 +1,196 @@
+id: RP-15-item-wear
+name: 'Item wear (visible degradation)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/items.ts
+  - src/engine/state.ts
+  - src/engine/timeLapse.ts
+  - src/engine/placeable.ts
+  - src/engine/interaction.ts
+  - src/components/InHandSlot.tsx
+  - src/components/ItemInfo.tsx
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies: []
+
+behaviors:
+  - id: max-uses-on-definition
+    description: >
+      ItemDefinition gains an optional maxUses field of type number.
+      Definitions that declare maxUses are wear-bearing; definitions
+      that omit it are wear-free. The camera definition in items.ts
+      sets maxUses = 12 (three game years of archived seasons). No
+      other current item gets maxUses in this PR. The existing
+      comment in items.ts:75-79 that says "body is eternal but
+      unreloadable" is updated to reflect that body wear is now a
+      second wear surface coexisting with film consumption.
+    inputs:
+      - 'ItemDefinition objects in src/engine/items.ts'
+    outputs:
+      - 'camera.maxUses === 12'
+      - 'aqueductKey, filmRoll, coin: maxUses is undefined'
+    state_changes: []
+    determinism: deterministic
+
+  - id: item-wear-state-field
+    description: >
+      GameState gains itemWear, a Record keyed by ItemInstance.uid
+      with number values in [0, 1]. Items with no entry are treated
+      as wear=0. The map is keyed by uid (not definitionId) so
+      multiple camera instances wear independently.
+      createInitialGameState initializes itemWear to an empty object.
+      itemWear is added to EXPECTED_FIELDS in the serialization
+      schema test.
+    inputs:
+      - 'new GameState constructed via createInitialGameState'
+    outputs:
+      - 'state.itemWear is an empty object'
+    state_changes:
+      - field: itemWear
+        effect: 'initialized to empty object at game start'
+    determinism: deterministic
+
+  - id: wear-tick-on-archive
+    description: >
+      When archivePlacedCameraFrames completes for a placed camera,
+      state.itemWear[camera.uid] is incremented by 1 divided by the
+      camera definition maxUses (≈0.0833 with maxUses=12). The increment
+      happens once per archive event. Existing wear is retained — it
+      accumulates across the camera lifetime even across place /
+      archive / pickup / re-place cycles. The ItemInstance.uid is
+      stable across these cycles per the existing PlacedCamera.uid
+      carry-over.
+    inputs:
+      - 'archivePlacedCameraFrames invoked with a PlacedCamera'
+      - 'state.itemWear[camera.uid] is w or undefined (treated as 0)'
+    outputs: []
+    state_changes:
+      - field: itemWear
+        effect: 'itemWear[camera.uid] set to min of 1 and (w or 0) plus 1/maxUses'
+    determinism: deterministic
+
+  - id: wear-clamp
+    description: >
+      itemWear[uid] is clamped to a maximum of 1.0. Multiple archive
+      events on a fully-worn camera leave wear at 1.0 — never above.
+      The clamp lives at the tick site; read sites can assume the
+      stored value is in [0, 1].
+    inputs:
+      - 'wear-tick-on-archive invoked when state.itemWear[uid] === 1.0'
+    outputs: []
+    state_changes:
+      - field: itemWear
+        effect: 'itemWear[uid] stays at 1.0'
+    determinism: deterministic
+
+  - id: broken-camera-place-refusal
+    description: >
+      The camera place handler in placeable.ts checks
+      state.itemWear[uid] before creating a PlacedCamera. If wear is
+      >= 1.0, the placement is refused: the ItemInstance is NOT
+      removed from inventory, no PlacedCamera is created, and
+      state.placedCameras is unchanged. The place handler returns the
+      placement-failed sentinel its API already uses. Other place
+      handlers in the registry are unaffected.
+    inputs:
+      - 'place(state, x, y, uid) called with a camera whose itemWear[uid] >= 1.0'
+    outputs:
+      - 'placement-failed sentinel from the place handler'
+    state_changes:
+      - field: backpack
+        effect: 'unchanged — the camera ItemInstance is not removed'
+      - field: placedCameras
+        effect: 'unchanged — no PlacedCamera created'
+    determinism: deterministic
+
+  - id: iteminfo-wear-bar
+    description: >
+      When the hovered item is wear-bearing (its definition has a
+      maxUses), ItemInfo.tsx renders a thin horizontal wear bar after
+      the existing film-status section. Bar height ~4px, width equals
+      the container content width. Fill width is (1 - wear) * 100% —
+      the bar depletes as wear approaches 1.0. Bar fill uses the
+      item glyphColor; the unfilled track uses the existing text-dim
+      palette. Pink is NOT used (reserved for user actions). When
+      wear is 0 or absent, the bar is fully filled. When wear is 1.0,
+      the bar is empty and an additional status line is shown reading
+      "Worn out — repair needed."
+    inputs:
+      - 'ItemInfo show(definitionId, uid) called for a wear-bearing item'
+      - 'state.itemWear[uid] possibly undefined'
+    outputs:
+      - 'DOM: wear bar element rendered'
+      - 'wear === 1.0: extra status line "Worn out — repair needed."'
+    state_changes: []
+    determinism: deterministic
+
+  - id: inhandslot-wear-bar
+    description: >
+      When the in-hand item is wear-bearing, InHandSlot.tsx renders
+      the same wear bar component below the existing item name line.
+      Visible whenever the item is held, regardless of hover state.
+      Visual rules match iteminfo-wear-bar exactly so the two
+      surfaces stay consistent.
+    inputs:
+      - 'InHandSlot render with a wear-bearing held item'
+    outputs:
+      - 'DOM: wear bar element rendered below the item name'
+    state_changes: []
+    determinism: deterministic
+
+  - id: serialization-roundtrip
+    description: >
+      itemWear survives save/load. EXPECTED_FIELDS in the
+      serialization schema test gains itemWear. A camera with
+      mid-cycle wear (e.g. 0.5) preserves that value across a
+      serialize then deserialize round trip.
+    inputs:
+      - 'serialize(state) where state.itemWear has a uid set to 0.5'
+      - 'deserialize(serialized)'
+    outputs:
+      - 'deserialized.itemWear preserves the uid set to 0.5'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: undefined-wear-on-read
+    description: 'A camera ItemInstance has never been used; state.itemWear[uid] is undefined when first read.'
+    expected: 'All read sites treat undefined as 0. The wear bar renders fully filled, place handler accepts the placement, ItemInfo shows no "Worn out" line.'
+
+  - id: pickup-preserves-wear
+    description: 'Camera is placed, archived, picked back up. The newly recreated ItemInstance has the same uid as the original.'
+    expected: 'state.itemWear[uid] is unchanged by the place/pickup cycle itself — only by wear-tick-on-archive. The freshly recreated ItemInstance reads the same wear value.'
+
+  - id: maxuses-omitted-on-definition
+    description: 'aqueductKey, filmRoll, and coin definitions do NOT declare maxUses.'
+    expected: 'No wear logic runs for these items. ItemInfo and InHandSlot do not render a wear bar for them. state.itemWear is never written for their uids.'
+
+  - id: zero-uses-definition
+    description: 'A future definition sets maxUses = 0 or maxUses < 0.'
+    expected: 'Treated as invalid by the wear-tick implementation: the tick is a no-op (no division by zero, no negative-increment). Document this in the definition comment; do not enforce at the type level.'
+
+  - id: multiple-cameras-distinct-uids
+    description: 'Two camera ItemInstances exist in inventory with different uids; one is fully worn, the other is fresh.'
+    expected: 'state.itemWear stores independent values per uid. UI surfaces the per-uid wear; place-refusal applies only to the worn one.'
+
+  - id: held-item-cleared
+    description: 'Player clears the in-hand slot while holding a wear-bearing item.'
+    expected: 'InHandSlot renders the existing "Empty" state with no wear bar. state.itemWear is unchanged.'
+
+  - id: archive-on-empty-film
+    description: 'Camera is placed, film exhausts, archivePlacedCameraFrames fires anyway when the season completes.'
+    expected: 'Wear ticks regardless of how many frames were actually captured. The trigger is the archive event, not frame count.'
+
+failure_conditions:
+  - trigger: 'place(state, x, y, uid) invoked with state.itemWear[uid] >= 1.0'
+    expected: 'Returns placement-failed sentinel. backpack and placedCameras unchanged.'
+  - trigger: 'archivePlacedCameraFrames invoked on a camera whose definition has undefined maxUses'
+    expected: 'Wear tick is a no-op. Encoded as a defensive guard at the tick site, not a thrown error.'
+  - trigger: 'Wear bar render with state.itemWear[uid] outside [0, 1]'
+    expected: 'Render clamps the displayed fill to [0, 1] so the bar cannot visually overflow or underflow. The stored value is also expected to stay in range per wear-clamp.'
+
+verification:
+  test_file: src/engine/__tests__/itemWear.test.ts
+  test_pattern: 'item wear'
+  command: 'npx vitest run src/engine/__tests__/itemWear.test.ts -t "item wear"'

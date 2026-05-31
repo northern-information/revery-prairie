@@ -383,6 +383,7 @@ export const createGameState = (
     cameraArchive: new Map(),
     playbackCameraUid: null,
     photographAlbum: [],
+    itemWear: {},
   }
 
   // Glinting zone patches are seeded later, inside completeGenesis,
