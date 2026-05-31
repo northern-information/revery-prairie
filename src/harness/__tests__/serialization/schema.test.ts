@@ -1,6 +1,10 @@
 import { withSeededRandom } from '@/harness/prng'
+import { deserializeState, serializeState } from '@/harness/serialize'
 
 import { createGameState } from '@/engine/state'
+import { Zone } from '@/engine/types'
+
+import type { PlacedCamera, PredecessorRecord } from '@/engine/types'
 
 const SEED = 42
 
@@ -173,5 +177,63 @@ describe('GameState schema', () => {
     const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
     expect(Object.keys(state)).toHaveLength(EXPECTED_FIELDS.length)
+  })
+})
+
+// RP-24 — PlacedCamera grows an optional `predecessor` field. The
+// roundtrip below confirms both fate variants survive serialize/load.
+describe('PlacedCamera.predecessor roundtrip (RP-24)', () => {
+  const makeCamera = (predecessor: PredecessorRecord | undefined): PlacedCamera => {
+    const camera: PlacedCamera = {
+      uid: 'cam-test',
+      x: 4,
+      y: 5,
+      zone: Zone.Overworld,
+      startedAt: 0,
+      expiresAt: 0,
+      frames: [],
+    }
+    if (predecessor) camera.predecessor = predecessor
+    return camera
+  }
+
+  it('survives roundtrip for fate = field tile', () => {
+    const original = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+    const predecessor: PredecessorRecord = {
+      stewardName: 'Foo',
+      tenure: 7,
+      fate: { kind: 'field', tile: { x: 12, y: 34 } },
+    }
+    original.placedCameras.push(makeCamera(predecessor))
+
+    const restored = deserializeState(serializeState(original))
+    const restoredCamera = restored.placedCameras[restored.placedCameras.length - 1]
+
+    expect(restoredCamera.predecessor).toEqual(predecessor)
+  })
+
+  it("survives roundtrip for fate = 'bed'", () => {
+    const original = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+    const predecessor: PredecessorRecord = {
+      stewardName: 'Bar',
+      tenure: 3,
+      fate: 'bed',
+    }
+    original.placedCameras.push(makeCamera(predecessor))
+
+    const restored = deserializeState(serializeState(original))
+    const restoredCamera = restored.placedCameras[restored.placedCameras.length - 1]
+
+    expect(restoredCamera.predecessor).toEqual(predecessor)
+  })
+
+  it('omits the predecessor field for cameras without one', () => {
+    const original = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+    original.placedCameras.push(makeCamera(undefined))
+
+    const restored = deserializeState(serializeState(original))
+    const restoredCamera = restored.placedCameras[restored.placedCameras.length - 1]
+
+    expect(restoredCamera.predecessor).toBeUndefined()
   })
 })

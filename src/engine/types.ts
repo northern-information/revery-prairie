@@ -181,6 +181,29 @@ export interface PlacedCamera {
   // reset. Not serialized — save/load roundtrips drop them.
   pendingCells?: TimeLapseCell[]
   pendingCount?: number
+  // RP-24 — seeded predecessor steward whose tenure this camera
+  // outlived. Absent for current-tenure cameras (the inherited Field
+  // Camera seeded by RP-23 and any cameras the player has placed
+  // themselves). Set only by seedPredecessorCameras at genesis time;
+  // discarded on pickup so re-placement creates an ordinary camera.
+  predecessor?: PredecessorRecord
+}
+
+// RP-24 — discriminated union for where a predecessor's tenure ended.
+// 'bed' means the steward closed out at the little house (RP-33);
+// { kind: 'field', tile } means they collapsed on the overworld at
+// the stored tile. The fate is metadata only — it never surfaces in
+// the playback header (the header uses gift|memorial from the camera's
+// residual film count). Reserved for RP-37 / RP-40 to consume later.
+export type PredecessorFate = 'bed' | { kind: 'field'; tile: Position }
+
+// RP-24 — one predecessor steward record attached to a seeded
+// PlacedCamera. tenure is a positive integer ≥ 1, where 1 is the
+// most-recent predecessor and increasing values are older.
+export interface PredecessorRecord {
+  stewardName: string
+  tenure: number
+  fate: PredecessorFate
 }
 
 export const MainQuestPhase = {

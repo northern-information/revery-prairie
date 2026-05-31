@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 
 import { Photograph } from './Photograph'
-import type { TimeLapseFrame } from '@/engine/types'
+import type { PhotographDegradation } from './Photograph'
+import { derivePredecessorDegradation } from '@/engine/predecessors/footage'
+import type { PlacedCamera, TimeLapseFrame } from '@/engine/types'
 
 // v11 R4 — playback is a contact sheet. Every frame in the queue
 // renders in a CSS grid at once, chronological left-to-right,
@@ -43,6 +45,23 @@ interface TimeLapsePlaybackProps {
   // PhotographAlbumPanel rows, where clicking a row opens the
   // single-frame view for that one photograph.
   initialExpandedIndex?: number
+  // RP-24 — when supplied with a predecessor record, the modal
+  // renders a steward header and threads degradation through every
+  // Photograph instance. When omitted (current-tenure cameras), the
+  // modal falls back to the "Contact Sheet" header and renders frames
+  // clean.
+  placedCamera?: PlacedCamera
+  // Genesis seed (nameToSeed(stewardName)). Required to derive the
+  // per-predecessor degradation triple and the seedSalt for per-cell
+  // glyphLeak rolls. Plumbed in from GameScreen.
+  genesisSeed?: number
+  // Index of this PlacedCamera within `state.placedCameras`. Used as
+  // the per-predecessor key for degradation derivation.
+  placedCameraIndex?: number
+  // Current film count for the camera, used to decide the header's
+  // gift|memorial label (gift = filmRemaining > 0; memorial = 0).
+  // Threaded explicitly to avoid passing the whole GameState.
+  filmRemaining?: number
 }
 
 export const TimeLapsePlayback = ({
@@ -50,6 +69,10 @@ export const TimeLapsePlayback = ({
   frames,
   onDismiss,
   initialExpandedIndex,
+  placedCamera,
+  genesisSeed,
+  placedCameraIndex,
+  filmRemaining,
 }: TimeLapsePlaybackProps) => {
   const reducedMotion = prefersReducedMotion()
   const initialIndex: number | null = initialExpandedIndex ?? null
@@ -98,6 +121,26 @@ export const TimeLapsePlayback = ({
 
   if (frames.length === 0) return null
 
+  // RP-24 — resolve the predecessor header text + per-photograph
+  // degradation. The header reads gift|memorial from the residual
+  // film count (a gift predecessor's camera retains unused film,
+  // unlike a memorial). For current-tenure cameras the header is
+  // exactly "Contact Sheet" — preserving the RP-23 string verbatim.
+  const predecessor = placedCamera?.predecessor
+  const isPredecessor = predecessor !== undefined && genesisSeed !== undefined && placedCameraIndex !== undefined
+  const degradation: PhotographDegradation | undefined = isPredecessor
+    ? derivePredecessorDegradation(genesisSeed, placedCameraIndex, predecessor.tenure)
+    : undefined
+  // Memorial vs gift is decided at playback open time by the camera's
+  // current film count. A gift can become a memorial mid-playback only
+  // if film is consumed in the same session — acceptable for the
+  // header which mounts once.
+  const fateLabel: 'gift' | 'memorial' = isPredecessor && (filmRemaining ?? 0) > 0 ? 'gift' : 'memorial'
+  const seedSalt = isPredecessor ? `${String(genesisSeed)}:${String(placedCameraIndex)}` : undefined
+  const headerText = isPredecessor
+    ? `Steward ${predecessor.stewardName} of Tenure ${String(predecessor.tenure)}, ${fateLabel}.`
+    : 'Contact Sheet'
+
   return (
     <div
       data-testid="time-lapse-playback"
@@ -118,7 +161,9 @@ export const TimeLapsePlayback = ({
           e.stopPropagation()
         }}
       >
-        <h2 className="text-text text-sm uppercase tracking-widest">Contact Sheet</h2>
+        <h2 data-testid="time-lapse-playback-header" className="text-text text-sm uppercase tracking-widest">
+          {headerText}
+        </h2>
         <div
           data-testid="time-lapse-grid"
           className="grid gap-3"
@@ -139,6 +184,9 @@ export const TimeLapsePlayback = ({
                 cells={frame.cells}
                 cellWidth={SHEET_CELL_WIDTH}
                 cellHeight={SHEET_CELL_HEIGHT}
+                degradation={degradation}
+                seedSalt={seedSalt}
+                frameIndex={i}
                 testIdPrefix={`time-lapse-thumb-${String(i)}`}
               />
               <span className="text-dim text-[10px] italic">{formatTimestamp(frame.recordedAt)}</span>
@@ -174,6 +222,9 @@ export const TimeLapsePlayback = ({
                 cells={frames[expandedIndex].cells}
                 cellWidth={EXPANDED_CELL_WIDTH}
                 cellHeight={EXPANDED_CELL_HEIGHT}
+                degradation={degradation}
+                seedSalt={seedSalt}
+                frameIndex={expandedIndex}
                 testIdPrefix="time-lapse-expanded-photo"
               />
             </div>

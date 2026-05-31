@@ -616,6 +616,48 @@ export const POLLEN_BAG_CAPACITY = 4
 // leading annulus of an active ceremony wave. Fades over this duration.
 export const POLLEN_BURST_DURATION_MS = 600
 
+// RP-24 — seeded predecessor stewards. Genesis drops N pre-developed
+// cameras across the overworld, each carrying the (procedural) name of
+// the steward whose tenure ended. The number is rolled from
+// `sha256Sync('predecessors:count:' + String(genesisSeed))` mapped into
+// [PREDECESSOR_COUNT_MIN, PREDECESSOR_COUNT_MAX] inclusive.
+export const PREDECESSOR_COUNT_MIN = 5
+export const PREDECESSOR_COUNT_MAX = 12
+
+// Probability that a given predecessor's tenure ended on the overworld
+// (a `{ kind: 'field', tile }` fate) rather than at the bed in the
+// little house. Hash-rolled per predecessor index.
+export const PREDECESSOR_FATE_FIELD_PROBABILITY = 0.2
+
+// Probability that a given predecessor's camera is a gift (residual
+// film count > 0) rather than a memorial (film count == 0). Hash-rolled
+// per predecessor index. Gifts contribute a small reserve of film via
+// `state.cameraFilm[uid]` in [GIFT_FILM_MIN, GIFT_FILM_MAX] inclusive.
+export const PREDECESSOR_GIFT_PROBABILITY = 0.25
+export const PREDECESSOR_GIFT_FILM_MIN = 4
+export const PREDECESSOR_GIFT_FILM_MAX = 20
+
+// Per-predecessor pre-developed footage length, hash-rolled per
+// predecessor index into [PREDECESSOR_FRAMES_MIN, PREDECESSOR_FRAMES_MAX].
+export const PREDECESSOR_FRAMES_MIN = 4
+export const PREDECESSOR_FRAMES_MAX = 14
+
+// Chebyshev spacing constraint between two predecessor placements in
+// the same seeding pass. Prevents the dropped cameras from clustering
+// on one corner of the prairie.
+export const PREDECESSOR_PLACEMENT_SPACING = 6
+
+// Per-predecessor egregoric-content tiering. A roll r ∈ [0, 1) decides:
+//   r < DOMINANT_RATE → glyphLeak = LEAK_DOMINANT (heavy)
+//   r < LIGHT_RATE    → glyphLeak = LEAK_LIGHT (occasional)
+//   otherwise         → glyphLeak = 0 (clean)
+// LIGHT_RATE is inclusive of the dominant tier — i.e. ~10% dominant,
+// ~20% light, ~70% clean.
+export const PREDECESSOR_EGREGORE_DOMINANT_RATE = 0.1
+export const PREDECESSOR_EGREGORE_LIGHT_RATE = 0.3
+export const PREDECESSOR_GLYPH_LEAK_DOMINANT = 0.7
+export const PREDECESSOR_GLYPH_LEAK_LIGHT = 0.3
+
 // Little house (RP-33). 30 x 18 deterministic interior. Fireplace
 // glyph cycles through FIREPLACE_CHARS at FIRE_TICK_MS; color alternates
 // between FIREPLACE_COLOR_A (orange) and FIREPLACE_COLOR_B (yellow) on

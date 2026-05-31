@@ -16,6 +16,7 @@ import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { rebuildGlintZones, seedGlintPatches } from '../glintZones'
 import { seedOaks } from '../oaks'
 import { posKey } from '../position'
+import { seedPredecessorCameras } from '../predecessors'
 import { seedTenureStartFieldCamera } from '../timeLapse'
 import { FloraSpecies, TileType } from '../types'
 import { GENESIS_EPOCHS } from './epochs'
@@ -431,6 +432,12 @@ export const finalizeGenesisHandoff = (state: GameState, handoffTime: number): v
   // Camera adjacent to the oak nearest the little house entrance,
   // exhausted, with four pre-seeded seasonal frames.
   seedTenureStartFieldCamera(state)
+
+  // RP-24 — drop N procedural predecessor cameras across the
+  // overworld with pre-developed footage. Must run AFTER
+  // seedTenureStartFieldCamera so the inherited Field Camera's tile is
+  // already in placedCameras and filtered out of the candidate pool.
+  seedPredecessorCameras(state)
 
   // Hand off to the gameplay layer to trigger the player spawn ceremony
   // synchronously. Without this, the gameloop's player-spawn-trigger
