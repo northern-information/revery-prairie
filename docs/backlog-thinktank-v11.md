@@ -61,9 +61,14 @@ Carried forward from v2/v3/v4/v5/v6/v7/v9/v10 with no changes:
 - **Amendment to v11 R3 (`reachableMass`).** The field is no longer purely genesis-time + RP-44 year-boundary. Frozen waterfalls extend `reachableMass` for the duration of winter; recompute hooks fire at season boundaries (Winter→Spring thaw, Autumn→Winter freeze) in addition to year-boundary geology.
 - **Waterfalls are firebreaks.** Once RP-42 lands, fire-spread BFS rejects waterfall tiles for the same reason it rejects ordinary water tiles — moving water does not burn.
 
+**Locked in round 6:**
+
+- **The typewriter is not a system in v11.** No save-point semantics, no template messaging, no `state.pages`, no consumables. Tracked as `RP-66` so the room's reasoning persists.
+- **The camera is the save point.** Shutter ≈ ribbon striking the platen — a slow, costly, deliberate act consuming a finite resource and producing an artifact that outlives the tenure. The prairie has its ritual instrument; a second one needs a real reason.
+
 **Open in v11:**
 
-- _(none yet — open questions are tracked on individual specs, not as v11 doctrine)_
+- Does the cellar Knot eventually want a diegetic interface in the little house, and if so is the typewriter (`RP-66`) that interface?
 
 ---
 
@@ -271,3 +276,36 @@ _Tyler: "it is a system and it needs to exist logically."_
 - Whether the frozen stairway is walkable downward as well as upward. (Calla) Lean: upward only.
 - Whether a frozen waterfall whose source dries up (river rerouted by RP-44 geology) immediately falls apart, or persists as an ice cascade for the rest of winter. (Astrid — _the prairie does not maintain dishonesty_; lean: falls apart immediately).
 - Whether the visual register for a waterfall extends to anything ABOVE the cliff (a "rapids" effect on the source tile as the water moves toward the edge), or stays strictly on the side wall. (Calla) Lean: side wall only.
+
+---
+
+## Round 6: a typewriter is a save point only where there is dying
+
+_Tyler: "I like the idea of a typewriter existing in the little house. In the Resident Evil games I always found it quite evocative that you saved your game with it. I don't want free-form letters — if anything it'd need to be like FromSoft, where you build messages from templates. But I don't know if this is a feature we need yet. Seems like very later MMO stuff."_
+
+> **Astrid:** The Resident Evil typewriter saves because Jill is dying. The ribbon is a stay of execution, not a literary act. _The prairie has no stay of execution._ The tenure ends at the snow line whether you typed or not, whether you remembered or not, and the cosmology is unmoved by the steward's eloquence. A typewriter that saves the game would be a heresy against the second line — _tending is the verb, not preserving_. A typewriter that builds messages from templates the way a FromSoft sign does would be a heresy against the prairie's solitude — there are no other stewards in this tenure to read what you carve. I will not say no to the object. I will say no to giving it a verb that the prairie does not already own.
+
+> **Boon:** Then the proposal is furniture, and furniture doesn't earn a system. Zero LOC outside the render path, no `state.pages`, no `consumables.ribbon`, no `consumables.paper`, no new field in `EXPECTED_FIELDS`. If we tracked every evocative interior object as a backlog item we'd have forty entries for chairs. _The cost of an unused feature is not zero — it's the slot it takes from a feature that pays rent._ The honest path is: the typewriter sits on the desk, the player walks past it, and the day we know what it does we open a round and spec it then. The thing worth tracking is not the typewriter — it is _the question of whether the cellar Knot eventually needs a diegetic surface_, with the typewriter as the leading candidate object.
+
+> **Calla:** I want to push back on _just decor_, though. A typewriter in the room with paper next to it and a ribbon spool that the camera light catches is a Chekhov problem. The first session a new steward sees it, they will try to interact with it. If nothing happens — not even a small line of acknowledgement — we've trained them that objects in the little house are inert. That bleeds into the camera, the bed, the cellar door, every other diegetic surface. The little house's promise so far is _everything you can see, you can touch_. If the typewriter ships before it does anything, it has to either say "not yet" out loud — a tiny prairie-voiced line, no fourth wall break — or it stays in a drawer until it earns the desktop.
+
+> **Delta:** The camera is already the save point. _The shutter is the ribbon striking the platen._ Both are slow, costly, deliberate acts where the steward stops moving and commits a specific moment to the lineage; both consume a finite resource (film, ribbon); both produce an artifact that outlives the tenure. Tyler is reaching for a feeling that's already in the game, and asking whether we should build a second instrument that does the same thing. I think the question Round 6 is actually asking is: _does the cellar Knot eventually need a physical interface_ — a thing the steward walks up to in the little house and presses a key on, instead of the Knot being an abstract deposit that happens at season-end? If the answer is yes, the typewriter is the candidate object. If the answer is no, the typewriter is a chair. Track the question. The typewriter rides along with it.
+
+### Consensus
+
+- **The typewriter is tracked as its own item, scoped as decor-pending-a-problem.** It is not amended onto `RP-33` (already shipped). It is a standalone backlog entry so the round's reasoning persists and the room can come back to it when a problem demands it.
+- **No `state.pages`, no consumables, no new fields in v11.** The room is unanimous: nothing in `GameState` shifts for this round.
+- **No FromSoft-style template messaging.** Astrid's line holds — the prairie is solitary within a tenure. Cross-tenure speech already has a channel (the cellar Knot, the lineage); a second channel needs a real reason.
+- **No save-point semantics.** Saves are a Resident Evil affordance against permadeath; the prairie's tenure-as-unit lock makes "save" a category error.
+- **Chekhov mitigation: the typewriter shows a small prairie-voiced refusal on interaction.** A single line — copy deferred — said once per tenure, then silent. Acknowledges presence without promising a system. Calla's responsiveness rule is preserved without committing to a feature.
+- **The leading hypothesis for what the typewriter eventually becomes** is the diegetic interface to the cellar Knot — the physical surface where a steward composes a Knot deposit. Tracked as an open question, not a decision.
+
+### Tracked as
+
+- **`RP-66` Typewriter, paper, and ink ribbon (decor-pending-a-problem).** Size XS. `depends_on: []`. Static decor placed on the desk in the little house with a one-time prairie-voiced refusal line on interaction. No state changes, no consumables, no field additions, no new verbs. The item exists so the round 6 reasoning — _why this is not a system yet, what it might become_ — persists in the backlog instead of evaporating.
+
+### Open questions deferred to specs
+
+- Does the cellar Knot eventually want a diegetic interface in the little house, and if so is the typewriter that interface? (Delta — the reframe; Astrid would want any such interface to be a ritual, not a menu.)
+- The exact wording of the typewriter refusal line. (Calla — must not break the fourth wall; must not promise a future feature; must not sound like a developer comment.)
+- Whether the ribbon spool's color (a small palette choice) changes by tenure-year as a quiet lineage marker, or stays fixed. (Boon — defer; only matters if the typewriter ever becomes interactive.)
