@@ -48,14 +48,17 @@ export const findPath = (
   from: Position,
   to: Position,
   blockedPositions?: Set<string>,
-  options: { allowDiagonal?: boolean; elevation?: Map<string, number> } = {}
+  options: { allowDiagonal?: boolean; elevation?: Map<string, number>; frozenStairways?: Set<string> } = {}
 ): Position[] | null => {
   // RP-41 — when an elevation map is supplied, A* honors
   // isClimbableStep at both cardinal and diagonal expansion sites.
   // Callers in cave/ruin contexts omit it; overworld callers pass
   // state.elevation so click-to-move paths can't cross unclimbable
   // cliffs.
+  // RP-64 — when frozenStairways is supplied, the bottom→top step
+  // of any frozen waterfall is treated as climbable (upward only).
   const elevation = options.elevation
+  const frozenStairways = options.frozenStairways
   const allowDiagonal = options.allowDiagonal === true
   const neighbors = allowDiagonal ? ORDINAL : CARDINAL
   // Reject out-of-bounds or unwalkable destination
@@ -119,7 +122,8 @@ export const findPath = (
       if (blockedPositions?.has(posKey(nx, ny))) continue
       // RP-41 — reject the step when the elevation delta to the
       // neighbor exceeds CLIMBABLE_STEP_THRESHOLD.
-      if (elevation && !isClimbableStep(elevation, cx, cy, nx, ny)) continue
+      // RP-64 — frozenStairways overrides for upward bottom→top.
+      if (elevation && !isClimbableStep(elevation, cx, cy, nx, ny, undefined, frozenStairways)) continue
 
       // Corner-cutting prevention for diagonals: both adjacent cardinal
       // tiles must be walkable, otherwise the path slips through walls.
@@ -132,7 +136,8 @@ export const findPath = (
         // RP-41 — diagonal must also be climbable through both cardinals.
         if (
           elevation &&
-          (!isClimbableStep(elevation, cx, cy, cx + d.x, cy) || !isClimbableStep(elevation, cx, cy, cx, cy + d.y))
+          (!isClimbableStep(elevation, cx, cy, cx + d.x, cy, undefined, frozenStairways) ||
+            !isClimbableStep(elevation, cx, cy, cx, cy + d.y, undefined, frozenStairways))
         ) {
           continue
         }

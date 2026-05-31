@@ -24,6 +24,7 @@ import { getPlaceableSpec } from '@/engine/placeable'
 import { isWalkableTile, posKey } from '@/engine/position'
 import { playPlace } from '@/engine/sfx'
 import { TileType } from '@/engine/types'
+import { getFrozenStairwaySet } from '@/engine/waterfalls'
 import { isInputGated } from '@/engine/zoneTransition'
 import type { PermacomputerScreen } from './useKeyboard'
 import type { CharMetrics, GameState, Position } from '@/engine/types'
@@ -247,6 +248,7 @@ export const useMouse = ({
         const appended = findPath(state.map, state.mapWidth, state.mapHeight, lastWaypoint, target, blocked, {
           allowDiagonal: true,
           elevation: state.elevation,
+          frozenStairways: getFrozenStairwaySet(state),
         })
         if (!appended || appended.length === 0) return
         state.path = [...(state.path ?? []), ...appended]
@@ -263,6 +265,7 @@ export const useMouse = ({
       state.path = findPath(state.map, state.mapWidth, state.mapHeight, state.player, target, blocked, {
         allowDiagonal: true,
         elevation: state.elevation,
+        frozenStairways: getFrozenStairwaySet(state),
       })
       state.pathWaypoints = state.path ? [target] : []
       if (state.path) spawnClickTarget(state, target.x, target.y, performance.now())

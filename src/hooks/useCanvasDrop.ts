@@ -10,6 +10,7 @@ import { findPath } from '@/engine/pathfinding'
 import { ORDINAL } from '@/engine/position'
 import { playDrop } from '@/engine/sfx'
 import { TileType } from '@/engine/types'
+import { getFrozenStairwaySet } from '@/engine/waterfalls'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from '@/engine/zone'
 import type { DragState } from '@/engine/drag'
 import type { CharMetrics, Container, GameState } from '@/engine/types'
@@ -167,6 +168,7 @@ export const useCanvasDrop = ({
         const p = findPath(state.map, state.mapWidth, state.mapHeight, state.player, { x: ax, y: ay }, blocked, {
           allowDiagonal: true,
           elevation: state.elevation,
+          frozenStairways: getFrozenStairwaySet(state),
         })
         if (p && (!bestPath || p.length < bestPath.length)) {
           bestPath = p

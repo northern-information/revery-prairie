@@ -3,34 +3,22 @@ import { Season } from './types'
 
 import type { GameState } from './types'
 
-// RP-64 — Season-boundary freeze/thaw. Compares the cached
-// `state.lastSeenSeason` to the current `state.weather.season`
-// (the established pattern from `tickTorchbearer`). On Autumn→
-// Winter, flips every waterfall's `frozen` flag to true; on
-// Winter→Spring, flips it back to false. Idempotent within a
-// season: a tick mid-Winter is a no-op because the season hasn't
-// changed since the last call. The caller (the engine RAF loop)
-// is responsible for updating `state.lastSeenSeason` AFTER this
-// tick runs so it sees one transition per boundary; this function
-// reads the diff but does NOT update the cached field — wiring
-// happens in gameLoop next to tickTorchbearer which already owns
-// the cache.
+// RP-64 — Season freeze/thaw. Idempotent per-frame: every
+// waterfall's `frozen` flag is brought into agreement with the
+// current season (true in Winter, false otherwise). Per-frame
+// cost is bounded by the number of waterfalls (genesis budget —
+// typically tens, not thousands), and the comparison short-
+// circuits on equality. Avoids the season-transition-tracking
+// dance because there's no need to detect the boundary itself
+// — only to mirror the current state.
 //
-// Does NOT clear or rebuild `state.waterfalls` — the freeze/thaw
-// only flips the boolean. Waterfall identity (top/bottom coords)
-// is determined at genesis and only changes when RP-44 winter
-// geology lands.
+// Does NOT clear or rebuild `state.waterfalls`. Waterfall
+// identity (top/bottom coords) is determined at genesis and only
+// changes when RP-44 winter geology lands.
 export const tickWaterfalls = (state: GameState): void => {
-  const current = state.weather.season
-  const previous = state.lastSeenSeason
-  if (previous === current) return
-  if (previous === Season.Autumn && current === Season.Winter) {
-    for (const w of state.waterfalls.values()) w.frozen = true
-    return
-  }
-  if (previous === Season.Winter && current === Season.Spring) {
-    for (const w of state.waterfalls.values()) w.frozen = false
-    return
+  const shouldBeFrozen = state.weather.season === Season.Winter
+  for (const w of state.waterfalls.values()) {
+    if (w.frozen !== shouldBeFrozen) w.frozen = shouldBeFrozen
   }
 }
 

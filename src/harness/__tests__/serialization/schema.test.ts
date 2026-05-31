@@ -72,6 +72,7 @@ const EXPECTED_FIELDS = [
   'soilHealth',
   'elevation',
   'reachableMass',
+  'waterfalls',
   'ponds',
   'rivers',
   'tileWater',
