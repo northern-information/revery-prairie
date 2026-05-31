@@ -1,0 +1,258 @@
+plan:
+  id: soil-depletion
+  title: 'Soil depletion (RP-19) — per-plant spawn effect + clover N-fixer credit'
+  created: 2026-05-30
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Doctrine alignment ---
+
+  - id: doctrine-alignment
+    title: >
+      Update docs/claude/genesis.md soil-health section to add the spawn-side
+      rule (per-plant debit/credit on first Healthy tick; clover is a
+      nitrogen fixer) and update docs/claude/flora.md to note the soil
+      consequence alongside the existing "natural death enriches soil"
+      line. Update docs/backlog.yaml RP-19 entry to populate spec/plan paths
+      (status already flipped to in-progress on main; do not re-flip).
+      Factual additions only — no lore.
+    spec_id: soil-depletion
+    spec_sections:
+      - per-plant-spawn-effect
+      - genesis-seeded-flora-skips-spawn-effect
+      - death-enrichment-unchanged
+    context_files:
+      - docs/claude/genesis.md
+      - docs/claude/flora.md
+      - docs/backlog.yaml
+    output_files:
+      - docs/claude/genesis.md
+      - docs/claude/flora.md
+      - docs/backlog.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: Constants ---
+
+  - id: constants-update
+    title: >
+      Add two soilHealth constants to src/engine/constants.ts —
+      SOIL_HEALTH_NITROGEN_FIXER_BONUS = 5 (clover spawn credit) and
+      SOIL_HEALTH_FLORA_SPAWN_DEBIT = 20 (wildflower / tall grass spawn
+      debit). Place adjacent to the existing soil constants
+      (SOIL_HEALTH_DEFAULT, SOIL_HEALTH_FLORA_DEATH_BONUS, etc.) with
+      a short comment block explaining the per-plant lifecycle hook.
+    spec_id: soil-depletion
+    spec_sections:
+      - per-plant-spawn-effect
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on:
+      - doctrine-alignment
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - constants
+
+  # --- Tier 2: Type shape ---
+
+  - id: type-shape-update
+    title: >
+      Add required field `soilEffectApplied: boolean` to FloraLifecycleState
+      in src/engine/types.ts. No optional `?` — every construction must
+      decide explicitly. Update the construction helper
+      src/engine/floraLifecycleEntry.ts to accept an optional
+      `soilEffectApplied?: boolean` param (default false) and set it on the
+      returned entry. Keep the existing parameter ordering / shape stable so
+      no other call sites need touching beyond the genesis-seeding sites in
+      the next task.
+    spec_id: soil-depletion
+    spec_sections:
+      - per-plant-spawn-effect
+      - genesis-seeded-flora-skips-spawn-effect
+    context_files:
+      - src/engine/types.ts
+      - src/engine/floraLifecycleEntry.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/floraLifecycleEntry.ts
+    depends_on:
+      - doctrine-alignment
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - types
+
+  # --- Tier 3: Schema test allowlist (state.md doctrine) ---
+
+  - id: schema-allowlist-update
+    title: >
+      Add `soilEffectApplied` to the floraLifecycle entry shape in
+      EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts.
+      The test rejects unknown fields on the FloraLifecycleState shape;
+      adding the required field here is mandatory before the schema test
+      will pass.
+    spec_id: soil-depletion
+    spec_sections:
+      - per-plant-spawn-effect
+    context_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - type-shape-update
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags:
+      - engine
+      - state
+
+  # --- Tier 4: Genesis-side opt-out ---
+
+  - id: genesis-flora-flag
+    title: >
+      Update the two flora-construction call sites in src/engine/genesis/state.ts
+      (postProcessMultiSpeciesFlora — the initial clover sweep around line 177
+      and the wildflower/tall-grass patch placer around line 263) to pass
+      `soilEffectApplied: true` into createFloraLifecycleEntry. Genesis-seeded
+      flora is part of the world's baseline; the genesis-derived soilHealth
+      already reflects them and they must not re-tax soil on first tick.
+    spec_id: soil-depletion
+    spec_sections:
+      - genesis-seeded-flora-skips-spawn-effect
+    context_files:
+      - src/engine/genesis/state.ts
+      - src/engine/floraLifecycleEntry.ts
+    output_files:
+      - src/engine/genesis/state.ts
+    depends_on:
+      - type-shape-update
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/genesis.test.ts
+    repair: retry
+    tags:
+      - engine
+      - genesis
+
+  # --- Tier 5: Lifecycle hook (the actual mechanic) ---
+
+  - id: spawn-effect-hook
+    title: >
+      Add the per-plant spawn-effect hook to tickFloraLifecycle in
+      src/engine/floraLifecycle.ts. The hook runs after dormancy resolution
+      (the existing Dormant ↔ Healthy branch) and before the stage-progression
+      branch (Healthy → Brown / death sequence). For each entry where
+      stage === FloraStage.Healthy AND soilEffectApplied === false, look up
+      the species and apply the delta — clover via addSoilHealth(state, key,
+      SOIL_HEALTH_NITROGEN_FIXER_BONUS), wildflower / tall grass via a new
+      sibling helper `subtractSoilHealth(state, key, SOIL_HEALTH_FLORA_SPAWN_DEBIT)`
+      that clamps at 0 (mirror addSoilHealth but in the opposite direction).
+      Then set entry.soilEffectApplied = true regardless of clamp outcome.
+      Do not touch BurntRecovering, Brown, BlinkingRed, Black, Decomposing,
+      or Dormant entries. Do not change the existing death-enrichment branch
+      (+SOIL_HEALTH_FLORA_DEATH_BONUS at Decomposing → Dirt).
+    spec_id: soil-depletion
+    spec_sections:
+      - per-plant-spawn-effect
+      - soil-effect-survives-stress-recovery
+      - burnt-recovering-defers-spawn-effect
+      - death-enrichment-unchanged
+      - clamp-at-bounds
+    context_files:
+      - src/engine/floraLifecycle.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/floraLifecycle.ts
+    depends_on:
+      - constants-update
+      - type-shape-update
+      - genesis-flora-flag
+      - schema-allowlist-update
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/cloverLifecycle.test.ts
+    repair: retry
+    tags:
+      - engine
+      - flora
+
+  # --- Tier 6: Targeted tests ---
+
+  - id: soil-depletion-tests
+    title: >
+      Replace the .todo placeholders in src/engine/__tests__/soilDepletion.test.ts
+      with concrete tests covering every behavior + edge case in the spec.
+      Use the standard test idioms from docs/claude/testing.md
+      (clearAroundPlayer for terrain prep, no Math.random mocking needed since
+      this feature is deterministic). One test per spec behavior id and one
+      per edge case id; group them with `describe` blocks if it helps
+      readability. Use the existing helpers.ts test scaffolding for state.
+      Cover: spawn debit on wildflower / tall grass, spawn credit on clover,
+      genesis-seeded flora unaffected, no double-fire across stress recovery,
+      no fire from BurntRecovering, death enrichment still fires, clamp at 0
+      and 100, cave flora (Healthy → Brown on first tick still fires the
+      effect once), winter dormancy defers the effect, dormancy thaw does not
+      double-fire, serialization round-trip preserves the flag.
+    spec_id: soil-depletion
+    spec_sections:
+      - per-plant-spawn-effect
+      - genesis-seeded-flora-skips-spawn-effect
+      - soil-effect-survives-stress-recovery
+      - burnt-recovering-defers-spawn-effect
+      - death-enrichment-unchanged
+      - clamp-at-bounds
+    context_files:
+      - src/engine/__tests__/soilDepletion.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/floraLifecycle.ts
+      - src/engine/floraLifecycleEntry.ts
+      - src/engine/constants.ts
+      - src/engine/types.ts
+      - docs/claude/testing.md
+    output_files:
+      - src/engine/__tests__/soilDepletion.test.ts
+    depends_on:
+      - spawn-effect-hook
+    verification:
+      - npx vitest run src/engine/__tests__/soilDepletion.test.ts
+    repair: retry
+    tags:
+      - tests
+
+  # --- Tier 7: Final verification ---
+
+  - id: final-verify
+    title: >
+      Run npm run verify (typecheck + lint + full test). Spot-check that no
+      existing lifecycle test broke from the new spawn-side mutation
+      (cloverLifecycle, RP-17 spread, RP-5 ruin recovery, monarch, lightning,
+      angels, recipes — anything that creates flora). If any did, the failure
+      is signal that the construction site needs to pre-set the flag (e.g.
+      tests that hand-build entries) or that test fixtures need updating.
+    spec_id: soil-depletion
+    spec_sections: []
+    context_files: []
+    output_files: []
+    depends_on:
+      - soil-depletion-tests
+    verification:
+      - npm run verify
+    repair: retry
+    tags:
+      - verify
