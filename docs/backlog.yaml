@@ -922,7 +922,7 @@ features:
       when it shows egregoric activity. Egregoric fauna is that register
       walking around.
     depends_on: ['RP-8b']
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null
