@@ -1,0 +1,286 @@
+plan:
+  id: RP-63-interactable-speakers
+  title: >
+    RP-63 — Split the Character system. Move the locked-gate dialog out of
+    CHARACTER_DEFINITIONS into a new INTERACTABLES registry. Add a
+    speakerKind discriminator to state.activeDialog so character speakers
+    and tile-anchored / system-synthetic speakers are typed distinctly.
+  created: 2026-05-31
+  # Engine-only refactor. No user-visible behavior changes — the locked
+  # gate still opens the same dialog with the same line. The diff is
+  # architectural: a new file (interactables.ts), a discriminated union
+  # on activeDialog, a small fan-out across read sites, and a relocation
+  # of the gate entry. Schema test allowlist requires a touch. Full
+  # engine test suite is required because activeDialog reads are
+  # widespread.
+  global_verification:
+    - npm run typecheck
+    - npm run test:engine
+    - npm run lint
+
+tasks:
+  - id: doctrine-status-update
+    title: >
+      Set spec and plan paths and status under the RP-63 entry in
+      docs/backlog.yaml. Add a notes line naming the locked design
+      decisions (split Character + Interactable, speakerKind
+      discriminator, interactables.ts as its own file, no user-visible
+      behavior change). No CLAUDE.md or docs/claude/ edits — the split
+      is documented inside the new spec and the surfaces that depend
+      on it.
+    spec_id: RP-63-interactable-speakers
+    spec_sections: []
+    context_files:
+      - docs/backlog.yaml
+    output_files:
+      - docs/backlog.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags: [docs]
+
+  - id: interactable-registry
+    title: >
+      Create src/engine/interactables.ts (the stub committed with the
+      spec is sufficient — verify shape: Interactable type, INTERACTABLES
+      const typed `as const satisfies Record<string, Interactable>` with
+      a single `gate` entry, getInteractableDefinition(id) that throws
+      on unknown ids, getInteractableLines(id). No glyph, no glyphColor,
+      no gift, no music fields on Interactable.
+    spec_id: RP-63-interactable-speakers
+    spec_sections: [interactable-registry]
+    context_files:
+      - src/engine/interactables.ts
+    output_files:
+      - src/engine/interactables.ts
+    depends_on: [doctrine-status-update]
+    verification:
+      - npx vitest run src/engine/__tests__/RP-63-interactable-speakers.test.ts
+    repair: retry
+    tags: [engine, registry]
+
+  - id: active-dialog-discriminated-union
+    title: >
+      Update GameState.activeDialog in src/engine/types.ts from its
+      current single shape to a discriminated union on `speakerKind`.
+      Character variant: { speakerKind: 'character', characterId: string,
+      lineIndex, typingIndex, typingDone, transitioning,
+      transitionStartTime, awaitingConfirmation? }. Interactable variant:
+      { speakerKind: 'interactable', interactableId: string, lineIndex,
+      typingIndex, typingDone, transitioning, transitionStartTime }.
+      Schema test allowlist in
+      src/harness/__tests__/serialization/schema.test.ts: ensure the
+      activeDialog field check still passes against the union (the
+      EXPECTED_FIELDS list itself only names the field, not its shape;
+      verify the schema test still runs clean).
+    spec_id: RP-63-interactable-speakers
+    spec_sections: [active-dialog-speaker-kind, schema-test-allowlist]
+    context_files:
+      - src/engine/types.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on: [interactable-registry]
+    verification:
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+      - npm run typecheck
+    repair: retry
+    tags: [engine, types]
+
+  - id: remove-gate-from-characters
+    title: >
+      Delete the `gate` entry from CHARACTERS in src/engine/characters.ts.
+      CHARACTER_DEFINITIONS no longer contains id 'gate'.
+      getCharacterDefinition('gate') now throws (the existing error path
+      in characters.ts:81). No other entries change. Remove the
+      `if (def.id === 'gate') continue` guard at src/engine/manual.ts:303
+      since it becomes dead code — manual.ts iterates
+      CHARACTER_DEFINITIONS only and the gate has been removed from
+      that registry.
+    spec_id: RP-63-interactable-speakers
+    spec_sections: [gate-removed-from-characters, manual-excludes-interactables-by-default]
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/characters.ts
+      - src/engine/manual.ts
+    depends_on: [active-dialog-discriminated-union]
+    verification:
+      - npx vitest run src/engine/__tests__/manual.test.ts
+    repair: retry
+    tags: [engine]
+
+  - id: route-locked-gate-dialog-to-interactable
+    title: >
+      Update openLockedGateDialog(state) in src/engine/interaction.ts
+      to write the interactable variant of activeDialog: { speakerKind:
+      'interactable', interactableId: 'gate', lineIndex: 0, typingIndex:
+      0, typingDone: false, transitioning: false, transitionStartTime: 0 }.
+      No manualDiscoveries entry, no gift flow.
+    spec_id: RP-63-interactable-speakers
+    spec_sections: [open-locked-gate-dialog]
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/interactables.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on: [active-dialog-discriminated-union, interactable-registry]
+    verification:
+      - npx vitest run src/engine/__tests__/ruin-locked-door.test.ts
+    repair: retry
+    tags: [engine, interaction]
+
+  - id: write-speakerkind-on-character-dialogs
+    title: >
+      Every existing site that writes activeDialog must now include
+      speakerKind: 'character'. Touch points: interactWithCharacter and
+      any other path in src/engine/interaction.ts that creates
+      activeDialog; revery.ts:154 (Gron summons); RP-33/RP-34 emily
+      auto-open paths (search for `activeDialog =` and
+      `activeDialog: {` across src/engine/). Pure additive change —
+      no semantics shift, just the discriminator tag.
+    spec_id: RP-63-interactable-speakers
+    spec_sections: [interact-with-character-writes-character-kind]
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/revery.ts
+      - src/engine/house.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/engine/revery.ts
+      - src/engine/house.ts
+    depends_on: [active-dialog-discriminated-union]
+    verification:
+      - npm run typecheck
+    repair: retry
+    tags: [engine, interaction]
+
+  - id: dialog-lines-and-speaker-name-lookups
+    title: >
+      Add getActiveDialogLines(state): readonly string[] in
+      src/engine/interaction.ts. Branches on activeDialog.speakerKind:
+      'character' → getCharacterDialog(state, characterId);
+      'interactable' → getInteractableLines(interactableId). Returns
+      [] when no activeDialog (caller guards already handle this).
+      Replace the three direct getCharacterDialog calls in
+      interaction.ts (lines ~192, ~216, ~268) with getActiveDialogLines.
+      Add getActiveSpeakerName(state) (or branch inline in
+      GameScreen.tsx:220-221) so the DialogBox `characterName` prop
+      reads either getCharacterDefinition(characterId).name or
+      getInteractableDefinition(interactableId).name based on
+      speakerKind.
+    spec_id: RP-63-interactable-speakers
+    spec_sections: [dialog-lines-lookup, speaker-name-lookup]
+    context_files:
+      - src/engine/interaction.ts
+      - src/components/GameScreen.tsx
+      - src/engine/characters.ts
+      - src/engine/interactables.ts
+    output_files:
+      - src/engine/interaction.ts
+      - src/components/GameScreen.tsx
+    depends_on: [route-locked-gate-dialog-to-interactable, write-speakerkind-on-character-dialogs]
+    verification:
+      - npx vitest run src/engine/__tests__/interaction.test.ts
+      - npx vitest run src/engine/__tests__/ruin-locked-door.test.ts
+      - npm run typecheck
+    repair: retry
+    tags: [engine, components]
+
+  - id: gift-flow-character-only
+    title: >
+      advanceDialog gift delivery (giveCharacterGift / givePostGift) and
+      the gron saved-bees release must only fire on speakerKind 'character'.
+      Guard the gift block with a speakerKind === 'character' check. The
+      interactable variant has no characterId, so attempting to look up
+      a character gift would crash; the guard prevents that and matches
+      the spec contract.
+    spec_id: RP-63-interactable-speakers
+    spec_sections: [open-locked-gate-dialog]
+    context_files:
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on: [dialog-lines-and-speaker-name-lookups]
+    verification:
+      - npx vitest run src/engine/__tests__/interaction.test.ts
+      - npx vitest run src/engine/__tests__/ruin-locked-door.test.ts
+    repair: retry
+    tags: [engine, interaction]
+
+  - id: migrate-existing-tests
+    title: >
+      Update the gate test at src/engine/__tests__/ruin-locked-door.test.ts:237
+      from `state.activeDialog?.characterId === 'gate'` to assert on the
+      new shape: `state.activeDialog?.speakerKind === 'interactable'` AND
+      `state.activeDialog?.interactableId === 'gate'`. Update
+      ruin-locked-door.test.ts:244-248 to read the gate line via
+      getInteractableLines or the new helper instead of
+      getCharacterDefinition('gate'). DialogBox tests
+      (src/components/__tests__/DialogBox.test.tsx:52, :159) still
+      pass characterName="gate" directly to the component prop — the
+      component does not branch on character vs interactable. No change
+      required there as long as DialogBox keeps the characterName prop
+      shape.
+    spec_id: RP-63-interactable-speakers
+    spec_sections: [open-locked-gate-dialog]
+    context_files:
+      - src/engine/__tests__/ruin-locked-door.test.ts
+      - src/components/__tests__/DialogBox.test.tsx
+    output_files:
+      - src/engine/__tests__/ruin-locked-door.test.ts
+    depends_on: [gift-flow-character-only]
+    verification:
+      - npx vitest run src/engine/__tests__/ruin-locked-door.test.ts
+      - npx vitest run src/components/__tests__/DialogBox.test.tsx
+    repair: retry
+    tags: [tests]
+
+  - id: expand-rp-63-tests
+    title: >
+      Expand src/engine/__tests__/RP-63-interactable-speakers.test.ts
+      beyond the stub. Cover: (1) CHARACTER_DEFINITIONS has no 'gate'
+      entry after RP-63; (2) openLockedGateDialog produces an
+      interactable-variant activeDialog with speakerKind 'interactable'
+      and interactableId 'gate'; (3) advanceDialog closes the gate dialog
+      without running gift delivery; (4) tickDialogTyping reveals the
+      single gate line; (5) manual.ts produces no entry for the gate
+      under the new structural exclusion; (6) emily-keyed branches
+      (`activeDialog?.characterId === 'emily'`) return false when an
+      interactable dialog is active.
+    spec_id: RP-63-interactable-speakers
+    spec_sections:
+      - open-locked-gate-dialog
+      - manual-excludes-interactables-by-default
+      - character-id-branches-preserved
+    context_files:
+      - src/engine/__tests__/RP-63-interactable-speakers.test.ts
+      - src/engine/interaction.ts
+      - src/engine/manual.ts
+    output_files:
+      - src/engine/__tests__/RP-63-interactable-speakers.test.ts
+    depends_on: [migrate-existing-tests]
+    verification:
+      - npx vitest run src/engine/__tests__/RP-63-interactable-speakers.test.ts
+    repair: retry
+    tags: [tests]
+
+  - id: full-suite-and-lint
+    title: >
+      Final sweep — run the full engine test suite and lint. activeDialog
+      reads are widespread (~22 sites); typescript will surface any
+      missed branches, and lint will catch unused imports left over from
+      the manual.ts guard removal.
+    spec_id: RP-63-interactable-speakers
+    spec_sections: []
+    context_files: []
+    output_files: []
+    depends_on: [expand-rp-63-tests]
+    verification:
+      - npm run typecheck
+      - npm run test:engine
+      - npm run lint
+    repair: skip
+    tags: [verification]

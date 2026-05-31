@@ -1,4 +1,5 @@
-import { CHARACTER_DEFINITIONS, getCharacterDefinition, getCharacterDialog } from '../characters'
+import { CHARACTER_DEFINITIONS } from '../characters'
+import { getInteractableDefinition, INTERACTABLES } from '../interactables'
 import {
   getAdjacentCharacter,
   isFacingLockedDoor,
@@ -228,26 +229,26 @@ describe('ruin locked door', () => {
       expect(isFacingLockedDoor(state)).toBe(false)
     })
 
-    it('openLockedGateDialog opens a dialog with the gate speaker on a fresh line', () => {
+    it('openLockedGateDialog opens an interactable-variant dialog on a fresh line', () => {
       const state = createTestState()
       setupRuinWithDoor(state)
       expect(state.activeDialog).toBeNull()
       openLockedGateDialog(state)
-      expect(state.activeDialog).not.toBeNull()
-      expect(state.activeDialog?.characterId).toBe('gate')
-      expect(state.activeDialog?.lineIndex).toBe(0)
-      expect(state.activeDialog?.typingIndex).toBe(0)
-      expect(state.activeDialog?.typingDone).toBe(false)
-      expect(state.activeDialog?.transitioning).toBe(false)
+      expect(state.activeDialog).toMatchObject({
+        speakerKind: 'interactable',
+        interactableId: 'gate',
+        lineIndex: 0,
+        typingIndex: 0,
+        typingDone: false,
+        transitioning: false,
+      })
     })
 
-    it("the gate speaker says 'The gate is locked.'", () => {
-      const state = createTestState()
-      const def = getCharacterDefinition('gate')
+    it("the gate Interactable says 'The gate is locked.'", () => {
+      const def = getInteractableDefinition('gate')
       expect(def.name).toBe('Gate')
-      const lines = getCharacterDialog(state, 'gate')
-      expect(lines).toHaveLength(1)
-      expect(lines[0]).toBe('The gate is locked.')
+      expect(def.lines).toHaveLength(1)
+      expect(def.lines[0]).toBe('The gate is locked.')
     })
 
     it('unlockRuinDoor returns false without a key (caller is responsible for opening the dialog)', () => {
@@ -273,12 +274,14 @@ describe('ruin locked door', () => {
       expect(getAdjacentCharacter(state)).toBeNull()
     })
 
-    it('the gate has no manual entry', () => {
-      // The synthetic gate speaker is registered in CHARACTER_DEFINITIONS
-      // (so the existing dialog modal can render it), but it must be
-      // excluded from manual auto-derivation.
-      expect(CHARACTER_DEFINITIONS.gate).toBeDefined()
+    it('the gate has no manual entry and is not a character', () => {
+      // RP-63 — the gate lives in INTERACTABLES, not CHARACTER_DEFINITIONS.
+      // It is excluded from manual auto-derivation structurally (manual.ts
+      // only enumerates CHARACTER_DEFINITIONS).
+      expect((CHARACTER_DEFINITIONS as Record<string, unknown>).gate).toBeUndefined()
+      expect(INTERACTABLES.gate).toBeDefined()
       expect(MANUAL_ENTRIES['character:gate']).toBeUndefined()
+      expect(MANUAL_ENTRIES['interactable:gate']).toBeUndefined()
     })
   })
 })

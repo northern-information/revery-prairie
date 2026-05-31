@@ -20,10 +20,9 @@ import { ScanResultModal } from './ScanResultModal'
 import { TimeLapsePlayback } from './TimeLapsePlayback'
 
 import { setAudioEnabled, stopAll } from '@/engine/audio'
-import { getCharacterDefinition, getCharacterDialog } from '@/engine/characters'
-import { canCast } from '@/engine/hexagram'
-import { advanceDialog } from '@/engine/interaction'
 import { nameToSeed } from '@/engine/genesis/shared'
+import { canCast } from '@/engine/hexagram'
+import { advanceDialog, getActiveDialogLines, getActiveSpeakerName } from '@/engine/interaction'
 import { advanceReveryToClosing } from '@/engine/revery'
 import { ReveryPhase } from '@/engine/types'
 import { useGameEngine } from '@/hooks/useGameEngine'
@@ -228,14 +227,14 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
       )}
       {state.activeDialog &&
         (() => {
-          const def = getCharacterDefinition(state.activeDialog.characterId)
-          const dialogLines = getCharacterDialog(state, state.activeDialog.characterId)
+          const speakerName = getActiveSpeakerName(state) ?? ''
+          const dialogLines = getActiveDialogLines(state)
           const line = state.activeDialog.transitioning ? '' : dialogLines[state.activeDialog.lineIndex]
           const isLastLine = state.activeDialog.lineIndex >= dialogLines.length - 1
 
           return (
             <DialogBox
-              characterName={def.name}
+              characterName={speakerName}
               line={line}
               typingIndex={state.activeDialog.typingIndex}
               typingDone={state.activeDialog.typingDone}

@@ -1,5 +1,6 @@
 import { EMILY_DIALOG, getCharacterDefinition, getCharacterDialog } from './characters'
 import { ComponentType } from './ecs/types'
+import { getInteractableDefinition, getInteractableLines } from './interactables'
 import { spawnPickupBloom } from './effects'
 import { RuinRole } from './genesisTypes'
 import { findFitPosition, placeItem } from './inventory'
@@ -138,6 +139,7 @@ export const interactWithCharacter = (
   // Manual [f] engagements always skip the greeting and start at line 1.
   const startLineIndex = character.definitionId === 'emily' ? 1 : 0
   state.activeDialog = {
+    speakerKind: 'character',
     characterId: character.definitionId,
     lineIndex: startLineIndex,
     typingIndex: 0,
@@ -156,23 +158,49 @@ export const interactWithCharacter = (
  * 'unoffered' so the player can re-arm by re-engaging Emily.
  */
 export const closeActiveDialog = (state: GameState): void => {
-  if (state.activeDialog?.characterId === 'emily' && state.emilyInvitation === 'offered') {
+  if (
+    state.activeDialog?.speakerKind === 'character' &&
+    state.activeDialog.characterId === 'emily' &&
+    state.emilyInvitation === 'offered'
+  ) {
     state.emilyInvitation = 'unoffered'
   }
   state.activeDialog = null
+}
+
+// RP-63 — resolve the active dialog's line array regardless of speaker
+// kind. Character speakers route through getCharacterDialog (which itself
+// dispatches by characterId for Gron/Moab/Emily); interactable speakers
+// route through the static INTERACTABLES registry.
+export const getActiveDialogLines = (state: GameState): readonly string[] => {
+  const d = state.activeDialog
+  if (!d) return []
+  if (d.speakerKind === 'character') return getCharacterDialog(state, d.characterId)
+  return getInteractableLines(d.interactableId)
+}
+
+// RP-63 — resolve the active speaker's display name. Used by GameScreen
+// to populate DialogBox's characterName prop.
+export const getActiveSpeakerName = (state: GameState): string | null => {
+  const d = state.activeDialog
+  if (!d) return null
+  if (d.speakerKind === 'character') return getCharacterDefinition(d.characterId).name
+  return getInteractableDefinition(d.interactableId).name
 }
 
 export const advanceDialog = (
   state: GameState,
   time?: number
 ): { continuing: boolean; gift: GiftAnnouncement | null } => {
-  if (!state.activeDialog) return { continuing: false, gift: null }
+  const d = state.activeDialog
+  if (!d) return { continuing: false, gift: null }
 
   // RP-33 — invitation confirm: [f] while awaitingConfirmation is
   // set commits dormancy pressure to threshold and closes the dialog.
   // Runs BEFORE the typing-skip path so a second [f] press at the
   // armed last line is interpreted as confirmation, not as a no-op.
-  if (state.activeDialog.awaitingConfirmation === true) {
+  // awaitingConfirmation only exists on the character variant.
+  if (d.speakerKind === 'character' && d.awaitingConfirmation === true) {
     try {
       contributeDormancyPressure(state, 1.0)
       state.emilyInvitation = 'confirmed'
@@ -188,21 +216,23 @@ export const advanceDialog = (
   }
 
   // If still typing, reveal the full line instantly
-  if (!state.activeDialog.typingDone) {
-    const dialog = getCharacterDialog(state, state.activeDialog.characterId)
-    const line = dialog[state.activeDialog.lineIndex]
-    state.activeDialog.typingIndex = line.length
-    state.activeDialog.typingDone = true
+  if (!d.typingDone) {
+    const dialog = getActiveDialogLines(state)
+    const line = dialog[d.lineIndex]
+    d.typingIndex = line.length
+    d.typingDone = true
     // RP-33 — Emily's autumn invitation can also arm via the
     // typing-skip path (player pressed [f] mid-typing to reveal the
     // full last line). Mirror the tickDialogTyping arm logic.
+    // Only meaningful on the character variant (Emily).
     if (
-      state.activeDialog.characterId === 'emily' &&
+      d.speakerKind === 'character' &&
+      d.characterId === 'emily' &&
       state.weather.season === Season.Autumn &&
       state.revery === null &&
-      state.activeDialog.lineIndex === EMILY_DIALOG.length - 1
+      d.lineIndex === EMILY_DIALOG.length - 1
     ) {
-      state.activeDialog.awaitingConfirmation = true
+      d.awaitingConfirmation = true
       if (state.emilyInvitation === 'unoffered') {
         state.emilyInvitation = 'offered'
       }
@@ -211,16 +241,24 @@ export const advanceDialog = (
   }
 
   // If transitioning between lines, ignore
-  if (state.activeDialog.transitioning) return { continuing: true, gift: null }
+  if (d.transitioning) return { continuing: true, gift: null }
 
-  const dialog = getCharacterDialog(state, state.activeDialog.characterId)
-  if (state.activeDialog.lineIndex < dialog.length - 1) {
-    state.activeDialog.transitioning = true
-    state.activeDialog.transitionStartTime = performance.now()
+  const dialog = getActiveDialogLines(state)
+  if (d.lineIndex < dialog.length - 1) {
+    d.transitioning = true
+    d.transitionStartTime = performance.now()
     return { continuing: true, gift: null }
   }
 
-  const characterId = state.activeDialog.characterId
+  // Reached the last line — close the dialog. Gift delivery and
+  // character-specific post-completion side effects only fire on the
+  // character variant; interactables have no gifts, no relationships.
+  if (d.speakerKind === 'interactable') {
+    closeActiveDialog(state)
+    return { continuing: false, gift: null }
+  }
+
+  const characterId = d.characterId
   closeActiveDialog(state)
 
   // RP-9b — completing dialog with Moab while he is walking the
@@ -262,25 +300,28 @@ export const tickDialogTransition = (state: GameState, now: number): void => {
 const DIALOG_TYPING_MS = 40
 
 export const tickDialogTyping = (state: GameState, now: number): void => {
-  if (!state.activeDialog || state.activeDialog.typingDone || state.activeDialog.transitioning) return
+  const d = state.activeDialog
+  if (!d || d.typingDone || d.transitioning) return
   if (now - state.lastDialogTypingTick < DIALOG_TYPING_MS) return
 
-  const dialog = getCharacterDialog(state, state.activeDialog.characterId)
-  const line = dialog[state.activeDialog.lineIndex]
-  state.activeDialog.typingIndex++
-  if (state.activeDialog.typingIndex >= line.length) {
-    state.activeDialog.typingDone = true
+  const dialog = getActiveDialogLines(state)
+  const line = dialog[d.lineIndex]
+  d.typingIndex++
+  if (d.typingIndex >= line.length) {
+    d.typingDone = true
     // RP-33 — Emily's autumn last line is the invitation. Arm
     // awaitingConfirmation; flip emilyInvitation to 'offered' on the
     // first arming this autumn. Suppressed if a Revery is already
     // active (the RP-32 threshold-trigger gates on revery === null).
+    // Only meaningful on the character variant (Emily).
     if (
-      state.activeDialog.characterId === 'emily' &&
+      d.speakerKind === 'character' &&
+      d.characterId === 'emily' &&
       state.weather.season === Season.Autumn &&
       state.revery === null &&
-      state.activeDialog.lineIndex === EMILY_DIALOG.length - 1
+      d.lineIndex === EMILY_DIALOG.length - 1
     ) {
-      state.activeDialog.awaitingConfirmation = true
+      d.awaitingConfirmation = true
       if (state.emilyInvitation === 'unoffered') {
         state.emilyInvitation = 'offered'
       }
@@ -315,13 +356,14 @@ export const isFacingLockedDoor = (state: GameState): boolean => {
   return state.map[fy][fx].type === TileType.RuinDoorLocked
 }
 
-// Open the locked gate dialog using the synthetic 'gate' speaker. Reuses
-// the existing dialog modal so the player gets a visible explanation when
-// they try to open a locked door without an aqueductKey, instead of a
-// silent no-op.
+// Open the locked gate dialog using the 'gate' Interactable (RP-63 — the
+// gate is not a character). Reuses the existing dialog modal so the player
+// gets a visible explanation when they try to open a locked door without
+// an aqueductKey, instead of a silent no-op.
 export const openLockedGateDialog = (state: GameState): void => {
   state.activeDialog = {
-    characterId: 'gate',
+    speakerKind: 'interactable',
+    interactableId: 'gate',
     lineIndex: 0,
     typingIndex: 0,
     typingDone: false,
@@ -476,6 +518,7 @@ const rescueCoyote = (state: GameState): void => {
   state.mainQuestPhase = MainQuestPhase.Gathering
 
   state.activeDialog = {
+    speakerKind: 'character',
     characterId: 'coyote',
     lineIndex: 0,
     typingIndex: 0,
@@ -565,6 +608,7 @@ export const triggerStewardSeal = (state: GameState, time?: number): void => {
   recordDiscovery(state, 'event:steward-sealed')
 
   state.activeDialog = {
+    speakerKind: 'character',
     characterId: 'gron',
     lineIndex: 0,
     typingIndex: 0,

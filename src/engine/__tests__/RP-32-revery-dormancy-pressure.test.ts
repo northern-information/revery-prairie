@@ -69,7 +69,7 @@ describe('RP-32 — revery dormancy pressure', () => {
     tickRevery(state, 0, 1000)
     expect(state.revery?.summonsCollapseTile).toEqual(expected)
     expect(state.collapsedStewardTile).not.toBeNull()
-    expect(state.activeDialog?.characterId).toBe('gron')
+    expect(state.activeDialog).toMatchObject({ speakerKind: 'character', characterId: 'gron' })
   })
 
   it('commits the steward collapse tile to TileType.Egregore at Closing (summons path)', () => {

@@ -11,11 +11,13 @@ source_files:
   - src/engine/renderer.ts
   - src/engine/interaction.ts
   - src/engine/characters.ts
+  - src/engine/interactables.ts
   - src/hooks/useKeyboard.ts
   - src/hooks/useMouse.ts
   - src/engine/manual.ts
 dependencies:
   - ruin-infrastructure
+  - RP-63-interactable-speakers
 
 behaviors:
   - id: locked-door-tile-types
@@ -98,26 +100,28 @@ behaviors:
 
   - id: locked-gate-dialog
     description: >
-      a synthetic 'gate' speaker is registered in CHARACTER_DEFINITIONS
-      (id: 'gate', name: 'Gate', glyph: '#', glyphColor matches the
-      RuinDoorLocked verdigris #5FD3BC, dialog: ['The gate is locked.'],
-      no gift, no postGiftDialog). this speaker is not an
-      entity in the world — it has no Position component, getAdjacentCharacter
-      never returns it, and it never appears in entity ticks or rendering.
-      it exists only as a target for state.activeDialog. when the player
-      presses [f] facing any RuinDoorLocked tile while holding NO
-      aqueductKey, openLockedGateDialog(state) is called: it sets
-      state.activeDialog = { characterId: 'gate', lineIndex: 0,
-      typingIndex: 0, typingDone: false, transitioning: false,
+      the gate is an Interactable (not a Character) registered in
+      INTERACTABLES (id: 'gate', name: 'Gate', lines: ['The gate is
+      locked.']) per RP-63-interactable-speakers. an Interactable is a
+      tile-anchored or system-synthetic speaker — it has no Position
+      component, no glyph, no glyphColor, no gift, no music;
+      getAdjacentCharacter never returns it; it never appears in entity
+      ticks, rendering, or the manual. it exists only as a target for
+      state.activeDialog. when the player presses [f] facing any
+      RuinDoorLocked tile while holding NO aqueductKey,
+      openLockedGateDialog(state) is called: it sets state.activeDialog =
+      { speakerKind: 'interactable', interactableId: 'gate', lineIndex:
+      0, typingIndex: 0, typingDone: false, transitioning: false,
       transitionStartTime: 0 }. the existing DialogBox component renders
       the typing animation and modal exactly as it does for character
       dialog. pressing [f] again (or clicking advance) calls advanceDialog
       which closes the modal, since 'The gate is locked.' is the single
-      and last line. no gift fires (the gate has no gift). no
-      manualDiscoveries entry is recorded — the gate is not a manual entry.
-      the gate speaker is excluded from manual auto-derivation (no
-      character:gate entry). clicking a locked door with no key triggers
-      the same dialog on arrival (see click-without-key edge case).
+      and last line. no gift fires (interactables have no gift). no
+      manualDiscoveries entry is recorded — interactables are never
+      manual entries (the registry is not enumerated by manual.ts).
+      clicking a locked door with no key triggers the same dialog on
+      arrival (see click-without-key edge case). full Interactable
+      contract is owned by RP-63-interactable-speakers.
     inputs:
       - '[f] pressed while facing any RuinDoorLocked tile, aqueductKey NOT in backpack'
       - 'click on any RuinDoorLocked tile with no aqueductKey (after pathfind arrival)'
@@ -126,7 +130,7 @@ behaviors:
       - 'no map mutation, no key consumed, no discovery log'
     state_changes:
       - field: activeDialog
-        effect: "set to { characterId: 'gate', lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }"
+        effect: "set to { speakerKind: 'interactable', interactableId: 'gate', lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }"
     determinism: deterministic
 
   - id: click-to-unlock
@@ -193,7 +197,7 @@ edge_cases:
 
   - id: gate-dialog-not-in-manual
     description: 'player opens the prairie manual after triggering the locked gate dialog'
-    expected: "no 'character:gate' or similar manual entry exists; the synthetic gate speaker is excluded from auto-derived character entries"
+    expected: "no 'character:gate' or 'interactable:gate' manual entry exists; the INTERACTABLES registry is not enumerated by manual.ts (see RP-63-interactable-speakers:manual-excludes-interactables-by-default)"
 
   - id: gate-dialog-blocks-movement
     description: 'player attempts to move (WASD) while the locked gate dialog is open'
@@ -221,7 +225,10 @@ failure_conditions:
     expected: 'spec is violated — locked-gate-dialog behavior must open the gate modal so the player understands the door is gated, not broken'
 
   - trigger: 'the gate speaker leaks into manual auto-derivation, gameplay tick systems, or getAdjacentCharacter results'
-    expected: 'spec is violated — the gate is dialog-only; it must not appear as a world entity, manual entry, or interactable character'
+    expected: 'spec is violated — the gate is an Interactable; it must not appear as a world entity, manual entry, or interactable character in the ECS sense'
+
+  - trigger: 'the gate appears in CHARACTER_DEFINITIONS'
+    expected: 'spec is violated — RP-63-interactable-speakers moved the gate to INTERACTABLES; CHARACTER_DEFINITIONS is reserved for named persons with dialog'
 
 verification:
   test_file: src/engine/__tests__/ruin-locked-door.test.ts

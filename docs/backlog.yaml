@@ -2580,10 +2580,10 @@ features:
       RP-61.
     size: XS
     depends_on: []
-    status: todo
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/RP-63-interactable-speakers.yaml
+    plan: harness/plans/RP-63-interactable-speakers.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/481
     notes: >
       v11 thinktank round 2 (2026-05-25). Surfaced by Boon during
       the portrait-retirement audit and elevated by Delta as a
@@ -2591,8 +2591,16 @@ features:
       `Character` is the system telling us the `Character` type is
       overloaded — it currently means "anything you can press `[f]`
       on and get a line back from." Deferred to its own round/spec
-      so it does not bloat the portrait retirement. Open at spec:
-      split the type, or move Gate to a wholly different system?
+      so it does not bloat the portrait retirement.
+
+      Spec locked (2026-05-31): split the type. CHARACTER_DEFINITIONS
+      is reserved for named persons; a new INTERACTABLES registry in
+      `src/engine/interactables.ts` holds tile-anchored / system-
+      synthetic speakers (gate today; signs, plaques, shrines
+      anticipated). `state.activeDialog` gains a
+      `speakerKind: 'character' | 'interactable'` discriminator so
+      the two kinds are typed distinctly. No user-visible behavior
+      change — same line, same modal, same dismiss path.
 
   - id: 'RP-62'
     name: Reachable-mass-aware placement

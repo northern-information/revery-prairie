@@ -5,14 +5,13 @@ import { Season } from '../types'
 import { createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
-import type { GameState } from '../types'
-
 const setSeason = (state: ReturnType<typeof createTestState>, season: Season) => {
   state.weather.season = season
 }
 
 const openEmilyDialog = (state: ReturnType<typeof createTestState>) => {
   state.activeDialog = {
+    speakerKind: 'character',
     characterId: 'emily',
     lineIndex: 0,
     typingIndex: 0,
@@ -66,7 +65,7 @@ describe('RP-33 — invitation arm (autumn-only)', () => {
       tickDialogTyping(state, t)
     }
     expect(state.activeDialog?.typingDone).toBe(true)
-    expect(state.activeDialog?.awaitingConfirmation).toBe(true)
+    expect(state.activeDialog).toMatchObject({ speakerKind: 'character', awaitingConfirmation: true })
     expect(state.emilyInvitation).toBe('offered')
   })
 
@@ -82,7 +81,8 @@ describe('RP-33 — invitation arm (autumn-only)', () => {
       for (let t = 50; t < 50 + lastLine.length * 50 + 100; t += 50) {
         tickDialogTyping(state, t)
       }
-      expect(state.activeDialog?.awaitingConfirmation).toBeUndefined()
+      const d = state.activeDialog
+      expect(d?.speakerKind === 'character' ? d.awaitingConfirmation : undefined).toBeUndefined()
       expect(state.emilyInvitation).toBe('unoffered')
     }
   })
@@ -99,7 +99,8 @@ describe('RP-33 — invitation arm (autumn-only)', () => {
     for (let t = 50; t < 50 + lastLine.length * 50 + 100; t += 50) {
       tickDialogTyping(state, t)
     }
-    expect(state.activeDialog?.awaitingConfirmation).toBeUndefined()
+    const d = state.activeDialog
+    expect(d?.speakerKind === 'character' ? d.awaitingConfirmation : undefined).toBeUndefined()
   })
 })
 
@@ -110,7 +111,7 @@ describe('RP-33 — confirm path', () => {
     state.revery = null
     state.dormancyPressure = 0
     openEmilyDialog(state)
-    if (!state.activeDialog) throw new Error('dialog not opened')
+    if (state.activeDialog?.speakerKind !== 'character') throw new Error('expected emily character dialog')
     state.activeDialog.lineIndex = EMILY_DIALOG.length - 1
     state.activeDialog.typingDone = true
     state.activeDialog.awaitingConfirmation = true
@@ -149,9 +150,11 @@ describe('RP-34 — manual [f] skips the spring-equinox greeting', () => {
       state.activeDialog = null
       const result = interactWithCharacter(state)
       expect(result.opened).toBe(true)
-      const dialog = state.activeDialog as GameState['activeDialog']
-      expect(dialog?.characterId).toBe('emily')
-      expect(dialog?.lineIndex).toBe(1)
+      expect(state.activeDialog).toMatchObject({
+        speakerKind: 'character',
+        characterId: 'emily',
+        lineIndex: 1,
+      })
     }
   })
 })

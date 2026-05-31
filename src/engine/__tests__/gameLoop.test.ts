@@ -586,6 +586,7 @@ describe('held key movement', () => {
     const gameLoop = createGameLoop(state, {})
     state.heldDirection = 'right'
     state.activeDialog = {
+      speakerKind: 'character',
       characterId: 'ghost-1',
       lineIndex: 0,
       typingIndex: 0,

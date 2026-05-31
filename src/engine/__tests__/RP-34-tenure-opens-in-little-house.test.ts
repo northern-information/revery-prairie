@@ -44,6 +44,7 @@ describe('RP-34 — the tenure opens in the little house', () => {
 
       expect(state.tenureOpened).toBe(true)
       expect(state.activeDialog).toEqual({
+        speakerKind: 'character',
         characterId: 'emily',
         lineIndex: 0,
         typingIndex: 0,
@@ -118,6 +119,7 @@ describe('RP-34 — the tenure opens in the little house', () => {
     it('short-circuits when an unrelated dialog is already open', () => {
       const state = createTestState({ keepHouseSpawn: true })
       const preset = {
+        speakerKind: 'character' as const,
         characterId: 'gron',
         lineIndex: 0,
         typingIndex: 0,
@@ -161,7 +163,7 @@ describe('RP-34 — the tenure opens in the little house', () => {
       state.bootTitleCard = null
       loop.tick(16)
       expect(state.tenureOpened).toBe(true)
-      expect(state.activeDialog?.characterId).toBe('emily')
+      expect(state.activeDialog).toMatchObject({ speakerKind: 'character', characterId: 'emily' })
     })
 
     it('does not crash when onRefreshUI is undefined', () => {

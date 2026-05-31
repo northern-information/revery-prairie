@@ -342,6 +342,7 @@ describe('rescue runs the coyote up to the player and auto-opens its dialog', ()
     const dialog = state.activeDialog
     expect(dialog).not.toBeNull()
     if (!dialog) return
+    if (dialog.speakerKind !== 'character') throw new Error('expected character dialog')
     expect(dialog.characterId).toBe('coyote')
     expect(dialog.lineIndex).toBe(0)
     expect(dialog.typingIndex).toBe(0)
@@ -353,6 +354,7 @@ describe('rescue runs the coyote up to the player and auto-opens its dialog', ()
     const state = createTestState()
     setupRescueApproach(state)
     state.activeDialog = {
+      speakerKind: 'character',
       characterId: 'gron',
       lineIndex: 2,
       typingIndex: 5,
