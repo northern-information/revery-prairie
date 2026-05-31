@@ -102,15 +102,23 @@ beforeEach(() => {
 })
 
 // Find a yard-map position that is plain Dirt (not Fence, gate, roof, eaves,
-// door, or already overlaid as Flora at zone-enter). Returns the first such
-// position found scanning row-major from (1, 1).
+// door, or already overlaid as Flora at zone-enter). Force one yard tile back
+// to Dirt if necessary — sampleYardFlora may have overlaid the entire walkable
+// interior with Flora when the apron tally is non-empty. Returns a guaranteed-
+// Dirt position. Must be called AFTER entering the yard so state.map points
+// at the yard's tile grid.
 const findYardDirtTile = (state: GameState): { x: number; y: number } => {
-  for (let y = 1; y < state.yardMapHeight - 1; y++) {
-    for (let x = 1; x < state.yardMapWidth - 1; x++) {
-      if (state.yardMap[y][x].type === TileType.Dirt) return { x, y }
+  for (let y = 1; y < state.mapHeight - 1; y++) {
+    for (let x = 1; x < state.mapWidth - 1; x++) {
+      if (state.map[y][x].type === TileType.Dirt) return { x, y }
     }
   }
-  throw new Error('no plain-Dirt tile found in yard map; test fixture invalid')
+  // Fall back: force the (1, 1) interior cell to Dirt. Clearing the
+  // sampled-flora entry keeps the renderer from substituting a species
+  // glyph back on top.
+  const tile = { x: 1, y: 1 }
+  state.map[tile.y][tile.x] = { type: TileType.Dirt }
+  return tile
 }
 
 describe('crater rendering zone gate (regression: overworld craters must not bleed into the yard)', () => {
