@@ -1,0 +1,197 @@
+plan:
+  id: RP-41-cliffs-verticality
+  title: 'RP-41: Cliffs and verticality — raise genesis amplitude, gate movement/pathfinding on isClimbableStep, compute reachableMass, render cliff-face shadow and x-ray alpha'
+  created: 2026-05-30
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: add-climbable-step-predicate
+    title: 'Add CLIMBABLE_STEP_THRESHOLD constant and isClimbableStep predicate to position.ts'
+    spec_id: rp-41-cliffs-verticality
+    spec_sections:
+      - climbable-step-predicate
+    context_files:
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/position.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: raise-tectonic-uplift-amplitude
+    title: 'Raise per-axis intensity in tectonicUplift epoch from +18..+23 to +28..+40 so peaks land in the 78-90 range after smoothing'
+    spec_id: rp-41-cliffs-verticality
+    spec_sections:
+      - genesis-elevation-amplitude-raised
+    context_files:
+      - src/engine/genesis/epochs/03-tectonicUplift.ts
+      - src/engine/genesisTypes.ts
+    output_files:
+      - src/engine/genesis/epochs/03-tectonicUplift.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, genesis]
+
+  - id: implement-reachable-mass-module
+    title: 'Implement computeReachableMass in the stubbed src/engine/genesis/shared/reachableMass.ts — BFS from spawn, gated on tile walkability and isClimbableStep, read-only (no grid/elevation mutation)'
+    spec_id: rp-41-cliffs-verticality
+    spec_sections:
+      - reachable-mass-computed-at-genesis
+      - unreachable-tiles-preserved
+    context_files:
+      - src/engine/genesis/shared/reachableMass.ts
+      - src/engine/genesis/shared/connectivity.ts
+      - src/engine/position.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/genesis/shared/reachableMass.ts
+    depends_on:
+      - add-climbable-step-predicate
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, genesis]
+
+  - id: wire-reachable-mass-into-game-state
+    title: 'Add reachableMass: Set<string> to GameState; call computeReachableMass at the genesis-to-gameplay handoff; populate at state.ts init; register in EXPECTED_FIELDS'
+    spec_id: rp-41-cliffs-verticality
+    spec_sections:
+      - reachable-mass-on-game-state
+    context_files:
+      - src/engine/state.ts
+      - src/engine/genesis/state.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/types.ts
+      - src/engine/genesis/shared/reachableMass.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/state.ts
+      - src/engine/genesis/state.ts
+      - src/engine/genesisTypes.ts
+      - src/engine/types.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - implement-reachable-mass-module
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [engine, state, test]
+
+  - id: gate-movement-on-climbable-step
+    title: 'Gate movePlayer destination on isClimbableStep immediately after the existing isWalkableTile check; extend diagonal corner-cut check to also call isClimbableStep on both adjacent cardinals'
+    spec_id: rp-41-cliffs-verticality
+    spec_sections:
+      - movement-gated-by-climbable-step
+    context_files:
+      - src/engine/movement.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/movement.ts
+    depends_on:
+      - add-climbable-step-predicate
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: gate-pathfinding-on-climbable-step
+    title: 'A* in pathfinding.ts filters neighbors by isClimbableStep at both cardinal and diagonal expansion sites'
+    spec_id: rp-41-cliffs-verticality
+    spec_sections:
+      - pathfinding-respects-climbable-step
+    context_files:
+      - src/engine/pathfinding.ts
+      - src/engine/position.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/pathfinding.ts
+    depends_on:
+      - add-climbable-step-predicate
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine]
+
+  - id: add-cliff-shadow-and-xray-geometry
+    title: 'Add CLIFF_SHADOW_COLOR, SHADOW_TRIGGER_DELTA, XRAY_ALPHA, AVATAR_OCCLUSION_PAD constants to projection.ts plus any geometry helpers needed (e.g. getCliffShadowQuads wrapping getCellSideQuads, isOccludingAvatar(tileRect, playerRect))'
+    spec_id: rp-41-cliffs-verticality
+    spec_sections:
+      - cliff-face-shadow-rendered
+      - x-ray-alpha-on-occluding-lifted-tiles
+    context_files:
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/projection.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, render]
+
+  - id: render-cliff-shadow-and-xray-in-tile-composite
+    title: 'Extend tileBgComposite pass to draw the cliff-face shadow when neighbor lift delta exceeds SHADOW_TRIGGER_DELTA and to apply XRAY_ALPHA when the tile occludes the player avatars screen-space rect; update tileBgCache contract if the shadow or x-ray affect cache invalidation keys'
+    spec_id: rp-41-cliffs-verticality
+    spec_sections:
+      - cliff-face-shadow-rendered
+      - x-ray-alpha-on-occluding-lifted-tiles
+    context_files:
+      - src/engine/render/passes/tileBgComposite.ts
+      - src/engine/tileBgCache.ts
+      - src/engine/projection.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/render/passes/tileBgComposite.ts
+      - src/engine/tileBgCache.ts
+    depends_on:
+      - add-cliff-shadow-and-xray-geometry
+      - raise-tectonic-uplift-amplitude
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, render]
+
+  - id: write-regression-tests
+    title: 'Replace the stub cliffsVerticality.test.ts with tests covering isClimbableStep math, movement gate (cardinal + diagonal corner), pathfinding routes around cliffs, reachableMass excludes isolated mesas, computeReachableMass leaves grid/elevation unchanged, cave-zone behavior (empty reachableMass + no spurious blocks), tiny-reachable-mass seed honored without re-roll, and shadow/x-ray geometry conditions'
+    spec_id: rp-41-cliffs-verticality
+    spec_sections:
+      - climbable-step-predicate
+      - movement-gated-by-climbable-step
+      - pathfinding-respects-climbable-step
+      - reachable-mass-computed-at-genesis
+      - unreachable-tiles-preserved
+      - reachable-mass-on-game-state
+      - cliff-face-shadow-rendered
+      - x-ray-alpha-on-occluding-lifted-tiles
+    context_files:
+      - src/engine/__tests__/cliffsVerticality.test.ts
+      - src/engine/__tests__/movement.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/position.ts
+      - src/engine/movement.ts
+      - src/engine/pathfinding.ts
+      - src/engine/genesis/shared/reachableMass.ts
+      - src/engine/state.ts
+      - src/engine/projection.ts
+    output_files:
+      - src/engine/__tests__/cliffsVerticality.test.ts
+    depends_on:
+      - wire-reachable-mass-into-game-state
+      - gate-movement-on-climbable-step
+      - gate-pathfinding-on-climbable-step
+      - render-cliff-shadow-and-xray-in-tile-composite
+    verification:
+      - 'npx vitest run src/engine/__tests__/cliffsVerticality.test.ts'
+    repair: retry
+    tags: [test, engine]
