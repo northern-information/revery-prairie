@@ -74,18 +74,32 @@ export const CLIMBABLE_STEP_THRESHOLD = 12
 // bounds), or when the absolute delta is within threshold. Reads
 // only from the elevation map; tile types and entities are gated
 // separately by isWalkableTile and the entity-block check.
+// RP-64 — frozen-stairway override key shape: `${fromKey}->${toKey}`.
+// The set carries one entry per (winter, frozen) waterfall, keyed
+// on the bottom→top transition only — descending the cascade is
+// never made climbable per the v11 R5 asymmetric lock.
+export const frozenStairwayKey = (fromX: number, fromY: number, toX: number, toY: number): string =>
+  `${posKey(fromX, fromY)}->${posKey(toX, toY)}`
+
 export const isClimbableStep = (
   elevation: Map<string, number>,
   fromX: number,
   fromY: number,
   toX: number,
   toY: number,
-  threshold: number = CLIMBABLE_STEP_THRESHOLD
+  threshold: number = CLIMBABLE_STEP_THRESHOLD,
+  frozenStairways?: Set<string>
 ): boolean => {
   const fromElev = elevation.get(posKey(fromX, fromY))
   const toElev = elevation.get(posKey(toX, toY))
   if (fromElev === undefined || toElev === undefined) return true
-  return Math.abs(toElev - fromElev) <= threshold
+  if (Math.abs(toElev - fromElev) <= threshold) return true
+  // RP-64 — frozen-waterfall stairway override. Only the upward
+  // (bottom→top) direction qualifies; the reverse remains blocked.
+  // _Walking off the top is allowed; climbing up from the bottom
+  // requires a foothold — the frozen ice provides one._
+  if (frozenStairways?.has(frozenStairwayKey(fromX, fromY, toX, toY))) return true
+  return false
 }
 
 export const isWalkableTile = (tileType: TileType): boolean =>
