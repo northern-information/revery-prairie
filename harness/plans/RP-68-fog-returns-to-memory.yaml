@@ -1,6 +1,6 @@
 plan:
-  id: RP-62-fog-returns-to-memory
-  title: 'RP-62: Fog returns to memory — collapse fullyDiscovered into a single dim remembered tier, hide live creatures out of gaze, freeze a flora snapshot'
+  id: RP-68-fog-returns-to-memory
+  title: 'RP-68: Fog returns to memory — collapse fullyDiscovered into a single dim remembered tier, hide live creatures out of gaze, freeze a flora snapshot'
   created: 2026-05-28
   global_verification:
     - 'npm run typecheck'

@@ -53,7 +53,9 @@ dependencies:
 #
 # Out of scope for this PR:
 #   - The cellar bulkhead inside the yard (RP-37 will place it).
-#   - The threshold-zone substrate generalization (RP-68).
+#   - The threshold-zone substrate generalization (future id TBD —
+#     RP-68 was originally reserved for this but has been reassigned
+#     to "Fog returns to memory" during backlog maintenance).
 #   - Predecessor seed plantings reflecting on the yard (RP-24 follow-up).
 #   - Emily's autumn-Knot-delivery scene landing in the yard.
 #   - Seating, lighting, lineage echoes inside the yard.

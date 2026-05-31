@@ -2811,3 +2811,59 @@ features:
       Not amended onto `RP-33` (the little house and the girl who
       waits) because `RP-33` is shipped; tracked as its own item so
       the room's reasoning is preserved.
+
+  - id: 'RP-67'
+    name: The yard around the little house
+    summary: >
+      The first threshold zone — a bounded place between the prairie
+      and the little house's interior. The 3x3 HouseApron heuristic
+      could not legibly host two distinct entrances (front door +
+      cellar bulkhead). The yard resolves the ambiguity by hosting
+      both. RP-67 ships the yard with two exits — the gate to the
+      overworld (FenceGate, south fence edge) and the front door to
+      the house interior (HouseDoorClosed). House footprint inside
+      the yard is 15x9; walkable margins are 3 tiles back/sides and
+      18 tiles front; walkable interior is 21x30; one-tile fence ring
+      brings the total yard map to 23x32. RP-37 will later add the
+      cellar bulkhead inside this yard.
+    depends_on: ['RP-33']
+    status: todo
+    spec: harness/specs/RP-67-little-house-yard.yaml
+    plan: harness/plans/RP-67-little-house-yard.yaml
+    pr: null
+    notes: >
+      v11 thinktank round 7 (2026-05-31). _The yard is the threshold,
+      not the archive. The Knot ritual stays in the cellar's long
+      hallway, per RP-37._ Five new TileTypes: HouseRoof, HouseEaves,
+      HouseDoorClosed, Fence, FenceGate (all yard-only, dirt-ineligible).
+      Yard ground is prairie-continuous but flora-sampled at zone
+      enter from the 8 overworld HouseApron tiles. pausesPlayerTime
+      true at zone enter (RP-51 substrate). Out of scope: cellar
+      bulkhead, Knot delivery landing in the yard, seating, lighting,
+      lineage echoes. Spec + plan shipped as #485 (2026-05-31);
+      implementation pending.
+
+  - id: 'RP-68'
+    name: Fog returns to memory
+    summary: >
+      Collapse the `fullyDiscovered` tier into a single dim remembered
+      tier so the overworld is dim memory by default the moment the
+      steward looks away. Hide live creatures out of gaze. Freeze a
+      flora snapshot of each remembered tile so dormant flora doesn't
+      appear to grow while unobserved. The steward sees only what they
+      can see now in full brightness; everything else is the prairie
+      remembering itself.
+    depends_on: []
+    status: shipped
+    spec: null
+    plan: harness/plans/RP-68-fog-returns-to-memory.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/465
+    notes: >
+      Originally drafted under id RP-62 — the plan file was authored
+      before the RP-52 → RP-60 renumbering pass repurposed RP-62 for
+      "Reachable-mass-aware placement". Restored to its own id and
+      its plan file renamed during backlog maintenance (2026-05-31).
+      No standalone spec was authored — the plan title is the
+      doctrine. The post-Revery memory softening hook from RP-39 is
+      retired by this feature, since the overworld is already dim
+      memory the moment the steward looks away (see RP-39's notes).
