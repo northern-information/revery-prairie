@@ -1,0 +1,285 @@
+id: RP-63-interactable-speakers
+name: 'RP-63 — Gate is not a character (Interactable speaker split)'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/characters.ts
+  - src/engine/interactables.ts
+  - src/engine/interaction.ts
+  - src/engine/manual.ts
+  - src/engine/house.ts
+  - src/engine/entities.ts
+  - src/components/GameScreen.tsx
+  - src/hooks/useMusic.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies: []
+# Intentionally no deps. dialog-system and ruin-locked-door depend on this
+# spec; making the dependency mutual would form a cycle. RP-63 introduces
+# the Interactable substrate; the consuming systems point at it from above.
+
+# RP-63 splits the overloaded `Character` system. Today, `CHARACTER_DEFINITIONS`
+# is the registry for everything that can speak through the dialog modal —
+# named persons with rich behavior (Gron, Moab, Coyote, Emily, ghosts) AND the
+# locked-gate's synthetic 'gate' speaker. The gate is not a person: it has no
+# Position component, never appears as a world entity, is excluded from the
+# manual, and exists solely as a target for state.activeDialog when the
+# steward bumps a RuinDoorLocked tile without a key. v11 thinktank round 2
+# (Boon → Delta) identified this as the Character type telling us it means
+# "anything you can press [f] on and get a line back from."
+#
+# Locked design decisions (user, 2026-05-31):
+# 1. Split the type. CHARACTER_DEFINITIONS is reserved for named persons with
+#    dialog (and optional gift/postGift/music). A new INTERACTABLES registry
+#    in src/engine/interactables.ts holds tile-anchored or system-synthetic
+#    speakers (gate today; signs, plaques, shrines, etc. anticipated).
+# 2. state.activeDialog gains a `speakerKind: 'character' | 'interactable'`
+#    discriminator. The existing `characterId` field is preserved on the
+#    character variant; the interactable variant carries `interactableId`.
+#    Read sites that currently branch on activeDialog.characterId === 'emily'
+#    etc. continue to work — those are character-kind dialogs and read
+#    activeDialog.characterId unchanged.
+# 3. Interactable registry lives in its own file (src/engine/interactables.ts),
+#    mirroring characters.ts shape but without gift/music/postGiftDialog —
+#    interactables are stateless speakers, not relationship-bearing persons.
+# 4. The user-visible behavior of the locked gate dialog is unchanged. Same
+#    line ("The gate is locked."), same modal, same dismiss path. Only the
+#    architectural home changes.
+
+behaviors:
+  - id: interactable-registry
+    description: >
+      New file src/engine/interactables.ts exports an Interactable type and
+      an INTERACTABLES registry typed `as const satisfies Record<string,
+      Interactable>`. Interactable shape: { id: string, name: string, lines:
+      readonly string[] }. No glyph, no glyphColor, no gift, no music, no
+      postGiftDialog — interactables are not world entities and do not carry
+      relationship state. The registry contains exactly one entry at the
+      start of RP-63: `gate: { id: 'gate', name: 'Gate', lines: ['The gate
+      is locked.'] }`. Exports getInteractableDefinition(id) (throws on
+      unknown id, matching getCharacterDefinition's contract) and
+      getInteractableLines(id) (returns the static lines array).
+    inputs:
+      - 'an interactable id'
+    outputs:
+      - 'Interactable definition or its lines array'
+    state_changes: []
+    determinism: deterministic
+
+  - id: gate-removed-from-characters
+    description: >
+      The `gate` entry is deleted from CHARACTERS in src/engine/characters.ts.
+      CHARACTER_DEFINITIONS no longer contains an id 'gate'.
+      getCharacterDefinition('gate') throws 'unknown character definition:
+      gate' — the gate is no longer a character. The vestigial glyph '#' and
+      glyphColor '#5FD3BC' on the old entry were never rendered (the gate
+      was never spawned as a world entity); they are dropped, not migrated.
+    inputs:
+      - 'lookup against CHARACTER_DEFINITIONS'
+    outputs:
+      - 'no entry for id `gate`'
+    state_changes: []
+    determinism: deterministic
+
+  - id: active-dialog-speaker-kind
+    description: >
+      state.activeDialog gains a `speakerKind: 'character' | 'interactable'`
+      discriminator. The character variant retains `characterId: string`.
+      The interactable variant carries `interactableId: string` and omits
+      `characterId`. All other fields (lineIndex, typingIndex, typingDone,
+      transitioning, transitionStartTime, awaitingConfirmation?) remain on
+      both variants. activeDialog.awaitingConfirmation is only meaningful on
+      the character variant (Emily's RP-33 invitation flow); the
+      interactable variant never sets it.
+    inputs:
+      - 'dialog open call'
+    outputs:
+      - 'activeDialog typed as a discriminated union on speakerKind'
+    state_changes:
+      - field: activeDialog
+        effect: 'shape changes to a discriminated union; existing character flows write speakerKind: "character"'
+    determinism: deterministic
+
+  - id: open-locked-gate-dialog
+    description: >
+      openLockedGateDialog(state) in src/engine/interaction.ts sets
+      state.activeDialog = { speakerKind: 'interactable', interactableId:
+      'gate', lineIndex: 0, typingIndex: 0, typingDone: false, transitioning:
+      false, transitionStartTime: 0 }. No characterId field is present. No
+      manualDiscoveries entry is recorded (interactables never appear in the
+      manual). No gift fires (interactables have no gift). Trigger contract
+      is unchanged from ruin-locked-door:locked-gate-dialog — [f] facing a
+      RuinDoorLocked tile with no aqueductKey, or arrival from a click on a
+      RuinDoorLocked tile with no aqueductKey.
+    inputs:
+      - '[f] pressed while facing RuinDoorLocked, aqueductKey NOT in backpack'
+      - 'click arrival at adjacent tile to RuinDoorLocked, aqueductKey NOT in backpack'
+    outputs:
+      - 'activeDialog set to the interactable variant with interactableId: gate'
+    state_changes:
+      - field: activeDialog
+        effect: "set to { speakerKind: 'interactable', interactableId: 'gate', lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }"
+    determinism: deterministic
+
+  - id: interact-with-character-writes-character-kind
+    description: >
+      interactWithCharacter(state) in src/engine/interaction.ts continues to
+      open dialogs against named persons. The activeDialog it produces now
+      carries speakerKind: 'character' alongside the existing characterId.
+      No other behavior changes — manual discovery, gift gating on dialog
+      completion, coyote/angel exclusions are preserved per
+      dialog-system:interact-with-character.
+    inputs:
+      - 'player adjacent to a character entity, [f] pressed'
+    outputs:
+      - 'activeDialog initialized with speakerKind: "character" and characterId set'
+    state_changes:
+      - field: activeDialog
+        effect: 'character-kind dialog opened with existing semantics plus speakerKind tag'
+    determinism: deterministic
+
+  - id: dialog-lines-lookup
+    description: >
+      The dialog typing/advance loop reads its line array via a new helper
+      getActiveDialogLines(state) in src/engine/interaction.ts. The helper
+      branches on activeDialog.speakerKind: 'character' delegates to the
+      existing getCharacterDialog(state, characterId); 'interactable'
+      delegates to getInteractableLines(interactableId). All current call
+      sites in interaction.ts (advanceDialog at lines ~192, ~216, ~268,
+      tickDialogTyping) route through this helper. getCharacterDialog is
+      never called with characterId 'gate' after RP-63.
+    inputs:
+      - 'an active dialog'
+    outputs:
+      - 'the lines array for the active speaker'
+    state_changes: []
+    determinism: deterministic
+
+  - id: speaker-name-lookup
+    description: >
+      The dialog box renders the speaker's display name via a new helper
+      getActiveSpeakerName(state) (or equivalent inline branch in
+      GameScreen.tsx). Branches on speakerKind: 'character' returns
+      getCharacterDefinition(characterId).name; 'interactable' returns
+      getInteractableDefinition(interactableId).name. DialogBox's
+      `characterName` prop continues to accept a string — the prop name is
+      preserved to avoid component-level churn, but the value sourced for
+      it can be either a character or interactable name.
+    inputs:
+      - 'an active dialog'
+    outputs:
+      - 'display name string for the dialog header'
+    state_changes: []
+    determinism: deterministic
+
+  - id: character-id-branches-preserved
+    description: >
+      Engine code that branches on `activeDialog?.characterId === '<id>'`
+      (house.ts Emily flows at lines 111, 139; interaction.ts Emily flows at
+      lines 159, 200, 278; useMusic.ts charId selection; entities.ts
+      freezeOnDialog at line 219; revery.ts gron path at line 154)
+      continues to read activeDialog.characterId. Under the discriminated
+      union, characterId is undefined on interactable-kind dialogs, so
+      strict-equality comparisons against character ids return false — the
+      same outcome as today's runtime check (a `'gate' !== 'emily'`
+      comparison). No code rewrites are required for these read sites.
+    inputs:
+      - 'an interactable-kind active dialog'
+    outputs:
+      - 'character-keyed branches do not fire'
+    state_changes: []
+    determinism: deterministic
+
+  - id: manual-excludes-interactables-by-default
+    description: >
+      Manual auto-derivation in src/engine/manual.ts iterates
+      CHARACTER_DEFINITIONS for character entries. With `gate` removed from
+      CHARACTER_DEFINITIONS, the existing `if (def.id === 'gate') continue`
+      guard at manual.ts:303 becomes dead code and is removed. The
+      INTERACTABLES registry is not enumerated by manual.ts at all —
+      interactables are never manual entries.
+    inputs:
+      - 'manual auto-derivation pass'
+    outputs:
+      - 'no manual entry for any interactable; gate-specific skip-list entry deleted'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'no behavior change — gate was already excluded; now excluded structurally rather than by id-allowlist'
+    determinism: deterministic
+
+  - id: schema-test-allowlist
+    description: >
+      The activeDialog shape change is reflected in
+      src/harness/__tests__/serialization/schema.test.ts wherever the
+      activeDialog field is matched. The schema test continues to assert
+      that activeDialog is a nullable object; the new speakerKind /
+      interactableId fields are accepted in the union shape.
+    inputs:
+      - 'schema test execution'
+    outputs:
+      - 'schema test passes against the new activeDialog union'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: gate-dialog-not-in-manual
+    description: 'player opens the prairie manual after triggering the locked gate dialog'
+    expected: "no 'character:gate' or 'interactable:gate' manual entry exists; INTERACTABLES is never enumerated by manual.ts"
+
+  - id: gate-dialog-blocks-movement
+    description: 'player attempts to move (WASD) while the locked gate dialog is open'
+    expected: 'movement is blocked by the existing activeDialog gate in keyboard handling — same behavior as character-kind dialog; the gate gate is by `activeDialog != null`, not by speakerKind'
+
+  - id: gate-dialog-dismiss-on-esc
+    description: 'player presses [esc] while the locked gate dialog is open'
+    expected: 'modal closes via the existing activeDialog dismiss path; identical to character-kind dialog dismissal'
+
+  - id: gate-dialog-advance
+    description: 'player presses [f] (or clicks advance) on the open gate dialog'
+    expected: 'advanceDialog runs against the interactable variant. The single line is the last line, so activeDialog is nulled. No gift flow runs (interactables have no gift). No saved-bees release (that branch is keyed on Gron specifically).'
+
+  - id: gate-dialog-typing-animation
+    description: 'gate dialog typing animation between open and typingDone'
+    expected: "tickDialogTyping resolves lines via getActiveDialogLines, which returns ['The gate is locked.'] for the gate interactable; the typing animation matches the existing character-dialog cadence (DIALOG_TYPING_MS = 40ms)"
+
+  - id: emily-branch-on-interactable-dialog
+    description: 'an interactable-kind dialog is active and house.ts / interaction.ts emily branches are evaluated'
+    expected: "activeDialog.characterId is undefined on the interactable variant; `activeDialog?.characterId === 'emily'` evaluates false; emily-only branches do not fire"
+
+  - id: usemusic-with-interactable-dialog
+    description: 'an interactable-kind dialog is active and useMusic computes charId'
+    expected: 'charId reads activeDialog?.characterId which is undefined → coerced to null; no character-specific music layer is selected for interactable dialogs (matches today: gate had no music field)'
+
+  - id: entities-freeze-on-dialog
+    description: 'an entity with freezeOnDialog behavior runs while an interactable-kind dialog is active'
+    expected: 'the freezeOnDialog check at entities.ts:219 compares activeDialog?.characterId against definitionId; on an interactable dialog characterId is undefined and the check returns false. Interactable dialogs do not freeze any character entity. This is acceptable because no character entity is the subject of an interactable dialog.'
+
+  - id: unknown-interactable-id
+    description: 'getInteractableDefinition called with an id not in INTERACTABLES'
+    expected: "throws 'unknown interactable definition: <id>' — mirrors getCharacterDefinition's contract"
+
+  - id: unknown-character-id-gate
+    description: 'getCharacterDefinition called with id "gate" after RP-63'
+    expected: "throws 'unknown character definition: gate' — the gate is no longer a character"
+
+failure_conditions:
+  - trigger: 'an interactable speaker leaks into manual auto-derivation, gameplay tick systems, or getAdjacentCharacter results'
+    expected: 'spec is violated — interactables are dialog-only; they must not appear as world entities, manual entries, or interactable characters in the ECS sense'
+
+  - trigger: 'CHARACTER_DEFINITIONS contains an id `gate` after RP-63'
+    expected: 'spec is violated — the gate must live in INTERACTABLES, not CHARACTERS'
+
+  - trigger: 'an interactable-kind activeDialog carries a characterId field'
+    expected: 'spec is violated — the discriminated union must keep characterId on the character variant only; interactable variant uses interactableId'
+
+  - trigger: 'getCharacterDialog is called with characterId "gate"'
+    expected: 'spec is violated — the dialog lines lookup must route gate through getInteractableLines'
+
+  - trigger: 'a new tile-anchored or system-synthetic speaker is added to CHARACTER_DEFINITIONS instead of INTERACTABLES'
+    expected: 'spec is violated — named persons go in CHARACTERS; things-that-respond-to-[f]-with-a-line go in INTERACTABLES'
+
+verification:
+  test_file: src/engine/__tests__/RP-63-interactable-speakers.test.ts
+  test_pattern: 'RP-63 interactable speakers'
+  command: npx vitest run src/engine/__tests__/RP-63-interactable-speakers.test.ts

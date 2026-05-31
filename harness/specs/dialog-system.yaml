@@ -5,11 +5,13 @@ layer: engine
 source_files:
   - src/engine/interaction.ts
   - src/engine/characters.ts
+  - src/engine/interactables.ts
   - src/engine/types.ts
 dependencies:
   - player-movement
   - ghosts
   - moab-colde
+  - RP-63-interactable-speakers
 
 behaviors:
   - id: interact-with-character
@@ -17,11 +19,11 @@ behaviors:
       interactWithCharacter(state) finds the adjacent character
       (preferring playerFacing direction, falling back to cardinal
       neighbors), records a manual discovery for the character,
-      and initializes activeDialog with characterId, lineIndex 0,
-      typingIndex 0, typingDone false, transitioning false,
-      transitionStartTime 0. does not give gifts — gift delivery
-      happens on dialog completion via advanceDialog. always
-      returns { opened: boolean, gift: null, coyoteToggled: false }.
+      and initializes activeDialog with speakerKind 'character',
+      characterId, lineIndex 0, typingIndex 0, typingDone false,
+      transitioning false, transitionStartTime 0. does not give gifts —
+      gift delivery happens on dialog completion via advanceDialog.
+      always returns { opened: boolean, gift: null, coyoteToggled: false }.
       the coyoteToggled field is reserved for a legacy interaction
       that toggled coyote mode via [f]; it is no longer used (coyote
       mode is controlled via the permacomputer panel), but the
@@ -46,8 +48,11 @@ behaviors:
       tickDialogTyping(state, now) advances the typing animation
       one character at a time. each character reveals after
       DIALOG_TYPING_MS (40ms) has elapsed since lastDialogTypingTick.
-      when typingIndex reaches the line length, typingDone is set
-      to true. skipped when transitioning or no active dialog.
+      the current line is sourced from getActiveDialogLines(state)[lineIndex],
+      which routes character and interactable variants to their respective
+      registries (see dialog-advance). when typingIndex reaches the line
+      length, typingDone is set to true. skipped when transitioning or
+      no active dialog.
     inputs:
       - 'active dialog with typingDone false, current timestamp'
     outputs:
@@ -65,18 +70,24 @@ behaviors:
     description: >
       advanceDialog(state, time?) handles [f] press during dialog.
       returns { continuing: boolean; gift: GiftAnnouncement | null }.
-      if typing is not done, reveals the full line immediately and
-      returns { continuing: true, gift: null }. if transitioning,
-      ignores the press and returns { continuing: true, gift: null }.
-      if more lines remain, sets transitioning to true with
-      transitionStartTime and returns { continuing: true, gift: null }.
-      if no more lines, nulls activeDialog and triggers the gift
-      delivery flow via dialog-completion-gift (time is forwarded to
-      giveCharacterGift/givePostGift for pickup-bloom spawning).
-      additionally, when the closing dialog belongs to Gron and
-      state.pendingSavedBees is true, the saved-bees release fires
-      per main-questline-foundation:gron-saving-bees-release before
-      the gift flow runs.
+      the active line array is resolved via getActiveDialogLines(state),
+      which branches on activeDialog.speakerKind: 'character' delegates
+      to getCharacterDialog(state, characterId); 'interactable' delegates
+      to getInteractableLines(interactableId). if typing is not done,
+      reveals the full line immediately and returns { continuing: true,
+      gift: null }. if transitioning, ignores the press and returns
+      { continuing: true, gift: null }. if more lines remain, sets
+      transitioning to true with transitionStartTime and returns
+      { continuing: true, gift: null }. if no more lines, nulls
+      activeDialog and triggers the gift delivery flow via
+      dialog-completion-gift (time is forwarded to
+      giveCharacterGift/givePostGift for pickup-bloom spawning). gift
+      delivery only runs on the 'character' variant — interactables
+      have no gift, so the gift flow is skipped on speakerKind
+      'interactable'. additionally, when the closing dialog belongs
+      to Gron and state.pendingSavedBees is true, the saved-bees
+      release fires per main-questline-foundation:gron-saving-bees-release
+      before the gift flow runs.
     inputs:
       - '[f] pressed during active dialog, optional time'
     outputs:
@@ -190,19 +201,22 @@ behaviors:
   - id: locked-gate-dialog-entry
     description: >
       openLockedGateDialog(state) is a separate dialog-opening pathway
-      that synthesizes a 'gate' speaker (no Position component, never
-      returned by getAdjacentCharacter, excluded from manual
-      auto-derivation) and sets activeDialog to its single line
+      that opens a dialog against the 'gate' Interactable (no Position
+      component, never returned by getAdjacentCharacter, excluded from
+      manual auto-derivation) and sets activeDialog to its single line
       "The gate is locked." used by the ruin-locked-door flow when the
       player presses [f] on a locked door without an aqueductKey.
-      see ruin-locked-door:locked-gate-dialog for the full contract.
+      activeDialog is set with speakerKind 'interactable' and
+      interactableId 'gate' — see RP-63-interactable-speakers for the
+      Interactable contract and ruin-locked-door:locked-gate-dialog for
+      the trigger surface.
     inputs:
       - 'player presses [f] facing a RuinDoorLocked tile with no aqueductKey'
     outputs:
-      - 'activeDialog set to the gate descriptor'
+      - 'activeDialog set to the gate interactable descriptor'
     state_changes:
       - field: activeDialog
-        effect: "set to { characterId: 'gate', lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }"
+        effect: "set to { speakerKind: 'interactable', interactableId: 'gate', lineIndex: 0, typingIndex: 0, typingDone: false, transitioning: false, transitionStartTime: 0 }"
     determinism: deterministic
 
   - id: adjacent-character-detection
