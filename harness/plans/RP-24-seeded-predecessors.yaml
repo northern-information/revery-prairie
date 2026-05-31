@@ -1,0 +1,258 @@
+plan:
+  id: RP-24-seeded-predecessors
+  title: 'Seed N predecessor stewards into genesis with pre-developed contact-sheet footage and per-predecessor degradation (grain, tint, glyphLeak)'
+  created: 2026-05-30
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: types-and-constants
+    title: 'Add PredecessorRecord / PredecessorFate types, extend PlacedCamera with optional predecessor field, add PREDECESSOR_* constants'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - predecessor-record-shape
+      - predecessor-count-derivation
+      - predecessor-fate-derivation
+      - predecessor-gift-vs-memorial
+      - predecessor-footage-generation
+      - predecessor-degradation-derivation
+      - predecessor-egregoric-content-rate
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, types, constants]
+
+  - id: predecessor-names-module
+    title: 'Create src/engine/predecessors/names.ts with prefix/suffix morpheme tables and generatePredecessorName(genesisSeed, index)'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - predecessor-steward-name-generation
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/engine/crypto.ts
+      - src/engine/characters.ts
+    output_files:
+      - src/engine/predecessors/names.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, predecessors, names]
+
+  - id: predecessor-footage-module
+    title: 'Create src/engine/predecessors/footage.ts: generatePredecessorFootage (60/30/10 mix), derivePredecessorDegradation (grain/tint/glyphLeak)'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - predecessor-footage-generation
+      - predecessor-degradation-derivation
+      - predecessor-egregoric-content-rate
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/crypto.ts
+      - src/engine/systems/flora.ts
+      - src/components/Photograph.tsx
+    output_files:
+      - src/engine/predecessors/footage.ts
+    depends_on:
+      - types-and-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, predecessors, footage]
+
+  - id: predecessors-orchestration
+    title: 'Create src/engine/predecessors.ts: seedPredecessorCameras orchestrates count, placement, tenure, fate, gift/memorial, footage, archive seeding'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - predecessor-count-derivation
+      - predecessor-camera-placement
+      - predecessor-tenure-assignment
+      - predecessor-fate-derivation
+      - predecessor-gift-vs-memorial
+      - predecessor-pickup-flow-unchanged
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/constants.ts
+      - src/engine/crypto.ts
+      - src/engine/position.ts
+      - src/engine/timeLapse.ts
+      - src/engine/items.ts
+      - src/engine/ecs/world.ts
+      - src/engine/worldEntities.ts
+    output_files:
+      - src/engine/predecessors.ts
+    depends_on:
+      - types-and-constants
+      - predecessor-names-module
+      - predecessor-footage-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, predecessors, orchestration]
+
+  - id: genesis-hook
+    title: 'Wire seedPredecessorCameras into genesis/state.ts immediately after seedTenureStartFieldCamera'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - genesis-hook-ordering
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/engine/genesis/state.ts
+      - src/engine/timeLapse.ts
+      - src/engine/predecessors.ts
+    output_files:
+      - src/engine/genesis/state.ts
+    depends_on:
+      - predecessors-orchestration
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, genesis]
+
+  - id: photograph-glyphleak
+    title: 'Implement glyphLeak per-cell substitution in Photograph.tsx using EGREGORE_GLYPHS and TILE_COLORS[TileType.Egregore]; add seedSalt + frameIndex props'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - glyph-leak-cell-substitution
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/components/Photograph.tsx
+      - src/engine/egregore.ts
+      - src/engine/constants.ts
+      - src/engine/crypto.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/Photograph.tsx
+    depends_on:
+      - types-and-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [components, photograph, glyphleak]
+
+  - id: playback-header-and-degradation
+    title: 'TimeLapsePlayback: render predecessor roll-level header; pass PhotographDegradation + seedSalt + frameIndex to every Photograph'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - playback-passes-degradation-to-photograph
+      - playback-roll-header-shows-steward
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/components/TimeLapsePlayback.tsx
+      - src/components/GameScreen.tsx
+      - src/components/Photograph.tsx
+      - src/engine/predecessors/footage.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/TimeLapsePlayback.tsx
+      - src/components/GameScreen.tsx
+    depends_on:
+      - photograph-glyphleak
+      - predecessor-footage-module
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [components, playback, header]
+
+  - id: schema-roundtrip-test
+    title: 'Extend schema.test.ts: PlacedCamera.predecessor roundtrips losslessly for both fate variants'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - schema-test-roundtrip
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/harness/__tests__/serialization/schema.test.ts
+      - src/engine/types.ts
+      - src/engine/state.ts
+    output_files:
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - types-and-constants
+    verification:
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [engine, harness, schema]
+
+  - id: engine-predecessors-test
+    title: 'Create src/engine/__tests__/predecessors.test.ts: count derivation, placement determinism, tenure ordering, fate distribution, gift/memorial split, partial-seeding edge cases'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - predecessor-count-derivation
+      - predecessor-camera-placement
+      - predecessor-tenure-assignment
+      - predecessor-fate-derivation
+      - predecessor-gift-vs-memorial
+      - predecessor-footage-generation
+      - predecessor-degradation-derivation
+      - predecessor-egregoric-content-rate
+      - genesis-hook-ordering
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/engine/predecessors.ts
+      - src/engine/predecessors/names.ts
+      - src/engine/predecessors/footage.ts
+      - src/engine/genesis/state.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/predecessors.test.ts
+    depends_on:
+      - predecessors-orchestration
+      - genesis-hook
+    verification:
+      - 'npx vitest run src/engine/__tests__/predecessors.test.ts'
+    repair: retry
+    tags: [engine, tests]
+
+  - id: photograph-glyphleak-test
+    title: 'Create src/components/__tests__/Photograph.glyphleak.test.tsx: per-cell substitution rate, deterministic glyph picks, Egregore color/font applied to leaked cells, glyphLeak=0 no-ops'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - glyph-leak-cell-substitution
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/components/Photograph.tsx
+      - src/engine/egregore.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/components/__tests__/Photograph.glyphleak.test.tsx
+    depends_on:
+      - photograph-glyphleak
+    verification:
+      - 'npx vitest run src/components/__tests__/Photograph.glyphleak.test.tsx'
+    repair: retry
+    tags: [components, tests, photograph]
+
+  - id: playback-header-test
+    title: 'Create src/components/__tests__/TimeLapsePlayback.predecessor-header.test.tsx: predecessor header format, "Contact Sheet" fallback, degradation pass-through to thumbnails and expanded view'
+    spec_id: RP-24-seeded-predecessors
+    spec_sections:
+      - playback-passes-degradation-to-photograph
+      - playback-roll-header-shows-steward
+    context_files:
+      - harness/specs/RP-24-seeded-predecessors.yaml
+      - src/components/TimeLapsePlayback.tsx
+      - src/components/Photograph.tsx
+      - src/engine/types.ts
+    output_files:
+      - src/components/__tests__/TimeLapsePlayback.predecessor-header.test.tsx
+    depends_on:
+      - playback-header-and-degradation
+    verification:
+      - 'npx vitest run src/components/__tests__/TimeLapsePlayback.predecessor-header.test.tsx'
+    repair: retry
+    tags: [components, tests, playback]
