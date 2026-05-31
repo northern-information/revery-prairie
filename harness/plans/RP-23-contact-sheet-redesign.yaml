@@ -1,0 +1,286 @@
+plan:
+  id: RP-23-contact-sheet-redesign
+  title: 'Redesign time-lapse camera: diff-driven capture + iso-projected contact sheet'
+  created: 2026-05-30
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+# v11 thinktank Round 4 (2026-05-30) — "the prairie's own evidence".
+# Capture flips from event-driven (`recordCameraSubjectEvent` + 5 site
+# hooks) to diff-driven (one sim-loop hook at flora-lifecycle cadence;
+# append iff cells change and stay changed for N=3 ticks). Playback
+# rewrites from a per-frame GelBandView flipbook into an iso-projected
+# contact sheet with click-to-expand single-frame view + cross-fade.
+# `CameraSubject` enum and `TimeLapseFrame.subject` retire across the
+# camera pipeline, album panel, and tests. `GelBandView` exits
+# `TimeLapsePlayback.tsx` but stays in the codebase for the scan
+# instrument. Film count keys 1:1 with captured changes (rule
+# unchanged; only the trigger changes).
+
+tasks:
+  - id: types-and-constants
+    title: 'Drop `subject` from TimeLapseFrame; add candidate-buffer fields to PlacedCamera; add STABILITY_THRESHOLD_TICKS constant'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - camera-state-shape
+      - camera-subject-retired
+      - diff-stability-filter
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/harness/__tests__/serialization/schema.test.ts'
+    repair: retry
+    tags: [engine, types, state]
+
+  - id: retire-event-callsites
+    title: 'Delete `recordCameraSubjectEvent` and its 5 production call sites; remove `CameraSubject` imports from those files'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - frame-capture-diff-driven
+      - camera-subject-retired
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/entities.ts
+      - src/engine/celestial.ts
+      - src/engine/monarch.ts
+      - src/engine/beePollination.ts
+      - src/engine/egregore/spread.ts
+      - src/engine/timeLapse.ts
+    output_files:
+      - src/engine/entities.ts
+      - src/engine/celestial.ts
+      - src/engine/monarch.ts
+      - src/engine/beePollination.ts
+      - src/engine/egregore/spread.ts
+      - src/engine/timeLapse.ts
+    depends_on:
+      - types-and-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npm run lint'
+    repair: retry
+    tags: [engine, integration]
+
+  - id: capture-if-changed
+    title: 'Implement captureIfChanged + per-camera candidate buffer in src/engine/timeLapse.ts'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - frame-capture-diff-driven
+      - diff-stability-filter
+      - frame-capture-rejected-when-out-of-budget
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/timeLapse.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/timeLapse.ts
+    depends_on:
+      - types-and-constants
+      - retire-event-callsites
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, timelapse]
+
+  - id: baseline-on-placement
+    title: 'Capture a baseline frame in createPlacedCamera (or its placement caller) when filmRemaining > 0'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - place-camera-on-tile
+      - frame-capture-diff-driven
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/timeLapse.ts
+      - src/engine/placeable.ts
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/timeLapse.ts
+    depends_on:
+      - capture-if-changed
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, timelapse]
+
+  - id: register-tick-system
+    title: 'Register `time-lapse-capture` tick system at CLOVER_LIFECYCLE_TICK_MS in src/engine/systems/flora.ts'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - frame-capture-diff-driven
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/systems/flora.ts
+      - src/engine/systems/types.ts
+      - src/engine/timeLapse.ts
+    output_files:
+      - src/engine/systems/flora.ts
+    depends_on:
+      - capture-if-changed
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, systems]
+
+  - id: migrate-seeded-predecessor
+    title: 'Drop the `subject` field from the four pre-seeded seasonal frames in seedTenureStartFieldCamera'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - pre-seeded-frame-content
+      - field-camera-spawns-at-tenure-start-oak
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/timeLapse.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/timeLapse.ts
+    depends_on:
+      - types-and-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, timelapse, genesis]
+
+  - id: delete-camera-subject-enum
+    title: 'Delete the CameraSubject enum from src/engine/types.ts now that no production code uses it'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - camera-subject-retired
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/types.ts
+    output_files:
+      - src/engine/types.ts
+    depends_on:
+      - retire-event-callsites
+      - migrate-seeded-predecessor
+      - playback-contact-sheet-rewrite
+      - album-panel-drop-subject
+      - camera-tests-update
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npm run lint'
+      # post-deletion smoke: nothing in src/ still imports CameraSubject
+      - 'bash -c ''! grep -rn "CameraSubject" src/'''
+    repair: retry
+    tags: [engine, types, cleanup]
+
+  - id: playback-contact-sheet-rewrite
+    title: 'Rewrite TimeLapsePlayback.tsx: contact-sheet grid + click-to-expand + arrow-key cross-fade; remove GelBandView import and SFX'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - playback-contact-sheet
+      - contact-sheet-frame-render
+      - playback-click-to-expand
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/components/TimeLapsePlayback.tsx
+      - src/engine/projection.ts
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+    output_files:
+      - src/components/TimeLapsePlayback.tsx
+    depends_on:
+      - types-and-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [components, modal]
+
+  - id: album-panel-drop-subject
+    title: 'Remove subjectLabel + subject span from PhotographAlbumPanel.tsx; drop CameraSubject import'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - album-panel-no-subject-labels
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/components/PhotographAlbumPanel.tsx
+    output_files:
+      - src/components/PhotographAlbumPanel.tsx
+    depends_on:
+      - types-and-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [components]
+
+  - id: camera-tests-update
+    title: 'Update src/engine/__tests__/timeLapseCamera.test.ts: replace event-driven assertions with diff-driven; add baseline + stability + film-keying regression tests'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - frame-capture-diff-driven
+      - diff-stability-filter
+      - place-camera-on-tile
+      - frame-capture-rejected-when-out-of-budget
+      - span-expiry-freezes-recording
+      - pre-seeded-frame-content
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/__tests__/timeLapseCamera.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/timeLapse.ts
+      - src/engine/systems/flora.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/__tests__/timeLapseCamera.test.ts
+    depends_on:
+      - register-tick-system
+      - baseline-on-placement
+      - migrate-seeded-predecessor
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/timeLapseCamera.test.ts'
+    repair: retry
+    tags: [engine, tests]
+
+  - id: album-tests-update
+    title: 'Update src/engine/__tests__/photographAlbum.test.ts fixtures: drop the `subject` field from constructed TimeLapseFrames'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - camera-subject-retired
+      - album-panel-no-subject-labels
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/engine/__tests__/photographAlbum.test.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/photographAlbum.test.ts
+    depends_on:
+      - types-and-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/photographAlbum.test.ts'
+    repair: retry
+    tags: [engine, tests]
+
+  - id: playback-component-tests
+    title: 'Add component tests covering contact-sheet grid render, click-to-expand, arrow-key step, scroll, no-GelBandView, prefers-reduced-motion'
+    spec_id: time-lapse-camera
+    spec_sections:
+      - playback-contact-sheet
+      - contact-sheet-frame-render
+      - playback-click-to-expand
+    context_files:
+      - harness/specs/time-lapse-camera.yaml
+      - src/components/TimeLapsePlayback.tsx
+      - src/components/__tests__/TimeLapsePlayback.test.tsx
+    output_files:
+      - src/components/__tests__/TimeLapsePlayback.test.tsx
+    depends_on:
+      - playback-contact-sheet-rewrite
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/components/__tests__/TimeLapsePlayback.test.tsx'
+    repair: retry
+    tags: [components, tests]
