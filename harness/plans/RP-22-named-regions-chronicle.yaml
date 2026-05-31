@@ -312,7 +312,17 @@ tasks:
       - component
 
   - id: manual-region-thread-surface
-    title: Extend ManualPanel.tsx and ManualPanel.constants.ts to render a new "Regions" manual section listing each NamedRegion. Use `{ lore: 'TODO' }` placeholders in MANUAL_LORE for each region kind — do not author lore. Each region entry shows region name, a one-line kind-derived description, and the chronicle events bound to that region across the tenure. Existing per-species entries gain a "Chronicle" subsection populated by readChronicleForSpecies. Discovery gating — a region appears in the manual once "region:{regionId}" lands in state.manualDiscoveries.
+    title: >-
+      Extend ManualPanel.tsx and ManualPanel.constants.ts to render a
+      new "Regions" manual section listing each NamedRegion. Use the
+      `{ lore: 'TODO' }` placeholder shape in MANUAL_LORE for each
+      region kind — do not author lore. Each region entry shows region
+      name, a one-line kind-derived description, and the chronicle
+      events bound to that region across the tenure. Existing per-species
+      entries gain a "Chronicle" subsection populated by
+      readChronicleForSpecies. Discovery gating — a region appears in
+      the manual once a "region:{regionId}" entry lands in
+      state.manualDiscoveries.
     spec_id: RP-22-named-regions-chronicle
     spec_sections:
       - manual-region-thread-surface
