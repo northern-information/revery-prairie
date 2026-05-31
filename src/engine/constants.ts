@@ -57,6 +57,17 @@ export const TILE_CHARS: Record<TileType, string> = {
   // Hearth — stone slab in front of the fireplace, walkable.
   [TileType.HouseHearth]: '·',
   [TileType.HouseExit]: '█',
+  // The yard (RP-67). Roof reads as a dense shingled block; eaves are
+  // the overhang's drip-edge; the closed front door reuses the alpha
+  // glyph (mirrors HouseEntrance on the overworld). The fence is a
+  // post-and-rail glyph (╫); the gate is the gap (╨) and uses the
+  // pink-exit idiom because stepping on it leaves the steward's
+  // claimed land for the prairie.
+  [TileType.HouseRoof]: '▓',
+  [TileType.HouseEaves]: '▀',
+  [TileType.HouseDoorClosed]: 'α',
+  [TileType.Fence]: '╫',
+  [TileType.FenceGate]: '╨',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -99,6 +110,15 @@ export const TILE_COLORS: Record<TileType, string> = {
   // Hearth — slightly darker than floor; reads as worn stone slab.
   [TileType.HouseHearth]: '#7A5A38',
   [TileType.HouseExit]: '#ff69b4',
+  // RP-67 — yard exterior. Roof/eaves are warm browns in the house
+  // family; the closed front door mirrors HouseEntrance (#7A5A38). The
+  // fence is weathered wood; the gate uses the hot-pink exit idiom
+  // (`#ff69b4`) because crossing it leaves the lineage's claimed land.
+  [TileType.HouseRoof]: '#5A3D24',
+  [TileType.HouseEaves]: '#3D2A1A',
+  [TileType.HouseDoorClosed]: '#7A5A38',
+  [TileType.Fence]: '#8B6F3D',
+  [TileType.FenceGate]: '#ff69b4',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering
@@ -671,3 +691,32 @@ export const FIRE_TICK_MS = 200
 export const FIREPLACE_CHARS = ['^', '~', '*'] as const
 export const FIREPLACE_COLOR_A = '#FF8C42'
 export const FIREPLACE_COLOR_B = '#FFD56B'
+
+// RP-67 — the yard around the little house. The yard wraps the house
+// asymmetrically: 3-tile walkable margins on the back (north) and sides
+// (east, west), 18-tile front (south) — the front yard is 15 tiles longer
+// than the back. Walkable interior 21x30; +1 fence ring each side gives
+// a 23x32 yard map. The house roof footprint sits flush against the back
+// fence (back margin first, then house). The gate sits at the center of
+// the south fence; the front door sits at the center of the south face of
+// the house roof.
+export const YARD_BACK_MARGIN = 3
+export const YARD_SIDE_MARGIN = 3
+export const YARD_FRONT_MARGIN = 18
+// Yard map dims include the fence ring (+1 each side).
+export const YARD_WIDTH = HOUSE_WIDTH + YARD_SIDE_MARGIN * 2 + 2
+export const YARD_HEIGHT = HOUSE_HEIGHT + YARD_BACK_MARGIN + YARD_FRONT_MARGIN + 2
+// Top-left coordinate of the house roof footprint inside the yard map
+// (fence at 0, margin at 1..YARD_BACK_MARGIN, house starts at
+// YARD_BACK_MARGIN + 1; same for x with YARD_SIDE_MARGIN).
+export const YARD_HOUSE_OFFSET_X = YARD_SIDE_MARGIN + 1
+export const YARD_HOUSE_OFFSET_Y = YARD_BACK_MARGIN + 1
+// Gate centered on the south fence edge.
+export const YARD_GATE_X = Math.floor(YARD_WIDTH / 2)
+export const YARD_GATE_Y = YARD_HEIGHT - 1
+// Front door centered on the house roof's south face. Three HouseDoorClosed
+// tiles span (X-1, Y), (X, Y), (X+1, Y) — mirrors the 3-wide HouseExit
+// opening on the house interior's south wall. YARD_FRONT_DOOR_X/Y is the
+// center tile, used as the iris-center for the yard→house transition.
+export const YARD_FRONT_DOOR_X = YARD_HOUSE_OFFSET_X + Math.floor(HOUSE_WIDTH / 2)
+export const YARD_FRONT_DOOR_Y = YARD_HOUSE_OFFSET_Y + HOUSE_HEIGHT - 1

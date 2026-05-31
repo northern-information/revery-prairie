@@ -287,6 +287,14 @@ export const createGameState = (
     houseMapHeight: houseInterior.height,
     houseEntranceOverworld,
     houseEntranceInterior: houseInterior.spawnInterior,
+    // RP-67 yard fields are declared here with sentinel values; the
+    // yard map is built by createLittleHouseYard() in a later task and
+    // assigned to state at genesis.
+    yardMap: [],
+    yardMapWidth: 0,
+    yardMapHeight: 0,
+    yardGatePosition: { x: 0, y: 0 },
+    yardFrontDoorPosition: { x: 0, y: 0 },
     emilyInvitation: 'unoffered',
     tenureOpened: false,
     giftsReceived: new Set<string>(),

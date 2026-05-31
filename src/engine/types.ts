@@ -47,6 +47,18 @@ export const TileType = {
   Fireplace: 'fireplace',
   HouseHearth: 'houseHearth',
   HouseExit: 'houseExit',
+  // The yard around the little house (RP-67). HouseRoof + HouseEaves
+  // render the house as seen from outside while the steward stands in
+  // the yard zone. HouseDoorClosed is the closed-from-outside front
+  // door — stepping on it triggers the yard→house-interior transition.
+  // Fence is wooden post-and-rail (unwalkable); FenceGate is the
+  // single walkable gate tile centered on the south fence — stepping
+  // on it triggers the yard→overworld transition.
+  HouseRoof: 'houseRoof',
+  HouseEaves: 'houseEaves',
+  HouseDoorClosed: 'houseDoorClosed',
+  Fence: 'fence',
+  FenceGate: 'fenceGate',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -464,6 +476,19 @@ export interface GameState {
   // opposite Emily across the fire. Also the Revery anchor: the steward
   // Reverys in place here, no bed teleport (v11 R7 amendment, RP-36).
   houseEntranceInterior: Position
+  // Yard around the little house (RP-67). The yard is a ThresholdZone
+  // sibling to Zone.Cave and Zone.HouseInterior — a 23x32 bounded place
+  // between the prairie and the house's interior. yardMap is built at
+  // genesis (alongside the house interior) by createLittleHouseYard()
+  // and persists for the tenure. yardGatePosition is the single
+  // FenceGate tile centered on the south fence; yardFrontDoorPosition
+  // is the center of the 3-wide HouseDoorClosed on the house roof's
+  // south face (iris-center for the yard→house transition).
+  yardMap: Tile[][]
+  yardMapWidth: number
+  yardMapHeight: number
+  yardGatePosition: Position
+  yardFrontDoorPosition: Position
   // Emily's invitation state machine. 'unoffered' at genesis; flips to
   // 'offered' when her autumn last line arms awaitingConfirmation;
   // 'confirmed' on [f]-consume; resets to 'unoffered' at dialog close
@@ -982,6 +1007,7 @@ export const Zone = {
   Cave: 'cave',
   Ruin: 'ruin',
   HouseInterior: 'houseInterior',
+  LittleHouseYard: 'littleHouseYard',
 } as const
 
 export type Zone = (typeof Zone)[keyof typeof Zone]

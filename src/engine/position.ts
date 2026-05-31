@@ -113,7 +113,14 @@ export const isWalkableTile = (tileType: TileType): boolean =>
   // HouseHearth is walkable — the player can approach the fireplace
   // by standing on the hearth. (Bed and chair dropped in v11 R7.)
   tileType !== TileType.HouseWall &&
-  tileType !== TileType.Fireplace
+  tileType !== TileType.Fireplace &&
+  // RP-67 — yard exterior tiles. The roof, eaves, and fence block
+  // movement. HouseDoorClosed (the front door from outside) and
+  // FenceGate (the south gate) are walkable; stepping on them triggers
+  // their respective zone transitions.
+  tileType !== TileType.HouseRoof &&
+  tileType !== TileType.HouseEaves &&
+  tileType !== TileType.Fence
 
 // Tile types reserved by a placed structure. New entity placers (oaks today,
 // future multi-tile entities) must reject candidate positions whose footprint

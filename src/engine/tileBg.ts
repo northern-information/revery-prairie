@@ -49,6 +49,17 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.Fireplace]: ['#2A1810', '#2C1A11', '#28170F'],
   [TileType.HouseHearth]: ['#2E1F12'],
   [TileType.HouseExit]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
+  // RP-67 — yard exterior bg palettes. Roof/eaves are deep warm-brown
+  // shingle shadow; the closed front door matches HouseEntrance. The
+  // fence's wood-shadow is a touch lighter than the eaves so posts
+  // read against the prairie ground at zone enter. The gate shares
+  // HouseExit's warm-brown shadow so its pink glyph reads as a
+  // threshold over wood, not over pink-on-pink.
+  [TileType.HouseRoof]: ['#2A1C10', '#2C1E12', '#281A0F', '#2B1D11'],
+  [TileType.HouseEaves]: ['#1F140A', '#21160B', '#1D120A', '#20150B'],
+  [TileType.HouseDoorClosed]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
+  [TileType.Fence]: ['#3A2C1A', '#3C2E1C', '#382A18', '#3B2D1B'],
+  [TileType.FenceGate]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
 }
 
 export const getTileBgColor = (tileType: TileType, x: number, y: number): string => {
