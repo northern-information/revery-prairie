@@ -1938,6 +1938,12 @@ features:
       sibling: the prairie's reachable shape itself drifts year over
       year.
 
+
+      v11 thinktank round 5 (2026-05-30). The reachableMass recompute
+      hook also fires at season boundaries (Winter↔Spring) for RP-64
+      frozen-waterfall freeze/thaw, not only at year boundaries.
+      RP-44's spec must wire both triggers.
+
   - id: 'RP-45'
     name: Seismographs
     summary: >
@@ -2621,87 +2627,67 @@ features:
   - id: 'RP-64'
     name: Waterfalls
     summary: >
-      Water flowing off a rise. Detect tiles where a river or pond
-      sits at the top of an unclimbable elevation step (the same
-      step the cliff-face shadow is drawn on per RP-41); draw a
-      waterfall on the iso side wall connecting the water tile to
-      the lower neighbor. Pairs visually with the cliff shadow —
-      both occupy the same surface (the side wall of a lifted
-      tile). Whether the waterfall is purely decorative or affects
-      anything downstream (the receiving tile's water state, the
-      soundscape, the dormancy radius of a thermogenic egregore
-      nearby) is the thinktank question.
-    size: M
-    depends_on: ['RP-41']
+      Water flowing off a rise. Post-genesis detection pass over the
+      union of `state.rivers ∪ state.ponds` finds every water tile
+      with an unclimbable step (`isClimbableStep` from RP-41) to a
+      lower walkable neighbor and records a waterfall. New
+      `state.waterfalls` field on GameState. Render extends
+      `tileBgCache.paintTileBg` to draw an animated glyph cycle on
+      the iso side wall connecting top and bottom tiles — same
+      surface as RP-41's cliff shadow, no new render pass.
+      Receiving (lower) tile gets a small `state.tileWater` bump.
+      Positional per-waterfall audio with a concurrent-audible cap.
+
+      Winter freezes waterfalls: the flowing visual gives way to a
+      frozen cascade, and the waterfall becomes climbable upward
+      via `isClimbableStep` for the bottom→top transition. Mesas
+      above waterfalls become reachable in winter only; spring
+      thaws and the route closes. A frozen waterfall within an
+      RP-43 thermogenic egregore's heat radius thaws locally — the
+      egregore revokes the route. Frozen waterfalls extend
+      `state.reachableMass` for the duration of winter; recompute
+      hooks fire at season boundaries.
+    size: L
+    depends_on: ['RP-41', 'RP-43']
     status: todo
     spec: null
     plan: null
     pr: null
     notes: >
-      Surfaced 2026-05-30 mid-implementation of RP-41 (cliffs and
-      verticality) — Tyler asked if waterfalls should bundle into
-      the RP-41 PR; the room declined per harness discipline (specs
-      do not grow during implementation) and filed this as the
-      natural follow-on. _As long as the elevation system has
-      opinions about adjacency, water has somewhere to fall._
+      v11 thinktank round 5 (2026-05-30). The line the room locked:
+      **the prairie has gravity now.** Cliffs gave the prairie
+      _shape_; waterfalls give it _motion_. Waterfalls join wildfire
+      (RP-42) and winter geology (RP-44) as the three motion-the-
+      steward-cannot-direct systems. Astrid's doctrine lock:
+      waterfalls are _revealed_, not added — every one must trace
+      to a source. Calla's load-bearing move: the frozen-waterfall-
+      as-stairway makes mesa access a seasonal commitment (_go now
+      or wait a year_). Delta's reframe: the cosmology has been
+      waiting for this round since v7 named verticality — _gravity
+      was always older than fire_.
 
 
-      Needs a thinktank round before spec. Open questions the round
-      will need to lock: (a) decorative vs system — does a
-      waterfall affect downstream water tiles, propagate humidity,
-      or change the receiving tile's bg color, or is it purely
-      visual? (b) audio register — ambient layer or per-waterfall
-      positional? (c) winter behavior — do waterfalls freeze, and
-      if so do they thaw with RP-43 thermogenic egregore proximity?
-      (d) the render question — animated glyphs vs a static wavy
-      strip vs Voynich. (e) pairing with RP-42 wildfire and RP-44
-      winter geology — these three are _motion the steward cannot
-      direct_, and the cosmology probably wants them in
-      conversation. (f) whether RP-44's `reachableMass` recompute
-      needs to know about waterfalls (a waterfall might be a
-      one-way passage downward — climbable for water, not for
-      feet).
-
-  - id: 'RP-65'
-    name: X-ray alpha on lifted tiles occluding the avatar
-    summary: >
-      Per-frame alpha rule: any lifted tile whose iso projection
-      would visually occlude the player avatar's bounding box
-      renders its terrain glyph and side-wall shadow at XRAY_ALPHA
-      (~0.45) instead of fully opaque. Generalizes the v7-round
-      "cliff x-ray" idea to any lifted tile, not just cliffs. Goal
-      is "the steward stays visible at all times" even when walking
-      behind a mesa or under a high ridge.
-    size: M
-    depends_on: ['RP-41']
-    status: todo
-    spec: null
-    plan: null
-    pr: null
-    notes: >
-      Filed 2026-05-30 during RP-41 implementation. The behavior was
-      originally bundled into the RP-41 spec (behavior
-      `x-ray-alpha-on-occluding-lifted-tiles`) but deferred mid-
-      implementation because the bg-cache architecture in
-      `src/engine/tileBgCache.ts` precomputes the full map tile-bg
-      into an offscreen canvas and the `tileBgCompositePass` blits
-      it with a single per-frame `drawImage` — per-tile per-frame
-      alpha needs a different pattern (overlay pass on top of the
-      player, sub-region re-paint, or a cache restructure).
+      Amendment to v11 R3 `reachableMass` lock: the field is no
+      longer purely genesis-time + RP-44 year-boundary; it has a
+      seasonal recompute hook from RP-64 freeze/thaw.
 
 
-      Helpers already exist in `src/engine/projection.ts` from the
-      RP-41 tier-0 commit: `XRAY_ALPHA`, `AVATAR_OCCLUSION_PAD`,
-      `ScreenRect`, `getTileScreenRect`, `getAvatarScreenRect`,
-      `rectsOverlap`, `isTileOccludingAvatar`. The unfinished part
-      is the integration into the render dispatch — likely a new
-      pass in `src/engine/render/passes/` that runs after the
-      player pass and re-paints occluding tiles at reduced alpha
-      on top of the cache blit. Open at spec: exact render
-      ordering, whether `tileBgCache` needs to expose per-tile
-      sub-region access, and how flora/entities on x-rayed tiles
-      participate (the spec said they should inherit the alpha,
-      but the existing per-entity render passes are independent).
-      RP-38 (overworld fog of war, shipped) is a useful precedent
-      for "per-frame state-aware visibility modification on top of
-      cached terrain."
+      Open at spec: exact `state.waterfalls` shape (Set keyed on
+      top tile vs Map with structured value — lean Map); glyph
+      rotation for flowing vs frozen states (no Voynich, no
+      rainbow); audio asset choice (reuse existing water sample
+      with low-pass+reverb vs commission new); concurrent-audible
+      cap value and policy (hard drop vs weighted attenuation);
+      whether the `tileWater` bump decays seasonally or persists;
+      multi-tile cliff face — one waterfall or staged (lean one);
+      frozen stairway walkable downward as well as upward (lean
+      upward only); whether a frozen waterfall whose source dries
+      up (RP-44 river reroute) falls apart immediately or persists
+      as ice (lean: falls apart — _the prairie does not maintain
+      dishonesty_); whether the visual extends ABOVE the cliff
+      with a rapids effect on the source tile (lean side-wall only).
+
+
+      Firebreak: waterfalls count as firebreaks once RP-42 lands.
+      Fire-spread BFS will read `state.waterfalls` opportunistically;
+      RP-42 is not a hard dependency.
