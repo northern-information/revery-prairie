@@ -124,7 +124,7 @@ tasks:
     tags: [engine]
 
   - id: add-cliff-shadow-and-xray-geometry
-    title: 'Add CLIFF_SHADOW_COLOR, SHADOW_TRIGGER_DELTA, XRAY_ALPHA, AVATAR_OCCLUSION_PAD constants to projection.ts plus any geometry helpers needed (e.g. getCliffShadowQuads wrapping getCellSideQuads, isOccludingAvatar(tileRect, playerRect))'
+    title: 'Add CLIFF_SHADOW_COLOR + XRAY_ALPHA + AVATAR_OCCLUSION_PAD constants and ScreenRect helpers (getTileScreenRect, getAvatarScreenRect, rectsOverlap, isTileOccludingAvatar) to projection.ts. X-ray helpers ship as substrate for RP-65; only the cliff-shadow color/constants are wired in this plan'
     spec_id: rp-41-cliffs-verticality
     spec_sections:
       - cliff-face-shadow-rendered
@@ -139,12 +139,11 @@ tasks:
     repair: retry
     tags: [engine, render]
 
-  - id: render-cliff-shadow-and-xray-in-tile-composite
-    title: 'Extend tileBgComposite pass to draw the cliff-face shadow when neighbor lift delta exceeds SHADOW_TRIGGER_DELTA and to apply XRAY_ALPHA when the tile occludes the player avatars screen-space rect; update tileBgCache contract if the shadow or x-ray affect cache invalidation keys'
+  - id: render-cliff-shadow-in-tile-cache
+    title: 'Extend tileBgCache.paintTileBg to draw the cliff-face shadow on the side wall between any tile and its south/east neighbor whose elevation step is unclimbable (isClimbableStep === false). X-ray rule is deferred to RP-65.'
     spec_id: rp-41-cliffs-verticality
     spec_sections:
       - cliff-face-shadow-rendered
-      - x-ray-alpha-on-occluding-lifted-tiles
     context_files:
       - src/engine/render/passes/tileBgComposite.ts
       - src/engine/tileBgCache.ts
@@ -157,6 +156,7 @@ tasks:
     depends_on:
       - add-cliff-shadow-and-xray-geometry
       - raise-tectonic-uplift-amplitude
+      - add-climbable-step-predicate
     verification:
       - 'npx tsc -b --noEmit'
     repair: retry
@@ -173,7 +173,6 @@ tasks:
       - unreachable-tiles-preserved
       - reachable-mass-on-game-state
       - cliff-face-shadow-rendered
-      - x-ray-alpha-on-occluding-lifted-tiles
     context_files:
       - src/engine/__tests__/cliffsVerticality.test.ts
       - src/engine/__tests__/movement.test.ts
@@ -190,7 +189,7 @@ tasks:
       - wire-reachable-mass-into-game-state
       - gate-movement-on-climbable-step
       - gate-pathfinding-on-climbable-step
-      - render-cliff-shadow-and-xray-in-tile-composite
+      - render-cliff-shadow-in-tile-cache
     verification:
       - 'npx vitest run src/engine/__tests__/cliffsVerticality.test.ts'
     repair: retry

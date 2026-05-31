@@ -2617,3 +2617,91 @@ features:
       loops need auditing (ruins, characters, meteorites,
       seeded-predecessor camera, future RP-44 re-rolled ruins);
       whether the precondition is a hard filter or a weighted bias.
+
+  - id: 'RP-64'
+    name: Waterfalls
+    summary: >
+      Water flowing off a rise. Detect tiles where a river or pond
+      sits at the top of an unclimbable elevation step (the same
+      step the cliff-face shadow is drawn on per RP-41); draw a
+      waterfall on the iso side wall connecting the water tile to
+      the lower neighbor. Pairs visually with the cliff shadow —
+      both occupy the same surface (the side wall of a lifted
+      tile). Whether the waterfall is purely decorative or affects
+      anything downstream (the receiving tile's water state, the
+      soundscape, the dormancy radius of a thermogenic egregore
+      nearby) is the thinktank question.
+    size: M
+    depends_on: ['RP-41']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      Surfaced 2026-05-30 mid-implementation of RP-41 (cliffs and
+      verticality) — Tyler asked if waterfalls should bundle into
+      the RP-41 PR; the room declined per harness discipline (specs
+      do not grow during implementation) and filed this as the
+      natural follow-on. _As long as the elevation system has
+      opinions about adjacency, water has somewhere to fall._
+
+
+      Needs a thinktank round before spec. Open questions the round
+      will need to lock: (a) decorative vs system — does a
+      waterfall affect downstream water tiles, propagate humidity,
+      or change the receiving tile's bg color, or is it purely
+      visual? (b) audio register — ambient layer or per-waterfall
+      positional? (c) winter behavior — do waterfalls freeze, and
+      if so do they thaw with RP-43 thermogenic egregore proximity?
+      (d) the render question — animated glyphs vs a static wavy
+      strip vs Voynich. (e) pairing with RP-42 wildfire and RP-44
+      winter geology — these three are _motion the steward cannot
+      direct_, and the cosmology probably wants them in
+      conversation. (f) whether RP-44's `reachableMass` recompute
+      needs to know about waterfalls (a waterfall might be a
+      one-way passage downward — climbable for water, not for
+      feet).
+
+  - id: 'RP-65'
+    name: X-ray alpha on lifted tiles occluding the avatar
+    summary: >
+      Per-frame alpha rule: any lifted tile whose iso projection
+      would visually occlude the player avatar's bounding box
+      renders its terrain glyph and side-wall shadow at XRAY_ALPHA
+      (~0.45) instead of fully opaque. Generalizes the v7-round
+      "cliff x-ray" idea to any lifted tile, not just cliffs. Goal
+      is "the steward stays visible at all times" even when walking
+      behind a mesa or under a high ridge.
+    size: M
+    depends_on: ['RP-41']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      Filed 2026-05-30 during RP-41 implementation. The behavior was
+      originally bundled into the RP-41 spec (behavior
+      `x-ray-alpha-on-occluding-lifted-tiles`) but deferred mid-
+      implementation because the bg-cache architecture in
+      `src/engine/tileBgCache.ts` precomputes the full map tile-bg
+      into an offscreen canvas and the `tileBgCompositePass` blits
+      it with a single per-frame `drawImage` — per-tile per-frame
+      alpha needs a different pattern (overlay pass on top of the
+      player, sub-region re-paint, or a cache restructure).
+
+
+      Helpers already exist in `src/engine/projection.ts` from the
+      RP-41 tier-0 commit: `XRAY_ALPHA`, `AVATAR_OCCLUSION_PAD`,
+      `ScreenRect`, `getTileScreenRect`, `getAvatarScreenRect`,
+      `rectsOverlap`, `isTileOccludingAvatar`. The unfinished part
+      is the integration into the render dispatch — likely a new
+      pass in `src/engine/render/passes/` that runs after the
+      player pass and re-paints occluding tiles at reduced alpha
+      on top of the cache blit. Open at spec: exact render
+      ordering, whether `tileBgCache` needs to expose per-tile
+      sub-region access, and how flora/entities on x-rayed tiles
+      participate (the spec said they should inherit the alpha,
+      but the existing per-entity render passes are independent).
+      RP-38 (overworld fog of war, shipped) is a useful precedent
+      for "per-frame state-aware visibility modification on top of
+      cached terrain."

@@ -213,27 +213,23 @@ behaviors:
 
   - id: x-ray-alpha-on-occluding-lifted-tiles
     description: >
-      Generalized x-ray rule (re-cast from the v7-round x-ray idea):
-      any tile whose iso lift would visually occlude the player
-      avatar's bounding box has its terrain glyph and side-wall
-      shadow rendered at XRAY_ALPHA (0.45) instead of fully opaque.
-      Occlusion is determined by comparing the tile's projected
-      iso-screen rect (top-left to bottom-right) against the
-      player's projected screen rect inflated by AVATAR_OCCLUSION_PAD
-      pixels. The check runs per-frame inside the tile composition
-      pass. Flora, entities, and other render-pass output on the
-      x-rayed tile follow the same alpha — done by setting the
-      composite pass's globalAlpha before its draws, restored after.
-      The rule applies to all lifted tiles, not just those involved
-      in cliff-face shadows. When the player is hidden behind a
-      multi-tile rise, the steward stays visible.
-    inputs:
-      - 'overworld render frame where any tile would occlude the player avatars screen-space rect'
-    outputs:
-      - "tile's glyph, side-wall shadow, and lifted-tile composite drawn at XRAY_ALPHA"
-      - 'player avatar always remains visible regardless of intervening terrain'
+      **DEFERRED TO RP-65** (filed 2026-05-30 during RP-41
+      implementation). Originally specced as a per-frame alpha rule
+      on any lifted tile occluding the player avatar's bounding
+      box. The bg-cache architecture in `tileBgCache.ts`
+      precomputes the full map into an offscreen canvas and the
+      composite pass blits it with one `drawImage` per frame — per-
+      tile per-frame alpha needs a different pattern than this
+      spec assumed. Helpers ARE shipped as part of RP-41 (see
+      `src/engine/projection.ts`: `XRAY_ALPHA`,
+      `AVATAR_OCCLUSION_PAD`, `getTileScreenRect`,
+      `getAvatarScreenRect`, `rectsOverlap`,
+      `isTileOccludingAvatar`) so RP-65 can pick up without
+      re-doing the geometry work.
+    inputs: []
+    outputs: []
     state_changes: []
-    determinism: time-based
+    determinism: deterministic
 
 edge_cases:
   - id: flat-prairie-seed
@@ -303,10 +299,9 @@ edge_cases:
       projection would draw the mesa over the player's screen-space
       rect.
     expected: >
-      Tiles that occlude the player render at XRAY_ALPHA (0.45).
-      Player avatar remains fully visible. When the player walks
-      out from behind the mesa, the tiles return to full opacity
-      on the next frame.
+      **DEFERRED TO RP-65.** Under RP-41 alone, the mesa may
+      occlude the avatar. RP-65 ships the x-ray rule that restores
+      avatar visibility.
 
   - id: micro-bump-between-tiles
     description: >
@@ -358,14 +353,7 @@ failure_conditions:
       docs/claude/state.md; reachability becomes inconsistent
       with elevation.
 
-  - trigger: 'x-ray alpha is applied to tiles that do not occlude the player'
-    expected: >
-      fail — terrain visually fades for no reason; reading the
-      map becomes confusing. Specifically, a tile whose iso rect
-      is entirely below/right of the player rect (no overlap)
-      should never be x-rayed.
-
-  - trigger: 'cliff-face shadow is drawn between two same-elevation tiles or tiles within SHADOW_TRIGGER_DELTA'
+  - trigger: 'cliff-face shadow is drawn between two same-elevation tiles or tiles within the climbable-step threshold'
     expected: >
       fail — visual noise in flat prairie regions, distracting
       from real cliff edges.
