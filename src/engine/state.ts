@@ -316,6 +316,9 @@ export const createGameState = (
     // grid; tiles outside the set stay in the prairie as visible-
     // but-unwalkable terrain.
     reachableMass: computeReachableMass(map, genesisData.elevation, MAP_WIDTH, MAP_HEIGHT, playerX, playerY),
+    // RP-64 — populated by detectWaterfalls in the wire-detection
+    // task. Placeholder Map here so Tier 0 typechecks independently.
+    waterfalls: new Map(),
     ponds: genesisData.ponds,
     rivers: genesisData.riverPaths,
     burnScars: genesisData.burnScars,

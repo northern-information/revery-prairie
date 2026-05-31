@@ -226,6 +226,23 @@ export const WALL_RIGHT_SHADE = 0.55
 // a tile._
 export const WALL_CLIFF_SHADE = 0.18
 
+// RP-64 — Waterfall rendering and audio constants.
+// Animated glyph cycle drawn on the iso side wall for flowing
+// (non-frozen) waterfalls. Cycle steps at WATERFALL_FLOW_CADENCE_MS
+// using floor(time / cadence) % glyphs.length. Frozen state shows
+// a single static glyph instead.
+export const WATERFALL_FLOW_CADENCE_MS = 200
+export const WATERFALL_FLOW_GLYPHS = ['|', '!', '/'] as const
+export const WATERFALL_FROZEN_GLYPH = '#'
+// Receiving tile (the lower neighbor) gets this bump added to its
+// state.tileWater entry at detection. Skipped if the receiving
+// tile is itself a river or pond (already wet — would double-count).
+export const WATERFALL_TILE_WATER_BUMP = 0.4
+// Positional audio: all waterfalls share one URL so the existing
+// max-across-same-url logic in audio.ts caps audible volume at 1.
+export const WATERFALL_AUDIO_URL = '/sfx/waterfall.mp3'
+export const WATERFALL_AUDIO_RADIUS = 10
+
 // Discrete elevation tiers ("Minecraft" style): each tile snaps to a
 // tier index 0..ELEVATION_TIER_COUNT-1 based on its raw elevation, and
 // the visual lift is tier * ELEVATION_TIER_LIFT_PX. Every tile renders
