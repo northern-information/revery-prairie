@@ -34,6 +34,8 @@ export interface PaintSnapshot {
 interface CanvasMocks {
   fillRect: Mock
   fillText: Mock
+  strokeRect: Mock
+  strokeText: Mock
   clearRect: Mock
   drawImage: Mock
   fill: Mock
@@ -43,6 +45,10 @@ interface CanvasMocks {
   moveTo: Mock
   lineTo: Mock
   arc: Mock
+  rect: Mock
+  ellipse: Mock
+  bezierCurveTo: Mock
+  quadraticCurveTo: Mock
   setLineDash: Mock
   getLineDash: Mock
   save: Mock
@@ -52,9 +58,17 @@ interface CanvasMocks {
   scale: Mock
   setTransform: Mock
   resetTransform: Mock
+  transform: Mock
+  clip: Mock
   createLinearGradient: Mock
   createRadialGradient: Mock
+  createPattern: Mock
   measureText: Mock
+  getImageData: Mock
+  putImageData: Mock
+  createImageData: Mock
+  isPointInPath: Mock
+  isPointInStroke: Mock
 }
 
 export const makeCanvasStub = (): CanvasStub => {
@@ -82,6 +96,8 @@ export const makeCanvasStub = (): CanvasStub => {
   const mocks: CanvasMocks = {
     fillRect: vi.fn((...a: unknown[]) => { snap('fillRect', a); }),
     fillText: vi.fn((...a: unknown[]) => { snap('fillText', a); }),
+    strokeRect: vi.fn(),
+    strokeText: vi.fn(),
     clearRect: vi.fn((...a: unknown[]) => { snap('clearRect', a); }),
     drawImage: vi.fn((...a: unknown[]) => { snap('drawImage', a); }),
     fill: vi.fn((...a: unknown[]) => { snap('fill', a); }),
@@ -91,6 +107,10 @@ export const makeCanvasStub = (): CanvasStub => {
     moveTo: vi.fn(),
     lineTo: vi.fn(),
     arc: vi.fn(),
+    rect: vi.fn(),
+    ellipse: vi.fn(),
+    bezierCurveTo: vi.fn(),
+    quadraticCurveTo: vi.fn(),
     setLineDash: vi.fn((d: number[]) => {
       state.lineDash = d
     }),
@@ -102,13 +122,21 @@ export const makeCanvasStub = (): CanvasStub => {
     scale: vi.fn(),
     setTransform: vi.fn(),
     resetTransform: vi.fn(),
+    transform: vi.fn(),
+    clip: vi.fn(),
     createLinearGradient: vi.fn(() => ({
       addColorStop: vi.fn(),
     })),
     createRadialGradient: vi.fn(() => ({
       addColorStop: vi.fn(),
     })),
+    createPattern: vi.fn(() => null),
     measureText: vi.fn(() => ({ width: 0 })),
+    getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1, colorSpace: 'srgb' as PredefinedColorSpace })),
+    putImageData: vi.fn(),
+    createImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1, colorSpace: 'srgb' as PredefinedColorSpace })),
+    isPointInPath: vi.fn(() => false),
+    isPointInStroke: vi.fn(() => false),
   }
 
   const ctx = {
