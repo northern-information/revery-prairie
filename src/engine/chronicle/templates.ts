@@ -6,8 +6,8 @@
 // are the language of entropy; the prairie names what failed to happen.
 // A unit test asserts the ratio. Templates are short, past-tense,
 // slot-bound, and contain no metaphorical adjective prose. The word
-// `invasive` is banned across the whole repo and templates are in
-// scope.
+// the v3 cosmology bans (see the lint guard) must not appear in any
+// rendered template text; the registry stays within that constraint.
 //
 // Each template's text function takes its slot values and returns a
 // single sentence ≤12 words.
