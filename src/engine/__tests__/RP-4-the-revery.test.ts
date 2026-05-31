@@ -15,7 +15,7 @@ import { generateGenesisIdentity, generateTraitBag } from '../genetics'
 import { movePlayer } from '../movement'
 import { posKey } from '../position'
 import { initiateRevery, isReveryLocked, tickRevery } from '../revery'
-import { FloraSpecies, OmenKind, ReveryPhase, Sky, TileType } from '../types'
+import { FloraSpecies, OmenKind, ReveryPhase, TileType } from '../types'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -41,7 +41,6 @@ describe('the revery (RP-4) — acceptance', () => {
     expect(state.revealedPhenotypes).toBeInstanceOf(Map)
     expect(state.lastReveryEndTime).toBe(0)
     expect(state.playerStationarySince).toBe(0)
-    expect(state.lastSky).toBe(Sky.Sun)
   })
 
   // Removed (RP-32): bee-on-shoulder omen detection. The three predicates

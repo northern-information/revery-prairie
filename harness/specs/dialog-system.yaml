@@ -84,10 +84,11 @@ behaviors:
       giveCharacterGift/givePostGift for pickup-bloom spawning). gift
       delivery only runs on the 'character' variant — interactables
       have no gift, so the gift flow is skipped on speakerKind
-      'interactable'. additionally, when the closing dialog belongs
-      to Gron and state.pendingSavedBees is true, the saved-bees
-      release fires per main-questline-foundation:gron-saving-bees-release
-      before the gift flow runs.
+      'interactable'. The Gron saved-bees release is no longer
+      tied to dialog-close — per RP-21-gron-doctrine, releaseSavedBees
+      fires synchronously inside triggerStewardSeal at the
+      bee+clover ceremony, and the pendingSavedBees field has been
+      removed from GameState.
     inputs:
       - '[f] pressed during active dialog, optional time'
     outputs:
@@ -95,8 +96,6 @@ behaviors:
     state_changes:
       - field: activeDialog
         effect: 'typing completed, or transition started, or set to null'
-      - field: '(gron saved-bees release)'
-        effect: 'when Gron dialog closes with pendingSavedBees true, releaseSavedBees fires per main-questline-foundation:gron-saving-bees-release'
     determinism: deterministic
 
   - id: dialog-completion-gift

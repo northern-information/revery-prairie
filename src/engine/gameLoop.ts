@@ -205,7 +205,6 @@ export const createGameLoop = (state: GameState, callbacks: GameLoopCallbacks): 
     }
     prevSeason = state.weather.season
     tickRevery(state, 0, time)
-    state.lastSky = state.weather.sky
 
     // RP-64 — Bring every waterfall's frozen flag into agreement
     // with the current season. Idempotent; safe to run every frame.

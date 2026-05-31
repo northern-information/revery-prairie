@@ -41,6 +41,8 @@ behaviors:
     state_changes:
       - field: world
         effect: 'new entity with Position, Velocity, Renderable, SatelliteData, EntityTag=satellite, EntityZone=overworld'
+      - field: lastSatelliteSpawnTime
+        effect: 'set to the spawn time so the next spawn cannot fire until SATELLITE_MIN_SPAWN_INTERVAL_MS has elapsed'
     determinism: probabilistic
 
   - id: satellite-descent-visual

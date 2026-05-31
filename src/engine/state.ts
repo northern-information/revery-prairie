@@ -36,7 +36,7 @@ import { WATERFALL_TILE_WATER_BUMP } from './tileBg'
 import { detectNamedRegions } from './regions'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
 import { buildWaterProximity } from './tileWater'
-import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, Sky, TileType, Zone } from './types'
+import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 
@@ -382,7 +382,6 @@ export const createGameState = (
     dormancyPressure: 0,
     collapsedStewardTile: null,
     playerStationarySince: 0,
-    lastSky: Sky.Sun,
     postGiftActionsCompleted: new Set<string>(),
     rainFrontOffset: 0,
     precipitationIntensity: 0,
