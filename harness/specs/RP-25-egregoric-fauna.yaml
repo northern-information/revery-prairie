@@ -1,0 +1,345 @@
+id: RP-25-egregoric-fauna
+name: 'RP-25 Egregoric fauna (the parallel fauna register)'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/egregoreFauna.ts
+  - src/engine/types.ts
+  - src/engine/manual.ts
+  - src/engine/chronicle/emitters.ts
+  - src/engine/renderer.ts
+  - src/engine/render/passes/egregoreFaunaAura.ts
+  - src/engine/render/passes/index.ts
+  - src/engine/gameLoop.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - RP-8b-egregoric-mechanical
+
+# Scope
+#
+# First cut ships two egregoric fauna types per the round 8 doctrine:
+#   1) wrongBee — analog to the native `bee` entity, with deliberately
+#      violated routing.
+#   2) pierceWalker — no native analog. Voynich-glyph entity that
+#      crawls between adjacent seam tiles.
+#
+# Both fauna are opt-in by placement: they only spawn near the seam
+# (egregoric tile clusters). A player who never approaches an
+# egregoric tile cluster never sees them in this tenure.
+#
+# Lore (manual entries) is human-authored only — entries register
+# with { lore: 'TODO' } per the MANUAL_LORE doctrine.
+
+behaviors:
+  - id: seam-cluster-detection
+    description: >
+      isSeamCluster(state, x, y) returns true when the tile at (x, y)
+      is an egregoric tile (state.egregorePositions contains it) AND
+      at least 2 other egregoric tiles exist within Chebyshev distance
+      2 of (x, y). The function is used both to gate spawn attempts
+      (only clusters can emit fauna) and to bound wrongBee/pierceWalker
+      attraction targets at movement time.
+    inputs:
+      - 'GameState'
+      - 'tile coordinates x, y'
+    outputs:
+      - 'boolean'
+    state_changes: []
+    determinism: deterministic
+
+  - id: wrong-bee-spawn
+    description: >
+      Once per gameLoop tick, tickEgregoreFauna evaluates a spawn
+      attempt for wrongBee. Spawn proceeds only when ALL of the
+      following hold:
+        - state.zone === 'overworld'
+        - at least one seam cluster exists in the overworld map
+        - the current count of live wrongBee entities is < WRONG_BEE_CAP (3)
+        - Math.random() < WRONG_BEE_SPAWN_CHANCE (0.005 per tick)
+      On a successful attempt, one wrongBee entity is created at a
+      random walkable tile within Chebyshev distance 1 of a randomly
+      chosen seam-cluster tile. The entity has ECS components:
+        - EntityTag = 'wrongBee'
+        - Position { x, y }
+        - DriftBehavior { moveChance: 0.4, bounds: null }
+        - WrongBeeLifecycle { ticksRemaining: WRONG_BEE_LIFESPAN_TICKS (600) }
+      No PollenBag component is added — wrongBees do not pollinate.
+    inputs:
+      - 'GameState in overworld'
+      - 'at least one seam cluster present'
+    outputs:
+      - 'zero or one new ECS entity tagged wrongBee'
+    state_changes:
+      - field: world
+        effect: 'on success, one entity created with EntityTag wrongBee, Position, DriftBehavior, WrongBeeLifecycle components'
+      - field: manualDiscoveries
+        effect: "first time a wrongBee is created in the current save, recordDiscovery(state, 'fauna:wrongBee') runs and returns true"
+    determinism: probabilistic
+
+  - id: wrong-bee-routing-violation
+    description: >
+      Each tick, every live wrongBee evaluates a movement step. Unlike
+      native bees (which target nearby flora via pollinator
+      preference), wrongBees ignore flora entirely and instead target
+      the nearest seam-cluster tile within Chebyshev distance 6. If no
+      seam tile is within range, the wrongBee drifts via
+      DriftBehavior (random adjacent step with moveChance). When a
+      seam tile is within range, the wrongBee takes one step that
+      decreases Chebyshev distance to it, choosing a uniformly random
+      tie-breaker among equally-good adjacent walkable tiles. WrongBees
+      do not visit beehives and are not eligible for
+      pollen pickup, pollen drop, or hive return — none of the bee
+      pollination tick paths run for them.
+    inputs:
+      - 'wrongBee entity at (x, y) with seam tiles in the world'
+    outputs:
+      - 'movement step OR no-op for that tick'
+    state_changes:
+      - field: world
+        effect: 'wrongBee Position updated by exactly one tile (cardinal or diagonal) per tick, or unchanged'
+    determinism: probabilistic
+
+  - id: wrong-bee-lifespan-expiry
+    description: >
+      Each tick, every live wrongBee decrements
+      WrongBeeLifecycle.ticksRemaining by 1. When ticksRemaining
+      reaches 0, the wrongBee entity is destroyed. No corpse, no
+      ground item, no pickup bloom — egregoric fauna leaves no
+      terran residue.
+    inputs:
+      - 'wrongBee entity with WrongBeeLifecycle.ticksRemaining'
+    outputs:
+      - 'entity destroyed when ticksRemaining hits 0'
+    state_changes:
+      - field: world
+        effect: 'entity destroyed on ticksRemaining transition from 1 → 0'
+    determinism: deterministic
+
+  - id: wrong-bee-walk-over-noop
+    description: >
+      Mirrors the native bee-walk-over-noop rule. Player movement
+      onto or adjacent to a wrongBee never captures it.
+      pickUpGroundItems excludes any entity tagged wrongBee from the
+      3x3 proximity scan, same way it excludes native bees. WrongBees
+      have no recipe, no vault payload, and no explicit interaction
+      verb in this first cut.
+    inputs:
+      - 'player at Chebyshev distance ≤ 1 of a wrongBee entity'
+    outputs: []
+    state_changes: []
+    determinism: deterministic
+
+  - id: pierce-walker-spawn
+    description: >
+      Once per gameLoop tick, tickEgregoreFauna evaluates a spawn
+      attempt for pierceWalker. Spawn proceeds only when ALL of the
+      following hold:
+        - state.zone === 'overworld'
+        - at least one seam cluster exists in the overworld map
+        - the current count of live pierceWalker entities is < PIERCE_WALKER_CAP (1)
+        - Math.random() < PIERCE_WALKER_SPAWN_CHANCE (0.001 per tick)
+      On a successful attempt, one pierceWalker is created AT a
+      seam-cluster tile (not adjacent — directly on the egregoric tile
+      itself). The entity has ECS components:
+        - EntityTag = 'pierceWalker'
+        - Position { x, y }
+        - PierceWalkerGlyph { codepoint: number }
+          where codepoint is uniformly chosen from the egregore PUA
+          allowlist (U+F121..U+F2FF, excluding EMPTY_PUA_BLOCKLIST) via
+          the existing egregore.ts glyph picker.
+    inputs:
+      - 'GameState in overworld'
+      - 'at least one seam cluster present'
+    outputs:
+      - 'zero or one new ECS entity tagged pierceWalker'
+    state_changes:
+      - field: world
+        effect: 'on success, one entity created with EntityTag pierceWalker, Position, PierceWalkerGlyph components'
+      - field: egregoreSpecimens
+        effect: "the new pierceWalker's tile is appended to state.egregoreSpecimens (it is an F-hold scan target like other egregoric content)"
+      - field: manualDiscoveries
+        effect: "first time a pierceWalker is created in the current save, recordDiscovery(state, 'fauna:pierceWalker') runs and returns true"
+    determinism: probabilistic
+
+  - id: pierce-walker-seam-bound-motion
+    description: >
+      Each tick, every live pierceWalker may step to an adjacent
+      egregoric tile. Resolution:
+        - enumerate the 8 neighbors of the current position
+        - filter to neighbors that ARE in state.egregorePositions
+        - if the filtered set is empty, the pierceWalker does not move
+        - otherwise, with probability 0.1 per tick, step to a
+          uniformly random tile in the filtered set
+      PierceWalkers never leave the seam: they cannot occupy a
+      non-egregoric tile.
+    inputs:
+      - 'pierceWalker entity at (x, y)'
+    outputs:
+      - 'movement step OR no-op for that tick'
+    state_changes:
+      - field: world
+        effect: 'pierceWalker Position updated to an adjacent egregoric tile, or unchanged'
+    determinism: probabilistic
+
+  - id: pierce-walker-no-pickup-no-interaction
+    description: >
+      pierceWalker entities are not collectable and have no
+      interaction verb. pickUpGroundItems excludes them. Player
+      pathfinding does not route through their tile (they are added to
+      getBlockedPositions, same way ghosts are). RP-23's camera CAN
+      photograph a pierceWalker — the camera's scan logic treats them
+      as F-hold scannable like any other egregoric content, since the
+      spawn behavior already records them in egregoreSpecimens.
+    inputs:
+      - 'player adjacent to or pathfinding through a pierceWalker tile'
+    outputs:
+      - 'pickup: no-op; pathfinding: routes around'
+    state_changes: []
+    determinism: deterministic
+
+  - id: rendering
+    description: >
+      Both new fauna types render in the existing entity render loop
+      inside src/engine/renderer.ts (the same loop that handles bees
+      and ghosts).
+        - wrongBee renders with glyph 'b' and color matching the
+          existing egregoric-flora egregore color token (NOT the
+          native bee color). The shared color signals "this is bee-
+          shaped but wrong."
+        - pierceWalker renders with the codepoint stored in its
+          PierceWalkerGlyph component, using the Voynich render font
+          and egregoric color, matching how egregoric flora renders
+          its PUA codepoints today.
+      Halo/aura treatment for egregoric fauna lives in a NEW pass at
+      src/engine/render/passes/egregoreFaunaAura.ts (see
+      egregoric-fauna-aura behavior below) per the rendering doctrine.
+    inputs:
+      - 'wrongBee or pierceWalker entity visible in viewport'
+    outputs:
+      - 'glyph rendered on canvas with egregoric color token'
+    state_changes: []
+    determinism: deterministic
+
+  - id: egregoric-fauna-aura
+    description: >
+      A new render pass at src/engine/render/passes/egregoreFaunaAura.ts
+      draws a subtle alpha-pulsing halo behind every live wrongBee and
+      pierceWalker tile. The pass:
+        - registers in src/engine/render/passes/index.ts AFTER tile bg
+          composite and BEFORE the entity glyph loop, so the halo sits
+          behind the glyph
+        - iterates state.world entities filtered by EntityTag in
+          {'wrongBee', 'pierceWalker'}
+        - draws a single-tile fillRect at the entity's screen position
+          using the egregoric color token at alpha computed as
+          0.15 + 0.10 * sin(state.tickCount * 0.05 + entityId * 0.7),
+          giving a slow per-entity desynchronized pulse in [0.05, 0.25]
+        - early-returns when state.zone is not the overworld (the
+          fauna do not spawn there either)
+      The pass MUST route any cache reads/writes through cacheContract
+      per docs/claude/rendering.md.
+    inputs:
+      - 'GameState in overworld with live wrongBee or pierceWalker entities'
+    outputs:
+      - 'one alpha-blended fillRect drawn per qualifying entity per frame'
+    state_changes: []
+    determinism: time-based
+
+  - id: chronicle-first-sighting
+    description: >
+      The first time a wrongBee or pierceWalker is created in a save,
+      a chronicle event is emitted via emitEgregoricFaunaFirstSighting
+      in src/engine/chronicle/emitters.ts. The emitter:
+        - gates on isOverworld(state) and on recordDiscovery returning
+          true (i.e. the discovery was genuinely new)
+        - resolves the named region containing the spawn tile via
+          state.namedRegions.find()
+        - picks a template via pickTemplate('egregoric-fauna-sighting',
+          tone, state)
+        - fills slots { region, faunaKind }
+        - calls addChronicleEvent
+      Per RP-22 doctrine, the emitter is called from the world tick
+      (egregoreFauna.ts spawn path), NOT from any player-action source.
+    inputs:
+      - 'wrongBee or pierceWalker spawn event'
+    outputs:
+      - 'one ChronicleEvent appended on first sighting per fauna kind per save'
+    state_changes:
+      - field: chronicle
+        effect: 'one ChronicleEvent appended (templateId egregoric-fauna-sighting, slots { region, faunaKind })'
+    determinism: deterministic
+
+  - id: manual-entries
+    description: >
+      Two manual entries register in MANUAL_LORE in src/engine/manual.ts:
+        - 'entity:wrongBee' → { lore: 'TODO' }
+        - 'entity:pierceWalker' → { lore: 'TODO' }
+      Both entries are gated by their discovery keys
+      ('fauna:wrongBee' and 'fauna:pierceWalker') — they only appear in
+      the manual after the player has triggered recordDiscovery via a
+      first sighting. No lore text is authored by this spec; lore is
+      human-authored only.
+    inputs:
+      - 'GameState with discovery key recorded'
+    outputs:
+      - 'manual entry visible in ManualPanel after discovery'
+    state_changes: []
+    determinism: deterministic
+
+  - id: schema-fields
+    description: >
+      No new top-level GameState fields are added by this spec —
+      wrongBee and pierceWalker live in state.world as ECS entities,
+      and state.egregoreSpecimens already exists for F-hold tracking.
+      The schema test's EXPECTED_FIELDS array is unchanged by this
+      feature. (If a future iteration adds a global cooldown or
+      per-zone fauna counter, that field must be added here in the
+      same commit as the type change.)
+    inputs:
+      - 'GameState serialization round trip'
+    outputs:
+      - 'no field added or removed'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: cave-zone-no-fauna-spawn
+    description: 'tickEgregoreFauna is called while state.zone is a cave or ruin interior'
+    expected: 'no spawn attempts evaluated; existing entities continue ticking (movement, lifespan) if they exist in that zone'
+
+  - id: no-seam-clusters-present
+    description: 'overworld has zero seam clusters (e.g. all egregoric tiles are isolated)'
+    expected: 'no spawn attempts succeed for either fauna kind; existing live entities continue ticking'
+
+  - id: wrong-bee-cap-saturated
+    description: 'WRONG_BEE_CAP wrongBees already alive when a spawn roll succeeds'
+    expected: 'the spawn is suppressed even though the random roll passed; no entity created'
+
+  - id: pierce-walker-isolated-egregoric-tile
+    description: 'pierceWalker spawned on a seam cluster, but later all neighboring egregoric tiles are destroyed (e.g. by a future cleansing mechanic)'
+    expected: 'pierceWalker no longer steps each tick (all neighbors filtered out); it remains stationary until lifespan expires (NOTE: pierceWalkers do not currently have a lifespan; a future iteration may add one)'
+
+  - id: wrong-bee-stuck-against-non-walkable
+    description: 'wrongBee is at a tile where every adjacent tile decreasing Chebyshev distance to the nearest seam is non-walkable'
+    expected: 'wrongBee picks any walkable adjacent tile (no preference); if none are walkable, no movement that tick'
+
+  - id: seam-cluster-overlap-with-player
+    description: 'a seam cluster contains the player tile when a pierceWalker spawn roll succeeds'
+    expected: 'pierceWalker spawn target is chosen from cluster tiles other than the player tile; if no non-player cluster tile exists, the spawn is suppressed'
+
+  - id: chronicle-duplicate-suppression
+    description: 'player triggers a wrongBee first sighting in the same tick that a save round-trip occurs'
+    expected: 'recordDiscovery returns false on the second call; the chronicle emitter is suppressed; no duplicate ChronicleEvent appended'
+
+failure_conditions:
+  - trigger: 'tickEgregoreFauna called with state.zone not in overworld'
+    expected: 'function early-returns without evaluating any spawn rolls'
+  - trigger: 'wrongBee or pierceWalker entity exists with no Position component (corrupt ECS state)'
+    expected: 'tick handler skips that entity and continues; does not throw'
+  - trigger: 'PUA codepoint picker returns null or undefined'
+    expected: 'pierceWalker spawn is suppressed for that tick; no entity created; no chronicle event'
+
+verification:
+  test_file: src/engine/__tests__/egregore-fauna.test.ts
+  test_pattern: 'egregore fauna'
+  command: 'npx vitest run src/engine/__tests__/egregore-fauna.test.ts'
