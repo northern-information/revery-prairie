@@ -3,7 +3,7 @@ import { ComponentType } from '../ecs/types'
 import { createCharacterEntity } from '../entities'
 import { createEmptyFloraGrowthPreviews } from '../floraGrowthPreviews'
 import { completeGenesis, createGenesisState, GENESIS_EPOCHS, nameToSeed, precomputeGenesis } from '../genesis'
-import { isInBounds } from '../position'
+import { isInBounds, posKey } from '../position'
 import { createGameState, enterHouseAtTenureStart } from '../state'
 import { Season, Sky, TileType, Zone } from '../types'
 
@@ -139,7 +139,11 @@ export const swapToOverworldForTest = (state: GameState): void => {
 }
 
 /**
- * Clears terrain to dirt in a radius around a position.
+ * Clears terrain to dirt in a radius around a position. Also prunes any
+ * water entries (`state.ponds`, `state.rivers`, `state.tileWater`) at the
+ * cleared positions — those Sets/Maps are populated at genesis and are
+ * not derived from `state.map`, so a tile overwrite alone leaves stale
+ * water references that `isWaterTile` will still report as true.
  */
 export const clearArea = (state: GameState, cx: number, cy: number, radius: number): void => {
   for (let dy = -radius; dy <= radius; dy++) {
@@ -148,6 +152,10 @@ export const clearArea = (state: GameState, cx: number, cy: number, radius: numb
       const nx = cx + dx
       if (isInBounds(nx, ny, state.mapWidth, state.mapHeight)) {
         state.map[ny][nx] = { type: TileType.Dirt }
+        const key = posKey(nx, ny)
+        state.ponds.delete(key)
+        state.rivers.delete(key)
+        state.tileWater.delete(key)
       }
     }
   }
@@ -158,6 +166,18 @@ export const clearArea = (state: GameState, cx: number, cy: number, radius: numb
  */
 export const clearAroundPlayer = (state: GameState, radius = 2): void => {
   clearArea(state, state.player.x, state.player.y, radius)
+}
+
+/**
+ * Drops every water reference from the state. Use when a test overwrites
+ * the entire `state.map` directly — the ponds/rivers/tileWater
+ * collections are inherited from genesis and must be cleared explicitly,
+ * or `isWaterTile` will still flag the overwritten positions as water.
+ */
+export const clearAllWater = (state: GameState): void => {
+  state.ponds.clear()
+  state.rivers.clear()
+  state.tileWater = new Map()
 }
 
 /**

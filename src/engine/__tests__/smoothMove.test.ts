@@ -18,7 +18,7 @@ import { movePlayer } from '../movement'
 import { clearMovementTweens, getTweenLerp } from '../movementTween'
 import { worldDeltaToIsoPx, worldToScreen } from '../projection'
 import { TileType, Zone } from '../types'
-import { clearArea, clearAroundPlayer, createBeeEntity, createCharacterTestEntity, createTestState } from './helpers'
+import { clearAllWater, clearArea, clearAroundPlayer, createBeeEntity, createCharacterTestEntity, createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const requireComponent = <T>(val: T | undefined): T => {
@@ -505,6 +505,12 @@ describe('smooth move', () => {
           state.map[y][x] = { type: TileType.Dirt }
         }
       }
+      // ponds/rivers/tileWater are populated at genesis and survive the
+      // tile overwrite above. Without this isValidAngelPosition still
+      // sees the genesis water positions and randomly rejects the drift
+      // target depending on where spawnAngel placed the angel — the
+      // mechanism behind the CI flake on this test.
+      clearAllWater(state)
       state.nextAngelSpawnTime = 0
       const spawned = spawnAngel(state, 1000)
       expect(spawned).toBe(true)
@@ -512,7 +518,8 @@ describe('smooth move', () => {
       expect(angels).toHaveLength(1)
       const eid = angels[0]
       // First random() gates ANGEL_DRIFT_CHANCE (return 0 to pass), second
-      // picks a cardinal direction (any tile is dirt so any pick is valid).
+      // picks a cardinal direction. With all-dirt terrain and no water
+      // entries any cardinal pick is a valid drift target.
       vi.spyOn(Math, 'random').mockReturnValue(0)
 
       tickAngelDrift(state)

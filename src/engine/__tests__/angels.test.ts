@@ -18,7 +18,7 @@ import { ComponentType } from '../ecs/types'
 import { interactWithCharacter } from '../interaction'
 import { clearMovementTweens } from '../movementTween'
 import { TileType, Zone } from '../types'
-import { createTestState } from './helpers'
+import { clearAllWater, createTestState } from './helpers'
 import { describe, expect, it, vi } from 'vitest'
 
 const getAngelEntities = (state: ReturnType<typeof createTestState>) => state.world.query(ComponentType.AngelData)
@@ -49,6 +49,11 @@ const createAngelTestState = () => {
       state.map[y][x] = { type: TileType.Dirt }
     }
   }
+  // ponds/rivers/tileWater are inherited from genesis and are not
+  // derived from state.map — overwriting tiles alone leaves
+  // isWaterTile reporting true for the old water positions, which
+  // would make isValidAngelPosition reject drift targets at random.
+  clearAllWater(state)
   state.nextAngelSpawnTime = 0
   return state
 }
