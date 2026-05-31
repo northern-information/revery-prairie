@@ -1,3 +1,4 @@
+import { emitHallowedGround, emitStoneCircleComplete } from './chronicle/emitters'
 import { BEE_STARVATION_MS, BEE_TICK_MS, GHOST_TICK_MS } from './constants'
 import { ComponentType } from './ecs/types'
 import { AURA_RADIUS, spawnPickupBloom } from './effects'
@@ -10,6 +11,7 @@ import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
+import { getHallowedPolygons, getStoneCircleGraph, isInsideHallowedGround } from './stoneCircles'
 import { recordCameraSubjectEvent } from './timeLapse'
 import { CameraSubject, FloraSpecies, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
@@ -332,9 +334,29 @@ export const canPlaceMeteoriteAt = (state: GameState, x: number, y: number): boo
 // discovery hook that the player-adjacent dropItem branch uses.
 export const placeMeteoriteAt = (state: GameState, x: number, y: number, time?: number): boolean => {
   if (!canPlaceMeteoriteAt(state, x, y)) return false
+  // RP-22 — capture pre-placement polygon count so we can detect a
+  // newly-formed stone circle below.
+  const priorPolygonCount = getHallowedPolygons(
+    state.placedMeteorites,
+    getStoneCircleGraph(state.placedMeteorites)
+  ).length
   state.placedMeteorites.push({ x, y })
   if (time !== undefined) {
     spawnPickupBloom(state, x, y, time)
+  }
+  // RP-22 — chronicle events for stone-circle completion + first
+  // hallowed-ground tile in a region. emit* gate on overworld and the
+  // hallowed-ground emitter dedupes by region (one event per region per
+  // tenure). stone-circle fires only when a new polygon emerges.
+  const newPolygonCount = getHallowedPolygons(
+    state.placedMeteorites,
+    getStoneCircleGraph(state.placedMeteorites)
+  ).length
+  if (newPolygonCount > priorPolygonCount) {
+    emitStoneCircleComplete(state, { x, y })
+  }
+  if (isInsideHallowedGround(state, x, y)) {
+    emitHallowedGround(state, { x, y })
   }
   return true
 }

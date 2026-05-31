@@ -3,14 +3,27 @@
 // Renders bilingual ASCII + Voynich change log when state.revery.summaryReady
 // is true and state.revery.phase is Summary. Dismissed by any keypress
 // (wired in GameScreen via advanceReveryToClosing).
+//
+// RP-22 — Also renders the "Chronicle" section: past-tense sentences
+// emitted by world-state transitions during the closing tenure-year.
+// The component resolves the year from revery.snapshotBeforeRevery and
+// reads state.chronicle through the consumers helper, rendering each
+// matching event via its template's text function. The section is
+// omitted entirely when the year has zero events.
 
+import { readChronicleForYear } from '@/engine/chronicle/consumers'
+import { CHRONICLE_TEMPLATES } from '@/engine/chronicle/templates'
 import { EGREGORE_GLYPHS } from '@/engine/egregore'
 import { FLORA_SPECIES } from '@/engine/flora/species'
 import { ReveryPhase } from '@/engine/types'
-import type { ReveryChange, ReveryState } from '@/engine/types'
+import type { GameState, ReveryChange, ReveryState } from '@/engine/types'
 
 interface ReverySummaryProps {
   revery: ReveryState | null
+  // Optional — when provided the chronicle section renders this tenure-year's
+  // events for the closing Revery. Tests that don't exercise chronicle leave
+  // this undefined and the section is omitted.
+  state?: GameState
 }
 
 // Deterministic Voynich line for the egregore-grew entry. Sample N glyphs
@@ -37,10 +50,22 @@ const renderFloraDeltaLine = (change: Extract<ReveryChange, { kind: 'flora-delta
   return `${def.displayName}: ${sign}${String(delta)} tiles`
 }
 
-export const ReverySummary = ({ revery }: ReverySummaryProps) => {
+const buildChronicleLines = (state: GameState | undefined, revery: ReveryState): string[] => {
+  if (!state) return []
+  const year = revery.snapshotBeforeRevery.reveryCount
+  return readChronicleForYear(state, year).map(event => {
+    const template = (CHRONICLE_TEMPLATES as Record<string, { text: (slots: Record<string, string>) => string }>)[
+      event.templateId
+    ]
+    return template ? template.text(event.slots) : ''
+  })
+}
+
+export const ReverySummary = ({ revery, state }: ReverySummaryProps) => {
   if (!revery || !revery.active || revery.phase !== ReveryPhase.Summary || !revery.summaryReady) {
     return null
   }
+  const chronicleLines = buildChronicleLines(state, revery)
 
   const floraLines = revery.scheduledChanges
     .filter((c): c is Extract<ReveryChange, { kind: 'flora-delta' }> => c.kind === 'flora-delta')
@@ -71,6 +96,16 @@ export const ReverySummary = ({ revery }: ReverySummaryProps) => {
               <li key={i}>{line}</li>
             ))}
           </ul>
+        )}
+        {chronicleLines.length > 0 && (
+          <>
+            <hr className="border-text/30 my-1 w-32" />
+            <ul className="flex flex-col items-center gap-1 text-sm" data-testid="revery-chronicle-lines">
+              {chronicleLines.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </>
         )}
         {voynichLine !== null && (
           <>

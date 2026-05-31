@@ -155,6 +155,8 @@ const EXPECTED_FIELDS = [
   'playbackCameraUid',
   'photographAlbum',
   'itemWear',
+  'namedRegions',
+  'chronicle',
 ].sort((a, b) => a.localeCompare(b))
 
 describe('GameState schema', () => {

@@ -3,11 +3,14 @@ import { CATEGORY_LABELS } from './ManualPanel.constants'
 import { SectionHeader, Tab, TextButton } from './PanelPrimitives'
 import { SpecimenStack } from './SpecimenStack'
 
+import { readChronicleForRegion, readChronicleForSpecies } from '@/engine/chronicle/consumers'
+import { CHRONICLE_TEMPLATES } from '@/engine/chronicle/templates'
 import {
   CATEGORY_ORDER,
   filterManualEntries,
   getEgregoreLatinPierceForEntry,
   getEgregoreManualEntries,
+  getRegionManualEntries,
   isDiscovered,
   MANUAL_ENTRIES,
   ManualCategory,
@@ -144,8 +147,31 @@ const speciesFromEntryId = (id: string): FloraSpecies | null => {
   return id.slice('flora:'.length) as FloraSpecies
 }
 
+// RP-22 — Build the chronicle list for a manual entry. Region entries
+// surface every chronicle event bound to that region; species entries
+// surface events whose slots.species names them. Other entry kinds
+// return an empty list. Lines render via their template's text function.
+const buildChronicleLines = (entry: ManualEntry, state: GameState): string[] => {
+  const templateText = (templateId: string, slots: Record<string, string>): string => {
+    const template = (CHRONICLE_TEMPLATES as Record<string, { text: (slots: Record<string, string>) => string }>)[
+      templateId
+    ]
+    return template ? template.text(slots) : ''
+  }
+  if (entry.id.startsWith('region:')) {
+    const regionId = entry.id.slice('region:'.length)
+    return readChronicleForRegion(state, regionId).map(e => templateText(e.templateId, e.slots))
+  }
+  const species = speciesFromEntryId(entry.id)
+  if (species) {
+    return readChronicleForSpecies(state, species).map(e => templateText(e.templateId, e.slots))
+  }
+  return []
+}
+
 const EntryCard = ({
   entry,
+  state,
   discoveries,
   scannedSpecimens,
   oakSpecimens,
@@ -155,6 +181,7 @@ const EntryCard = ({
   onToggleHint,
 }: {
   entry: ManualEntry
+  state: GameState
   discoveries: Set<string>
   scannedSpecimens: Map<FloraSpecies, ScannedSpecimen[]>
   oakSpecimens: ScannedSpecimen[]
@@ -263,6 +290,25 @@ const EntryCard = ({
         )
       })()}
 
+      {/* RP-22 — chronicle thread. Per-region entries surface every
+          chronicle event bound to that region across the tenure;
+          per-species entries surface extinction events that name the
+          species. Section omitted when no events match. */}
+      {(() => {
+        const chronicleLines = buildChronicleLines(entry, state)
+        if (chronicleLines.length === 0) return null
+        return (
+          <div className="mt-2" data-testid={`chronicle-list-${entry.id}`}>
+            <div className="text-dim text-xs italic">Chronicle</div>
+            <ul className="text-dim text-xs italic">
+              {chronicleLines.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          </div>
+        )
+      })()}
+
       {/* Properties */}
       {showCategory && <div className="text-dim mt-1 text-xs">Category: {capitalize(entry.category)}</div>}
 
@@ -324,7 +370,11 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
     }
   }, [highlightId, manualState, state])
 
-  const allEntries = [...Object.values(MANUAL_ENTRIES), ...getEgregoreManualEntries(state)]
+  const allEntries = [
+    ...Object.values(MANUAL_ENTRIES),
+    ...getEgregoreManualEntries(state),
+    ...getRegionManualEntries(state),
+  ]
   const filtered = searchQuery ? filterManualEntries(allEntries, searchQuery) : allEntries
 
   const toggleHint = useCallback(
@@ -431,6 +481,7 @@ export const ManualPanel = ({ state }: ManualPanelProps) => {
                   >
                     <EntryCard
                       entry={entry}
+                      state={state}
                       discoveries={manualDiscoveries}
                       scannedSpecimens={scannedSpecimens}
                       oakSpecimens={oakSpecimens}

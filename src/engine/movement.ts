@@ -201,8 +201,38 @@ export const movePlayer = (state: GameState, dir: Direction): boolean => {
 
   tryCoyoteRescueOnApproach(state)
 
+  // RP-22 — region proximity discovery. On every successful overworld
+  // move, scan named regions for any tile within Chebyshev distance 1
+  // of the player and unlock the region's manual entry on first contact.
+  // Single-writer pattern — only this hook writes "region:{id}" entries.
+  if (state.currentZone === Zone.Overworld) {
+    discoverNearbyRegions(state)
+  }
+
   state.onPlayerMoved?.()
   return true
+}
+
+// RP-22 — Chebyshev-distance-1 sweep around the player. Once a region's
+// id is in manualDiscoveries it stays there for the tenure; the dedupe
+// is enforced by the Set semantics in recordDiscovery.
+const discoverNearbyRegions = (state: GameState): void => {
+  const { x: px, y: py } = state.player
+  for (const region of state.namedRegions) {
+    if (region.kind === 'prairie') continue
+    const key = `region:${region.id}`
+    if (state.manualDiscoveries.has(key)) continue
+    let found = false
+    for (let dy = -1; dy <= 1 && !found; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (region.tiles.has(posKey(px + dx, py + dy))) {
+          found = true
+          break
+        }
+      }
+    }
+    if (found) state.manualDiscoveries.add(key)
+  }
 }
 
 export const tickPath = (state: GameState): boolean => {

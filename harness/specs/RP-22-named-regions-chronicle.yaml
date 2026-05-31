@@ -1,0 +1,449 @@
+id: RP-22-named-regions-chronicle
+name: 'RP-22 — Named regions + chronicle events'
+priority: medium
+layer: integration
+source_files:
+  - docs/backlog.yaml
+  - docs/claude/state.md
+  - CLAUDE.md
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/regions.ts
+  - src/engine/chronicle/index.ts
+  - src/engine/chronicle/templates.ts
+  - src/engine/chronicle/emitters.ts
+  - src/engine/weather/index.ts
+  - src/engine/floraLifecycle.ts
+  - src/engine/egregore/spread.ts
+  - src/engine/celestial.ts
+  - src/components/ReverySummary.tsx
+  - src/components/ManualPanel.tsx
+  - src/components/ManualPanel.constants.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies: []
+
+behaviors:
+  - id: named-regions-detected-at-genesis
+    description: >
+      A new function detectNamedRegions(state) runs exactly once per
+      tenure during createGameState, after postProcessEgregoreTiles. It
+      scans terrain features (ponds, rivers, cave entrance, ruin
+      entrances, the village/Gron-center, meteorite placements from
+      placedMeteorites) and produces a stable array of NamedRegion
+      objects on state.namedRegions. Each region has:
+        id: stable string ("south-ridge", "west-pond", "cave-mouth",
+            "the-village", "north-ruin", ...), unique within a tenure
+        name: display string ("the south ridge", "the village", "the
+              west pond"), sentence-cased lower-prose form for use in
+              chronicle templates
+        kind: 'ridge' | 'pond' | 'river' | 'cave-mouth' | 'ruin' |
+              'village' | 'meteorite-circle' | 'prairie' (fallback)
+        anchor: Position — a representative tile inside the region
+        tiles: Set<string> of posKey'd tiles considered part of the
+              region (a generous footprint, not a strict boundary —
+              chronicle uses anchor proximity, manual uses any-tile
+              overlap)
+      Detection is deterministic: the same steward name yields the same
+      NamedRegion[] every tenure. The count varies per seed (no fixed N).
+      Direction names ("south", "north", "east", "west") derive from
+      the anchor's quadrant relative to the map center (Gron's tile),
+      matching the existing direction convention.
+    inputs:
+      - 'GameState immediately after postProcessEgregoreTiles in createGameState'
+    outputs:
+      - 'state.namedRegions populated with NamedRegion[]'
+    state_changes:
+      - field: namedRegions
+        effect: 'set once in createGameState; never mutated afterward for the lifetime of the tenure'
+    determinism: deterministic
+
+  - id: prairie-fallback-region-always-present
+    description: >
+      If a tenure's terrain has zero qualifying features (no ponds, no
+      ruins, no meteorites, no cave — pathological seed), detectNamedRegions
+      still returns at least one region with id 'prairie', name 'the
+      prairie', kind 'prairie', anchor at the map center, and tiles
+      covering all walkable Dirt + Flora positions. This guarantees
+      chronicle emitters always have a region to bind to. In normal
+      tenures the prairie fallback is included alongside the detected
+      regions as a catch-all for transitions whose anchor doesn't fall
+      inside any specific region's tiles set.
+    inputs:
+      - 'detectNamedRegions called on any GameState'
+    outputs:
+      - 'state.namedRegions always includes a region with id "prairie"'
+    state_changes:
+      - field: namedRegions
+        effect: 'always contains at least the prairie fallback entry'
+    determinism: deterministic
+
+  - id: chronicle-event-store
+    description: >
+      A new GameState field state.chronicle: ChronicleEvent[] holds
+      emitted events. It is append-only within a tenure (no in-place
+      edits, no removal). ChronicleEvent shape:
+        id: string — deterministic from (templateId, regionId, year,
+            season, kind-specific slot keys), used to dedupe within a
+            single transition
+        templateId: string — references an entry in the template
+                    registry
+        regionId: string — references state.namedRegions[].id
+        year: number — derived from state.reveryCount or equivalent
+              tenure-year counter at emission time
+        season: Season — state.weather.season at emission time
+        tone: 'positive' | 'negative' — copied from the chosen template
+        slots: Record<string, string> — slot keys filled from world
+               state at emission time
+      Emitters MUST go through addChronicleEvent(state, event) which
+      enforces the dedupe-by-id contract.
+    inputs:
+      - 'addChronicleEvent(state, event) called by any emitter'
+    outputs:
+      - 'state.chronicle gains the event if its id is novel; no-op if id already present'
+    state_changes:
+      - field: chronicle
+        effect: 'appended (never spliced); initialized to [] in createGameState'
+    determinism: deterministic
+
+  - id: chronicle-events-are-world-driven-only
+    description: >
+      No emitter accepts a player-action trigger as input. Emission is
+      always derived from a world-state transition that the engine
+      computes independently of player input. The signature for every
+      emitter takes (state, ...transition-context) and returns void.
+      Player commands (movement, dialog, inventory mutations, recipe
+      execution) never directly call addChronicleEvent. The compile-time
+      contract is enforced by the file layout — emitters live in
+      src/engine/chronicle/emitters.ts and the function they call
+      (addChronicleEvent) is imported only there and in the genesis /
+      tick wiring. Player-action source files (movement.ts, dialog.ts,
+      inventory.ts, recipes.ts) must not import from chronicle/.
+    inputs:
+      - 'codebase after RP-22 lands'
+    outputs:
+      - 'no player-action source file imports from src/engine/chronicle/'
+    state_changes: []
+    determinism: deterministic
+
+  - id: season-rollover-emitter
+    description: >
+      tickWeather records the prior weather.season before reclassifying.
+      When the new derived season differs from the prior season, an
+      emitSeasonRollover(state, priorSeason, newSeason) is called from
+      within tickWeather. The emitter chooses a template from the
+      season-rollover category (positive when transitioning into Spring
+      or Summer; negative when transitioning into Autumn or Winter, with
+      template language naming what the prior season failed to leave
+      behind). The regionId used is the prairie fallback region —
+      season transitions are world-wide, not regional. Year is taken
+      from state.revery.reveryCount (or 0 pre-first-Revery). One event
+      per transition. The emitter is no-op if state.currentZone !==
+      Zone.Overworld, matching the existing tickWeather gating.
+    inputs:
+      - 'tickWeather called with state.weather.season transition'
+    outputs:
+      - 'one ChronicleEvent appended per detected season transition'
+    state_changes:
+      - field: chronicle
+        effect: 'one new event per rollover'
+    determinism: deterministic
+
+  - id: species-extinction-emitter
+    description: >
+      A new tick-level scan in chronicle/emitters.ts maintains a per-region
+      per-species presence map (computed at the start of each top-level
+      tick batch). When a species transitions from present-in-region
+      to absent-in-region — i.e. every tile of that species inside the
+      region has reached the Decomposing terminal stage or been removed —
+      emitSpeciesExtinction(state, regionId, species) fires once. The
+      emitter chooses a negative template ("the {species} didn't return
+      to {region}", "{species} left {region} that {season}"). Recovery
+      (species re-appearing later in the same region in the same tenure)
+      does not retroactively delete the event; subsequent extinction in
+      a new year fires a new event with a different id. Egregoric species
+      are excluded from this scan — they have their own emitter.
+    inputs:
+      - 'top-level tick batch with floraLifecycle reflecting recent stage advances'
+    outputs:
+      - 'one ChronicleEvent appended per (region, native-species) extinction transition'
+    state_changes:
+      - field: chronicle
+        effect: 'one new event per region-species extinction transition'
+    determinism: deterministic
+
+  - id: egregore-spread-emitter
+    description: >
+      When egregoric flora reaches a region that had zero egregore tiles
+      at tenure start, emitEgregoreReach(state, regionId) fires once.
+      When the egregore tile count within a region crosses an advance
+      threshold (≥ 25% of the region's walkable footprint), emitEgregoreAdvance
+      fires once. Both go through the same dedupe-id contract so a
+      threshold flickering across the boundary does not flood events.
+      Templates lean negative ("the script came to {region} that {year}",
+      "{region} grew unreadable that {season}") but tone is not forced —
+      one neutral / curiosity-tone template per category is allowed for
+      variety. Triggered from src/engine/egregore/spread.ts after the
+      spread mutation lands.
+    inputs:
+      - 'spread.ts tick that mutates state.egregorePositions or per-tile activity stage'
+    outputs:
+      - 'one event per (region, threshold) crossing'
+    state_changes:
+      - field: chronicle
+        effect: 'one new event per egregore region/threshold transition'
+    determinism: deterministic
+
+  - id: meteorite-event-emitter
+    description: >
+      celestial.ts fires three discrete chronicle events along the
+      meteorite lifecycle: (1) on a Sundering or Ember meteorite landing
+      that produces a pickupable, emitMeteoriteImpact(state, position);
+      (2) on a stone-circle completion (placedMeteorites count for a
+      circle reaching its target ring size), emitStoneCircleComplete;
+      (3) on hallowed-ground formation (the RP-18 hallowed-ground tile
+      set growing for the first time in a region), emitHallowedGround.
+      The region is resolved by finding the NamedRegion whose tiles
+      contain the impact / circle / hallowed-ground anchor, falling
+      back to the prairie region. Templates are mostly positive for
+      stone-circle and hallowed-ground (rare punctuation, awe-tone)
+      and mixed for impact (a stranger landed; or a stranger landed
+      and nothing grew there since).
+    inputs:
+      - 'celestial.ts tick observing meteorite-related state mutations'
+    outputs:
+      - 'one event per (impact | circle-complete | hallowed-region-first-form) transition'
+    state_changes:
+      - field: chronicle
+        effect: 'one new event per meteorite transition'
+    determinism: deterministic
+
+  - id: template-registry-with-negative-half
+    description: >
+      src/engine/chronicle/templates.ts exports CHRONICLE_TEMPLATES: an
+      as-const object keyed by template id. Each template has:
+        id: string
+        category: 'season-rollover' | 'species-extinction' |
+                  'egregore-reach' | 'egregore-advance' |
+                  'meteorite-impact' | 'stone-circle' | 'hallowed-ground'
+        tone: 'positive' | 'negative'
+        slots: readonly string[]
+        text: (slots: Record<string, string>) => string — produces the
+              past-tense sentence
+      The registry MUST satisfy: at least 50% of templates across the
+      whole registry have tone === 'negative'. A unit test enforces this
+      ratio. Templates are short, past-tense, and contain only slot
+      tokens that are filled from world state. No lore prose — no
+      adjectives or noun phrases describing the prairie metaphorically.
+      The word "invasive" is banned (CI guard covers this already; the
+      template file is in scope).
+    inputs:
+      - 'codebase after RP-22 lands'
+    outputs:
+      - 'CHRONICLE_TEMPLATES exports a registry where ≥50% of entries have tone === "negative"'
+    state_changes: []
+    determinism: deterministic
+
+  - id: revery-summary-renders-year-chronicle
+    description: >
+      ReverySummary (src/components/ReverySummary.tsx) renders a new
+      "Chronicle" section between the existing flora-delta list and
+      the egregore-voynich line. The section lists every chronicle
+      event whose year matches the snapshot's reveryCount (i.e. events
+      emitted during the tenure-year that just closed). Events render
+      as plain text lines produced by template.text(event.slots). If
+      there are zero chronicle events for the year, the section is
+      omitted entirely (no empty header). The summary does NOT show
+      events from prior years — those live in the manual surfaces.
+    inputs:
+      - 'state.revery.phase === Summary with state.chronicle non-empty for the closing year'
+    outputs:
+      - 'ReverySummary DOM contains [data-testid="revery-chronicle-lines"] with one <li> per matching event'
+    state_changes: []
+    determinism: deterministic
+
+  - id: manual-region-thread-surface
+    description: >
+      ManualPanel (src/components/ManualPanel.tsx) exposes a new
+      manual section "Regions" listing each NamedRegion as a manual
+      entry. Each region entry shows the region name, a one-line
+      description derived from its kind (no authored lore prose), and
+      a list of every chronicle event bound to that region across all
+      years of the tenure (year, then sentence). Existing per-species
+      manual entries gain a "Chronicle" subsection listing extinction
+      events for that species across regions. Region entries follow
+      the existing manual discovery gating — a region is hidden until
+      the player has stood within Chebyshev distance 1 of any tile in
+      its tiles set; once revealed, it persists in the manual for the
+      rest of the tenure. Region entries use { lore: 'TODO' } in
+      MANUAL_LORE; lore is human-authored later and never machine-written.
+    inputs:
+      - 'ManualPanel mounted with state.namedRegions populated and chronicle events present'
+    outputs:
+      - 'ManualPanel renders a "Regions" section with one entry per discovered region'
+      - 'per-species manual entries include a "Chronicle" subsection when matching events exist'
+    state_changes:
+      - field: manualDiscoveries
+        effect: 'gains "region:{regionId}" entries on proximity'
+    determinism: deterministic
+
+  - id: lineage-consumer-stub-interface
+    description: >
+      A new file src/engine/chronicle/consumers.ts exports a
+      ChronicleConsumer interface:
+        readChronicle(state, predicate?) → ChronicleEvent[]
+        readChronicleForRegion(state, regionId) → ChronicleEvent[]
+        readChronicleForSpecies(state, species) → ChronicleEvent[]
+        readChronicleForYear(state, year) → ChronicleEvent[]
+      These are pure read-only helpers. RP-22 wires the Revery summary
+      and manual surfaces through these helpers. RP-16 (when it lands)
+      will add a lineage surface that reads predecessor-line chronicle
+      via the same helpers — no new API needed at that point. The
+      interface is the stub; there is no lineage UI in this PR.
+    inputs:
+      - 'codebase after RP-22 lands'
+    outputs:
+      - 'src/engine/chronicle/consumers.ts exports the four helpers'
+      - 'ReverySummary and ManualPanel import only from chronicle/consumers (not from emitters)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: no-running-feed-surface
+    description: >
+      There is NO UI surface in this PR that renders a continuous
+      time-ordered list of chronicle events as they emit. The three
+      and only three consumption surfaces are: (a) the Revery summary
+      (year-bounded, end-of-Revery only); (b) the manual region and
+      species threads (browsed on demand inside the manual panel);
+      (c) the lineage consumer stub interface (no UI yet, future
+      RP-16). The bottom bar, the dialog system, the inventory panel,
+      and any sidebar/HUD layer must not subscribe to chronicle
+      events. A unit test scans the components/ tree for imports of
+      chronicle/emitters or chronicle/index and asserts that only
+      ReverySummary, ManualPanel, and ManualPanel.constants resolve
+      chronicle imports.
+    inputs:
+      - 'codebase after RP-22 lands'
+    outputs:
+      - 'no component file outside ReverySummary, ManualPanel, ManualPanel.constants imports from chronicle/'
+    state_changes: []
+    determinism: deterministic
+
+  - id: schema-allowlist-updated
+    description: >
+      src/harness/__tests__/serialization/schema.test.ts EXPECTED_FIELDS
+      gains 'namedRegions' and 'chronicle' entries. State.md is updated
+      with the new field-ownership rows (namedRegions: single writer
+      createGameState; chronicle: single writer addChronicleEvent).
+    inputs:
+      - 'serialization schema test run'
+    outputs:
+      - 'schema test passes with namedRegions and chronicle in EXPECTED_FIELDS'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: cave-or-ruin-emitters-frozen
+    description: >
+      Player is in a cave or ruin zone when a season would otherwise
+      roll over (tickWeather is gated to overworld, so phase doesn't
+      advance, so no rollover transition is detected anyway).
+    expected: >
+      No chronicle event emitted while currentZone !== Overworld.
+      Egregore-spread, species-extinction, and meteorite emitters
+      gate on the same currentZone check — they only fire when the
+      overworld is active. When the player returns to the overworld,
+      transitions that would have happened resume from the frozen
+      state forward; no retroactive emission.
+
+  - id: duplicate-emission-within-frame
+    description: >
+      Two ticks within the same frame produce identical (templateId,
+      regionId, year, season, slots) tuples — e.g. a flora extinction
+      sweep that runs twice.
+    expected: >
+      The second addChronicleEvent is a no-op because the id collides
+      with the first. state.chronicle gains exactly one entry. The
+      dedupe-by-id contract is exercised by a unit test.
+
+  - id: prairie-fallback-anchor-resolution
+    description: >
+      A meteorite lands at a position that falls outside every detected
+      region's tiles set.
+    expected: >
+      resolveRegionForPosition returns the prairie fallback region.
+      The chronicle event is bound to "the prairie" and renders correctly
+      in the summary and manual.
+
+  - id: tenure-boundary-chronicle-reset
+    description: >
+      A tenure ends and a new tenure begins (createGameState is called
+      again, even for the same steward name).
+    expected: >
+      state.chronicle is reinitialized to []. state.namedRegions is
+      regenerated deterministically; for the same steward name the new
+      regions are identical to the old. Chronicle events from prior
+      tenures are gone — they don't bleed into the new tenure.
+
+  - id: deterministic-region-detection
+    description: >
+      Two playthroughs with the same steward name.
+    expected: >
+      detectNamedRegions produces identical NamedRegion[] (same ids,
+      names, anchors, tile sets) on both runs. A determinism test
+      runs createGameState twice with the same steward name and
+      deep-equals state.namedRegions.
+
+  - id: negative-template-pool-exhausted
+    description: >
+      A transition wants to emit but the matching category has no
+      templates available with the right tone.
+    expected: >
+      The emitter falls back to any template in the matching category,
+      regardless of tone. The 50% negative ratio is enforced across
+      the WHOLE registry, not per category — emitters never block on
+      tone selection.
+
+  - id: region-discovered-by-proximity
+    description: >
+      Player walks within Chebyshev distance 1 of a tile in a region's
+      tiles set for the first time.
+    expected: >
+      manualDiscoveries gains "region:{regionId}". The region entry
+      appears in the manual immediately. Re-entering after leaving
+      does not re-record (Set semantics).
+
+  - id: revery-summary-with-zero-chronicle
+    description: >
+      A Revery closes after a tenure-year in which zero chronicle
+      events emitted.
+    expected: >
+      ReverySummary renders normally (flora deltas, phenotype lines,
+      voynich line as before). The "Chronicle" section is omitted —
+      no empty header, no "(nothing to report)" placeholder.
+
+failure_conditions:
+  - trigger: 'state.namedRegions is missing from EXPECTED_FIELDS'
+    expected: 'CI fails — schema allowlist test rejects the new field'
+  - trigger: 'state.chronicle is missing from EXPECTED_FIELDS'
+    expected: 'CI fails — schema allowlist test rejects the new field'
+  - trigger: 'A player-action source file (movement.ts, dialog.ts, inventory.ts, recipes.ts) imports from src/engine/chronicle/'
+    expected: 'CI fails — the world-driven-only invariant is violated'
+  - trigger: 'A component file outside ReverySummary, ManualPanel, ManualPanel.constants imports from src/engine/chronicle/'
+    expected: 'CI fails — the no-running-feed invariant is violated'
+  - trigger: 'Fewer than 50% of CHRONICLE_TEMPLATES entries have tone === "negative"'
+    expected: 'CI fails — the negative-half doctrine is violated'
+  - trigger: 'The word "invasive" appears in any chronicle template text'
+    expected: 'CI fails — the existing invasive-word CI guard catches this'
+  - trigger: 'detectNamedRegions runs more than once per tenure'
+    expected: 'CI fails — single-writer-on-genesis contract violated; a test asserts state.namedRegions identity is stable after one tick'
+  - trigger: 'A chronicle event references a regionId not present in state.namedRegions'
+    expected: 'CI fails — addChronicleEvent validates the regionId against the current namedRegions and throws otherwise'
+  - trigger: 'Same-id chronicle event added twice produces two entries'
+    expected: 'CI fails — dedupe-by-id contract violated'
+  - trigger: 'A chronicle template contains lore-style metaphor or authored adjective phrases'
+    expected: 'CI fails — templates are slot-bound past-tense sentences only; a unit test asserts each template text is < 12 words and contains no adjectives outside the slot tokens (heuristic check on a curated banlist)'
+
+verification:
+  test_file: src/engine/__tests__/chronicle.test.ts
+  test_pattern: 'chronicle'
+  command: 'npx vitest run src/engine/__tests__/chronicle.test.ts -t chronicle'

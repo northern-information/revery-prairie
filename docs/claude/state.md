@@ -36,6 +36,13 @@ The `state.playerSpawn` field and the `PlayerSpawn` interface are removed entire
 
 - **`placedMeteorites: Position[]`** — multi-spawner, single lifecycle. `PlaceableSpec.place` in `src/engine/placeable.ts` appends an entry when a meteorite is placed (RP-59 — left-click on the cursor tile while in hand). `pickUpFacingOrStandingPlacedMeteorite` in `src/engine/interaction.ts` splices an entry out when the player taps F on or while facing a placed meteorite tile. All other readers are read-only (the `stoneCircles` render pass, the egregore spread containment filter, the manual unlock check).
 
+## Named regions + chronicle (RP-22)
+
+- **`namedRegions: NamedRegion[]`** — single-owner. Written exactly once by `detectNamedRegions` in `src/engine/regions.ts`, called from `createGameState` after the state literal is constructed. Stable across the lifetime of the tenure; no tick handler may mutate it. The single-writer-on-genesis contract is asserted by a chronicle architecture guard test (snapshot identity stable after a tick).
+- **`chronicle: ChronicleEvent[]`** — single-writer through `addChronicleEvent` in `src/engine/chronicle/index.ts`. Append-only within a tenure; the helper enforces dedupe-by-id so the same transition fired twice in one frame collapses to one entry. Emitters in `src/engine/chronicle/emitters.ts` are the only callers; `addChronicleEvent` is not imported by any player-action source file (movement / interaction / inventory / recipes). The no-player-trigger invariant is asserted by an architecture guard test.
+
+Per-state scan progress for the species-extinction and egregore reach/advance scans lives in a module-local `WeakMap<GameState, EmitterScanState>` in `src/engine/chronicle/emitters.ts` — not on `GameState`, so it never bloats saves.
+
 ## In hand (RP-59)
 
 - **`equippedItemUid: ItemUid | null`** — single owner: `src/engine/inHand.ts` (`takeInHand` / `releaseInHand` / `advanceInHand` / `clearInHandIfRemoved`). It is a uid *reference* into the backpack — the referenced `ItemInstance` stays in `state.backpack.items`, so the reference survives `autoSort`/merge/split exactly like `glintingCoins`. The 3x3 in-hand HUD cell (`InHandSlot.tsx`) and the loaded cursor (`renderer.ts`) are views of this field. `getInHandItem` self-heals a dangling reference to `null`. Player-facing copy reads "in hand," never "equipped."

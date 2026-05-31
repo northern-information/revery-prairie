@@ -645,6 +645,14 @@ export interface GameState {
   // frames whenever the TimeLapsePlayback modal dismisses. Persists
   // across tenures. The camera is the lens; the album is the keeping.
   photographAlbum: TimeLapseFrame[]
+  // RP-22 — named regions detected at genesis time. Single writer:
+  // detectNamedRegions in regions.ts, called once from createGameState.
+  // Stable for the lifetime of the tenure; never mutated afterward.
+  namedRegions: NamedRegion[]
+  // RP-22 — chronicle events emitted by world-state transitions. Append-only
+  // within a tenure. Single writer: addChronicleEvent in chronicle/index.ts,
+  // which enforces dedupe-by-id. Reset to [] on a new tenure.
+  chronicle: ChronicleEvent[]
 }
 
 export const FloraStage = {
@@ -1068,4 +1076,94 @@ export interface CharMetrics {
   charWidth: number
   charHeight: number
   font: string
+}
+
+// --- RP-22 — Named regions + chronicle events ---
+
+// What kind of feature a region is anchored to. 'prairie' is the
+// always-present fallback covering walkable Dirt+Flora when no specific
+// feature applies; it also catches transitions whose anchor doesn't fall
+// inside any other region's tiles set.
+export const NamedRegionKind = {
+  Ridge: 'ridge',
+  Pond: 'pond',
+  River: 'river',
+  CaveMouth: 'cave-mouth',
+  Ruin: 'ruin',
+  Village: 'village',
+  MeteoriteCircle: 'meteorite-circle',
+  Prairie: 'prairie',
+} as const
+
+export type NamedRegionKind = (typeof NamedRegionKind)[keyof typeof NamedRegionKind]
+
+export interface NamedRegion {
+  // Stable string id, unique within a tenure (e.g. "south-ridge",
+  // "west-pond", "cave-mouth", "the-village"). Used as the regionId on
+  // ChronicleEvent and as the suffix on manualDiscoveries entries
+  // ("region:{id}").
+  id: string
+  // Sentence-cased lower-prose form for substitution into chronicle
+  // templates: "the south ridge", "the village", "the west pond".
+  name: string
+  kind: NamedRegionKind
+  // Representative tile inside the region. Chronicle event anchoring
+  // and manual entry positioning both reference this.
+  anchor: Position
+  // Generous footprint of tiles considered part of the region. Chronicle
+  // uses anchor proximity to resolve regions; manual uses any-tile overlap
+  // for discovery gating.
+  tiles: Set<string>
+}
+
+// Tone of a chronicle template — the registry maintains ≥50% negative
+// across the whole file. Negative templates are the language of entropy;
+// the prairie names what failed to happen.
+export const ChronicleTemplateTone = {
+  Positive: 'positive',
+  Negative: 'negative',
+} as const
+
+export type ChronicleTemplateTone = (typeof ChronicleTemplateTone)[keyof typeof ChronicleTemplateTone]
+
+// Categories partition the template registry by trigger source. Emitters
+// pick from a single category and prefer matching tone, falling back to
+// any template in the category if the tone pool is empty.
+export const ChronicleTemplateCategory = {
+  SeasonRollover: 'season-rollover',
+  SpeciesExtinction: 'species-extinction',
+  EgregoreReach: 'egregore-reach',
+  EgregoreAdvance: 'egregore-advance',
+  MeteoriteImpact: 'meteorite-impact',
+  StoneCircle: 'stone-circle',
+  HallowedGround: 'hallowed-ground',
+} as const
+
+export type ChronicleTemplateCategory = (typeof ChronicleTemplateCategory)[keyof typeof ChronicleTemplateCategory]
+
+export interface ChronicleTemplate {
+  id: string
+  category: ChronicleTemplateCategory
+  tone: ChronicleTemplateTone
+  // Slot keys this template's text function expects. The emitter fills
+  // every named slot from world state before rendering.
+  slots: readonly string[]
+  // Produces the past-tense sentence. Templates are short (≤12 words),
+  // slot-bound, with no metaphorical or authored adjective prose.
+  text: (slots: Record<string, string>) => string
+}
+
+export interface ChronicleEvent {
+  // Deterministic id derived from (templateId, regionId, year, season,
+  // slot keys/values). Used to dedupe within a frame — a second add with
+  // the same id is a no-op.
+  id: string
+  templateId: string
+  regionId: string
+  // Tenure-year at emission time. Derived from state.reveryCount, or 0
+  // pre-first-Revery.
+  year: number
+  season: Season
+  tone: ChronicleTemplateTone
+  slots: Record<string, string>
 }

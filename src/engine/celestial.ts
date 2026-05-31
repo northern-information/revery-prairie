@@ -16,6 +16,7 @@ import {
   SHOOTING_STAR_SPAWN_CHANCE,
   SPACE_BORDER,
 } from './constants'
+import { emitMeteoriteImpact } from './chronicle/emitters'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { isInBounds, posKey } from './position'
@@ -136,6 +137,10 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           // Precis #23 — targeted meteorite landing is an Ember
           // subject for any covering placedCamera.
           recordCameraSubjectEvent(state, x, y, CameraSubject.Ember, time)
+          // RP-22 — chronicle event for the impact. The emitter gates on
+          // overworld and falls back to the prairie region when the
+          // impact tile doesn't fall inside any specific named region.
+          emitMeteoriteImpact(state, { x, y })
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, {
@@ -161,6 +166,8 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           // Precis #23 — meteorite landing is an Ember subject for any
           // covering placedCamera, regardless of pickup outcome.
           recordCameraSubjectEvent(state, x, y, CameraSubject.Ember, time)
+          // RP-22 — chronicle event for the impact.
+          emitMeteoriteImpact(state, { x, y })
           const e = state.world.createEntity()
           state.world.addComponent(e, ComponentType.Position, { x, y })
           state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })

@@ -155,7 +155,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
             />
           )
         })()}
-      <ReverySummary revery={state.revery} />
+      <ReverySummary revery={state.revery} state={state} />
       {activeScreen && activeScreen !== 'scan-result' && (
         <PermacomputerShell
           state={state}

@@ -1,3 +1,4 @@
+import { emitSeasonRollover } from '../chronicle/emitters'
 import { RAIN_FADE_DURATION_MS, SEASONAL_PHASE_PERIOD_MS } from '../constants'
 import { Season, Sky, WindDirection, Zone } from '../types'
 
@@ -203,7 +204,16 @@ export const tickWeather = (state: GameState, dt: number): void => {
   // Reclassify the season from the (possibly just-updated) temperature and
   // current phase before picking the sky — pickSky needs the right season to
   // decide rain vs snow.
+  const priorSeason = weather.season
   weather.season = deriveSeason(weather.temperatureF, phase)
+
+  // RP-22 — chronicle event on season transition. emitSeasonRollover is a
+  // no-op when the season is unchanged or when the player is not on the
+  // overworld; the season-phase gating above already prevents drift
+  // outside the overworld, so this is defense in depth.
+  if (priorSeason !== weather.season) {
+    emitSeasonRollover(state, priorSeason, weather.season)
+  }
 
   // Sky adapts to humidity
   if (Math.random() > 0.7) {
