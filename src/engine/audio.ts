@@ -5,6 +5,9 @@ export const ZONE_MUSIC: Record<Zone, string> = {
   [Zone.Cave]: '/music/cave.mp3',
   [Zone.Ruin]: '/music/cave.mp3', // TODO: ruin-specific ambient track
   [Zone.HouseInterior]: '/music/emily.mp3',
+  // RP-67 yard — reuse Emily's track for now; the threshold belongs to
+  // the same diegetic space as the interior.
+  [Zone.LittleHouseYard]: '/music/emily.mp3',
 }
 
 const FADE_MS = 300

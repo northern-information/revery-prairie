@@ -17,6 +17,10 @@ const RUIN_ARCHETYPE_LABEL: Record<string, string> = {
 }
 
 const getDestinationLabel = (state: GameState, transition: ZoneTransition): string => {
+  // RP-67: 'house-to-yard' exits route from the house interior to the
+  // yard, so the destination label is 'Yard', not 'Revery Prairie'.
+  if (transition.kind === 'house-to-yard') return 'Yard'
+  if (transition.kind === 'yard' && transition.direction === 'enter') return 'Yard'
   if (transition.direction === 'exit') return 'Revery Prairie'
   if (transition.kind === 'cave') return 'Cave'
   if (transition.kind === 'house') return 'The Little House'

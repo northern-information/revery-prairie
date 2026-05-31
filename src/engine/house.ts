@@ -87,7 +87,11 @@ export const enterHouse = (state: GameState): void => {
   state.map = state.houseMap
   state.mapWidth = state.houseMapWidth
   state.mapHeight = state.houseMapHeight
-  state.player = { x: state.houseEntranceInterior.x, y: state.houseEntranceInterior.y }
+  // RP-67 — enterHouse is only called via the yard→house front-door
+  // transition. Player lands one tile inside the south door, facing
+  // the room. The tenure-start spawn at houseEntranceInterior (hearth)
+  // is set directly in createGameState, not through this handler.
+  state.player = { x: state.houseDoorInteriorEntry.x, y: state.houseDoorInteriorEntry.y }
   state.currentZone = Zone.HouseInterior
   recordDiscovery(state, 'zone:house')
 
@@ -154,30 +158,56 @@ export const checkHouseTransition = (state: GameState): boolean => {
   const px = state.player.x
   const py = state.player.y
 
+  // RP-67 — overworld trigger: stepping onto a HouseEntrance or
+  // HouseApron tile transitions into the yard at the gate. (Pre-RP-67
+  // this branch did a 3x3-around-the-entrance scan and entered the
+  // house directly; the house enter is now triggered from inside the
+  // yard via HouseDoorClosed.) The player's own tile is the apron we
+  // return to on gate exit.
   if (state.currentZone === Zone.Overworld) {
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const ex = px + dx
-        const ey = py + dy
-        if (state.map[ey]?.[ex]?.type === TileType.HouseEntrance) {
-          // Suppress re-entry into the house the player just exited.
-          if (isReentryLocked(state, { x: ex, y: ey })) continue
-          scheduleZoneTransition(state, performance.now(), {
-            direction: 'enter',
-            kind: 'house',
-            irisCenter: { x: ex, y: ey },
-          })
-          return true
-        }
+    const standingTile = state.map[py]?.[px]?.type
+    if (standingTile === TileType.HouseEntrance || standingTile === TileType.HouseApron) {
+      const apronTile = { x: px, y: py }
+      if (!isReentryLocked(state, apronTile)) {
+        scheduleZoneTransition(state, performance.now(), {
+          direction: 'enter',
+          kind: 'yard',
+          irisCenter: apronTile,
+        })
+        return true
       }
     }
   }
 
+  // RP-67 — inside the yard, stepping on FenceGate exits to the
+  // overworld; stepping on HouseDoorClosed enters the house interior.
+  if (state.currentZone === Zone.LittleHouseYard) {
+    const tileType = state.map[py]?.[px]?.type
+    if (tileType === TileType.FenceGate) {
+      scheduleZoneTransition(state, performance.now(), {
+        direction: 'exit',
+        kind: 'yard',
+        irisCenter: { x: px, y: py },
+      })
+      return true
+    }
+    if (tileType === TileType.HouseDoorClosed) {
+      scheduleZoneTransition(state, performance.now(), {
+        direction: 'enter',
+        kind: 'house',
+        irisCenter: { x: px, y: py },
+      })
+      return true
+    }
+  }
+
+  // RP-67 — HouseExit inside the interior now routes to the yard
+  // (kind: 'house-to-yard'), not back to the overworld.
   if (state.currentZone === Zone.HouseInterior) {
     if (state.map[py]?.[px]?.type === TileType.HouseExit) {
       scheduleZoneTransition(state, performance.now(), {
         direction: 'exit',
-        kind: 'house',
+        kind: 'house-to-yard',
         irisCenter: { x: px, y: py },
       })
       return true
