@@ -1,6 +1,6 @@
 import { REVERY_COOLDOWN_MS, REVERY_PRESSURE_RAMP_END, REVERY_PRESSURE_RAMP_START } from '../constants'
 import { contributeDormancyPressure, tickDormancyPressure } from '../omen'
-import { OmenKind, ReveryPhase, Season, Sky, Zone } from '../types'
+import { OmenKind, ReveryPhase, Season, Zone } from '../types'
 import { createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -185,7 +185,5 @@ describe('createGameState — dormancyPressure initialization (RP-32)', () => {
   it('does not initialize ReveryState.summons (field is optional)', () => {
     const state = createTestState()
     expect(state.revery).toBeNull()
-    // confirm the legacy Sky field still defaults correctly
-    expect(state.lastSky).toBe(Sky.Sun)
   })
 })

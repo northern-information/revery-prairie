@@ -11,10 +11,12 @@ source_files:
   - src/engine/egregore/spread.ts
   - src/engine/constants.ts
   - src/engine/render/passes/stoneCircles.ts
+  - src/engine/render/passes/dragHoverTile.ts
   - src/engine/render/passes/index.ts
   - src/engine/manual.ts
   - src/components/InventoryGrid.tsx
   - src/hooks/useKeyboard.ts
+  - src/hooks/useCanvasDrop.ts
   - src/harness/__tests__/serialization/schema.test.ts
 dependencies: []
 
@@ -250,6 +252,32 @@ behaviors:
     state_changes:
       - field: stoneCirclePreview
         effect: 'set to { x: player.x, y: player.y } on hover-in over a meteorite item; cleared to null on hover-out or hover of a non-meteorite item'
+    determinism: deterministic
+
+  - id: drag-canvas-hover-preview
+    description: >
+      While an inventory drag is active and the cursor is over the
+      canvas, useCanvasDrop maintains state.dragHoverTile as the
+      tile-coordinate Position currently under the mouse (or null if
+      the cursor is off-canvas, out-of-bounds, or over a Space tile).
+      The dragHoverTile render pass (slot 'effect', registered in
+      render/passes/dragHoverTile.ts) draws a hot-pink
+      (ACTION_COLOR) cell highlight on that tile at 0.55 alpha,
+      lift-adjusted via the tier grid so the highlight sits on the
+      tile's iso top. The field is cleared to null whenever the drag
+      ends (cancel or drop) and whenever the cursor leaves the
+      canvas. Shares the ACTION_COLOR palette with right-click
+      click-to-walk so drag and walk read as the same "destination
+      is here" vocabulary.
+    inputs:
+      - 'GameState'
+      - 'active inventory drag (dragState !== null)'
+      - 'mousemove event with target.tagName === "CANVAS"'
+    outputs:
+      - 'pink cell highlight drawn on the hovered tile during drag'
+    state_changes:
+      - field: dragHoverTile
+        effect: 'set to { x, y } of the tile under the cursor while dragging over canvas; cleared to null on drag end, cursor leaving canvas, or out-of-bounds / Space tile'
     determinism: deterministic
 
   - id: manual-entries

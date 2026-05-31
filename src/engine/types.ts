@@ -639,10 +639,6 @@ export interface GameState {
   // by movement.ts. Was used by the retired cloud-passing omen (RP-4
   // / RP-32); retained for any future use.
   playerStationarySince: number
-  // Previous frame's state.weather.sky value. Updated by gameLoop after
-  // tickWeather. The cloud-passing omen that originally read this field
-  // was retired in RP-32; the field is retained for any future use.
-  lastSky: Sky
   postGiftActionsCompleted: Set<string>
   rainFrontOffset: number
   precipitationIntensity: number

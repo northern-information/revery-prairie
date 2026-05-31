@@ -40,7 +40,10 @@ behaviors:
     description: >
       GameState stores both maps permanently. state.overworldMap,
       state.overworldMapWidth, state.overworldMapHeight persist
-      alongside the existing state.caveMap fields. state.map is a
+      alongside the cave fields state.caveMap, state.caveMapWidth,
+      state.caveMapHeight, and state.caveEntranceInterior (the
+      cave-side landing tile used by enterCave for player placement
+      and by movement.ts for cave-exit detection). state.map is a
       reference to the current zone's map. OverworldSnapshot type
       and state.overworldSnapshot field are removed entirely.
     inputs:
@@ -48,10 +51,12 @@ behaviors:
     outputs:
       - 'state.overworldMap is the overworld terrain'
       - 'state.caveMap is the cave terrain'
+      - 'state.caveMapWidth / state.caveMapHeight hold the cave grid dimensions'
+      - 'state.caveEntranceInterior holds the cave-side entrance Position'
       - 'state.map points to state.overworldMap initially'
     state_changes:
       - field: 'GameState'
-        effect: 'overworldMap/Width/Height added, overworldSnapshot removed'
+        effect: 'overworldMap/Width/Height added, overworldSnapshot removed, caveMapWidth/caveMapHeight/caveEntranceInterior added'
     determinism: deterministic
 
   - id: concurrent-zone-ticks

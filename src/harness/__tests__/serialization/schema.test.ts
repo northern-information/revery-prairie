@@ -121,7 +121,6 @@ const EXPECTED_FIELDS = [
   'dormancyPressure',
   'collapsedStewardTile',
   'playerStationarySince',
-  'lastSky',
   'postGiftActionsCompleted',
   'rainFrontOffset',
   'precipitationIntensity',
