@@ -9,11 +9,22 @@ const SEED = 42
 const createSeededState = () => withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
 describe('serialization round-trip', () => {
-  it('persistent fields survive serialize/deserialize', () => {
-    const original = createSeededState()
-    const json = serializeState(original)
-    const restored = deserializeState(json)
+  // Genesis is the expensive part of createGameState (~180ms). Build
+  // the original + serialized + restored trio once and let the
+  // read-only assertions below share it. Each test runs against the
+  // SAME deterministic seeded state — the assertions don't mutate
+  // either side.
+  let original: GameState
+  let json: string
+  let restored: GameState
 
+  beforeAll(() => {
+    original = createSeededState()
+    json = serializeState(original)
+    restored = deserializeState(json)
+  })
+
+  it('persistent fields survive serialize/deserialize', () => {
     const persistentKeys = (Object.keys(original) as (keyof GameState)[]).filter(k => !FUNCTION_FIELDS.includes(k))
 
     for (const key of persistentKeys) {
@@ -33,10 +44,6 @@ describe('serialization round-trip', () => {
   })
 
   it('function fields become null after round-trip', () => {
-    const original = createSeededState()
-    const json = serializeState(original)
-    const restored = deserializeState(json)
-
     for (const key of FUNCTION_FIELDS) {
       const val = restored[key]
 
@@ -66,9 +73,6 @@ describe('serialization round-trip', () => {
   })
 
   it('round-trip produces valid JSON', () => {
-    const state = createSeededState()
-    const json = serializeState(state)
-
     expect(() => {
       JSON.parse(json) as unknown
     }).not.toThrow()

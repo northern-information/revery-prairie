@@ -5,12 +5,12 @@ import { createGameState } from '@/engine/state'
 
 const SEED = 42
 
-const createSeededState = () => withSeededRandom(SEED, () => createGameState('test', 40, 30))
+const freshState = () => withSeededRandom(SEED, () => createGameState('test', 40, 30))
 
 describe('Map and Set survival', () => {
   describe('discoveredRecipes (Set)', () => {
     it('survives round-trip as a Set', () => {
-      const state = createSeededState()
+      const state = freshState()
       expect(state.discoveredRecipes).toBeInstanceOf(Set)
 
       const json = serializeState(state)
@@ -20,7 +20,7 @@ describe('Map and Set survival', () => {
     })
 
     it('preserves all values', () => {
-      const state = createSeededState()
+      const state = freshState()
       state.discoveredRecipes.add('prairie')
       state.discoveredRecipes.add('test-recipe')
 
@@ -33,7 +33,7 @@ describe('Map and Set survival', () => {
     })
 
     it('preserves an empty Set', () => {
-      const state = createSeededState()
+      const state = freshState()
       state.discoveredRecipes = new Set()
 
       const json = serializeState(state)

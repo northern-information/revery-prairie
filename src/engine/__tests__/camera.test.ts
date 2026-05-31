@@ -1,13 +1,13 @@
 import { updateCamera } from '../camera'
 import { worldToScreen } from '../projection'
-import { createGameState } from '../state'
 import { Zone } from '../types'
+import { createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 describe('updateCamera', () => {
   describe('follow mode (always centers player)', () => {
     it('centers camera on the player in overworld', () => {
-      const state = createGameState('Test', 40, 40)
+      const state = createTestState({ viewportWidth: 40, viewportHeight: 40 })
       state.player.x = 85
       state.player.y = 47
       updateCamera(state)
@@ -16,7 +16,7 @@ describe('updateCamera', () => {
     })
 
     it('centers camera on the player in cave zone', () => {
-      const state = createGameState('Test', 10, 10)
+      const state = createTestState({ viewportWidth: 10, viewportHeight: 10 })
       state.currentZone = Zone.Cave
       state.player.x = 50
       state.player.y = 12
@@ -26,7 +26,7 @@ describe('updateCamera', () => {
     })
 
     it('centers camera on the player in ruin zone', () => {
-      const state = createGameState('Test', 10, 10)
+      const state = createTestState({ viewportWidth: 10, viewportHeight: 10 })
       state.currentZone = Zone.Ruin
       state.player.x = 50
       state.player.y = 12
@@ -36,7 +36,7 @@ describe('updateCamera', () => {
     })
 
     it('recenters every step as the player walks (no deadzone)', () => {
-      const state = createGameState('Test', 40, 40)
+      const state = createTestState({ viewportWidth: 40, viewportHeight: 40 })
       state.player.x = 85
       state.player.y = 47
       updateCamera(state)
@@ -49,7 +49,7 @@ describe('updateCamera', () => {
     })
 
     it('does not clamp to map bounds; camera centers past map edges', () => {
-      const state = createGameState('Test', 40, 40)
+      const state = createTestState({ viewportWidth: 40, viewportHeight: 40 })
       state.player.x = state.mapWidth - 1
       state.player.y = state.mapHeight - 1
       updateCamera(state)
@@ -58,7 +58,7 @@ describe('updateCamera', () => {
     })
 
     it('places the player at the iso canvas center every frame', () => {
-      const state = createGameState('Test', 40, 40)
+      const state = createTestState({ viewportWidth: 40, viewportHeight: 40 })
       const charWidth = 8
       const charHeight = 14
       const positions = [
@@ -94,7 +94,7 @@ describe('updateCamera', () => {
 
   describe('small-map centering', () => {
     it('centers map when mapWidth and mapHeight are smaller than viewport', () => {
-      const state = createGameState('Test', 80, 60)
+      const state = createTestState({ viewportWidth: 80, viewportHeight: 60 })
       state.mapWidth = 40
       state.mapHeight = 25
       state.player.x = 20
@@ -105,7 +105,7 @@ describe('updateCamera', () => {
     })
 
     it('camera offset is independent of player position when map is small', () => {
-      const state = createGameState('Test', 100, 80)
+      const state = createTestState({ viewportWidth: 100, viewportHeight: 80 })
       state.mapWidth = 40
       state.mapHeight = 25
       const expectedX = -Math.floor((state.viewportWidth - 40) / 2)
@@ -125,7 +125,7 @@ describe('updateCamera', () => {
     })
 
     it('can center map on one axis and follow on the other', () => {
-      const state = createGameState('Test', 80, 20)
+      const state = createTestState({ viewportWidth: 80, viewportHeight: 20 })
       state.mapWidth = 40
       state.player.x = 20
       state.player.y = 47
@@ -137,7 +137,7 @@ describe('updateCamera', () => {
 
   describe('zone transitions', () => {
     it('recenters across cave/overworld swaps', () => {
-      const state = createGameState('Test', 40, 40)
+      const state = createTestState({ viewportWidth: 40, viewportHeight: 40 })
 
       state.currentZone = Zone.Cave
       state.player.x = 20

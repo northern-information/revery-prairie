@@ -179,18 +179,26 @@ const EXPECTED_FIELDS = [
   'knotHarvestYears',
 ].sort((a, b) => a.localeCompare(b))
 
+// Genesis is the expensive part of createGameState (~180ms). Build the
+// seeded base once and let the schema + camera roundtrip tests share
+// it. Per-test mutations (the camera pushes below) are rewound in
+// afterEach so each test sees the original baseline.
+const _baseState = withSeededRandom(SEED, () => createGameState('test', 40, 30))
+const _baseCameraCount = _baseState.placedCameras.length
+
+afterEach(() => {
+  _baseState.placedCameras.length = _baseCameraCount
+})
+
 describe('GameState schema', () => {
   it('has exactly the expected fields', () => {
-    const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
-    const actualFields = Object.keys(state).sort((a, b) => a.localeCompare(b))
+    const actualFields = Object.keys(_baseState).sort((a, b) => a.localeCompare(b))
 
     expect(actualFields).toEqual(EXPECTED_FIELDS)
   })
 
   it('field count matches', () => {
-    const state = withSeededRandom(SEED, () => createGameState('test', 40, 30))
-
-    expect(Object.keys(state)).toHaveLength(EXPECTED_FIELDS.length)
+    expect(Object.keys(_baseState)).toHaveLength(EXPECTED_FIELDS.length)
   })
 })
 
@@ -212,40 +220,37 @@ describe('PlacedCamera.predecessor roundtrip (RP-24)', () => {
   }
 
   it('survives roundtrip for fate = field tile', () => {
-    const original = withSeededRandom(SEED, () => createGameState('test', 40, 30))
     const predecessor: PredecessorRecord = {
       stewardName: 'Foo',
       tenure: 7,
       fate: { kind: 'field', tile: { x: 12, y: 34 } },
     }
-    original.placedCameras.push(makeCamera(predecessor))
+    _baseState.placedCameras.push(makeCamera(predecessor))
 
-    const restored = deserializeState(serializeState(original))
+    const restored = deserializeState(serializeState(_baseState))
     const restoredCamera = restored.placedCameras[restored.placedCameras.length - 1]
 
     expect(restoredCamera.predecessor).toEqual(predecessor)
   })
 
   it("survives roundtrip for fate = 'bed'", () => {
-    const original = withSeededRandom(SEED, () => createGameState('test', 40, 30))
     const predecessor: PredecessorRecord = {
       stewardName: 'Bar',
       tenure: 3,
       fate: 'bed',
     }
-    original.placedCameras.push(makeCamera(predecessor))
+    _baseState.placedCameras.push(makeCamera(predecessor))
 
-    const restored = deserializeState(serializeState(original))
+    const restored = deserializeState(serializeState(_baseState))
     const restoredCamera = restored.placedCameras[restored.placedCameras.length - 1]
 
     expect(restoredCamera.predecessor).toEqual(predecessor)
   })
 
   it('omits the predecessor field for cameras without one', () => {
-    const original = withSeededRandom(SEED, () => createGameState('test', 40, 30))
-    original.placedCameras.push(makeCamera(undefined))
+    _baseState.placedCameras.push(makeCamera(undefined))
 
-    const restored = deserializeState(serializeState(original))
+    const restored = deserializeState(serializeState(_baseState))
     const restoredCamera = restored.placedCameras[restored.placedCameras.length - 1]
 
     expect(restoredCamera.predecessor).toBeUndefined()

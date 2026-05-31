@@ -2,11 +2,11 @@ import { PermacomputerShell } from '../PermacomputerShell'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { createGameState } from '@/engine/state'
+import { createTestState } from '@/engine/__tests__/helpers'
 import type { GameState } from '@/engine/types'
 
 const buildState = (mutate?: (state: GameState) => void): GameState => {
-  const state = createGameState('Tester', 80, 40)
+  const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
   if (mutate) mutate(state)
   return state
 }

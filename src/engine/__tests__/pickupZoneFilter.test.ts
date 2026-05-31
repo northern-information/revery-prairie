@@ -1,7 +1,7 @@
 import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
 import { containerHasItem } from '../inventory'
-import { createGameState } from '../state'
+import { createTestState } from './helpers'
 import { TileType, Zone } from '../types'
 import { clearAroundPlayer, createGroundItemEntity, getGroundItemEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
@@ -77,7 +77,7 @@ const createMeteoriteInZone = (state: GameState, x: number, y: number, zone: Zon
 // branch (meteorites are Zone.Overworld-tagged).
 describe('pickup zone filter', () => {
   it('does not pick up a ruin-tagged ground item from the overworld', () => {
-    const state = createGameState('test', 30, 30)
+    const state = createTestState({ viewportWidth: 30, viewportHeight: 30 })
     clearAroundPlayer(state)
     expect(state.currentZone).toBe(Zone.Overworld)
 
@@ -94,7 +94,7 @@ describe('pickup zone filter', () => {
   })
 
   it('does not pick up an overworld meteorite while inside a ruin', () => {
-    const state = createGameState('test', 30, 30)
+    const state = createTestState({ viewportWidth: 30, viewportHeight: 30 })
     const interior = makeRuinInterior(0, 30, 25)
     enterRuinWithInterior(state, interior)
     state.player = { x: 10, y: 10 }
@@ -110,7 +110,7 @@ describe('pickup zone filter', () => {
   })
 
   it('does not pick up an item tagged to a different ruin', () => {
-    const state = createGameState('test', 30, 30)
+    const state = createTestState({ viewportWidth: 30, viewportHeight: 30 })
     const interior = makeRuinInterior(1, 30, 25)
     enterRuinWithInterior(state, interior)
     state.player = { x: 10, y: 10 }
@@ -132,7 +132,7 @@ describe('pickup zone filter', () => {
   })
 
   it('still picks up same-zone ground items normally', () => {
-    const state = createGameState('test', 30, 30)
+    const state = createTestState({ viewportWidth: 30, viewportHeight: 30 })
     clearAroundPlayer(state)
     createGroundItemEntity(state, 'clover', state.player.x, state.player.y)
 
@@ -148,7 +148,7 @@ describe('pickup zone filter', () => {
   })
 
   it('still picks up same-ruin ground items when inside the matching ruin', () => {
-    const state = createGameState('test', 30, 30)
+    const state = createTestState({ viewportWidth: 30, viewportHeight: 30 })
     const interior = makeRuinInterior(0, 30, 25)
     enterRuinWithInterior(state, interior)
     state.player = { x: 10, y: 10 }

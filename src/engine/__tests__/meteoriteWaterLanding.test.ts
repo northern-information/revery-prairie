@@ -2,7 +2,7 @@ import { findShowerTargets, tickShootingStars } from '../celestial'
 import { MAP_HEIGHT, MAP_WIDTH } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { posKey } from '../position'
-import { createGameState } from '../state'
+import { createTestState } from './helpers'
 import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
@@ -66,7 +66,7 @@ const destroyAllMeteorites = (state: GameState): void => {
 describe('meteorite water landing', () => {
   describe('untargeted landing', () => {
     it('does not create meteorite entity when landing on a pond', () => {
-      const state = createGameState('Test', 20, 20)
+      const state = createTestState({ viewportWidth: 20, viewportHeight: 20 })
       destroyAllStars(state)
       destroyAllMeteorites(state)
       const targetX = Math.floor(MAP_WIDTH / 2)
@@ -88,7 +88,7 @@ describe('meteorite water landing', () => {
     })
 
     it('does not create meteorite entity when landing on a river', () => {
-      const state = createGameState('Test', 20, 20)
+      const state = createTestState({ viewportWidth: 20, viewportHeight: 20 })
       destroyAllStars(state)
       destroyAllMeteorites(state)
       const targetX = Math.floor(MAP_WIDTH / 2)
@@ -110,7 +110,7 @@ describe('meteorite water landing', () => {
     })
 
     it('still creates explosion effect when landing on water', () => {
-      const state = createGameState('Test', 20, 20)
+      const state = createTestState({ viewportWidth: 20, viewportHeight: 20 })
       destroyAllStars(state)
       destroyAllMeteorites(state)
       const targetX = Math.floor(MAP_WIDTH / 2)
@@ -135,7 +135,7 @@ describe('meteorite water landing', () => {
     })
 
     it('creates meteorite on dry dirt (regression guard)', () => {
-      const state = createGameState('Test', 20, 20)
+      const state = createTestState({ viewportWidth: 20, viewportHeight: 20 })
       destroyAllStars(state)
       destroyAllMeteorites(state)
       const targetX = Math.floor(MAP_WIDTH / 2)
@@ -157,7 +157,7 @@ describe('meteorite water landing', () => {
 
   describe('targeted landing', () => {
     it('does not create meteorite entity when target is on a pond', () => {
-      const state = createGameState('Test', 20, 20)
+      const state = createTestState({ viewportWidth: 20, viewportHeight: 20 })
       destroyAllStars(state)
       destroyAllMeteorites(state)
       const targetX = Math.floor(MAP_WIDTH / 2)
@@ -180,7 +180,7 @@ describe('meteorite water landing', () => {
     })
 
     it('still creates explosion when target is on water', () => {
-      const state = createGameState('Test', 20, 20)
+      const state = createTestState({ viewportWidth: 20, viewportHeight: 20 })
       destroyAllStars(state)
       destroyAllMeteorites(state)
       const targetX = Math.floor(MAP_WIDTH / 2)
@@ -205,7 +205,7 @@ describe('meteorite water landing', () => {
 
   describe('findShowerTargets', () => {
     it('excludes water tiles from targets', () => {
-      const state = createGameState('Test', 20, 20)
+      const state = createTestState({ viewportWidth: 20, viewportHeight: 20 })
       // Add water at several positions
       for (let x = 20; x < 40; x++) {
         for (let y = 20; y < 40; y++) {
