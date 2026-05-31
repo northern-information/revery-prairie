@@ -1,5 +1,6 @@
 import { angelSystems } from './angels'
 import { celestialSystems } from './celestial'
+import { chronicleSystems } from './chronicle'
 import { cleanupSystems } from './cleanup'
 import { creatureSystems } from './creatures'
 import { egregoreSystems } from './egregore'
@@ -26,4 +27,5 @@ export const createDefaultSystems = (callbacks: GameLoopCallbacks): TickSystem[]
   ...cleanupSystems(),
   ...angelSystems(callbacks),
   ...ruinSystems(),
+  ...chronicleSystems(),
 ]
