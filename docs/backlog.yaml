@@ -690,7 +690,7 @@ features:
       per-species threads in the naturalist's manual (RP-6, shipped), and as
       predecessor lines in the lineage record (RP-16). Never a running log.
     depends_on: []
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null
