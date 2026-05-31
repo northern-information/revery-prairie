@@ -21,11 +21,14 @@ export type TileVisibility = 'unexplored' | 'remembered' | 'visible'
 
 /** Returns true if the given zone has fog of war. */
 export const hasFogOfWar = (zone: string): boolean =>
-  zone === Zone.Cave || zone === Zone.Ruin || zone === Zone.Overworld
+  zone === Zone.Cave || zone === Zone.Ruin || zone === Zone.Overworld || zone === Zone.KnotCellar
 
 /** Returns true if a tile type blocks line-of-sight. */
 export const blocksLOS = (tileType: TileType): boolean =>
-  tileType === TileType.CaveWall || tileType === TileType.CaveBreakableWall || tileType === TileType.RuinWall
+  tileType === TileType.CaveWall ||
+  tileType === TileType.CaveBreakableWall ||
+  tileType === TileType.RuinWall ||
+  tileType === TileType.CellarWall
 
 /**
  * Compute field of view from a given origin using symmetric shadowcasting.
@@ -166,6 +169,12 @@ const getFogState = (state: GameState): { fogExplored: Set<string> } | null => {
       return { fogExplored: interior.fogExplored }
     }
   }
+  // RP-37 — Knot Cellar reuses the cave-style permanent-discovery fog
+  // so it matches the cave/ruin visual register (shadowcasting FOV
+  // around the steward, remembered tiles dim, unexplored tiles black).
+  if (state.currentZone === Zone.KnotCellar) {
+    return { fogExplored: state.cellarFogExplored }
+  }
   return null
 }
 
@@ -251,6 +260,8 @@ export const computeZoneVisibility = (state: GameState): Set<string> => {
     if (interior) {
       entrance = interior.entranceInterior
     }
+  } else if (state.currentZone === Zone.KnotCellar) {
+    entrance = state.cellarBulkheadInterior
   }
   if (entrance) {
     visible.add(posKey(entrance.x, entrance.y))

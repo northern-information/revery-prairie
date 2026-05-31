@@ -1,0 +1,884 @@
+id: RP-37-knot-cellar
+name: 'The Knot Cellar (RP-37)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/state.ts
+  - src/engine/cellar.ts
+  - src/engine/yard.ts
+  - src/engine/zoneTransition.ts
+  - src/engine/revery.ts
+  - src/engine/movement.ts
+  - src/engine/renderer.ts
+  - src/engine/render/passes/knotCellarKnots.ts
+  - src/engine/render/passes/index.ts
+  - src/engine/visibility.ts
+  - src/engine/manual.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+  - docs/backlog.yaml
+dependencies:
+  - RP-33-little-house-and-emily
+  - RP-36-revery-knot
+  - RP-67-little-house-yard
+
+# Doctrine reference: docs/backlog.yaml id 'RP-37'. v11 thinktank rounds 7-8
+# established the cellar as the archive of every harvest year. This spec
+# implements that surface.
+#
+# Doctrinal reframe locked by the user 2026-05-31 during spec gathering:
+#
+#   * The cellar is the **Knot Cellar**, not the "root cellar". Root-cellar
+#     phrasing throughout the backlog is updated to "Knot Cellar" in this
+#     PR (see backlog-terminology-rename behavior). The name foregrounds
+#     the archive function (Revery Knots, one per harvest year, RP-36)
+#     over the architectural metaphor.
+#
+#   * Layout is a long narrow corridor, three tiles wide, with **alcoves**
+#     cut into the side walls at regular spacing. Alcoves alternate
+#     left / right AND stagger by depth — no two alcoves sit at the same
+#     y-coordinate, so a steward standing in the corridor between any two
+#     alcoves never sees two knots framing them. Knot N sits deeper into
+#     the cellar than knot N-1.
+#
+#   * The first archived Revery Knot hangs in the alcove **closest to the
+#     bulkhead door** (alcove index 0, left side). The second hangs at
+#     alcove index 1 (right, deeper). Each subsequent harvest year fills
+#     the next alcove. Per RP-36 doctrine, the first Knot encloses
+#     pre-play time (harvestYear = 0) — _the first knot is not yours_.
+#
+#   * After each Revery, the steward **awakens in the cellar in the
+#     alcove of the year's Knot**, replacing the existing RP-33 wake-
+#     at-the-hearth-with-Emily beat. This is the architectural cognate
+#     of the Revery itself: the Revery is the prairie sleeping, the
+#     cellar is what survived the harvest sleeping. Above sleeps the
+#     present; below sleeps the past.
+#
+#   * Length is capped at a large fixed N — `CELLAR_ROOM_CAP = 256` —
+#     chosen to outlive any realistic playthrough. Distance-based
+#     dimming hides the far end so the cap is never visible. If a
+#     lineage somehow exceeds the cap, the post-Revery spawn defensively
+#     clamps to the last alcove and overflow Knots simply stop
+#     rendering (data is preserved in state.archivedKnots).
+#
+#   * Bulkhead placement is in the **back yard** (north of the little
+#     house), one tile north of the house's back wall, centered on the
+#     house's x-axis. This is the "alternate bulkhead entrance outside
+#     the house" called out in the RP-37 backlog summary: a hatch in
+#     the back yard, distinct from the front-door / fence-gate axis
+#     that RP-67 owns.
+#
+# Bulkhead-and-spawn doctrine (user-locked 2026-05-31):
+#
+#   * Stepping on the back-yard bulkhead tile transitions to the Knot
+#     Cellar. The steward arrives at the **cellar door** — the top of
+#     the corridor, one tile south of the (in-cellar) bulkhead-stairs
+#     tile, facing south (down the corridor).
+#
+#   * The post-Revery awaken transition (Revery Closing) bypasses the
+#     bulkhead arrival point. The steward is placed directly **in the
+#     alcove** of the year's Knot, facing into the corridor (east for
+#     left-side alcoves, west for right-side alcoves). The cellar
+#     becomes the *destination* of the Revery cycle, not the bed.
+#
+#   * Subsequent visits via the bulkhead (the steward walking from the
+#     yard back into the cellar) always spawn at the cellar door — never
+#     at the most recent knot. Bulkhead is for navigation; Revery
+#     awakening is the ritual.
+#
+# Render doctrine:
+#
+#   * The Revery Knot glyph `§` (RP-36 item definition) is reused. Each
+#     occupied alcove tile renders `§` in the same warm prairie-straw
+#     `glyphColor: '#D4B58A'` used for the in-inventory item.
+#
+#   * Fog of war reuses the existing shadowcasting system shared by the
+#     cave, the ruins, and the overworld (`src/engine/visibility.ts`).
+#     `hasFogOfWar` is extended to include `Zone.KnotCellar`;
+#     `blocksLOS` is extended to include `TileType.CellarWall`; a
+#     new `state.cellarFogExplored: Set<string>` mirrors
+#     `state.caveFogExplored` and is read by `getFogState`. The
+#     standard `fogMaskPass` paints the mask. The corridor walls
+#     block line-of-sight the same way cave / ruin walls do, so the
+#     steward sees the alcoves alongside them and the corridor ahead,
+#     but not around corners or past the far end. Once read, the
+#     cellar remembers — discovered tiles dim to the memory tier and
+#     stay.
+#
+#   * Egregoric content is excluded from the cellar tile palette
+#     (the cellar is architecture, not prairie — no dirt, no flora,
+#     no egregore eligibility).
+#
+# Out of scope for this PR:
+#   * Hover / interact surface on individual knots (no "press F to read"
+#     text, no chronicle sentence panel on the knots). The text-binding
+#     of chronicle to Knot lore lives in RP-22's follow-up.
+#   * Coyote routing into the cellar. The coyote retains the
+#     RP-36 walk-to-house-apron path; the cellar bulkhead is steward-only.
+#   * Per-tenure cellar fog reset (RP-39 / fog-of-war substrate). The
+#     cellar starts with all currently-archived knots visible from
+#     frame 1; future-knot alcoves render as empty cells. No "the
+#     prior tenure's knots are dim" effect in this PR.
+#   * Predecessor knots seeded by RP-24 (seeded predecessors). When
+#     RP-24 ships, it will pre-populate `archivedKnots` with
+#     predecessor entries; this spec already reads `archivedKnots`
+#     so RP-24's seeded entries will appear in the cellar automatically.
+#   * Network / multiplayer broadcast. The cellar is single-player
+#     state; the wire protocol is unchanged. Peer ghosts cannot enter
+#     the cellar.
+#   * Lore. Manual entries register with `{ lore: 'TODO' }` per
+#     feedback_manual_lore_only — no LLM-authored prose.
+#
+# Engine substrate notes (verified during research):
+#   * Zone enum: src/engine/types.ts:1019. Extended with KnotCellar.
+#   * ZoneTransitionKind: src/engine/types.ts:252. Extended with
+#     'knot-cellar' for the yard→cellar enter and 'knot-cellar' for
+#     the cellar→yard exit (both directions share the kind, matching
+#     the cave/house pattern).
+#   * archivedKnots: src/engine/types.ts:754 — already exists from
+#     RP-36; this spec adds no new fields to the ArchivedKnot shape.
+#   * bedKnotPresent: src/engine/types.ts:753 — already exists. While
+#     true, the in-backpack knot renders in the next-available alcove
+#     (alcove index === archivedKnots.length). At Winter→Spring
+#     archive (RP-36 / gameLoop.ts:28), bedKnotPresent flips to false
+#     and archivedKnots gains the entry; the visual is continuous.
+#   * Yard map: src/engine/yard.ts createLittleHouseYard. This spec
+#     mutates the yard map after creation to place the back-yard
+#     bulkhead tile (no signature change to createLittleHouseYard).
+#   * Revery Closing: src/engine/revery.ts:293 — the post-Closing
+#     spawn override is inserted after revertHouseScene() at line 321.
+#   * Yard pause table: RP-67 sets pausesPlayerTime: true for
+#     LittleHouseYard. This spec adds KnotCellar to the same pause
+#     table (time stands still in the cellar, mirroring the yard and
+#     the house interior).
+
+behaviors:
+  - id: cellar-tile-types
+    description: >
+      TileType gains FIVE new variants:
+        * CellarFloor (walkable=true, dark warm-brown cellar floor)
+        * CellarWall (walkable=false, cellar wall stone)
+        * CellarAlcoveFloor (walkable=true, alcove tile where a knot
+          hangs; renders the parent CellarFloor color when empty and
+          the `§` overlay when populated)
+        * CellarBulkhead (walkable=true, yard-side hatch tile; stepping
+          on it triggers the yard→cellar transition; rendered with the
+          reserved user-action pink `#ff69b4` (per CLAUDE.md color
+          conventions: any tile that initiates a player-driven zone
+          transition gets the pink-door treatment, matching CaveExit,
+          RuinExit, HouseExit, HouseDoorClosed, FenceGate))
+        * CellarBulkheadInterior (walkable=true, cellar-side staircase
+          tile; stepping on it triggers the cellar→yard transition;
+          also rendered with `#ff69b4` for parity with the bulkhead
+          surface).
+      None of these tiles are dirt-eligible (cannot host egregore
+      candidates). Walkability tables in src/engine/movement.ts and
+      color/glyph tables in renderer.ts (or its pass modules) are
+      updated for each.
+    inputs:
+      - 'TileType enum is read by renderer.ts, movement.ts, tileBg.ts'
+    outputs:
+      - 'Five new TileType variants exported from types.ts'
+      - 'Renderer color/glyph tables include each new variant'
+      - 'movement.ts walkability table marks CellarFloor, CellarAlcoveFloor, CellarBulkhead, CellarBulkheadInterior walkable; CellarWall non-walkable'
+    state_changes:
+      - field: 'TileType enum'
+        effect: 'five entries appended: CellarFloor, CellarWall, CellarAlcoveFloor, CellarBulkhead, CellarBulkheadInterior'
+    determinism: deterministic
+
+  - id: cellar-zone-and-map
+    description: >
+      Zone gains a new variant KnotCellar. A new src/engine/cellar.ts
+      module owns the zone. createKnotCellar() generates a deterministic
+      map (no RNG):
+        * Width: CELLAR_WIDTH = 7. Columns:
+          - x=0: CellarWall (left back-of-alcove / left wall)
+          - x=1: CellarWall (default, MUTATED to CellarAlcoveFloor at
+            left-alcove rows — see below)
+          - x=2, x=3, x=4: CellarFloor (the 3-wide central corridor)
+          - x=5: CellarWall (default, MUTATED to CellarAlcoveFloor at
+            right-alcove rows)
+          - x=6: CellarWall (right back-of-alcove / right wall)
+        * Height: CELLAR_HEIGHT = 2 + CELLAR_ROOM_CAP * CELLAR_ALCOVE_SPACING.
+          With CELLAR_ROOM_CAP = 256 and CELLAR_ALCOVE_SPACING = 3 that
+          is 2 + 256*3 = 770. The top row (y=0) is CellarWall across
+          all x (the bulkhead landing's back wall). The second row
+          (y=1) is CellarFloor x=2..4, CellarWall elsewhere — this is
+          the **cellar door row** (the steward's arrival point on
+          bulkhead enter). The bottom row (y=CELLAR_HEIGHT-1) is
+          CellarWall across all x (the far back of the corridor; the
+          fade pass hides this from view).
+        * The bulkhead-interior staircase tile: CellarBulkheadInterior
+          at (x=3, y=0). Note (3, 0) is the center top tile; the rest
+          of y=0 stays CellarWall. Stepping onto (3, 0) from below
+          triggers the cellar→yard exit. The cellar floor immediately
+          south at (3, 1) is the canonical bulkhead arrival point
+          (state.cellarDoorSpawn).
+        * Alcove placement: for alcove index i ∈ [0, CELLAR_ROOM_CAP):
+            roomY = 2 + i * CELLAR_ALCOVE_SPACING  (first alcove at
+              y=2, second at y=5, third at y=8, ...)
+            side = (i % 2 === 0) ? 'left' : 'right'
+            if side === 'left': map[roomY][1] = CellarAlcoveFloor
+            else:               map[roomY][5] = CellarAlcoveFloor
+          The alcoves never share a y-coordinate (the alternation is
+          enforced by index parity, and the spacing of 3 guarantees a
+          full corridor cell between any two alcoves). The first
+          alcove (i=0) sits at y=2 on the left, two tiles south of the
+          door — closest to the door, left side.
+      The function returns `{ map, width, height, doorSpawn, bulkheadInterior, alcoves }` where:
+        * `doorSpawn = { x: 3, y: 1 }` — the steward's standard spawn
+          on bulkhead enter (cellar floor immediately south of the
+          stairs)
+        * `bulkheadInterior = { x: 3, y: 0 }` — the staircase tile
+          itself (its position is referenced by the exit trigger)
+        * `alcoves: Array<{ index: number; position: Position; side: 'left' | 'right' }>` —
+          a length-CELLAR_ROOM_CAP array, derivable from the same
+          formula at any time. Stored in state so render passes do
+          not need to recompute on every frame.
+      GameState gains six new fields, all added to EXPECTED_FIELDS in
+      src/harness/__tests__/serialization/schema.test.ts:
+        * `cellarMap: Tile[][] | null` (built once at genesis)
+        * `cellarMapWidth: number`
+        * `cellarMapHeight: number`
+        * `cellarDoorSpawn: Position` — the bulkhead arrival point
+        * `cellarBulkheadInterior: Position` — the staircase tile
+        * `cellarBulkheadYard: Position` — the bulkhead tile placed
+          inside the yard map (set by yard-bulkhead-placement below)
+    inputs:
+      - 'createGameState invocation at tenure start'
+    outputs:
+      - 'state.cellarMap is a 7 × 770 grid populated per the layout above'
+      - 'state.cellarMapWidth = 7, state.cellarMapHeight = 770'
+      - 'state.cellarDoorSpawn = {x: 3, y: 1}'
+      - 'state.cellarBulkheadInterior = {x: 3, y: 0}'
+      - 'Zone.KnotCellar exported from types.ts'
+    state_changes:
+      - field: 'Zone enum'
+        effect: 'one variant appended: KnotCellar'
+      - field: 'state.cellarMap, state.cellarMapWidth, state.cellarMapHeight'
+        effect: 'initialized at genesis; constant for the tenure'
+      - field: 'state.cellarDoorSpawn, state.cellarBulkheadInterior'
+        effect: 'initialized at genesis; constant for the tenure'
+    determinism: deterministic
+
+  - id: yard-bulkhead-placement
+    description: >
+      After createLittleHouseYard runs in createGameState, this spec
+      mutates state.yardMap to place a CellarBulkhead tile in the back
+      yard. The bulkhead position is deterministic:
+        * `bulkheadYardPos = { x: 11, y: 3 }` — one tile north of the
+          house's north wall (house footprint is x=4..18, y=4..12 per
+          RP-67), centered on the house's x-axis (x=11 matches the
+          front-door and gate x-axis for visual continuity), in the
+          back-yard strip (y=1..3, where y=0 is the north fence).
+      The yard tile at (11, 3) is overwritten from its default
+      walkable yard-ground tile to CellarBulkhead. state.cellarBulkheadYard
+      is set to { x: 11, y: 3 }. The mutation is a single tile;
+      surrounding yard flora is undisturbed. The yard re-sample pass
+      from RP-67 (yard-flora-sampling-at-enter) is unaffected because
+      it scatters flora on walkable yard-interior tiles; the bulkhead
+      tile is included in the walkable set but its tile type takes
+      precedence over flora glyphs in the renderer.
+    inputs:
+      - 'createGameState has just called createLittleHouseYard'
+      - 'state.yardMap is non-null'
+    outputs:
+      - 'state.yardMap[3][11].type === TileType.CellarBulkhead'
+      - 'state.cellarBulkheadYard === {x: 11, y: 3}'
+    state_changes:
+      - field: 'state.yardMap[3][11]'
+        effect: 'tile type set to CellarBulkhead'
+      - field: 'state.cellarBulkheadYard'
+        effect: 'set to {x: 11, y: 3}'
+    determinism: deterministic
+
+  - id: yard-to-cellar-enter
+    description: >
+      When state.currentZone === Zone.LittleHouseYard and the player
+      steps onto state.cellarBulkheadYard (a CellarBulkhead tile),
+      scheduleZoneTransition fires with
+      `{ direction: 'enter', kind: 'knot-cellar', irisCenter: bulkheadYardPos }`.
+      A new enter handler (registerZoneSwapHandler('knot-cellar',
+      'enter', enterKnotCellar)) swaps state.map to state.cellarMap,
+      updates state.mapWidth/Height to CELLAR_WIDTH / CELLAR_HEIGHT,
+      sets state.currentZone = Zone.KnotCellar, places the player at
+      state.cellarDoorSpawn ({x: 3, y: 1}), sets playerFacing = 'down'
+      (so the steward faces into the corridor on arrival), records
+      discovery 'zone:knotCellar', and clears the same UI / input
+      state that enterHouse and enterLittleHouseYard clear (path,
+      pathWaypoints, pendingAction, pendingInteractionTarget,
+      heldDirection, previewFn, facingEntityPos, activeDialog, trail,
+      movement tweens).
+    inputs:
+      - 'state.currentZone === Zone.LittleHouseYard'
+      - 'player position === state.cellarBulkheadYard'
+    outputs:
+      - 'scheduleZoneTransition invoked with kind=knot-cellar, direction=enter'
+      - 'after the iris transition: state.currentZone === Zone.KnotCellar'
+      - 'state.player === state.cellarDoorSpawn'
+      - 'state.playerFacing === "down"'
+    state_changes:
+      - field: 'state.map, state.mapWidth, state.mapHeight'
+        effect: 'swapped to cellarMap and its dimensions'
+      - field: 'state.currentZone'
+        effect: 'set to Zone.KnotCellar'
+      - field: 'state.player'
+        effect: 'set to state.cellarDoorSpawn'
+      - field: 'state.playerFacing'
+        effect: 'set to "down"'
+      - field: 'state.path, state.pathWaypoints, state.pendingAction, state.pendingInteractionTarget, state.heldDirection, state.previewFn, state.facingEntityPos, state.activeDialog, state.trail'
+        effect: 'cleared'
+    determinism: deterministic
+
+  - id: cellar-to-yard-exit
+    description: >
+      When state.currentZone === Zone.KnotCellar and the player steps
+      onto state.cellarBulkheadInterior (the CellarBulkheadInterior
+      stairs tile at {x: 3, y: 0}), scheduleZoneTransition fires with
+      `{ direction: 'exit', kind: 'knot-cellar', irisCenter: bulkheadInteriorPos }`.
+      The exit handler swaps state.map to state.yardMap, restores
+      state.mapWidth / mapHeight to yard dimensions, sets
+      state.currentZone = Zone.LittleHouseYard, places the player at
+      `{ x: state.cellarBulkheadYard.x, y: state.cellarBulkheadYard.y + 1 }`
+      (one tile south of the yard-side bulkhead, in the back yard,
+      facing south away from the bulkhead). A cellar re-entry lock is
+      armed on state.cellarBulkheadYard for one transition cycle to
+      prevent immediate yo-yo'ing (mirroring the existing
+      isReentryLocked pattern from house.ts and the RP-67 yard
+      re-entry lock). Same UI / input state clears as on entry.
+    inputs:
+      - 'state.currentZone === Zone.KnotCellar'
+      - 'player position === state.cellarBulkheadInterior'
+    outputs:
+      - 'scheduleZoneTransition invoked with kind=knot-cellar, direction=exit'
+      - 'state.currentZone === Zone.LittleHouseYard after iris transition'
+      - 'state.player === {x: cellarBulkheadYard.x, y: cellarBulkheadYard.y + 1}'
+      - 'cellar re-entry lock armed on the bulkhead tile'
+    state_changes:
+      - field: 'state.map, state.mapWidth, state.mapHeight'
+        effect: 'restored to yardMap and its dimensions'
+      - field: 'state.currentZone'
+        effect: 'set to Zone.LittleHouseYard'
+      - field: 'state.player'
+        effect: 'placed one tile south of state.cellarBulkheadYard'
+      - field: 'cellar re-entry lock'
+        effect: 'armed on cellarBulkheadYard to suppress immediate re-entry'
+    determinism: deterministic
+
+  - id: alcove-position-derivation
+    description: >
+      A pure helper `getAlcovePosition(index: number): Position` is
+      exported from src/engine/cellar.ts. It returns:
+        ```
+        {
+          x: (index % 2 === 0) ? 1 : 5,
+          y: 2 + index * CELLAR_ALCOVE_SPACING,
+        }
+        ```
+      where CELLAR_ALCOVE_SPACING = 3. The function is the canonical
+      source for render passes and the post-Revery spawn override.
+      For `index >= CELLAR_ROOM_CAP`, the function clamps to
+      `index = CELLAR_ROOM_CAP - 1` (defensive — see
+      cap-exceeded-clamps edge case). A sibling helper
+      `getAlcoveFacing(index: number): 'left' | 'right'` returns the
+      direction the steward should face when spawned in the alcove:
+      `'right'` (toward the corridor) for left-side alcoves (even
+      index), `'left'` (toward the corridor) for right-side alcoves
+      (odd index).
+    inputs:
+      - 'integer index ∈ [0, CELLAR_ROOM_CAP)'
+    outputs:
+      - 'getAlcovePosition(0) === {x: 1, y: 2}'
+      - 'getAlcovePosition(1) === {x: 5, y: 5}'
+      - 'getAlcovePosition(2) === {x: 1, y: 8}'
+      - 'getAlcoveFacing(0) === "right"'
+      - 'getAlcoveFacing(1) === "left"'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cellar-knot-render-pass
+    description: >
+      A new render pass at src/engine/render/passes/knotCellarKnots.ts
+      runs while state.currentZone === Zone.KnotCellar. It iterates
+      state.archivedKnots and stamps the `§` glyph at
+      `getAlcovePosition(i)` for each entry, in the warm prairie-straw
+      `glyphColor: '#D4B58A'` (matching the RP-36 in-inventory item
+      color). Additionally, while `state.bedKnotPresent === true`, the
+      pass renders one extra `§` at `getAlcovePosition(state.archivedKnots.length)`
+      — representing the in-hand knot whose archive entry has not yet
+      been committed (the Winter→Spring edge per RP-36 will append it).
+      The visual is therefore continuous across the archive flip:
+      pre-archive the `§` is the in-hand knot; post-archive the `§` is
+      the archived knot at the same alcove position. The pass is
+      registered in the cellar's render-pass ordering after the base
+      tile pass and before the fog pass.
+    inputs:
+      - 'state.currentZone === Zone.KnotCellar'
+      - 'state.archivedKnots and state.bedKnotPresent'
+    outputs:
+      - 'one `§` rendered per archivedKnots entry at the corresponding alcove tile'
+      - 'one extra `§` rendered at alcove index archivedKnots.length when bedKnotPresent is true'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cellar-fog-of-war
+    description: >
+      The Knot Cellar reuses the existing shadowcasting fog-of-war
+      system shared by the cave, the ruins, and the overworld
+      (`src/engine/visibility.ts`): the steward's FOV is computed per
+      frame via `computeFOV`; visible tiles render at full color;
+      tiles that have ever entered the FOV are dimmed to
+      `FOG_EXPLORED_BRIGHTNESS` (remembered); tiles never seen are
+      fully black (unexplored). The standard `fogMaskPass` paints the
+      mask once for all four zones — no cellar-specific render pass.
+      Wiring:
+        * `hasFogOfWar` is extended to return true for
+          `Zone.KnotCellar`.
+        * `blocksLOS` is extended to include `TileType.CellarWall`,
+          so the corridor walls block sight the same way cave / ruin
+          walls do — the steward sees the corridor ahead and the
+          alcoves alongside, but not around corners.
+        * A new state field `cellarFogExplored: Set<string>` is added
+          (mirroring `state.caveFogExplored` and
+          `state.overworldFogExplored`) and registered in
+          `EXPECTED_FIELDS`. The set persists for the tenure: every
+          tile that has ever fallen into the steward's FOV joins it
+          and stays — once read, the cellar remembers.
+        * `getFogState` returns the cellar's set when
+          `currentZone === Zone.KnotCellar`.
+        * `getZoneFloraMemory` returns null for the cellar — there
+          is no flora register, so the remembered-tier dimming acts
+          on the tile bg only (no flora freeze).
+        * The cellar's staircase tile (`state.cellarBulkheadInterior`)
+          is treated as the canonical "entrance" by
+          `computeZoneVisibility` and is always added to the visible
+          set + its 3x3 neighborhood, so the steward can always find
+          the exit even after wandering deep into the corridor.
+        * Vision radius reuses `CAVE_VISION_RADIUS` (same eyes,
+          indoors or out — RP-38 doctrine).
+      The knot-glyph pass (`knotCellarKnotsPass`) reads visibility
+      per-alcove: knots in unexplored tiles render nothing; knots in
+      remembered tiles render at the dimmed memory tier; visible
+      knots render at full color. The standalone distance-fog pass
+      from earlier doctrine drafts is removed.
+    inputs:
+      - 'state.currentZone === Zone.KnotCellar'
+      - 'state.cellarFogExplored, state.player position, state.cellarMap'
+    outputs:
+      - 'tiles within FOV render fully'
+      - 'tiles ever in FOV are remembered (dimmed) when out of gaze'
+      - 'tiles never seen are fully black'
+      - 'state.cellarFogExplored gains the FOV tiles each frame'
+    state_changes:
+      - field: 'state.cellarFogExplored'
+        effect: 'grows monotonically; entries never removed'
+    determinism: deterministic
+
+  - id: post-revery-awaken-in-cellar
+    description: >
+      In src/engine/revery.ts tickRevery's Closing branch (line 293),
+      after the existing `revertHouseScene(state)` call (line 321),
+      this spec inserts the post-Revery cellar-awaken transition.
+      The hook fires unconditionally on Closing (both summons-path
+      and non-summons-path Reveries — the latter is test-only per
+      revery.ts:241-243 but treated identically here for robustness).
+
+      The procedure (synchronous, single frame, no iris animation —
+      the existing Closing-phase frame already produces the visual
+      transition off the Revery):
+        (1) Compute `alcoveIndex = state.archivedKnots.length`. This
+            is the index of the in-hand knot's eventual archive slot
+            (the spring archive at Winter→Spring will append at this
+            index per RP-36). For the first Revery, alcoveIndex is
+            0 (the pre-play knot, harvestYear 0). For the second,
+            alcoveIndex is 1. Etc.
+        (2) Clamp: if `alcoveIndex >= CELLAR_ROOM_CAP`, clamp to
+            `CELLAR_ROOM_CAP - 1` (see cap-exceeded-clamps edge case).
+        (3) Swap state.map / state.mapWidth / state.mapHeight to the
+            cellar (state.cellarMap, etc.). Set state.currentZone =
+            Zone.KnotCellar.
+        (4) Set state.player = getAlcovePosition(alcoveIndex) — i.e.
+            x=1 for even index, x=5 for odd, y by spacing.
+        (5) Set state.playerFacing = getAlcoveFacing(alcoveIndex) —
+            steward faces into the corridor (toward x=3).
+        (6) updateCamera(state) to recenter on the alcove.
+        (7) Record discovery 'zone:knotCellar' if not already
+            discovered (the very first Revery's awaken is also the
+            steward's first cellar entry — the discovery is recorded
+            here rather than waiting for an explicit walk-through-the-
+            bulkhead later).
+        (8) Clear navigation state (path, pathWaypoints,
+            pendingAction, pendingInteractionTarget, heldDirection,
+            previewFn, facingEntityPos, trail) — the steward starts
+            with a fresh input slate in the cellar.
+      The Emily entity is NOT moved — revertHouseScene already
+      handles her invitation flag, and she remains in the house
+      interior at her stationary position (per RP-33). The bed and
+      chair are not involved (the v11 R7 amendment retired furniture
+      placement during the Revery; the steward Reveried at the
+      hearth tableau).
+    inputs:
+      - 'tickRevery is processing the Closing phase'
+      - 'revertHouseScene has just been called'
+    outputs:
+      - 'state.currentZone === Zone.KnotCellar'
+      - 'state.player === getAlcovePosition(state.archivedKnots.length) (clamped to CELLAR_ROOM_CAP-1)'
+      - 'state.playerFacing === getAlcoveFacing(state.archivedKnots.length)'
+      - 'state.path === null and other nav fields cleared'
+      - 'discovery "zone:knotCellar" recorded'
+    state_changes:
+      - field: 'state.map, state.mapWidth, state.mapHeight, state.currentZone'
+        effect: 'swapped to cellar buffers and zone'
+      - field: 'state.player'
+        effect: 'placed at the alcove of the about-to-be-archived knot'
+      - field: 'state.playerFacing'
+        effect: 'set toward the corridor center'
+      - field: 'state.discoveries'
+        effect: 'gains "zone:knotCellar" on first cellar awaken'
+      - field: 'navigation state'
+        effect: 'cleared'
+    determinism: deterministic
+
+  - id: cellar-pauses-player-time
+    description: >
+      Per the RP-67 zone-pause table, KnotCellar joins the set of
+      pausing zones alongside LittleHouseYard and HouseInterior.
+      While state.currentZone === Zone.KnotCellar, state.timeOfDay
+      and state.season do not advance. The prairie simulation tick
+      (bees, ghosts, coyote, flora lifecycle, weather) continues to
+      run in the background but seasonal phase / day-night progression
+      pauses. The pause begins at zone enter; on cellar exit (bulkhead
+      → yard), the destination zone's pause behavior applies (the
+      yard also pauses per RP-67, so seasonal phase remains frozen
+      until the steward exits the yard through the gate to the
+      overworld).
+    inputs:
+      - 'state.currentZone === Zone.KnotCellar'
+    outputs:
+      - 'state.timeOfDay does not advance'
+      - 'state.seasonalPhase does not advance'
+    state_changes:
+      - field: 'state.timeOfDay'
+        effect: 'frozen for the duration of cellar occupancy'
+      - field: 'state.seasonalPhase'
+        effect: 'frozen for the duration of cellar occupancy'
+    determinism: deterministic
+
+  - id: cellar-camera-and-visibility
+    description: >
+      Camera follows the player in the cellar at the same iso scale as
+      the overworld, the yard, and the house interior. The camera
+      viewport clamps to cellar map bounds (0..cellarMapWidth,
+      0..cellarMapHeight). Because cellarMapHeight is large (~770),
+      the camera centers on the player and reveals only a thin slice
+      of the corridor at a time — the fog pass takes care of hiding
+      the rest. Cursor state, click-to-move, and the bottom-bar
+      permacomputer affordances all work normally inside the cellar.
+      The cursor's hot-pink-as-user-action convention is preserved.
+      There is no separate fog-of-war substrate in the cellar (the
+      distance-fog pass is the only obscuring mechanism); the steward
+      sees no "discovered tiles stay revealed" mechanic — the fog is
+      recomputed every frame from the current position. Walking deep
+      into the corridor and back does not leave a trail of
+      illumination.
+    inputs:
+      - 'state.currentZone === Zone.KnotCellar'
+    outputs:
+      - 'camera.clamp uses cellarMapWidth, cellarMapHeight'
+      - 'no fog-of-war mask applied; the fog pass is the only obscuring layer'
+    state_changes: []
+    determinism: deterministic
+
+  - id: manual-knot-cellar-entry
+    description: >
+      A new manual entry is added to MANUAL_ENTRIES in manual.ts:
+        * id: 'knot-cellar'
+        * category: 'Zones' (or 'Structures' if that category exists;
+          match whichever the existing house / yard entries use)
+        * label: 'Knot Cellar' (Title Case per CLAUDE.md writing style)
+        * lore: 'TODO'
+      Discovery: unlocked on discoveryKey 'zone:knotCellar' (recorded
+      by enterKnotCellar on bulkhead entry, AND by the post-Revery
+      cellar-awaken hook on first awaken — whichever fires first).
+      Per CLAUDE.md and feedback_manual_lore_only.md, lore is 'TODO'
+      and is human-authored in a follow-up commit.
+    inputs:
+      - 'player enters the cellar for the first time (via bulkhead OR via the post-Revery awaken hook)'
+    outputs:
+      - 'manual entry "Knot Cellar" becomes discovered'
+    state_changes:
+      - field: 'state.discoveries'
+        effect: 'gains "zone:knotCellar" entry on first encounter'
+    determinism: deterministic
+
+  - id: backlog-terminology-rename
+    description: >
+      docs/backlog.yaml is updated to replace all instances of
+      "root cellar" with "Knot Cellar" (where the term is used as a
+      noun phrase — Title Case "Knot Cellar" for labels and names,
+      sentence-case "Knot Cellar" for prose, per CLAUDE.md writing
+      style). Affected entries (verified by grep at spec time):
+        * id RP-22 (named-regions-chronicle): "Knot Cellar" lines in
+          summary, notes, and the chronicle-binding doctrinal text
+        * id RP-36 (revery-knot): "cellar" references in notes /
+          ArchivedKnot doctrine
+        * id RP-37 (this entry): name changes from "The root cellar"
+          to "The Knot Cellar"; all body prose follows
+        * id RP-39 (per-tenure FOW reset): the line about a new
+          steward inheriting the cellar
+        * id near line 2182 (pausesPlayerTime zone flag): the
+          reference to the cellar in the zone-pause flag explanation
+        * thinktank notes embedded in backlog entries that reference
+          "root cellar" by name
+      The rename is mechanical (string substitution) — the doctrinal
+      content of each affected entry is preserved. Where a sentence
+      uses "root cellar" in a way that would read awkwardly with a
+      direct substitution (e.g. "the root cellar..." → "the Knot
+      Cellar..."), the substitution keeps the surrounding article /
+      capitalization grammatical. RP-37's own `name` field changes
+      from `The root cellar` to `The Knot Cellar`. Backlog status
+      conventions and ordering are otherwise untouched.
+    inputs:
+      - 'docs/backlog.yaml current content'
+    outputs:
+      - 'no string "root cellar" remains in docs/backlog.yaml (case-insensitive)'
+      - 'RP-37 name field is "The Knot Cellar"'
+    state_changes:
+      - field: 'docs/backlog.yaml'
+        effect: 'terminology rename applied throughout'
+    determinism: deterministic
+
+  - id: schema-test-fields
+    description: >
+      src/harness/__tests__/serialization/schema.test.ts EXPECTED_FIELDS
+      is extended with the seven new field names:
+        * 'cellarMap'
+        * 'cellarMapWidth'
+        * 'cellarMapHeight'
+        * 'cellarDoorSpawn'
+        * 'cellarBulkheadInterior'
+        * 'cellarBulkheadYard'
+        * 'cellarFogExplored'
+      No removals. The Zone enum coverage test is updated to include
+      'knotCellar' as a valid currentZone value. The
+      ZoneTransitionKind coverage test (if one exists) is updated to
+      include 'knot-cellar'.
+    inputs:
+      - 'npm run test:harness'
+    outputs:
+      - 'EXPECTED_FIELDS matches the new GameState shape; schema test passes'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: first-revery-awaken-puts-steward-at-left-zero
+    description: >
+      First Revery in a fresh tenure. archivedKnots is empty
+      (length 0). bedKnotPresent is true (the first delivery has
+      happened per RP-36). The Closing-phase awaken hook fires.
+    expected: >
+      alcoveIndex computes to 0. getAlcovePosition(0) returns
+      {x: 1, y: 2}. The steward awakens at the LEFT alcove closest
+      to the door, facing right (toward the corridor center).
+      Discovery 'zone:knotCellar' is recorded for the first time.
+      The cellar render passes show one `§` at the steward's tile
+      (the in-hand knot, sourced from bedKnotPresent === true).
+      After Winter → Spring (RP-36's spring archive), the `§`
+      remains visible at the same tile — now sourced from
+      archivedKnots[0] rather than bedKnotPresent.
+
+  - id: second-revery-awaken-puts-steward-at-right-one
+    description: >
+      Second Revery. archivedKnots.length === 1 (the first knot is
+      archived). bedKnotPresent is true (the second delivery has
+      happened). Closing fires.
+    expected: >
+      alcoveIndex computes to 1. getAlcovePosition(1) returns
+      {x: 5, y: 5}. The steward awakens at the RIGHT alcove three
+      tiles deeper than the first, facing left. The first knot's
+      `§` is visible at {x: 1, y: 2}, three tiles north and on the
+      opposite wall — visually staggered, never directly across.
+
+  - id: walk-bulkhead-after-revery-awaken
+    description: >
+      Steward has just awakened in alcove i and walks north up the
+      corridor toward the bulkhead, exits via the bulkhead-interior
+      stairs.
+    expected: >
+      The standard cellar→yard exit fires. Steward arrives in the
+      yard one tile south of the back-yard bulkhead. Re-entering
+      the cellar via the bulkhead spawns at cellarDoorSpawn ({x: 3,
+      y: 1}), NOT at the alcove — bulkhead entry always uses the
+      door spawn (per the locked doctrine "bulkhead is for
+      navigation; Revery awakening is the ritual").
+
+  - id: bedknot-still-in-backpack-after-awaken
+    description: >
+      The Closing-phase awaken does not remove the in-hand knot
+      from the backpack. The spring archive (RP-36) is still
+      responsible for moving the backpack knot → archivedKnots at
+      Winter → Spring.
+    expected: >
+      Immediately after Closing: state.bedKnotPresent === true,
+      the reveryKnot ItemInstance is still in state.backpack,
+      state.archivedKnots is unchanged. The cellar render shows
+      `§` at the alcoveIndex (sourced from bedKnotPresent). At the
+      next Winter → Spring edge, RP-36's archive runs as
+      specified: the ItemInstance is removed from backpack,
+      archivedKnots appends the entry. The cellar's `§` at that
+      alcove now comes from archivedKnots[alcoveIndex] — same
+      visual, different source.
+
+  - id: cap-exceeded-clamps
+    description: >
+      Defensive: archivedKnots.length reaches CELLAR_ROOM_CAP (256).
+      A 257th Revery completes; the awaken hook fires.
+    expected: >
+      alcoveIndex would compute to 256 but is clamped to
+      CELLAR_ROOM_CAP - 1 = 255. The steward awakens at
+      getAlcovePosition(255) — alcove index 255 is odd, so
+      {x: 5, y: 2 + 255*3} = {x: 5, y: 767}. Subsequent Reveries
+      all spawn at alcove 255 (overflow). Per RP-36, archivedKnots
+      continues to append (the data is preserved beyond the cap);
+      the cellar render pass only iterates indices < CELLAR_ROOM_CAP
+      so overflow knots do not render. _No human will reach this
+      case in normal play; the clamp exists for save-load safety._
+
+  - id: cellar-enter-during-revery
+    description: >
+      A test or fixture triggers cellar bulkhead entry while
+      state.revery is non-null (should not occur in normal play —
+      input is locked during the Revery — but a test could
+      construct this).
+    expected: >
+      The zone-transition system fires identically; the steward
+      enters the cellar at the door. The Revery state machine
+      continues its phase progression on its own schedule.
+      Closing's awaken hook will move the steward from wherever
+      they are (now the cellar door) to the alcove. No crash.
+
+  - id: cellar-render-with-no-archived-knots-and-no-bedknot
+    description: >
+      The cellar is entered via the bulkhead for the first time
+      with archivedKnots empty and bedKnotPresent false (the
+      steward has not yet Reveried; they walked into the back
+      yard and stepped on the bulkhead out of curiosity).
+    expected: >
+      The cellar renders as an empty corridor: no `§` glyphs
+      anywhere. The alcove cells render as CellarAlcoveFloor
+      (the base tile color, no overlay). The fog pass still
+      hides the far end. The cellar's purpose is legible only
+      after the first Revery, and that is by design — _the
+      first knot is not yours_, but the steward must Revery to
+      see it.
+
+  - id: cellar-from-house-or-overworld-direct-blocked
+    description: >
+      The steward attempts to reach the cellar without going
+      through the back yard — e.g. via dev panel zone-jump, or
+      via a path scan that proposes a cellar tile from the
+      overworld.
+    expected: >
+      The cellar has no overworld-adjacent or house-adjacent
+      tiles; the only entry is the yard bulkhead. The
+      pathfinder cannot cross zones, so click-to-move respects
+      this. Dev-panel zone-jump bypasses the door spawn (it is
+      a dev surface and intentionally skips the bulkhead
+      logic); when it lands the steward inside the cellar
+      directly, the steward spawns at the dev-supplied
+      coordinate, which is acceptable for a dev tool.
+
+  - id: cellar-re-entry-yo-yo
+    description: >
+      Steward exits the cellar via the bulkhead, lands on the
+      tile south of the yard bulkhead, then moves north onto the
+      bulkhead immediately on the next tick.
+    expected: >
+      The cellar re-entry lock armed at cellar-to-yard-exit
+      suppresses the immediate re-trigger. The steward steps
+      onto the bulkhead tile but the apron-trigger check skips
+      the locked tile for one transition cycle. The next move
+      off the bulkhead clears the lock; future re-entries fire
+      normally. Mirrors the existing yard re-entry lock
+      (RP-67 / re-enter-yard-immediately-after-exit).
+
+  - id: serialization-roundtrip
+    description: >
+      A saved game from before this PR (lacking the six new
+      cellar fields) is loaded after this PR ships.
+    expected: >
+      Consistent with the RP-32 / RP-33 / RP-36 / RP-67 stance
+      (no migration logic): EXPECTED_FIELDS validates the
+      post-PR shape only; a pre-PR load is out of scope. The
+      save format is not stable across backlog-item-level
+      changes.
+
+  - id: backlog-rename-leaves-anchors-intact
+    description: >
+      The backlog terminology rename is mechanical. A naive
+      replacement could break the harness if "root cellar" appears
+      inside a quoted spec id or anchor name that other tooling
+      reads.
+    expected: >
+      Verification: after the rename, `npm run spec:validate` and
+      `npm run backlog` (the kanban TUI) both run cleanly. The
+      backlog ids (RP-37, RP-22, RP-36, RP-39) are unchanged —
+      only the prose body / name fields of those entries are
+      edited.
+
+failure_conditions:
+  - trigger: >
+      createKnotCellar is called when state.cellarMap is already
+      non-null (e.g. a test re-runs genesis on a mid-tenure state).
+    expected: >
+      The function logs a console.warn ("cellar map already exists;
+      skipping regeneration") and returns the existing map without
+      mutation. Defensive guard; tests can construct partial states
+      without crashing.
+
+  - trigger: >
+      enterKnotCellar is called when state.cellarMap is null
+      (defensive — should not happen under normal genesis, but a
+      pre-RP-37 save load could construct this).
+    expected: >
+      The handler logs a console.warn (mirroring enterHouse's
+      no-houseMap guard from RP-33) and returns early without
+      mutating state. The player remains in the yard. No throw.
+
+  - trigger: >
+      The post-Revery awaken hook fires when state.cellarMap is
+      null (same defensive case as above, but at a different code
+      path).
+    expected: >
+      The hook logs a console.warn ("cannot awaken in cellar:
+      cellarMap is null; falling back to RP-33 hearth spawn") and
+      leaves state.player / state.currentZone at the pre-existing
+      RP-33 hearth tableau (the prior behavior). The Revery still
+      completes normally; the steward awakens at the house
+      hearth as a fallback. _Belt-and-suspenders for a fixture
+      bug._
+
+  - trigger: >
+      getAlcovePosition is called with a negative or non-integer
+      index (e.g. archivedKnots.length is corrupted to -1 by a
+      save migration bug).
+    expected: >
+      The function clamps the index to [0, CELLAR_ROOM_CAP - 1]
+      using Math.max(0, Math.min(CELLAR_ROOM_CAP - 1, Math.floor(index))).
+      No throw. The post-Revery awaken hook receives a valid
+      Position even in degenerate input.
+
+  - trigger: >
+      A second cellar awaken hook fires in the same Closing frame
+      (double-fire bug, defensive).
+    expected: >
+      The hook is idempotent: if state.currentZone is already
+      Zone.KnotCellar at hook entry, the swap step is skipped but
+      the alcoveIndex / player / facing updates still apply
+      (they are pure assignments). No double-fire side effect.
+
+verification:
+  test_file: src/engine/__tests__/RP-37-knot-cellar.test.ts
+  test_pattern: '^RP-37 — the Knot Cellar$'
+  command: 'npx vitest run src/engine/__tests__/RP-37-knot-cellar.test.ts'

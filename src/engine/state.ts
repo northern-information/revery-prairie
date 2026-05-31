@@ -1,4 +1,5 @@
 import { generateCave } from './cave'
+import { createKnotCellar } from './cellar'
 import { getCharacterDefinition, registerGhostDefinitions } from './characters'
 import {
   CAVE_HEIGHT,
@@ -8,6 +9,8 @@ import {
   POOL_INITIAL_KNOTS,
   SPACE_BORDER,
   WATER_MAX,
+  YARD_BULKHEAD_X,
+  YARD_BULKHEAD_Y,
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
@@ -15,8 +18,6 @@ import { AURA_RADIUS } from './effects'
 import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from './egregore/species'
 import { createCharacterEntity } from './entities'
 import { createEmptyFloraGrowthPreviews } from './floraGrowthPreviews'
-import { computeReachableMass } from './genesis/shared/reachableMass'
-import { detectWaterfalls } from './genesis/shared/waterfalls'
 import {
   createGenesisState,
   GENESIS_EPOCHS,
@@ -25,20 +26,22 @@ import {
   postProcessMultiSpeciesFlora,
   precomputeGenesis,
 } from './genesis'
+import { computeReachableMass } from './genesis/shared/reachableMass'
+import { detectWaterfalls } from './genesis/shared/waterfalls'
 import { RuinGenerationMode } from './genesisTypes'
 import { generateEgregoreGenome } from './genetics/egregore'
 import { createHouseInterior } from './house'
-import { createLittleHouseYard } from './yard'
 import { autoSort } from './inventory'
 import { createBackpack } from './items'
 import { isWalkableTile, posKey } from './position'
-import { WATERFALL_TILE_WATER_BUMP } from './tileBg'
 import { detectNamedRegions } from './regions'
 import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
+import { WATERFALL_TILE_WATER_BUMP } from './tileBg'
 import { buildWaterProximity } from './tileWater'
 import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, TileType, Zone } from './types'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
+import { createLittleHouseYard } from './yard'
 
 import type { GenesisSimState } from './genesisTypes'
 import type { GameState, Position } from './types'
@@ -163,6 +166,12 @@ export const createGameState = (
   // grid as Gron and the cave.
   const houseInterior = createHouseInterior()
   const yard = createLittleHouseYard()
+  const cellar = createKnotCellar()
+  // RP-37 — mutate the back-yard tile at (YARD_BULKHEAD_X, YARD_BULKHEAD_Y)
+  // into a CellarBulkhead. The yard map is otherwise untouched; the bulkhead
+  // is the only yard-side tile that triggers the cellar transition.
+  yard.map[YARD_BULKHEAD_Y][YARD_BULKHEAD_X] = { type: TileType.CellarBulkhead }
+  const cellarBulkheadYard: Position = { x: YARD_BULKHEAD_X, y: YARD_BULKHEAD_Y }
   const minHouseDist = rainRadius + 1
   const maxHouseDist = rainRadius + 4
   let houseEntranceOverworld: Position = { x: gronX - minHouseDist, y: gronY }
@@ -301,6 +310,17 @@ export const createGameState = (
     yardFrontDoorPosition: yard.frontDoorPosition,
     yardEntryApron: null,
     yardFlora: new Map(),
+    // RP-37 — Knot Cellar map and the bulkhead anchors. The map is
+    // 7x770; the corridor reads as effectively infinite because the
+    // knotCellarFog pass hides the far end at all times.
+    cellarMap: cellar.map,
+    cellarMapWidth: cellar.width,
+    cellarMapHeight: cellar.height,
+    cellarDoorSpawn: cellar.doorSpawn,
+    cellarBulkheadInterior: cellar.bulkheadInterior,
+    cellarBulkheadYard,
+    cellarRoomCount: cellar.roomCount,
+    cellarFogExplored: new Set<string>(),
     emilyInvitation: 'unoffered',
     tenureOpened: false,
     giftsReceived: new Set<string>(),

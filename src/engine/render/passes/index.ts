@@ -43,6 +43,12 @@ export { stoneCirclesPass } from './stoneCircles'
 export { burnLinePass } from './burnLine'
 export { clickTargetPass } from './clickTarget'
 export { fireplaceGlowPass } from './fireplaceGlow'
+// RP-37 — Knot Cellar knot-glyph overlay. Stamps `§` at each archived
+// alcove (plus the in-hand alcove while bedKnotPresent is true). Active
+// only inside the cellar zone. (The cellar's fog of war is handled by
+// the standard fogMaskPass via hasFogOfWar / cellarFogExplored, matching
+// the cave/ruin visual register.)
+export { knotCellarKnotsPass } from './knotCellarKnots'
 // screen-overlay
 export { lightningScreenFlashPass } from './lightningScreenFlash'
 export { angelSpawnDespawnFlashPass } from './angelSpawnDespawnFlash'

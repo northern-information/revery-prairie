@@ -3,7 +3,6 @@ import { deserializeState, serializeState } from '@/harness/serialize'
 
 import { createGameState } from '@/engine/state'
 import { Zone } from '@/engine/types'
-
 import type { PlacedCamera, PredecessorRecord } from '@/engine/types'
 
 const SEED = 42
@@ -63,6 +62,14 @@ const EXPECTED_FIELDS = [
   'yardFrontDoorPosition',
   'yardEntryApron',
   'yardFlora',
+  'cellarMap',
+  'cellarMapWidth',
+  'cellarMapHeight',
+  'cellarDoorSpawn',
+  'cellarBulkheadInterior',
+  'cellarBulkheadYard',
+  'cellarRoomCount',
+  'cellarFogExplored',
   'emilyInvitation',
   'tenureOpened',
   'meteorShower',

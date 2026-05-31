@@ -59,6 +59,20 @@ export const TileType = {
   HouseDoorClosed: 'houseDoorClosed',
   Fence: 'fence',
   FenceGate: 'fenceGate',
+  // The Knot Cellar (RP-37). A narrow corridor archive accessed via a
+  // bulkhead in the back yard. CellarFloor is the central 3-wide
+  // corridor; CellarWall the side walls and far end; CellarAlcoveFloor
+  // is the alcove tile cut into the wall at every CELLAR_ALCOVE_SPACING
+  // rows, alternating left/right by alcove index parity (a Revery Knot
+  // hangs here once the steward has Reveried). CellarBulkhead is the
+  // yard-side hatch (pink `#ff69b4` per the cave/ruin exit idiom);
+  // CellarBulkheadInterior is the cellar-side staircase that exits back
+  // to the yard.
+  CellarFloor: 'cellarFloor',
+  CellarWall: 'cellarWall',
+  CellarAlcoveFloor: 'cellarAlcoveFloor',
+  CellarBulkhead: 'cellarBulkhead',
+  CellarBulkheadInterior: 'cellarBulkheadInterior',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
@@ -249,7 +263,7 @@ export interface BootTitleCard {
 }
 
 export type ZoneTransitionDirection = 'enter' | 'exit'
-export type ZoneTransitionKind = 'cave' | 'ruin' | 'house' | 'yard' | 'house-to-yard'
+export type ZoneTransitionKind = 'cave' | 'ruin' | 'house' | 'yard' | 'house-to-yard' | 'knot-cellar'
 
 export interface ZoneTransition {
   startTime: number
@@ -507,6 +521,33 @@ export interface GameState {
   // Cosmetic snapshots: no growth, no decay, cleared on the next
   // sample. Parallel to state.floraLifecycle but never merged with it.
   yardFlora: Map<string, FloraSpecies>
+  // Knot Cellar (RP-37). The cellar is a long narrow corridor with
+  // alcoves cut into the side walls at every CELLAR_ALCOVE_SPACING
+  // rows, alternating left/right by index parity. Built once at
+  // genesis by createKnotCellar() in cellar.ts; persists for the
+  // tenure. cellarDoorSpawn is where the steward arrives via the
+  // bulkhead from the yard; cellarBulkheadInterior is the in-cellar
+  // staircase that exits back to the yard; cellarBulkheadYard is the
+  // mutated yard tile (one north of the house's back wall, x-centered)
+  // that triggers cellar entry.
+  cellarMap: Tile[][]
+  cellarMapWidth: number
+  cellarMapHeight: number
+  cellarDoorSpawn: Position
+  cellarBulkheadInterior: Position
+  cellarBulkheadYard: Position
+  // RP-37 — current number of alcoves carved into the cellar. Starts at
+  // CELLAR_INITIAL_ROOM_COUNT (256) and doubles each time
+  // archivedKnots.length would exceed it. The cellar grows
+  // indefinitely; ensureCellarCapacity is the only writer.
+  cellarRoomCount: number
+  // RP-37 — fog-of-war discovery set for the Knot Cellar. Mirrors
+  // state.caveFogExplored / state.overworldFogExplored / per-ruin
+  // fogExplored. Permanent discovery (RP-62 "fog returns to memory"):
+  // tiles enter this set the first time they fall in the steward's
+  // FOV and stay forever, so the corridor reads as remembered the
+  // moment the steward looks away.
+  cellarFogExplored: Set<string>
   // Emily's invitation state machine. 'unoffered' at genesis; flips to
   // 'offered' when her autumn last line arms awaitingConfirmation;
   // 'confirmed' on [f]-consume; resets to 'unoffered' at dialog close
@@ -1022,6 +1063,7 @@ export const Zone = {
   Ruin: 'ruin',
   HouseInterior: 'houseInterior',
   LittleHouseYard: 'littleHouseYard',
+  KnotCellar: 'knotCellar',
 } as const
 
 export type Zone = (typeof Zone)[keyof typeof Zone]

@@ -1,3 +1,4 @@
+import { ensureCellarCapacity } from './cellar'
 import { SCAN_DURATION_MS } from './constants'
 import { removeItem } from './inventory'
 import { tickDormancyPressure } from './omen'
@@ -31,6 +32,10 @@ const archiveBedKnot = (state: GameState, time: number): void => {
     archivedAt: time,
     harvestYear,
   })
+  // RP-37 — keep the cellar large enough to render the new alcove.
+  // Doubles whenever archivedKnots.length crosses the current room
+  // count (e.g. the 257th knot triggers the first doubling).
+  ensureCellarCapacity(state, state.archivedKnots.length)
   removeItem(state.backpack, knot.uid)
   state.knotHarvestYears.delete(knot.uid)
   state.bedKnotPresent = false

@@ -181,6 +181,7 @@ export const checkHouseTransition = (state: GameState): boolean => {
 
   // RP-67 — inside the yard, stepping on FenceGate exits to the
   // overworld; stepping on HouseDoorClosed enters the house interior.
+  // RP-37 — stepping on CellarBulkhead enters the Knot Cellar.
   if (state.currentZone === Zone.LittleHouseYard) {
     const tileType = state.map[py]?.[px]?.type
     if (tileType === TileType.FenceGate) {
@@ -199,6 +200,17 @@ export const checkHouseTransition = (state: GameState): boolean => {
       })
       return true
     }
+    if (tileType === TileType.CellarBulkhead) {
+      const bulkheadTile = { x: px, y: py }
+      if (!isReentryLocked(state, bulkheadTile)) {
+        scheduleZoneTransition(state, performance.now(), {
+          direction: 'enter',
+          kind: 'knot-cellar',
+          irisCenter: bulkheadTile,
+        })
+        return true
+      }
+    }
   }
 
   // RP-67 — HouseExit inside the interior now routes to the yard
@@ -208,6 +220,19 @@ export const checkHouseTransition = (state: GameState): boolean => {
       scheduleZoneTransition(state, performance.now(), {
         direction: 'exit',
         kind: 'house-to-yard',
+        irisCenter: { x: px, y: py },
+      })
+      return true
+    }
+  }
+
+  // RP-37 — inside the cellar, stepping on CellarBulkheadInterior
+  // exits back to the yard.
+  if (state.currentZone === Zone.KnotCellar) {
+    if (state.map[py]?.[px]?.type === TileType.CellarBulkheadInterior) {
+      scheduleZoneTransition(state, performance.now(), {
+        direction: 'exit',
+        kind: 'knot-cellar',
         irisCenter: { x: px, y: py },
       })
       return true
