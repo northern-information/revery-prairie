@@ -10,7 +10,7 @@
 // docs/claude/revery.md for the full doctrine summary.
 
 import { updateCamera } from './camera'
-import { getAlcoveFacing, getAlcovePosition } from './cellar'
+import { ensureCellarCapacity, getAlcoveFacing, getAlcovePosition } from './cellar'
 import { REVERY_YEARS_PER_FRAME } from './constants'
 import { ComponentType } from './ecs/types'
 import { advanceEgregoreInRevery, commitEgregoreTiles } from './egregore/spread'
@@ -239,6 +239,10 @@ const awakenInKnotCellar = (state: GameState): void => {
     return
   }
   const alcoveIndex = state.archivedKnots.length
+  // Grow the cellar if the new knot would land past the current room
+  // count. The doubling pattern is uncapped — every 257th knot extends
+  // the corridor 256 deeper, every 513th extends it another 512, etc.
+  ensureCellarCapacity(state, alcoveIndex + 1)
   const position = getAlcovePosition(alcoveIndex)
   const facing = getAlcoveFacing(alcoveIndex)
 

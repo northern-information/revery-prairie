@@ -13,7 +13,7 @@
 //     consumed by render passes and the post-Revery awaken hook
 //   * enterKnotCellar / exitKnotCellar zone-swap handlers
 
-import { CELLAR_ALCOVE_SPACING, CELLAR_HEIGHT, CELLAR_ROOM_CAP, CELLAR_WIDTH } from './constants'
+import { CELLAR_ALCOVE_SPACING, CELLAR_INITIAL_HEIGHT, CELLAR_INITIAL_ROOM_COUNT, CELLAR_WIDTH } from './constants'
 import { clearAllGrowthPreviews } from './floraGrowthPreviews'
 import { recordDiscovery } from './manual'
 import { clearMovementTweens } from './movementTween'
@@ -26,6 +26,8 @@ export interface KnotCellarBuild {
   map: Tile[][]
   width: number
   height: number
+  /** Initial room count. Doubled by extendCellar() as needed. */
+  roomCount: number
   /** Where the steward lands on bulkhead entry — cellar floor immediately south of the staircase. */
   doorSpawn: Position
   /** The in-cellar staircase tile that exits back to the yard. */
@@ -50,65 +52,119 @@ export interface KnotCellarBuild {
  *                normal corridor / wall pattern
  *   y=last       CellarWall across all x (closure; hidden by the fog pass)
  */
+// Build a single row of the corridor at the given y, returning the tiles
+// for x ∈ [0, CELLAR_WIDTH). Pure: alcove cuts are stamped over the
+// default wall/floor pattern in the caller because the alcove decision
+// depends on y AND on which alcove index that y represents.
+const corridorRow = (): Tile[] => {
+  const row: Tile[] = []
+  for (let x = 0; x < CELLAR_WIDTH; x++) {
+    const onCorridor = x === 2 || x === 3 || x === 4
+    row.push({ type: onCorridor ? TileType.CellarFloor : TileType.CellarWall })
+  }
+  return row
+}
+
+const wallRow = (): Tile[] => {
+  const row: Tile[] = []
+  for (let x = 0; x < CELLAR_WIDTH; x++) {
+    row.push({ type: TileType.CellarWall })
+  }
+  return row
+}
+
+// Carve the alcove tile for room index `i` into the supplied map (which
+// must be tall enough). Even index → left wall (x=1); odd → right (x=5).
+const carveAlcove = (map: Tile[][], i: number): void => {
+  const roomY = 2 + i * CELLAR_ALCOVE_SPACING
+  const x = i % 2 === 0 ? 1 : 5
+  map[roomY][x] = { type: TileType.CellarAlcoveFloor }
+}
+
 export const createKnotCellar = (): KnotCellarBuild => {
-  const width = CELLAR_WIDTH
-  const height = CELLAR_HEIGHT
+  const roomCount = CELLAR_INITIAL_ROOM_COUNT
+  const height = CELLAR_INITIAL_HEIGHT
   const map: Tile[][] = []
   for (let y = 0; y < height; y++) {
-    const row: Tile[] = []
-    for (let x = 0; x < width; x++) {
-      // Default classification by column.
-      let type: TileType
-      if (x === 2 || x === 3 || x === 4) {
-        type = TileType.CellarFloor
-      } else {
-        type = TileType.CellarWall
-      }
-      row.push({ type })
-    }
-    map.push(row)
+    map.push(corridorRow())
   }
 
   // Top row (y=0): back of the bulkhead landing. All walls except the
   // staircase tile at x=3.
-  for (let x = 0; x < width; x++) {
-    map[0][x] = { type: TileType.CellarWall }
-  }
+  map[0] = wallRow()
   map[0][3] = { type: TileType.CellarBulkheadInterior }
 
   // Bottom row (y=height-1): full closure wall. Hidden by the fog pass
   // in normal play, but it keeps the corridor finite for movement and
   // pathfinding.
-  for (let x = 0; x < width; x++) {
-    map[height - 1][x] = { type: TileType.CellarWall }
-  }
+  map[height - 1] = wallRow()
 
-  // Alcoves: one per index in [0, CELLAR_ROOM_CAP), staggered by spacing
-  // and alternated left/right by parity.
-  for (let i = 0; i < CELLAR_ROOM_CAP; i++) {
-    const roomY = 2 + i * CELLAR_ALCOVE_SPACING
-    if (roomY >= height - 1) break
-    const left = i % 2 === 0
-    const x = left ? 1 : 5
-    map[roomY][x] = { type: TileType.CellarAlcoveFloor }
+  for (let i = 0; i < roomCount; i++) {
+    carveAlcove(map, i)
   }
 
   return {
     map,
-    width,
+    width: CELLAR_WIDTH,
     height,
+    roomCount,
     doorSpawn: { x: 3, y: 1 },
     bulkheadInterior: { x: 3, y: 0 },
   }
 }
 
 /**
- * Position of the alcove at the given index. Pure; index is clamped into
- * [0, CELLAR_ROOM_CAP - 1] defensively. Even indices are left-side
- * alcoves (x=1); odd indices are right-side (x=5).
+ * Double the cellar's room count in place. Converts the previous back-
+ * wall closure row into a normal corridor row, appends new corridor rows
+ * up to the doubled length, carves the new alcoves, and lays a new back-
+ * wall row at the bottom. Idempotent for the requested capacity — call
+ * `ensureCellarCapacity` rather than this directly.
+ */
+const extendCellar = (state: GameState): void => {
+  const prevCount = state.cellarRoomCount
+  const newCount = prevCount * 2
+  const newHeight = 2 + newCount * CELLAR_ALCOVE_SPACING
+  const map = state.cellarMap
+
+  // The current last row is the back wall. Convert it back into a
+  // corridor row, then append new corridor rows up to the new height,
+  // and lay a fresh back-wall row at the bottom.
+  const oldLast = map.length - 1
+  map[oldLast] = corridorRow()
+  while (map.length < newHeight - 1) {
+    map.push(corridorRow())
+  }
+  map.push(wallRow())
+
+  // Carve the new alcoves: indices [prevCount, newCount).
+  for (let i = prevCount; i < newCount; i++) {
+    carveAlcove(map, i)
+  }
+
+  state.cellarMapHeight = newHeight
+  state.cellarRoomCount = newCount
+}
+
+/**
+ * Ensure the cellar has at least `requiredRooms` alcoves carved out.
+ * Doubles repeatedly from the current room count until the requirement
+ * is met. No-op when capacity is already sufficient. Idempotent.
+ */
+export const ensureCellarCapacity = (state: GameState, requiredRooms: number): void => {
+  while (state.cellarRoomCount < requiredRooms) {
+    extendCellar(state)
+  }
+}
+
+/**
+ * Position of the alcove at the given index. Pure formula — does not
+ * mutate cellar state. Negative or non-integer inputs are floored and
+ * clamped to 0. The y-coordinate is unbounded; callers responsible for
+ * an index past `state.cellarRoomCount` must call `ensureCellarCapacity`
+ * first so the alcove tile actually exists on the map.
  */
 export const getAlcovePosition = (index: number): Position => {
-  const i = Math.max(0, Math.min(CELLAR_ROOM_CAP - 1, Math.floor(index)))
+  const i = Math.max(0, Math.floor(index))
   return {
     x: i % 2 === 0 ? 1 : 5,
     y: 2 + i * CELLAR_ALCOVE_SPACING,
@@ -122,7 +178,7 @@ export const getAlcovePosition = (index: number): Position => {
  * - Right-side alcove (odd index) → face left
  */
 export const getAlcoveFacing = (index: number): 'left' | 'right' => {
-  const i = Math.max(0, Math.min(CELLAR_ROOM_CAP - 1, Math.floor(index)))
+  const i = Math.max(0, Math.floor(index))
   return i % 2 === 0 ? 'right' : 'left'
 }
 
@@ -155,6 +211,10 @@ export const enterKnotCellar = (state: GameState): void => {
     console.warn('enterKnotCellar called with no cellarMap; skipping')
     return
   }
+  // Make sure the cellar is large enough to display every knot the
+  // steward has accumulated, including the in-hand bed knot.
+  const required = state.archivedKnots.length + (state.bedKnotPresent ? 1 : 0)
+  ensureCellarCapacity(state, required)
   state.map = state.cellarMap
   state.mapWidth = state.cellarMapWidth
   state.mapHeight = state.cellarMapHeight
@@ -166,10 +226,13 @@ export const enterKnotCellar = (state: GameState): void => {
 }
 
 /**
- * Exit the cellar back to the yard. Player lands one tile south of the
- * yard-side bulkhead (in the back yard, facing south away from the
- * hatch). The cellar re-entry lock is armed on the yard bulkhead tile
- * so the next move doesn't immediately re-enter.
+ * Exit the cellar back to the yard. The bulkhead sits in the back yard
+ * directly north of the house — one tile south of the bulkhead is the
+ * house's north eaves, which the steward cannot stand on. Place the
+ * steward one tile **north** of the bulkhead instead, deeper into the
+ * back yard away from the house, facing up toward the back fence. The
+ * cellar re-entry lock is armed on the yard bulkhead tile so the next
+ * move doesn't immediately re-enter.
  */
 export const exitKnotCellarToYard = (state: GameState): void => {
   if (!state.yardMap || state.yardMap.length === 0) {
@@ -178,14 +241,14 @@ export const exitKnotCellarToYard = (state: GameState): void => {
   }
   const returnTile: Position = {
     x: state.cellarBulkheadYard.x,
-    y: state.cellarBulkheadYard.y + 1,
+    y: state.cellarBulkheadYard.y - 1,
   }
   state.map = state.yardMap
   state.mapWidth = state.yardMapWidth
   state.mapHeight = state.yardMapHeight
   state.currentZone = Zone.LittleHouseYard
   state.player = returnTile
-  state.playerFacing = 'down'
+  state.playerFacing = 'up'
   armReentryLock(state, state.cellarBulkheadYard)
   clearCellarUiState(state)
 }

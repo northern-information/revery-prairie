@@ -750,18 +750,19 @@ export const YARD_BULKHEAD_Y = YARD_HOUSE_OFFSET_Y - 1
 // left/right by alcove index parity. The first alcove (index 0) sits
 // closest to the door on the left; the second (index 1) deeper on the
 // right; etc. No two alcoves share a y-coordinate, so the steward in the
-// corridor never sees two knots framing them. Length is capped at
-// CELLAR_ROOM_CAP — chosen to outlive any realistic playthrough; the
-// far end is hidden by the standard shadowcasting fog of war (the
-// CellarWall blocks line-of-sight, so the corridor is revealed only as
-// the steward walks).
+// corridor never sees two knots framing them.
+//
+// The cellar starts with `CELLAR_INITIAL_ROOM_COUNT` rooms and doubles
+// whenever `archivedKnots.length` would exceed the current room count —
+// effectively unbounded growth. The standard shadowcasting fog of war
+// hides the far end at all times (CellarWall blocks line-of-sight, so
+// the corridor reveals only as the steward walks).
 export const CELLAR_WIDTH = 7
-export const CELLAR_ROOM_CAP = 256
+export const CELLAR_INITIAL_ROOM_COUNT = 256
 export const CELLAR_ALCOVE_SPACING = 3
-// Top row is back-of-bulkhead wall; cellar door spawn sits at y=1; the
-// last alcove sits at y = 2 + (CELLAR_ROOM_CAP-1) * CELLAR_ALCOVE_SPACING;
-// add a one-row back wall after that for closure.
-export const CELLAR_HEIGHT = 2 + CELLAR_ROOM_CAP * CELLAR_ALCOVE_SPACING
+// Initial cellar height. Grown by doublings via extendCellar() in
+// cellar.ts. The map row count is always `2 + roomCount * SPACING`.
+export const CELLAR_INITIAL_HEIGHT = 2 + CELLAR_INITIAL_ROOM_COUNT * CELLAR_ALCOVE_SPACING
 // Color tokens for the cellar tiles. Floor and walls are deep earthen
 // browns; the bulkhead surfaces reuse the reserved user-action pink per
 // the cave/ruin exit idiom.

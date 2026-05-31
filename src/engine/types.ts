@@ -536,6 +536,11 @@ export interface GameState {
   cellarDoorSpawn: Position
   cellarBulkheadInterior: Position
   cellarBulkheadYard: Position
+  // RP-37 — current number of alcoves carved into the cellar. Starts at
+  // CELLAR_INITIAL_ROOM_COUNT (256) and doubles each time
+  // archivedKnots.length would exceed it. The cellar grows
+  // indefinitely; ensureCellarCapacity is the only writer.
+  cellarRoomCount: number
   // RP-37 — fog-of-war discovery set for the Knot Cellar. Mirrors
   // state.caveFogExplored / state.overworldFogExplored / per-ruin
   // fogExplored. Permanent discovery (RP-62 "fog returns to memory"):
