@@ -1615,7 +1615,7 @@ features:
       lived through. The cellar is also the in-prairie reading surface
       for chronicle events from `RP-22` — hung Knots carry that year's
       chronicle sentences as a hover or interact surface.
-    depends_on: ['RP-33', 'RP-36']
+    depends_on: ['RP-33', 'RP-36', 'RP-67']
     status: todo
     spec: null
     plan: null
@@ -1715,6 +1715,19 @@ features:
       advance. Cosmological framing: _memory does not tick_. The
       cellar is the prairie's archive of itself; archives are not
       present tense.
+
+
+      v11 thinktank round 8 (2026-05-31). Amendment: the bulkhead
+      entrance is no longer an overworld tile next to the house. It
+      is a tile inside the little house's yard (`RP-67`), the new
+      threshold zone that sits between the prairie and the house's
+      interior. The 3x3 apron heuristic was unreadable with two
+      thresholds (front door + cellar bulkhead) crowding the same
+      adjacency; the yard resolves the ambiguity by hosting both.
+      `state.reveryKnotsInCellar` plumbing unchanged. The cellar
+      remains the only place Knots are stored or read — the yard is
+      the threshold, not the archive. `RP-37` now depends on
+      `RP-67`.
 
   - id: 'RP-38'
     name: Overworld gaze, memory, and unseen
@@ -2832,7 +2845,7 @@ features:
     plan: harness/plans/RP-67-little-house-yard.yaml
     pr: null
     notes: >
-      v11 thinktank round 7 (2026-05-31). _The yard is the threshold,
+      v11 thinktank round 8 (2026-05-31). _The yard is the threshold,
       not the archive. The Knot ritual stays in the cellar's long
       hallway, per RP-37._ Five new TileTypes: HouseRoof, HouseEaves,
       HouseDoorClosed, Fence, FenceGate (all yard-only, dirt-ineligible).

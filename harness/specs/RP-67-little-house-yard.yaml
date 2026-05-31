@@ -22,7 +22,7 @@ dependencies:
   - RP-33-little-house-and-emily
 
 # Doctrine reference: docs/backlog.yaml id 'RP-67' and
-# docs/backlog-thinktank-v11.md round 7.
+# docs/backlog-thinktank-v11.md round 8.
 #
 # The yard is the first threshold zone — a bounded place between the
 # prairie and the little house's interior. The 3x3 HouseApron heuristic
@@ -32,7 +32,7 @@ dependencies:
 # to the house interior. RP-37 will later add the cellar bulkhead inside
 # the yard.
 #
-# Locked numbers (v11 R7 + spec checkpoint 2026-05-31):
+# Locked numbers (v11 R8 + spec checkpoint 2026-05-31):
 #   - House footprint inside the yard: 15 × 9 (same as interior dims).
 #   - Walkable margins around the house: 3 tiles on the back (north) and
 #     sides (east, west), 18 tiles on the front (south).
