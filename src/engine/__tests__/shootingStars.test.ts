@@ -8,7 +8,7 @@ import {
 } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { pickUpGroundItems } from '../entities'
-import { createGameState } from '../state'
+import { createTestState } from './helpers'
 import { TileType, Zone } from '../types'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -92,7 +92,7 @@ const createZonedMeteorite = (state: GameState, x: number, y: number, zone: Zone
 
 describe('tickShootingStars', () => {
   it('advances position by (dx, dy) each tick', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     const eid = createStarEntity(state, { pos: { x: 10, y: 10 }, dx: 1, dy: -1 })
 
@@ -105,7 +105,7 @@ describe('tickShootingStars', () => {
   })
 
   it('increments age', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     const eid = createStarEntity(state)
 
@@ -117,7 +117,7 @@ describe('tickShootingStars', () => {
   })
 
   it('removes stars that go off-map', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     createStarEntity(state, { pos: { x: MAP_WIDTH + 10, y: 50 }, dx: 1, dy: 0, length: 3 })
 
@@ -127,7 +127,7 @@ describe('tickShootingStars', () => {
   })
 
   it('removes stars exceeding max age', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     createStarEntity(state, { age: SHOOTING_STAR_MAX_AGE })
 
@@ -137,7 +137,7 @@ describe('tickShootingStars', () => {
   })
 
   it('converts willLand star to meteorite when it hits a walkable tile', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     destroyAllMeteorites(state)
     const targetX = Math.floor(MAP_WIDTH / 2)
@@ -162,7 +162,7 @@ describe('tickShootingStars', () => {
   })
 
   it('creates a LandingExplosion when a star lands', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     const targetX = Math.floor(MAP_WIDTH / 2)
     const targetY = Math.floor(MAP_HEIGHT / 2)
@@ -189,7 +189,7 @@ describe('tickShootingStars', () => {
   })
 
   it('cleans up expired explosions', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     const e = state.world.createEntity()
     state.world.addComponent(e, ComponentType.Position, { x: 50, y: 50 })
@@ -205,7 +205,7 @@ describe('tickShootingStars', () => {
   })
 
   it('targeted star passes over walkable tiles until reaching its exact target', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     destroyAllMeteorites(state)
     const targetX = Math.floor(MAP_WIDTH / 2)
@@ -243,7 +243,7 @@ describe('tickShootingStars', () => {
   })
 
   it('no-ops on empty world', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     destroyAllMeteorites(state)
     tickShootingStars(state, 1000)
@@ -254,7 +254,7 @@ describe('tickShootingStars', () => {
 
 describe('spawnShootingStar', () => {
   it('respects max active limit', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     for (let i = 0; i < SHOOTING_STAR_MAX_ACTIVE; i++) {
       createStarEntity(state)
@@ -269,7 +269,7 @@ describe('spawnShootingStar', () => {
   })
 
   it('every spawned star starts at y === 0 with velocity { dx: 1, dy: 1 }', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     const xValues = new Set<number>()
     for (let i = 0; i < 1000; i++) {
       destroyAllStars(state)
@@ -297,7 +297,7 @@ describe('ambient stars never land', () => {
   })
 
   it('spawnShootingStar always produces a star with willLand=false', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     vi.spyOn(Math, 'random').mockReturnValue(0) // force SPAWN_CHANCE check to pass
 
@@ -312,7 +312,7 @@ describe('ambient stars never land', () => {
   })
 
   it('spawnShootingStar is not gated by ground meteorite count', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     destroyAllMeteorites(state)
     vi.spyOn(Math, 'random').mockReturnValue(0)
@@ -331,7 +331,7 @@ describe('ambient stars never land', () => {
 
 describe('spawnShootingStarAtTarget', () => {
   it('sets landingTarget to the provided position', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     destroyAllStars(state)
     const target = { x: 50, y: 50 }
 
@@ -348,7 +348,7 @@ describe('spawnShootingStarAtTarget', () => {
 
 describe('pickupMeteorite', () => {
   it('returns false (empty array) when no meteorite at player position', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     createMeteoriteEntity(state, 0, 0)
 
@@ -358,7 +358,7 @@ describe('pickupMeteorite', () => {
   })
 
   it('removes meteorite from world on pickup', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     createMeteoriteEntity(state, state.player.x, state.player.y)
 
@@ -368,7 +368,7 @@ describe('pickupMeteorite', () => {
   })
 
   it('adds meteorite item to backpack', () => {
-    const state = createGameState('Test', 20, 20)
+    const state = createTestState()
     clearAroundPlayer(state)
     createMeteoriteEntity(state, state.player.x, state.player.y)
 

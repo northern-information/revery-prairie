@@ -7,20 +7,23 @@ import {
   METEOR_SHOWER_STAR_COUNT_MIN,
 } from '../constants'
 import { ComponentType } from '../ecs/types'
-import { createGameState } from '../state'
 import { TileType } from '../types'
+import { createTestState as createBaseTestState } from './helpers'
 import { afterEach, vi } from 'vitest'
 
 import type { GameState } from '../types'
 
+// Wraps helpers.createTestState (which clones a cached genesis ~1.8ms
+// instead of running a fresh ~180ms genesis) and resets the bits
+// meteorShower tests depend on: no shooting-star entities, and
+// seasonalPhase=0 so the spring anchor sits at the test starting point.
 const createTestState = (): GameState => {
-  const state = createGameState('test', 40, 25)
-  // Clear seeded shooting stars so they don't interfere
+  const state = createBaseTestState()
   for (const eid of state.world.query(ComponentType.ShootingStarData)) {
     state.world.destroyEntity(eid)
   }
-  // RP-33 — the falling-star spawn ceremony was removed; no marker
-  // needed.
+  state.seasonalPhase = 0
+  state.meteorShower.pendingAnchorPhase = 0
   return state
 }
 

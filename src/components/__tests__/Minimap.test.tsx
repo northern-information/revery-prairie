@@ -4,14 +4,14 @@ import { getVisibleRuinFootprints } from '../minimapStructures'
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
+import { createTestState } from '@/engine/__tests__/helpers'
 import { posKey } from '@/engine/position'
-import { createGameState } from '@/engine/state'
 import { Zone } from '@/engine/types'
 import type { CivilizationRuin } from '@/engine/genesisTypes'
 
 describe('minimap', () => {
   it('renders a canvas element', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     const { getByTestId } = render(<Minimap state={state} />)
 
     const canvas = getByTestId('minimap-canvas')
@@ -19,7 +19,7 @@ describe('minimap', () => {
   })
 
   it('reads zone from state.currentZone so cave swap is reflected', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     const { rerender } = render(<Minimap state={state} />)
     expect(state.currentZone).toBe(Zone.Overworld)
 
@@ -29,13 +29,13 @@ describe('minimap', () => {
   })
 
   it('does not throw when civilizationRuins is empty', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     state.civilizationRuins = []
     expect(() => render(<Minimap state={state} />)).not.toThrow()
   })
 
   it('handles a zero-size map without throwing', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     state.mapWidth = 0
     state.mapHeight = 0
     state.map = []
@@ -54,7 +54,7 @@ describe('getVisibleRuinFootprints', () => {
   })
 
   it('returns no footprints on a fresh tenure with no exploration', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     state.overworldFogExplored = new Set()
     state.civilizationRuins = [
       makeRuin([
@@ -69,7 +69,7 @@ describe('getVisibleRuinFootprints', () => {
   })
 
   it('returns only the explored tiles of a partially explored ruin', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     state.overworldFogExplored = new Set([posKey(40, 40)])
     state.civilizationRuins = [
       makeRuin([
@@ -86,7 +86,7 @@ describe('getVisibleRuinFootprints', () => {
   })
 
   it('returns no footprints when state.currentZone is not Overworld', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     state.currentZone = Zone.Cave
     state.overworldFogExplored = new Set([posKey(40, 40), posKey(41, 40)])
     state.civilizationRuins = [
@@ -101,14 +101,14 @@ describe('getVisibleRuinFootprints', () => {
   })
 
   it('returns no footprints when civilizationRuins is empty', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     state.civilizationRuins = []
     const result = getVisibleRuinFootprints(state, null)
     expect(result).toEqual([])
   })
 
   it('includes a footprint tile currently in the visible set even if not in fogExplored', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     state.overworldFogExplored = new Set()
     state.civilizationRuins = [
       makeRuin([
@@ -200,7 +200,7 @@ describe('minimap iso projection', () => {
 
 describe('minimap viewport rect placement', () => {
   it('centers on the iso-projected player position, not on state.camera', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     const layout = computeIsoLayout(state.mapWidth, state.mapHeight)
 
     // Move the camera away from the player and verify getPlayerCenter
@@ -212,7 +212,7 @@ describe('minimap viewport rect placement', () => {
   })
 
   it('tracks the player when the player moves', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     const layout = computeIsoLayout(state.mapWidth, state.mapHeight)
     const before = getPlayerCenter(state, layout)
     state.player.x += 1
@@ -251,7 +251,7 @@ const installRecordingCtx = () => {
 
 describe('Minimap draw lifecycle', () => {
   it('sets the canvas to MINIMAP_CSS_SIZE on mount', () => {
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     const { getByTestId } = render(<Minimap state={state} />)
     const canvas = getByTestId('minimap-canvas') as HTMLCanvasElement
     expect(canvas.width).toBe(MINIMAP_CSS_SIZE)
@@ -262,7 +262,7 @@ describe('Minimap draw lifecycle', () => {
 
   it('clears the canvas on every animation frame', async () => {
     const stub = installRecordingCtx()
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     render(<Minimap state={state} />)
     await waitFor(() => {
       const clearRectCalls = stub.paintSnapshots.filter(s => s.op === 'clearRect')
@@ -272,7 +272,7 @@ describe('Minimap draw lifecycle', () => {
 
   it('paints at least one tile on the overworld (the rebuilt cache or live drawTileLayer)', async () => {
     const stub = installRecordingCtx()
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     state.currentZone = Zone.Overworld
     render(<Minimap state={state} />)
     await waitFor(() => {
@@ -287,7 +287,7 @@ describe('Minimap draw lifecycle', () => {
 
   it('paints the player marker in pink (#ff69b4)', async () => {
     const stub = installRecordingCtx()
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     render(<Minimap state={state} />)
     await waitFor(() => {
       const pinkFills = stub.paintSnapshots.filter(
@@ -299,7 +299,7 @@ describe('Minimap draw lifecycle', () => {
 
   it('uses the live drawTileLayer path (fillRect per tile) inside a non-overworld zone', async () => {
     const stub = installRecordingCtx()
-    const state = createGameState('Test', 80, 40)
+    const state = createTestState({ viewportWidth: 80, viewportHeight: 40 })
     state.currentZone = Zone.Cave
     state.map = state.caveMap
     state.mapWidth = state.caveMapWidth
