@@ -22,9 +22,14 @@ import {
   YARD_HOUSE_OFFSET_Y,
   YARD_WIDTH,
 } from './constants'
-import { TileType } from './types'
+import { clearAllGrowthPreviews } from './floraGrowthPreviews'
+import { recordDiscovery } from './manual'
+import { clearMovementTweens } from './movementTween'
+import { findSafeExitPosition } from './position'
+import { TileType, Zone } from './types'
+import { armReentryLock, registerZoneSwapHandler } from './zoneTransition'
 
-import type { Position, Tile } from './types'
+import type { GameState, Position, Tile } from './types'
 
 export interface LittleHouseYardResult {
   map: Tile[][]
@@ -91,3 +96,106 @@ export const createLittleHouseYard = (): LittleHouseYardResult => {
     frontDoorPosition: { x: YARD_FRONT_DOOR_X, y: YARD_FRONT_DOOR_Y },
   }
 }
+
+// --- Transition handlers ---
+// Mirror house.ts:90-122. The yard zone shares the overworld + house
+// pointer-pair pattern: state.yardMap persists for the tenure and is
+// swapped into state.map on enter / restored on exit.
+
+const clearYardUiState = (state: GameState): void => {
+  state.path = null
+  state.pathWaypoints = []
+  state.pendingAction = null
+  state.pendingInteractionTarget = null
+  state.heldDirection = null
+  state.previewFn = null
+  state.facingEntityPos = null
+  state.activeDialog = null
+  state.trail = []
+  clearAllGrowthPreviews(state)
+  clearMovementTweens(state)
+}
+
+/**
+ * Enter the yard from the overworld apron. Player lands at the gate;
+ * the apron tile that triggered the transition is stashed on
+ * state.yardEntryApron so the gate exit can return there.
+ */
+export const enterLittleHouseYardFromApron = (state: GameState, apron: Position): void => {
+  if (!state.yardMap || state.yardMap.length === 0) {
+    console.warn('enterLittleHouseYardFromApron called with no yardMap; skipping')
+    return
+  }
+  state.map = state.yardMap
+  state.mapWidth = state.yardMapWidth
+  state.mapHeight = state.yardMapHeight
+  state.player = { x: state.yardGatePosition.x, y: state.yardGatePosition.y }
+  state.currentZone = Zone.LittleHouseYard
+  state.yardEntryApron = { x: apron.x, y: apron.y }
+  recordDiscovery(state, 'zone:yard')
+  clearYardUiState(state)
+}
+
+/**
+ * Enter the yard from the house interior. Player exits through the
+ * front door and lands one tile south of yardFrontDoorPosition — on
+ * the walkable yard ground immediately in front of the door.
+ * yardEntryApron is left untouched (the gate exit consumes it; an exit
+ * via the house door is not paired with an overworld apron return).
+ */
+export const enterLittleHouseYardFromHouse = (state: GameState): void => {
+  if (!state.yardMap || state.yardMap.length === 0) {
+    console.warn('enterLittleHouseYardFromHouse called with no yardMap; skipping')
+    return
+  }
+  state.map = state.yardMap
+  state.mapWidth = state.yardMapWidth
+  state.mapHeight = state.yardMapHeight
+  state.player = {
+    x: state.yardFrontDoorPosition.x,
+    y: state.yardFrontDoorPosition.y + 1,
+  }
+  state.currentZone = Zone.LittleHouseYard
+  recordDiscovery(state, 'zone:yard')
+  clearYardUiState(state)
+}
+
+/**
+ * Exit the yard via the gate. Player returns to the overworld at
+ * state.yardEntryApron; if null (defensive — e.g. saves predating
+ * RP-67, or a player who entered the yard via the house door and
+ * walked to the gate without ever touching the apron), the player is
+ * placed at a safe tile near houseEntranceOverworld.
+ *
+ * The re-entry lock is armed on the apron tile so the next overworld
+ * step doesn't immediately re-enter the yard. The lock clears when the
+ * player walks STRUCTURE_REENTRY_REARM_DISTANCE tiles away (handled by
+ * clearReentryLockIfRearmed in the existing overworld tick path).
+ */
+export const exitLittleHouseYardToOverworld = (state: GameState): void => {
+  const returnTile =
+    state.yardEntryApron ??
+    findSafeExitPosition(state.houseEntranceOverworld, state.overworldMap, state.overworldMapWidth, state.overworldMapHeight, 2)
+  state.map = state.overworldMap
+  state.mapWidth = state.overworldMapWidth
+  state.mapHeight = state.overworldMapHeight
+  state.currentZone = Zone.Overworld
+  state.player = { x: returnTile.x, y: returnTile.y }
+  armReentryLock(state, returnTile)
+  state.yardEntryApron = null
+  clearYardUiState(state)
+}
+
+// Register yard swap handlers — module-load side effect, mirrors
+// house.ts:200-205.
+registerZoneSwapHandler('yard', 'enter', (state, transition) => {
+  // irisCenter for the apron→yard path is the apron tile the player
+  // walked onto. We pass that through as state.yardEntryApron.
+  enterLittleHouseYardFromApron(state, transition.irisCenter)
+})
+registerZoneSwapHandler('yard', 'exit', state => {
+  exitLittleHouseYardToOverworld(state)
+})
+registerZoneSwapHandler('house-to-yard', 'exit', state => {
+  enterLittleHouseYardFromHouse(state)
+})

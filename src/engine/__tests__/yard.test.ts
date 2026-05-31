@@ -16,10 +16,20 @@ import {
   YARD_SIDE_MARGIN,
   YARD_WIDTH,
 } from '../constants'
+import { checkHouseTransition, enterHouse } from '../house'
 import { isWalkableTile } from '../position'
 import { createGameState } from '../state'
 import { TileType, Zone } from '../types'
-import { createLittleHouseYard } from '../yard'
+import {
+  createLittleHouseYard,
+  enterLittleHouseYardFromApron,
+  enterLittleHouseYardFromHouse,
+  exitLittleHouseYardToOverworld,
+} from '../yard'
+import { isReentryLocked } from '../zoneTransition'
+import { createTestState } from './helpers'
+
+import type { ZoneTransition } from '../types'
 
 describe('RP-67 yard zone', () => {
   describe('foundations', () => {
@@ -196,10 +206,119 @@ describe('RP-67 yard zone', () => {
       expect(state.yardMap[YARD_GATE_Y][YARD_GATE_X].type).toBe(TileType.FenceGate)
     })
   })
-  it.todo('stepping on an overworld HouseApron triggers yard enter at the gate')
-  it.todo('stepping on a FenceGate exits yard back to the apron entered from')
-  it.todo('stepping on HouseDoorClosed enters the house interior')
-  it.todo('HouseExit in the house interior routes to the yard, not the overworld')
+  describe('transitions', () => {
+    it('apron→yard: stepping on a HouseApron tile schedules a yard-enter transition; the enter handler places the player at the gate and stashes the apron', () => {
+      const state = createTestState()
+      state.currentZone = Zone.Overworld
+      state.map = state.overworldMap
+      state.mapWidth = state.overworldMapWidth
+      state.mapHeight = state.overworldMapHeight
+      const px = state.player.x
+      const py = state.player.y
+      state.map[py][px] = { type: TileType.HouseApron }
+      state.zoneTransition = null
+
+      const detected = checkHouseTransition(state)
+      expect(detected).toBe(true)
+      const transition = state.zoneTransition as ZoneTransition | null
+      if (transition === null) throw new Error('no transition')
+      expect(transition.kind).toBe('yard')
+      expect(transition.direction).toBe('enter')
+      expect(transition.irisCenter).toEqual({ x: px, y: py })
+
+      // Run the enter handler directly (simulating the deferred swap).
+      enterLittleHouseYardFromApron(state, transition.irisCenter)
+      expect(state.currentZone).toBe(Zone.LittleHouseYard)
+      expect(state.map).toBe(state.yardMap)
+      expect(state.player).toEqual(state.yardGatePosition)
+      expect(state.yardEntryApron).toEqual({ x: px, y: py })
+    })
+
+    it('gate→overworld: stepping on the FenceGate schedules a yard-exit; the exit handler returns the player to yardEntryApron and arms the re-entry lock', () => {
+      const state = createTestState()
+      const apron: { x: number; y: number } = { x: state.player.x, y: state.player.y }
+      enterLittleHouseYardFromApron(state, apron)
+      // Player is at the gate; this tile triggers the exit transition.
+      state.zoneTransition = null
+      const detected = checkHouseTransition(state)
+      expect(detected).toBe(true)
+      const transition = state.zoneTransition as ZoneTransition | null
+      if (transition === null) throw new Error('no transition')
+      expect(transition.kind).toBe('yard')
+      expect(transition.direction).toBe('exit')
+
+      exitLittleHouseYardToOverworld(state)
+      expect(state.currentZone).toBe(Zone.Overworld)
+      expect(state.map).toBe(state.overworldMap)
+      expect(state.player).toEqual(apron)
+      expect(isReentryLocked(state, apron)).toBe(true)
+      expect(state.yardEntryApron).toBeNull()
+    })
+
+    it('yard→house: stepping on a HouseDoorClosed tile schedules a house-enter transition', () => {
+      const state = createTestState()
+      enterLittleHouseYardFromApron(state, { x: state.player.x, y: state.player.y })
+      // Walk to the front door (center HouseDoorClosed tile).
+      state.player = { x: state.yardFrontDoorPosition.x, y: state.yardFrontDoorPosition.y }
+      state.zoneTransition = null
+
+      const detected = checkHouseTransition(state)
+      expect(detected).toBe(true)
+      const transition = state.zoneTransition as ZoneTransition | null
+      if (transition === null) throw new Error('no transition')
+      expect(transition.kind).toBe('house')
+      expect(transition.direction).toBe('enter')
+
+      // Existing enterHouse handler runs and places the player inside the house.
+      enterHouse(state)
+      expect(state.currentZone).toBe(Zone.HouseInterior)
+      expect(state.player).toEqual(state.houseEntranceInterior)
+    })
+
+    it('house→yard: stepping on HouseExit schedules a house-to-yard exit; the handler places the player south of the front door', () => {
+      const state = createTestState()
+      enterHouse(state)
+      // Move to the HouseExit row at the south of the interior.
+      state.player = { x: 7, y: 8 }
+      state.zoneTransition = null
+
+      const detected = checkHouseTransition(state)
+      expect(detected).toBe(true)
+      const transition = state.zoneTransition as ZoneTransition | null
+      if (transition === null) throw new Error('no transition')
+      expect(transition.kind).toBe('house-to-yard')
+      expect(transition.direction).toBe('exit')
+
+      enterLittleHouseYardFromHouse(state)
+      expect(state.currentZone).toBe(Zone.LittleHouseYard)
+      expect(state.player).toEqual({
+        x: state.yardFrontDoorPosition.x,
+        y: state.yardFrontDoorPosition.y + 1,
+      })
+      // yardEntryApron is untouched by the house→yard path.
+      expect(state.yardEntryApron).toBeNull()
+    })
+
+    it('re-entry lock: after gate exit, stepping back onto the same apron does not re-trigger yard enter until the lock clears', () => {
+      const state = createTestState()
+      const apron: { x: number; y: number } = { x: state.player.x, y: state.player.y }
+      state.currentZone = Zone.Overworld
+      state.map = state.overworldMap
+      state.mapWidth = state.overworldMapWidth
+      state.mapHeight = state.overworldMapHeight
+      state.map[apron.y][apron.x] = { type: TileType.HouseApron }
+      // Enter the yard, then exit via gate (handler arms lock on the apron).
+      enterLittleHouseYardFromApron(state, apron)
+      exitLittleHouseYardToOverworld(state)
+      expect(isReentryLocked(state, apron)).toBe(true)
+
+      // Player is now on the apron. The check must NOT schedule a new transition.
+      state.zoneTransition = null
+      const detected = checkHouseTransition(state)
+      expect(detected).toBe(false)
+      expect(state.zoneTransition).toBeNull()
+    })
+  })
   it.todo('yard enter samples the 8 HouseApron tiles deterministically')
   it.todo('yard pauses state.timeOfDay and state.season')
   it.todo('yard re-entry lock prevents immediate yo-yo loop')

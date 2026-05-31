@@ -249,7 +249,7 @@ export interface BootTitleCard {
 }
 
 export type ZoneTransitionDirection = 'enter' | 'exit'
-export type ZoneTransitionKind = 'cave' | 'ruin' | 'house'
+export type ZoneTransitionKind = 'cave' | 'ruin' | 'house' | 'yard' | 'house-to-yard'
 
 export interface ZoneTransition {
   startTime: number
@@ -489,6 +489,11 @@ export interface GameState {
   yardMapHeight: number
   yardGatePosition: Position
   yardFrontDoorPosition: Position
+  // Overworld apron tile that triggered the most recent yard enter.
+  // Captured on the apron→yard transition; consumed by the yard→
+  // overworld gate exit to return the player to where they came in.
+  // Null when no yard-entry-from-apron is in flight.
+  yardEntryApron: Position | null
   // Emily's invitation state machine. 'unoffered' at genesis; flips to
   // 'offered' when her autumn last line arms awaitingConfirmation;
   // 'confirmed' on [f]-consume; resets to 'unoffered' at dialog close

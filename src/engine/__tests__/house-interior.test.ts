@@ -84,27 +84,29 @@ describe('RP-33 — enter/exitHouse swap handlers', () => {
 })
 
 describe('RP-33 — checkHouseTransition detection', () => {
-  it('schedules an enter transition when the player stands on or beside HouseEntrance', () => {
+  it('schedules a yard-enter transition when the player steps onto HouseEntrance (RP-67 amendment)', () => {
     const state = createTestState()
     state.currentZone = Zone.Overworld
     state.map = state.overworldMap
     state.mapWidth = state.overworldMapWidth
     state.mapHeight = state.overworldMapHeight
-    // Place a HouseEntrance adjacent to the player so the 3x3 hitbox triggers.
+    // RP-67 amendment: the overworld 3x3 around the house no longer
+    // enters the house directly — it enters the yard. The player must
+    // be ON the entrance or apron tile, not adjacent.
     const px = state.player.x
     const py = state.player.y
-    state.map[py][px + 1] = { type: TileType.HouseEntrance }
+    state.map[py][px] = { type: TileType.HouseEntrance }
     state.zoneTransition = null
 
     const detected = checkHouseTransition(state)
     expect(detected).toBe(true)
     const transition = state.zoneTransition as ZoneTransition | null
     if (transition === null) throw new Error('no transition')
-    expect(transition.kind).toBe('house')
+    expect(transition.kind).toBe('yard')
     expect(transition.direction).toBe('enter')
   })
 
-  it('schedules an exit transition when the player steps on a HouseExit tile', () => {
+  it('schedules a house-to-yard exit transition when the player steps on a HouseExit tile (RP-67 amendment)', () => {
     const state = createTestState()
     enterHouse(state)
     // Player is at houseEntranceInterior (7, 7); step south onto the exit row.
@@ -115,7 +117,8 @@ describe('RP-33 — checkHouseTransition detection', () => {
     expect(detected).toBe(true)
     const transition = state.zoneTransition as ZoneTransition | null
     if (transition === null) throw new Error('no transition')
-    expect(transition.kind).toBe('house')
+    // RP-67 amendment: HouseExit routes to the yard, not the overworld.
+    expect(transition.kind).toBe('house-to-yard')
     expect(transition.direction).toBe('exit')
   })
 })

@@ -60,6 +60,7 @@ const EXPECTED_FIELDS = [
   'yardMapHeight',
   'yardGatePosition',
   'yardFrontDoorPosition',
+  'yardEntryApron',
   'emilyInvitation',
   'tenureOpened',
   'meteorShower',

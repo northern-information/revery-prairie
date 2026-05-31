@@ -295,6 +295,7 @@ export const createGameState = (
     yardMapHeight: yard.height,
     yardGatePosition: yard.gatePosition,
     yardFrontDoorPosition: yard.frontDoorPosition,
+    yardEntryApron: null,
     emilyInvitation: 'unoffered',
     tenureOpened: false,
     giftsReceived: new Set<string>(),
