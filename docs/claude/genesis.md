@@ -30,4 +30,18 @@ future latitude-banded features (ice caps, polar fauna, equatorial blooms) place
 
 ## soil health
 
-`soilHealth: Map<string, number>` keyed by posKey. default `SOIL_HEALTH_DEFAULT` (50), max `SOIL_HEALTH_MAX` (100). geologically derived when genesis runs (base 30, accumulated through epochs, clamped [10, 100]). enriched by natural flora death and by wildfire burn recovery.
+`soilHealth: Map<string, number>` keyed by posKey. default `SOIL_HEALTH_DEFAULT` (50), max `SOIL_HEALTH_MAX` (100). geologically derived when genesis runs (base 30, accumulated through epochs, clamped [10, 100]). enriched by natural flora death and by wildfire burn recovery; debited by satellite crashes; touched by the per-plant spawn-effect hook below.
+
+### per-plant spawn effect (RP-19)
+
+every flora entry applies a one-time soil effect on its first tick at `FloraStage.Healthy`. the hook lives in `tickFloraLifecycle` (after dormancy resolution, before stage progression) and fires exactly once per entry, gated by `soilEffectApplied: boolean` on `FloraLifecycleState`.
+
+- **clover** (`Trifolium repens`, nitrogen fixer) credits `+SOIL_HEALTH_NITROGEN_FIXER_BONUS` (5).
+- **wildflower** and **tall grass** each debit `−SOIL_HEALTH_FLORA_SPAWN_DEBIT` (20).
+- existing death enrichment (`+SOIL_HEALTH_FLORA_DEATH_BONUS`, 15) at `Decomposing → Dirt` is unchanged.
+
+net per full life-cycle: clover `+5 + 15 = +20` (restorer); wildflower / tall grass `−20 + 15 = −5` (the soil-thinning consequence — three generations on the same tile drops baseline 50 → ~35). saturating clamp `[0, SOIL_HEALTH_MAX]`.
+
+genesis-seeded flora is part of the world's baseline — `postProcessMultiSpeciesFlora` passes `soilEffectApplied: true` so the standing flora at game start does not re-tax soil that genesis already derived for them. every other construction site (seed-planting, RP-17 spread, ceremony wave, ruin recovery, monarch trail, angel gardens, lightning post-burn re-bloom) gets the default `false` and pays the spawn effect on first tick.
+
+dormancy preserves the flag, so winter-spawned flora defer the effect to thaw and post-thaw entries that already paid do not re-fire. `BurntRecovering` entries are skipped entirely — the entry deletes on recovery, so the next sprout on that dirt is a fresh entry that pays once on its own.

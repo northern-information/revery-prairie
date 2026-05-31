@@ -7,7 +7,9 @@ import {
   CLOVER_DECOMPOSE_DURATION_MS,
   SOIL_HEALTH_DEFAULT,
   SOIL_HEALTH_FLORA_DEATH_BONUS,
+  SOIL_HEALTH_FLORA_SPAWN_DEBIT,
   SOIL_HEALTH_MAX,
+  SOIL_HEALTH_NITROGEN_FIXER_BONUS,
   WATER_MAX,
 } from './constants'
 import { createFloraLifecycleEntry } from './floraLifecycleEntry'
@@ -25,6 +27,23 @@ const getSoilHealth = (state: GameState, key: string): number => state.soilHealt
 export const addSoilHealth = (state: GameState, key: string, bonus: number): void => {
   const current = getSoilHealth(state, key)
   state.soilHealth.set(key, Math.min(current + bonus, SOIL_HEALTH_MAX))
+}
+
+export const subtractSoilHealth = (state: GameState, key: string, debit: number): void => {
+  const current = getSoilHealth(state, key)
+  state.soilHealth.set(key, Math.max(current - debit, 0))
+}
+
+// RP-19 — per-plant spawn-effect hook. Clover is a nitrogen fixer and
+// credits soilHealth; wildflower and tall grass debit it. Returns the
+// delta applied so callers can record it if needed; tickFloraLifecycle
+// itself only cares that the flag flips.
+const applySpawnSoilEffect = (state: GameState, key: string, species: FloraSpecies): void => {
+  if (species === FloraSpecies.Clover) {
+    addSoilHealth(state, key, SOIL_HEALTH_NITROGEN_FIXER_BONUS)
+  } else {
+    subtractSoilHealth(state, key, SOIL_HEALTH_FLORA_SPAWN_DEBIT)
+  }
 }
 
 const stageDuration = (stage: FloraStage): number => {
@@ -158,6 +177,18 @@ export const tickFloraLifecycle = (state: GameState, zone: ZoneType, time: numbe
         // action this tick — no stress check, no decay advance, no
         // species effects.
         continue
+      }
+
+      // RP-19 — per-plant soil spawn effect. Fires exactly once per
+      // entry on its first tick at Healthy. Runs before stage logic so
+      // a cave plant about to die of no-light still pays its debit
+      // before sliding into Brown the same tick. Dormant entries
+      // already short-circuited above; BurntRecovering entries are
+      // handled by the earlier `continue` branch so they never reach
+      // here.
+      if (entry.stage === FloraStage.Healthy && !entry.soilEffectApplied) {
+        applySpawnSoilEffect(state, key, entry.species)
+        entry.soilEffectApplied = true
       }
 
       // Stage logic

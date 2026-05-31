@@ -49,4 +49,5 @@ all three flora species share the same six-stage lifecycle. each tile needs ligh
 
 - overworld = light + rain water. cave = no light, no water.
 - brown stage recovers if conditions improve. blinkingRed and beyond = terminal.
-- natural death enriches soil. harvest and cut mechanics were deleted in RP-1 — clover acquisition routes through ruin recovery (RP-5).
+- natural death enriches soil (`+SOIL_HEALTH_FLORA_DEATH_BONUS`, 15 at `Decomposing → Dirt`). harvest and cut mechanics were deleted in RP-1 — clover acquisition routes through ruin recovery (RP-5).
+- spawn taxes soil (RP-19). every flora applies a one-time per-species soil effect on its first `Healthy` tick: clover credits `+SOIL_HEALTH_NITROGEN_FIXER_BONUS` (5, nitrogen fixer); wildflower and tall grass each debit `−SOIL_HEALTH_FLORA_SPAWN_DEBIT` (20). genesis-seeded flora skips the spawn effect (the genesis-derived soil already reflects standing flora) — see `docs/claude/genesis.md` soil-health section for the full mechanic.

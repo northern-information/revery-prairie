@@ -575,8 +575,8 @@ features:
       Soil readability already shipped with RP-6; this adds the consequence.
     depends_on: []
     status: in-progress
-    spec: null
-    plan: null
+    spec: harness/specs/soil-depletion.yaml
+    plan: harness/plans/soil-depletion.yaml
     pr: null
     notes: >
       v4 thinktank round 3 (2026-05-19). One of the "leaks" Boon named when

@@ -19,6 +19,7 @@ export const createFloraLifecycleEntry = ({
   identity,
   traits,
   stage = FloraStage.Healthy,
+  soilEffectApplied = false,
 }: {
   time: number
   hasLight: boolean
@@ -26,6 +27,13 @@ export const createFloraLifecycleEntry = ({
   identity: string
   traits: TraitBag
   stage?: FloraStage
+  // RP-19 — set to true at the genesis flora-seeding sites
+  // (postProcessMultiSpeciesFlora) so the standing flora at game start
+  // doesn't re-tax the genesis-derived soilHealth baseline. Every other
+  // construction site (seed-planting, spread, ceremony wave, ruin
+  // recovery, etc.) leaves this false, so the spawn-effect hook in
+  // tickFloraLifecycle applies the per-species debit/credit once.
+  soilEffectApplied?: boolean
 }): FloraLifecycleState => ({
   stage,
   stageStartTime: time,
@@ -33,4 +41,5 @@ export const createFloraLifecycleEntry = ({
   species,
   identity,
   traits,
+  soilEffectApplied,
 })

@@ -180,6 +180,10 @@ export const postProcessMultiSpeciesFlora = (
           species,
           identity,
           traits: generateTraitBag(identity),
+          // RP-19 — genesis-seeded flora is part of the world baseline;
+          // skip the spawn-effect debit/credit so the genesis-derived
+          // soilHealth values aren't re-taxed at first tick.
+          soilEffectApplied: true,
         })
       )
     }
@@ -266,6 +270,8 @@ export const postProcessMultiSpeciesFlora = (
           species,
           identity,
           traits: generateTraitBag(identity),
+          // RP-19 — see the matching note on the clover sweep above.
+          soilEffectApplied: true,
         })
       )
     }
