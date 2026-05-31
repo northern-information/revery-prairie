@@ -848,7 +848,7 @@ features:
       oldest layer. The player will never know which were people and
       which were procedural; the cosmology says that is exactly right.
     depends_on: ['RP-23']
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null
