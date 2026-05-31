@@ -23,6 +23,14 @@ export const getDestinationLabel = (state: GameState, transition: ZoneTransition
   if (transition.kind === 'yard' && transition.direction === 'enter') return 'Yard'
   // RP-37: cellar exit routes to the yard, not back to the prairie.
   if (transition.kind === 'knot-cellar' && transition.direction === 'exit') return 'Yard'
+  // RP-69: Whine and Whine home yards. The village's full name lives
+  // in the label per v11 R9 ("The full name `Whine, Haunted Village`
+  // is the name in all copy" — the prairie already speaks in this
+  // register, e.g. Dormant Garden). Home yards inherit the generic
+  // 'Yard' label until per-home names land in a later ticket.
+  if (transition.kind === 'whine' && transition.direction === 'enter') return 'Whine, Haunted Village'
+  if (transition.kind === 'whine-home' && transition.direction === 'enter') return 'Yard'
+  if (transition.kind === 'whine-home' && transition.direction === 'exit') return 'Whine, Haunted Village'
   if (transition.direction === 'exit') return 'Revery Prairie'
   if (transition.kind === 'cave') return 'Cave'
   if (transition.kind === 'house') return 'The Little House'

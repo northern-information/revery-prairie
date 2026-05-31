@@ -74,15 +74,19 @@ describe('RP-69 Whine, Haunted Village', () => {
       expect(village.map[0].length).toBe(WHINE_WIDTH)
     })
 
-    it('rings the perimeter with Fence except for the single west gate', () => {
-      // West edge
+    it('rings the perimeter with Fence except for the single southwest-area gate', () => {
+      // West edge — all Fence, no gate (gate moved to south fence).
       for (let y = 0; y < village.height; y++) {
-        const expected = y === WHINE_GATE_Y ? TileType.FenceGate : TileType.Fence
-        expect(village.map[y][0].type).toBe(expected)
+        expect(village.map[y][0].type).toBe(TileType.Fence)
       }
-      // East edge — all Fence, no gate
+      // East edge — all Fence, no gate.
       for (let y = 0; y < village.height; y++) {
         expect(village.map[y][village.width - 1].type).toBe(TileType.Fence)
+      }
+      // South edge — Fence except for the single FenceGate at WHINE_GATE_X.
+      for (let x = 0; x < village.width; x++) {
+        const expected = x === WHINE_GATE_X ? TileType.FenceGate : TileType.Fence
+        expect(village.map[village.height - 1][x].type).toBe(expected)
       }
     })
 
@@ -228,7 +232,7 @@ describe('RP-69 Whine, Haunted Village', () => {
       }
     })
 
-    it('spawns twelve named ghost entities in Zone.WhineVillage at genesis', () => {
+    it('spawns twelve named ghost entities in Zone.WhineVillage at genesis with unbounded drift', () => {
       const state = createGameState('test-steward', 800, 600)
       let whineGhostCount = 0
       for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
@@ -238,9 +242,11 @@ describe('RP-69 Whine, Haunted Village', () => {
           whineGhostCount++
           const behavior = state.world.getComponent(eid, ComponentType.Behavior)
           expect(behavior?.type).toBe('drift')
-          // Ghost has a bounds rectangle covering its assigned corridor.
+          // Ghosts roam the whole village like the three overworld ghosts —
+          // no bounds rectangle. They start in front of their assigned
+          // home; map walkability handles the rest.
           if (behavior?.type === 'drift') {
-            expect(behavior.bounds).toBeDefined()
+            expect(behavior.bounds).toBeUndefined()
           }
         }
       }
@@ -326,8 +332,14 @@ describe('RP-69 Whine, Haunted Village', () => {
     })
   })
 
-  describe('bounded ghost drift', () => {
-    it('a ghost with bounds cannot move outside the rectangle even after many ticks', () => {
+  describe('DriftBehavior.bounds (substrate)', () => {
+    // Whine ghosts are unbounded per latest spec — this test
+    // exercises the bounds filter directly by attaching bounds to a
+    // ghost's behavior at runtime, then ticking and verifying it
+    // never escapes the rectangle. Kept so future callers (a future
+    // ticket may want a bounded ghost again) have a regression
+    // anchor for the filter logic in tickDrift.
+    it('honors a bounds rectangle when one is attached to a DriftBehavior', () => {
       const state = createGameState('test-steward', 800, 600)
       // Find ghost #1's entity.
       let ghostEid: number | null = null
@@ -342,8 +354,18 @@ describe('RP-69 Whine, Haunted Village', () => {
       if (ghostEid === null) return
       const behavior = state.world.getComponent(ghostEid, ComponentType.Behavior)
       expect(behavior?.type).toBe('drift')
-      if (behavior?.type !== 'drift' || !behavior.bounds) return
-      const b = behavior.bounds
+      if (behavior?.type !== 'drift') return
+
+      // Attach a tight bounds rectangle around the ghost's spawn tile.
+      const pos = state.world.getComponent(ghostEid, ComponentType.Position)
+      if (!pos) return
+      const b = {
+        minX: pos.x - 1,
+        maxX: pos.x + 1,
+        minY: pos.y - 1,
+        maxY: pos.y + 1,
+      }
+      behavior.bounds = b
 
       // Force the steward into Whine so tickCharacterBehaviors ticks the
       // ghost (entities only tick in their assigned zone).
@@ -356,13 +378,13 @@ describe('RP-69 Whine, Haunted Village', () => {
       try {
         for (let i = 0; i < 50; i++) {
           tickCharacterBehaviors(state)
-          const pos = state.world.getComponent(ghostEid, ComponentType.Position)
-          expect(pos).toBeDefined()
-          if (!pos) return
-          expect(pos.x).toBeGreaterThanOrEqual(b.minX)
-          expect(pos.x).toBeLessThanOrEqual(b.maxX)
-          expect(pos.y).toBeGreaterThanOrEqual(b.minY)
-          expect(pos.y).toBeLessThanOrEqual(b.maxY)
+          const live = state.world.getComponent(ghostEid, ComponentType.Position)
+          expect(live).toBeDefined()
+          if (!live) return
+          expect(live.x).toBeGreaterThanOrEqual(b.minX)
+          expect(live.x).toBeLessThanOrEqual(b.maxX)
+          expect(live.y).toBeGreaterThanOrEqual(b.minY)
+          expect(live.y).toBeLessThanOrEqual(b.maxY)
         }
       } finally {
         behavior.moveChance = orig

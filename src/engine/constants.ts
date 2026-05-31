@@ -790,28 +790,31 @@ export const CELLAR_KNOT_GLYPH = '§'
 export const CELLAR_KNOT_COLOR = '#D4B58A'
 
 // RP-69 — Whine, Haunted Village. Hand-authored hub region near the
-// little house. Spec proposed ~30x20 with stride-5 home centers
-// {3, 8, 13, 18, 23, 28}; at width 30 the 6th home's 4-wide footprint
-// would overlap the east fence at x=29. Widening to 33 here keeps the
-// stride-5 spacing intact at this point in history; a follow-up commit
-// on this branch then widens further to 66x40 and shifts the gate.
-export const WHINE_WIDTH = 33
-export const WHINE_HEIGHT = 20
-export const WHINE_GATE_X = 0
-export const WHINE_GATE_Y = 10
-export const WHINE_MAIN_STREET_Y = 10
-// Six homes per side. Index i ∈ [0, 5]; centerX = 3 + 5 * i.
+// little house. v11 R9 + spec round of feedback (2026-05-31): village
+// is 66x40 (~4× area of the original 33x20 sketch). Homes stay at 4×4
+// with stride-10 centers {7, 17, 27, 37, 47, 57} so the larger map
+// gives more breathing room rather than larger structures. Perimeter
+// gate sits on the south fence near the southwest corner — same
+// southwest-facing register as the little house yard's gate. Per-home
+// yard zones use a single shared 9×7 template (fence ring, south gate
+// at (4, 6), 5×3 roof block; no door — homes not enterable in v1).
+export const WHINE_WIDTH = 66
+export const WHINE_HEIGHT = 40
+export const WHINE_GATE_X = 11
+export const WHINE_GATE_Y = 39
+export const WHINE_MAIN_STREET_Y = 20
+// Six homes per side. Index i ∈ [0, 5]; centerX = 7 + 10 * i.
 export const WHINE_HOME_COUNT_PER_SIDE = 6
-export const WHINE_HOME_CENTER_X_BASE = 3
-export const WHINE_HOME_CENTER_X_STRIDE = 5
+export const WHINE_HOME_CENTER_X_BASE = 7
+export const WHINE_HOME_CENTER_X_STRIDE = 10
 // Home footprint extends from centerX-1..centerX+2 (4 wide) and
-// y ∈ [1, 4] (north) or y ∈ [15, 18] (south). 4 tall.
+// y ∈ [3, 6] (north) or y ∈ [33, 36] (south). 4 tall.
 export const WHINE_HOME_FOOTPRINT_WIDTH = 4
 export const WHINE_HOME_FOOTPRINT_HEIGHT = 4
-export const WHINE_NORTH_HOME_TOP_Y = 1
-export const WHINE_NORTH_HOME_BOTTOM_Y = 4 // south-facing gate row for north homes
-export const WHINE_SOUTH_HOME_TOP_Y = 15 // north-facing gate row for south homes
-export const WHINE_SOUTH_HOME_BOTTOM_Y = 18
+export const WHINE_NORTH_HOME_TOP_Y = 3
+export const WHINE_NORTH_HOME_BOTTOM_Y = 6 // south-facing gate row for north homes
+export const WHINE_SOUTH_HOME_TOP_Y = 33 // north-facing gate row for south homes
+export const WHINE_SOUTH_HOME_BOTTOM_Y = 36
 // Overworld placement offset east of houseEntranceOverworld. Genesis
 // walks a deterministic ring if the strict offset is blocked.
 export const WHINE_OVERWORLD_OFFSET_X = 25

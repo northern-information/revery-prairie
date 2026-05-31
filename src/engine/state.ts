@@ -484,27 +484,21 @@ export const createGameState = (
     state.houseEntranceOverworld
   )
   // RP-69 — register the twelve Whine ghost CharacterDefinitions and
-  // spawn one ghost entity per home into Zone.WhineVillage with a
-  // bounded DriftBehavior. Names are TODO placeholders; dialog is
-  // silent ('...'); the bounds rectangle covers the corridor between
-  // the home's gate row and the main street row, ± 1 tile width.
+  // spawn one ghost entity per home into Zone.WhineVillage. Names are
+  // TODO placeholders; dialog is silent ('...'). Ghosts drift the full
+  // village walkable area like the three overworld ghosts — no bounds
+  // rectangle. They start in front of their assigned home and roam
+  // from there.
   registerWhineGhostDefinitions(WHINE_HOMES.length)
-  const WHINE_GHOST_BOUNDS_WIDTH = 1 // ± 1 tile around centerX
   for (const home of WHINE_HOMES) {
     const isNorth = home.side === 'north'
     const initialY = isNorth ? home.footprintBottomY + 1 : home.footprintTopY - 1
-    const bounds = {
-      minX: home.centerX - WHINE_GHOST_BOUNDS_WIDTH,
-      maxX: home.centerX + WHINE_GHOST_BOUNDS_WIDTH,
-      minY: isNorth ? home.footprintBottomY + 1 : 11,
-      maxY: isNorth ? 9 : home.footprintTopY - 1,
-    }
     createCharacterEntity(
       state,
       whineGhostId(home.homeNumber),
       { x: home.centerX, y: initialY },
       {
-        behavior: { type: 'drift', moveChance: 0.15, freezeOnDialog: false, bounds },
+        behavior: { type: 'drift', moveChance: 0.15, freezeOnDialog: false },
         zone: Zone.WhineVillage,
       }
     )
