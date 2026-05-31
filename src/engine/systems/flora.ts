@@ -14,6 +14,7 @@ import { WILDFLOWER_SPREAD_CONFIG } from '../flora/type/wildflower/spread'
 import { tickFloraLifecycle } from '../floraLifecycle'
 import { tickFloraWaves } from '../floraWaves'
 import { tickTileWater } from '../tileWater'
+import { tickTimeLapseCapture } from '../timeLapse'
 import { Zone } from '../types'
 
 import type { GameState } from '../types'
@@ -131,6 +132,21 @@ export const floraSystems = (): TickSystem[] => [
     priority: 52,
     fn: (state, time) => {
       tickFloraLifecycle(state, Zone.Cave, time)
+    },
+  },
+  {
+    // v11 R4 — the camera notices change. Runs at the same heartbeat as
+    // the lifecycle ticks but at a later priority (60), so by the time
+    // this tick fires the lifecycle has already advanced any flora and
+    // the captured 3x3 reflects the post-tick state. The hook is
+    // zone-agnostic at registration time ('always') because the
+    // captureIfChanged path filters cross-zone cameras internally.
+    id: 'time-lapse-capture',
+    intervalMs: CLOVER_LIFECYCLE_TICK_MS,
+    zone: 'always',
+    priority: 60,
+    fn: (state, time) => {
+      tickTimeLapseCapture(state, time)
     },
   },
 ]

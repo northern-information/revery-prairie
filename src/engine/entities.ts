@@ -12,8 +12,7 @@ import { setMapTile } from './map'
 import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { getHallowedPolygons, getStoneCircleGraph, isInsideHallowedGround } from './stoneCircles'
-import { recordCameraSubjectEvent } from './timeLapse'
-import { CameraSubject, FloraSpecies, TileType, Zone } from './types'
+import { FloraSpecies, TileType, Zone } from './types'
 import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
@@ -236,9 +235,8 @@ const tickDrift = (state: GameState, eid: Entity, definitionId: string, behavior
   if (candidates.length > 0) {
     const target = candidates[Math.floor(Math.random() * candidates.length)]
     state.world.moveEntity(eid, target.x, target.y, GHOST_TICK_MS)
-    // Precis #23 — ghost drifting into a new tile registers as
-    // GhostPassage for any covering placedCamera.
-    recordCameraSubjectEvent(state, target.x, target.y, CameraSubject.GhostPassage, performance.now())
+    // v11 R4 — the camera notices change on its own sim-loop hook; no
+    // event call here.
   }
 }
 

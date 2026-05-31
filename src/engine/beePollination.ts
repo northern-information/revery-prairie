@@ -23,8 +23,7 @@ import { POLLEN_BAG_CAPACITY } from './constants'
 import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { posKey } from './position'
-import { recordCameraSubjectEvent } from './timeLapse'
-import { CameraSubject, FloraSpecies, TileType, Zone } from './types'
+import { FloraSpecies, TileType, Zone } from './types'
 
 import type { GameState, PollenLoad } from './types'
 
@@ -103,9 +102,8 @@ export const tickPollination = (state: GameState): void => {
       if (firstPrime) {
         recordDiscovery(state, 'event:cross-pollinated')
       }
-      // Precis #23 — bee deposit on a flora tile is a Pollination
-      // subject for any covering placedCamera.
-      recordCameraSubjectEvent(state, pos.x, pos.y, CameraSubject.Pollination, performance.now())
+      // v11 R4 — the camera notices change on its own sim-loop hook;
+      // no event call here.
     }
 
     // PICKUP — push a new load unless the bag's top already matches
