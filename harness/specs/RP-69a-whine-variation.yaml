@@ -1,0 +1,315 @@
+id: RP-69a-whine-variation
+name: 'Whine, hand-authored village variation (RP-69a)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/types.ts
+  - src/engine/constants.ts
+  - src/engine/position.ts
+  - src/engine/whine.ts
+  - src/engine/state.ts
+  - src/engine/oaks.ts
+  - src/engine/renderer.ts
+  - src/engine/tileBg.ts
+  - src/engine/manual.ts
+  - src/engine/__tests__/whine.test.ts
+dependencies:
+  - RP-69-whine-haunted-village
+
+# Why RP-69a:
+#
+#   The RP-69 ship landed Whine as twelve identical 4×4 homes on a
+#   stride-10 grid, twelve identical 9×7 yards behind those homes, and a
+#   uniform Fence perimeter on each yard. After a dev-server walkthrough
+#   the village reads as too geometric — "right now it's too perfect."
+#   RP-69a hand-authors variation across the twelve homes without
+#   introducing RNG: each home gets a fixed jitter offset on the village
+#   map, the roof block inside its yard shifts by a fixed offset, some
+#   yards get an oak at a fixed position, and the yard fence has a fixed
+#   list of broken and missing segments. All variation lives in a single
+#   `WHINE_HOME_VARIANTS` table — the same table every tenure.
+#
+# Doctrine alignment:
+#
+#   - "no proc gen" — the user explicitly chose deterministic hand-
+#     authoring over a per-tenure RNG seed. Mirrors the little-house
+#     yard pattern (createLittleHouseYard, src/engine/yard.ts:43): "No
+#     RNG — every tile placement is fixed."
+#   - "Whine is the same every tenure" — every steward arrives in the
+#     same village, finds the same broken fence on home 03, the same
+#     oak in home 07's yard, etc. The doctrine for hand-authored hub
+#     regions, established by RP-69 and continued here.
+#
+# Out of scope:
+#
+#   - Procedural variation, per-tenure seeding, decay-over-time. The
+#     variant table is a constant; future "homes age over tenures" is
+#     a separate proposal.
+#   - Oak entities beyond the standard ECS oak (src/engine/oaks.ts).
+#     Yard oaks use the same OakData/EntityZone shape as overworld oaks
+#     but live in Zone.WhineHomeYard.
+#   - Lore content for the broken-fence tile or the oak-in-yard
+#     manual entry. Lore stays 'TODO' per the manual.ts lore rule.
+
+behaviors:
+  - id: whine-home-variants-table
+    description: >
+      A new `WHINE_HOME_VARIANTS` constant in src/engine/whine.ts is a
+      readonly array indexed by home number ∈ [1, 12]. Index 0 is unused
+      (or reserved with a no-op variant). Each entry has the shape:
+
+        {
+          villageJitter: { dx: number; dy: number };
+          yardRoofOffset: { dx: number; dy: number };
+          oak: { x: number; y: number } | null;
+          brokenFenceSegments: ReadonlyArray<Position>;
+          missingFenceSegments: ReadonlyArray<Position>;
+        }
+
+      All values are hand-coded literals — no RNG, no per-tenure seeding.
+      The same table value is read every tenure. Constraints on the
+      hand-authored values (enforced by tests, not by runtime gating):
+
+        - villageJitter.dx ∈ [-2, 2], dy ∈ [-1, 1] (footprint stays
+          inside the 30×20 Whine map and never overlaps another home's
+          footprint or the main street row y = 10).
+        - yardRoofOffset.dx ∈ [-1, 1], dy ∈ [-1, 1] (5×3 roof block
+          stays inside the 9×7 yard interior; the south FenceGate at
+          (4, 6) is unaffected — only the roof block moves).
+        - oak, when non-null, is a yard-local (x, y) anchor whose 5×5
+          oak footprint (oaks.ts:OAK_BODY_SIZE) fits inside the yard's
+          walkable interior and does not collide with the post-offset
+          roof block or the FenceGate row.
+        - brokenFenceSegments and missingFenceSegments only reference
+          yard-perimeter cells (one of {x=0, x=8, y=0, y=6} excluding
+          the FenceGate at (4, 6)). At least one south-edge fence cell
+          remains walkable per yard so the steward can always reach the
+          gate from inside the yard.
+
+      The table itself is exported for tests; the runtime consumers
+      (createWhineVillage, createWhineHomeYard, oak spawning) read it
+      indirectly through helpers defined below.
+    inputs:
+      - 'module load (table is a static const)'
+    outputs:
+      - 'WHINE_HOME_VARIANTS exported as a 13-entry readonly array indexed by home number ∈ [1, 12]'
+    state_changes: []
+    determinism: deterministic
+
+  - id: village-home-position-jitter
+    description: >
+      `createWhineVillage()` applies `WHINE_HOME_VARIANTS[home.homeNumber]
+      .villageJitter` to each home's centerX and footprint y range when
+      painting the 4×4 footprint onto the village map. The home's
+      threshold-gate position shifts with the footprint by the same
+      delta — so the gate row remains the home-footprint edge that
+      faces the main street row. `gatePositions` is keyed by the new
+      jittered gate posKey. All other RP-69 invariants hold:
+
+        - The 4×4 footprint stays inside the 30×20 village.
+        - The footprint does not cross the main street row (y = 10).
+        - The footprint does not overlap any other home's footprint
+          (per the table-level constraint in `whine-home-variants-table`).
+        - The west perimeter gate at (0, 10) is unaffected.
+        - The number of homes (six per side, twelve total) is unchanged.
+        - Each home's `WhineHomeDescriptor.centerX` and gatePosition
+          carry the jittered values, so downstream consumers (ghost
+          drift bounds, ghost initial positions) see the jittered
+          layout without further wiring.
+    inputs:
+      - 'createWhineVillage call at genesis'
+      - 'WHINE_HOME_VARIANTS module constant'
+    outputs:
+      - 'village map has 12 jittered home footprints'
+      - "state.thresholdZones.get('whineVillage').gatePositions reflects jittered gate posKeys"
+      - 'WHINE_HOMES (or its post-jitter equivalent) carries jittered centerX / gatePosition values'
+    state_changes:
+      - field: "state.thresholdZones['whineVillage']"
+        effect: 'gate posKeys reflect jittered positions'
+    determinism: deterministic
+
+  - id: yard-roof-position-jitter
+    description: >
+      `createWhineHomeYard(homeNumber)` takes the home number as an
+      argument (was zero-arg in RP-69) and applies `WHINE_HOME_VARIANTS
+      [homeNumber].yardRoofOffset` to the 5×3 roof block (HouseEaves
+      perimeter + 3×1 inner HouseRoof). The south FenceGate at (4, 6)
+      and the yard perimeter Fence ring are NOT moved by this offset —
+      only the roof block. The yard map stays 9×7. The gatePositions
+      map continues to use the gate at (4, 6).
+    inputs:
+      - 'createWhineHomeYard(homeNumber) at genesis (called twelve times)'
+      - 'WHINE_HOME_VARIANTS[homeNumber].yardRoofOffset'
+    outputs:
+      - 'home N yard map has its roof block at the offset position'
+      - 'south FenceGate at (4, 6) and perimeter ring are unchanged'
+    state_changes:
+      - field: "state.thresholdZones['whine-home-NN'].map"
+        effect: 'roof tile positions reflect yardRoofOffset for home N'
+    determinism: deterministic
+
+  - id: yard-oak-placement
+    description: >
+      For each home N whose `WHINE_HOME_VARIANTS[N].oak` is non-null,
+      one oak entity is spawned in that yard's zone at genesis. The
+      oak uses the existing ECS oak shape (Position + MultiPosition +
+      OakData + EntityZone + EntityTag) so the renderer's oak pass
+      picks it up unchanged. EntityZone is `{ zone: Zone.WhineHomeYard,
+      ruinIndex: undefined }`. The oak's identity is derived from
+      stewardName plus a stable per-home seed string
+      ('whine-home-NN') so the identity is also tenure-stable. Homes
+      whose oak is null get no oak entity. The oak's 5×5 footprint
+      must (per table constraints) fit inside the yard's walkable
+      interior; runtime does NOT re-validate or shift the position.
+    inputs:
+      - 'createGameState at genesis'
+      - 'WHINE_HOME_VARIANTS[N].oak for each N ∈ [1, 12]'
+    outputs:
+      - 'one ECS oak per home with a non-null oak entry; zero per home with a null entry'
+      - 'each oak has EntityZone matching its parent yard zone'
+    state_changes:
+      - field: 'state.world (ECS)'
+        effect: 'oak entities created at genesis; persist across saves like overworld oaks'
+    determinism: deterministic
+
+  - id: broken-fence-tile-type
+    description: >
+      A new `TileType.BrokenFence` is added to src/engine/types.ts. It
+      represents a weathered fence segment — passable to the steward,
+      visually distinct from `Fence` (intact) and `Dirt` (full gap).
+      Registration:
+
+        - TILE_CHARS[BrokenFence]: a glyph distinct from Fence's `╫`
+          (e.g. `╪` or `╨` — final glyph picked during implementation
+          to read as "stake without crosspiece" against the warm-brown
+          Fence palette).
+        - TILE_COLORS[BrokenFence]: a lighter, more weathered brown
+          than Fence's `#8B6F3D` (e.g. `#A89070` — final value picked
+          during implementation; must be visually distinguishable from
+          Fence in side-by-side rendering).
+        - isWalkableTile(BrokenFence) returns true. (Fence remains
+          non-walkable; Dirt remains walkable. BrokenFence joins the
+          walkable set.)
+        - getTileBg / palette tables get a BrokenFence entry consistent
+          with the dirt-family palette (the fence is collapsed onto
+          dirt, conceptually).
+        - serialization schema accepts the new tile type without
+          allowlist changes (TileType is an as-const map; addition is
+          backwards-compatible because old saves cannot contain it).
+    inputs:
+      - 'module load (TileType registry is static)'
+    outputs:
+      - 'TileType.BrokenFence exists; tables include it; isWalkableTile returns true for it'
+    state_changes: []
+    determinism: deterministic
+
+  - id: yard-broken-fence-segments
+    description: >
+      `createWhineHomeYard(homeNumber)` reads `WHINE_HOME_VARIANTS
+      [homeNumber].brokenFenceSegments` and, for each (x, y) in the
+      list, replaces the yard map cell at (x, y) with
+      `TileType.BrokenFence`. The replacement only applies to cells
+      that started as `Fence` in the template (perimeter ring minus
+      the FenceGate). If a variant accidentally lists a non-perimeter
+      coordinate or the gate position, that entry is a contract
+      violation surfaced by tests (the runtime does not silently
+      drop it; the tests assert the variant table only lists
+      perimeter-non-gate cells).
+    inputs:
+      - 'createWhineHomeYard(homeNumber) at genesis'
+      - 'WHINE_HOME_VARIANTS[homeNumber].brokenFenceSegments'
+    outputs:
+      - 'yard map perimeter cells at the listed positions are BrokenFence'
+      - 'gate position (4, 6) is never replaced'
+    state_changes:
+      - field: "state.thresholdZones['whine-home-NN'].map"
+        effect: 'listed perimeter cells flipped from Fence to BrokenFence at genesis'
+    determinism: deterministic
+
+  - id: yard-missing-fence-segments
+    description: >
+      `createWhineHomeYard(homeNumber)` reads `WHINE_HOME_VARIANTS
+      [homeNumber].missingFenceSegments` and, for each (x, y) in the
+      list, replaces the yard map cell at (x, y) with `TileType.Dirt`
+      (creating a walkable gap in the fence). The same perimeter-cell
+      and never-the-gate constraint as `yard-broken-fence-segments`
+      applies. The two lists must be disjoint per the variant-table
+      constraints (a cell cannot be both broken and missing).
+    inputs:
+      - 'createWhineHomeYard(homeNumber) at genesis'
+      - 'WHINE_HOME_VARIANTS[homeNumber].missingFenceSegments'
+    outputs:
+      - 'yard map perimeter cells at the listed positions are Dirt'
+      - 'gate position (4, 6) is never replaced'
+    state_changes:
+      - field: "state.thresholdZones['whine-home-NN'].map"
+        effect: 'listed perimeter cells flipped from Fence to Dirt at genesis'
+    determinism: deterministic
+
+  - id: variant-table-coverage
+    description: >
+      The shipped `WHINE_HOME_VARIANTS` table populates non-trivial
+      variation across the twelve homes — the village must NOT read as
+      identical even with the variant mechanism in place. Coverage
+      targets (asserted by tests, not enforced by types):
+
+        - At least one home has villageJitter.dx ≠ 0.
+        - At least one home has villageJitter.dy ≠ 0.
+        - At least one home has yardRoofOffset ≠ {dx: 0, dy: 0}.
+        - At least three homes have a non-null oak.
+        - At least three homes have at least one entry in
+          brokenFenceSegments.
+        - At least one home has at least one entry in
+          missingFenceSegments.
+
+      These thresholds are floor — the hand-authored values will
+      typically exceed them. The thresholds exist so a future
+      maintainer cannot blank the table back to all-zeros (which
+      would silently revert the village to "too perfect" without any
+      type or test signal).
+    inputs:
+      - 'WHINE_HOME_VARIANTS module constant'
+    outputs:
+      - 'coverage targets above hold on every test run'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: variant-table-jitter-keeps-yards-disjoint
+    description: 'After village jitter, two adjacent home footprints could in principle approach each other. The variant table values must keep all twelve 4×4 footprints pairwise non-overlapping and clear of the main street row y = 10.'
+    expected: 'Tests scan every pair of home footprints post-jitter and assert no cell is shared, and that no footprint cell lies on the main-street row y = 10.'
+  - id: home-yard-oak-fits-walkable-interior
+    description: 'A variant table entry specifies an oak whose 5×5 footprint clips the post-offset roof block or extends through the perimeter Fence.'
+    expected: 'Test asserts each non-null oak position has a 5×5 footprint that is entirely within the yard interior (1..7 × 1..5) and entirely on Dirt tiles after the roof block is placed (no overlap with HouseRoof / HouseEaves / FenceGate). If a variant fails this check, the test fails — the variant author is on the hook to adjust the position.'
+  - id: yard-gate-stays-functional
+    description: 'A variant table entry lists every south-edge fence cell as broken or missing.'
+    expected: 'Test asserts the south FenceGate at (4, 6) and at least one adjacent south-edge cell remain in their template state (Fence + FenceGate) or are walkable, so the steward can always cross the gate threshold from inside the yard.'
+  - id: brokenfence-walkable-from-both-sides
+    description: 'Player on either side of a BrokenFence tile attempts to walk onto it.'
+    expected: 'Both attempts succeed. isWalkableTile(BrokenFence) returns true; getBlockedPositions does not include BrokenFence tiles.'
+  - id: village-home-jitter-affects-ghost-bounds
+    description: "Home N's gate position is jittered. Home N's named ghost (whine-ghost-NN) has DriftBehavior bounds derived from that gate."
+    expected: 'The ghost spawns and drifts within bounds anchored to the JITTERED gate position. RP-69 behavior `drift-behavior-bounds` continues to apply with the post-jitter values; no explicit re-wiring needed because the ghost-population pass reads from WHINE_HOMES (which carries the jittered values).'
+  - id: oak-in-yard-renders-via-existing-oak-pass
+    description: 'A Whine home yard with a non-null oak variant is entered.'
+    expected: "The renderer's oak loop populates oakMap for the oak entity because the zone gate `inZone(eid)` passes (oak EntityZone.zone === state.currentZone === Zone.WhineHomeYard). No yard-specific renderer code is added — the existing oak rendering generalizes."
+  - id: yard-with-missing-south-fence
+    description: 'A variant table entry leaves a south-edge cell adjacent to the gate as Dirt (missing).'
+    expected: 'Steward can walk through the Dirt gap into the yard without crossing the FenceGate. The gate continues to function for re-entry. yard-gate-stays-functional invariant still holds because the gate itself is not removed.'
+
+failure_conditions:
+  - trigger: 'Variant table is blanked to all zeros / nulls / empty arrays'
+    expected: '`variant-table-coverage` test fails because the coverage thresholds are not met. The build does not pass.'
+  - trigger: 'A variant lists an oak position whose 5×5 footprint extends through the perimeter Fence'
+    expected: '`home-yard-oak-fits-walkable-interior` test fails. The build does not pass.'
+  - trigger: 'A variant lists the FenceGate position (4, 6) as a brokenFenceSegment or missingFenceSegment'
+    expected: 'A dedicated test asserts the gate position is absent from both lists across all twelve variants. The build does not pass.'
+  - trigger: 'Two adjacent home villageJitter values are chosen such that their footprints overlap'
+    expected: '`variant-table-jitter-keeps-yards-disjoint` test fails. The build does not pass.'
+  - trigger: 'Existing RP-69 test assertions that hard-code home-03 gate at x=13 continue to pass unchanged'
+    expected: 'Tests asserting fixed coordinates are updated to read from WHINE_HOMES (the post-jitter descriptors) rather than from raw constants. The RP-69 behaviors `whine-map-and-registration` and `whine-home-yard-template` remain authoritative for the LAYOUT but their concrete coordinate examples are now keyed off the variant table.'
+
+verification:
+  test_file: src/engine/__tests__/whine.test.ts
+  test_pattern: 'variant|jitter|BrokenFence|oak-in-yard'
+  command: 'npx vitest run src/engine/__tests__/whine.test.ts'

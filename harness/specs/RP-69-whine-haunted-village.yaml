@@ -52,9 +52,13 @@ dependencies:
 #   - Six homes on the south side (footprint y ∈ [15, 18]), same x
 #     centers → home N at the same x range for N ∈ [7, 12]. Each
 #     home's north-facing gate is at (centerX, 15).
-#   - Per-home yard zone map: 9 wide × 7 tall, shared template. Fence
-#     ring; FenceGate at (4, 6) (south edge center); 5×3 roof block
-#     (HouseRoof + HouseEaves) at yard x ∈ [2, 6], y ∈ [1, 3].
+#   - Per-home yard zone map: 15 wide × 13 tall (bumped from the
+#     initial 9 × 7 by RP-69a to fit a 5×5 yard oak alongside the
+#     5×3 roof block). Shared template. Fence ring; FenceGate at
+#     (7, 12) (south edge center); 5×3 roof block (HouseRoof +
+#     HouseEaves) at yard x ∈ [5, 9], y ∈ [1, 3]. Per-home overrides
+#     to roof position, fence breaks, and the yard oak live in the
+#     RP-69a variant table.
 #   - Twelve named ghosts. Each ghost's home is its position index:
 #     home N → ghost id 'whine-ghost-NN' (zero-padded), N ∈ [1, 12].
 #     Each ghost's initial position is in front of its home's south
@@ -355,22 +359,26 @@ behaviors:
 
   - id: whine-home-yard-template
     description: >
-      A single shared 9 × 7 template defines every Whine home yard.
-      `createWhineHomeYard(id: ZoneId)` returns a fresh map each call
-      so the registry can hold twelve independent instances without
-      shared references. Layout, indexed (yardX, yardY) where
-      yardX ∈ [0, 8] and yardY ∈ [0, 6]:
+      A single shared 15 × 13 template defines every Whine home yard
+      (bumped from the initial 9 × 7 by RP-69a so a 5×5 yard oak fits
+      alongside the 5×3 roof block). `createWhineHomeYard(homeNumber:
+      number)` returns a fresh map each call so the registry can hold
+      twelve independent instances without shared references. Layout,
+      indexed (yardX, yardY) where yardX ∈ [0, 14] and yardY ∈ [0, 12]:
         * Perimeter ring: Fence.
-        * FenceGate at (4, 6) — south edge center. Marked as `{ kind:
+        * FenceGate at (7, 12) — south edge center. Marked as `{ kind:
           'exit', targetZoneId: 'whineVillage', returnTile: <set on
           entry> }` in the registry entry's gatePositions.
-        * Roof block: HouseRoof at yardX ∈ [3, 5], yardY ∈ [1, 2];
+        * Roof block: HouseRoof at yardX ∈ [6, 8], yardY ∈ [2, 2];
           HouseEaves on the surrounding 5 × 3 perimeter cells at
-          yardX ∈ [2, 6], yardY ∈ [1, 3] minus the inner roof cells.
+          yardX ∈ [5, 9], yardY ∈ [1, 3] minus the inner roof cells.
           NOTE: this template has NO HouseDoorClosed tile — Whine
           homes are not enterable in v1.
         * All other walkable cells: Dirt.
-      Twelve instances are registered at genesis under ids
+      Per-home variations (roof offset, broken/missing fence segments,
+      yard oak placement) are applied on top of this template by the
+      RP-69a variant system — see harness/specs/RP-69a-whine-variation
+      .yaml. Twelve instances are registered at genesis under ids
       'whine-home-01' through 'whine-home-12', each with `zoneVariant:
       Zone.WhineHomeYard`, `pausesPlayerTime: true`, and the gate
       bindings above. Home N's overworld counterpart (its parent
@@ -381,7 +389,7 @@ behaviors:
       - 'createGameState at tenure start'
     outputs:
       - "state.thresholdZones.get('whine-home-NN') populated for NN ∈ [01, 12]"
-      - 'all twelve maps are independent instances of the same 9 × 7 template'
+      - 'all twelve maps are independent instances of the same 15 × 13 template plus per-home RP-69a overrides'
     state_changes:
       - field: "state.thresholdZones['whine-home-NN']"
         effect: 'created at genesis for each NN ∈ [01, 12]'
@@ -399,9 +407,9 @@ behaviors:
       the targetZoneId (e.g. 'whine-home-03'), swaps `state.map` to
       the home yard's map, sets `state.currentZone = Zone.WhineHomeYard`,
       places the player just south of the home yard's south gate at
-      `(4, 6)`, and stashes the Whine gate tile as the home yard's
+      `(7, 12)`, and stashes the Whine gate tile as the home yard's
       `entryReturnTile`. On exit (stepping onto the home yard's
-      FenceGate at `(4, 6)`), the player returns to Whine at the
+      FenceGate at `(7, 12)`), the player returns to Whine at the
       `entryReturnTile` (the parent gate position). UI/input clears
       mirror the other zone transitions. No re-entry lock is required
       between Whine and home yards (both are paused zones and the
@@ -558,7 +566,7 @@ behaviors:
       same iso scale as the overworld and the little house yard.
       Visibility is full inside both zones — no fog of war, no vision
       radius gating. The camera viewport clamps to the active zone's
-      map bounds (Whine: 30 × 20; home yard: 9 × 7). Cursor state,
+      map bounds (Whine: 30 × 20; home yard: 15 × 13). Cursor state,
       click-to-move, and the bottom-bar permacomputer affordances all
       work normally. Hot-pink-as-user-action conventions are preserved.
       Rain rendering is gated on `state.currentZone ===
@@ -682,7 +690,7 @@ edge_cases:
     description: >
       Steward walks down Whine main street, steps onto home 3's
       south gate at (13, 4), enters home 3's yard, walks around, exits
-      via the home yard's south gate at (4, 6), and lands back in
+      via the home yard's south gate at (7, 12), and lands back in
       Whine at (13, 4).
     expected: >
       Enter transition fires kind='whine-home' with the gate's binding

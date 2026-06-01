@@ -6,36 +6,32 @@ import { describe, expect, it } from 'vitest'
 import {
   TILE_CHARS,
   TILE_COLORS,
+  WHINE_EAST_HOME_LEFT_X,
+  WHINE_EAST_HOME_RIGHT_X,
   WHINE_GATE_X,
   WHINE_GATE_Y,
   WHINE_HEIGHT,
-  WHINE_HOME_YARD_GATE_X,
-  WHINE_HOME_YARD_GATE_Y,
-  WHINE_HOME_YARD_HEIGHT,
-  WHINE_HOME_YARD_WIDTH,
-  WHINE_MAIN_STREET_Y,
-  WHINE_NORTH_HOME_BOTTOM_Y,
-  WHINE_NORTH_HOME_TOP_Y,
-  WHINE_SOUTH_HOME_BOTTOM_Y,
-  WHINE_SOUTH_HOME_TOP_Y,
+  WHINE_MAIN_STREET_X,
+  WHINE_WEST_HOME_LEFT_X,
+  WHINE_WEST_HOME_RIGHT_X,
   WHINE_WIDTH,
 } from '../constants'
 import { ComponentType } from '../ecs/types'
 import { tickCharacterBehaviors } from '../entities'
 import { checkHouseTransition } from '../house'
-import { posKey } from '../position'
+import { isWalkableTile, posKey } from '../position'
 import { createGameState } from '../state'
 import { hasFogOfWar } from '../visibility'
 import {
-  createWhineHomeYard,
   createWhineVillage,
-  enterWhineHomeYard,
   enterWhineVillage,
-  exitWhineHomeYardToVillage,
   exitWhineVillageToOverworld,
+  registerWhineVillage,
+  WHINE_HOME_VARIANTS,
   WHINE_HOMES,
-  whineHomeYardId,
+  WHINE_VILLAGE_BROKEN_FENCE,
   WHINE_VILLAGE_ID,
+  WHINE_VILLAGE_MISSING_FENCE,
 } from '../whine'
 import { TileType, Zone } from '../types'
 
@@ -74,142 +70,106 @@ describe('RP-69 Whine, Haunted Village', () => {
       expect(village.map[0].length).toBe(WHINE_WIDTH)
     })
 
-    it('rings the perimeter with Fence except for the single southwest-area gate', () => {
-      // West edge — all Fence, no gate (gate moved to south fence).
-      for (let y = 0; y < village.height; y++) {
-        expect(village.map[y][0].type).toBe(TileType.Fence)
+    it('rings the perimeter with Fence (or BrokenFence/Dirt where the variant table specifies) except for the 3-wide south gate (RP-69a)', () => {
+      const brokenKeys = new Set(WHINE_VILLAGE_BROKEN_FENCE.map(p => posKey(p.x, p.y)))
+      const missingKeys = new Set(WHINE_VILLAGE_MISSING_FENCE.map(p => posKey(p.x, p.y)))
+      const expectedAt = (x: number, y: number): TileType => {
+        if (y === village.height - 1 && x >= WHINE_GATE_X - 1 && x <= WHINE_GATE_X + 1) return TileType.FenceGate
+        if (brokenKeys.has(posKey(x, y))) return TileType.BrokenFence
+        if (missingKeys.has(posKey(x, y))) return TileType.Dirt
+        return TileType.Fence
       }
-      // East edge — all Fence, no gate.
-      for (let y = 0; y < village.height; y++) {
-        expect(village.map[y][village.width - 1].type).toBe(TileType.Fence)
-      }
-      // South edge — Fence except for the single FenceGate at WHINE_GATE_X.
+      // North edge.
       for (let x = 0; x < village.width; x++) {
-        const expected = x === WHINE_GATE_X ? TileType.FenceGate : TileType.Fence
-        expect(village.map[village.height - 1][x].type).toBe(expected)
+        expect(village.map[0][x].type).toBe(expectedAt(x, 0))
+      }
+      // West edge.
+      for (let y = 0; y < village.height; y++) {
+        expect(village.map[y][0].type).toBe(expectedAt(0, y))
+      }
+      // East edge.
+      for (let y = 0; y < village.height; y++) {
+        expect(village.map[y][village.width - 1].type).toBe(expectedAt(village.width - 1, y))
+      }
+      // South edge.
+      for (let x = 0; x < village.width; x++) {
+        expect(village.map[village.height - 1][x].type).toBe(expectedAt(x, village.height - 1))
       }
     })
 
-    it('keeps the main street row walkable from x=1 to x=28 at y=10', () => {
-      // y=10 is the main street row. Verify tiles along it that are NOT
-      // inside a home footprint are Dirt.
-      const homeColumns = new Set(WHINE_HOMES.map(h => h.centerX))
-      for (let x = 1; x < village.width - 1; x++) {
-        // Skip home footprint columns just in case (the street row
-        // shouldn't overlap homes given the layout, but assert all
-        // non-home columns on the street row are Dirt).
-        if (homeColumns.has(x)) continue
-        expect(village.map[WHINE_MAIN_STREET_Y][x].type).toBe(TileType.Dirt)
+    it('keeps the main street column walkable along the village long axis', () => {
+      // Verify tiles along the main street column that are NOT inside
+      // a home footprint (none should be) are Dirt.
+      for (let y = 1; y < village.height - 1; y++) {
+        expect(village.map[y][WHINE_MAIN_STREET_X].type).toBe(TileType.Dirt)
       }
     })
 
-    it('places twelve homes with HouseRoof + HouseEaves + a single FenceGate each', () => {
-      let homeGateCount = 0
+    it('places twelve homes as closed 4×4 HouseEaves+HouseRoof blocks (RP-69a removed per-home gates)', () => {
       for (const home of WHINE_HOMES) {
-        const minX = home.centerX - 1
-        const maxX = home.centerX + 2
-        for (let y = home.footprintTopY; y <= home.footprintBottomY; y++) {
+        const minX = home.footprintLeftX
+        const maxX = home.footprintRightX
+        const minY = home.centerY - 1
+        const maxY = home.centerY + 2
+        for (let y = minY; y <= maxY; y++) {
           for (let x = minX; x <= maxX; x++) {
             const tile = village.map[y][x].type
-            const onPerimeter = x === minX || x === maxX || y === home.footprintTopY || y === home.footprintBottomY
-            const isGate = home.gatePosition.x === x && home.gatePosition.y === y
-            if (isGate) {
-              expect(tile).toBe(TileType.FenceGate)
-              homeGateCount++
-            } else if (onPerimeter) {
-              expect(tile).toBe(TileType.HouseEaves)
-            } else {
-              expect(tile).toBe(TileType.HouseRoof)
-            }
+            const onPerimeter = x === minX || x === maxX || y === minY || y === maxY
+            expect(tile).toBe(onPerimeter ? TileType.HouseEaves : TileType.HouseRoof)
           }
         }
       }
-      expect(homeGateCount).toBe(12)
     })
 
-    it('registers exactly thirteen gate bindings — one perimeter exit, twelve home enters', () => {
-      expect(village.gatePositions.size).toBe(13)
-      const perimeter = village.gatePositions.get(posKey(WHINE_GATE_X, WHINE_GATE_Y))
-      expect(perimeter?.kind).toBe('exit')
-      expect(perimeter?.targetIsOverworld).toBe(true)
-      for (const home of WHINE_HOMES) {
-        const binding = village.gatePositions.get(posKey(home.gatePosition.x, home.gatePosition.y))
-        expect(binding?.kind).toBe('enter')
-        expect(binding?.targetZoneId).toBe(whineHomeYardId(home.homeNumber))
+    it('registers gate bindings — three perimeter-exit tiles (the 3-wide south gate), no per-home gates (RP-69a removed yards)', () => {
+      expect(village.gatePositions.size).toBe(3)
+      for (let dx = -1; dx <= 1; dx++) {
+        const perimeter = village.gatePositions.get(posKey(WHINE_GATE_X + dx, WHINE_GATE_Y))
+        expect(perimeter?.kind).toBe('exit')
+        expect(perimeter?.targetIsOverworld).toBe(true)
       }
     })
 
-    it('places north homes at y∈[1,4] and south homes at y∈[15,18]', () => {
-      const norths = WHINE_HOMES.filter(h => h.side === 'north')
-      const souths = WHINE_HOMES.filter(h => h.side === 'south')
-      expect(norths.length).toBe(6)
-      expect(souths.length).toBe(6)
-      for (const h of norths) {
-        expect(h.footprintTopY).toBe(WHINE_NORTH_HOME_TOP_Y)
-        expect(h.footprintBottomY).toBe(WHINE_NORTH_HOME_BOTTOM_Y)
+    it('places west homes at footprint x∈[3,6] and east homes at x∈[33,36], offset per variant.villageJitter.dx', () => {
+      // RP-69a applies per-home villageJitter.dx, so the exact column
+      // band is base ± dx. Assert side counts and the 4-column
+      // footprint width.
+      const wests = WHINE_HOMES.filter(h => h.side === 'west')
+      const easts = WHINE_HOMES.filter(h => h.side === 'east')
+      expect(wests.length).toBe(6)
+      expect(easts.length).toBe(6)
+      for (const h of wests) {
+        const dx = WHINE_HOME_VARIANTS[h.homeNumber].villageJitter.dx
+        expect(h.footprintLeftX).toBe(WHINE_WEST_HOME_LEFT_X + dx)
+        expect(h.footprintRightX).toBe(WHINE_WEST_HOME_RIGHT_X + dx)
+        expect(h.footprintRightX - h.footprintLeftX).toBe(3) // 4-column footprint
       }
-      for (const h of souths) {
-        expect(h.footprintTopY).toBe(WHINE_SOUTH_HOME_TOP_Y)
-        expect(h.footprintBottomY).toBe(WHINE_SOUTH_HOME_BOTTOM_Y)
+      for (const h of easts) {
+        const dx = WHINE_HOME_VARIANTS[h.homeNumber].villageJitter.dx
+        expect(h.footprintLeftX).toBe(WHINE_EAST_HOME_LEFT_X + dx)
+        expect(h.footprintRightX).toBe(WHINE_EAST_HOME_RIGHT_X + dx)
+        expect(h.footprintRightX - h.footprintLeftX).toBe(3)
       }
     })
   })
 
-  describe('createWhineHomeYard', () => {
-    const yard = createWhineHomeYard()
-
-    it('produces a 9x7 map', () => {
-      expect(yard.width).toBe(WHINE_HOME_YARD_WIDTH)
-      expect(yard.height).toBe(WHINE_HOME_YARD_HEIGHT)
-    })
-
-    it('rings the perimeter with Fence and places a single south FenceGate', () => {
-      for (let x = 0; x < yard.width; x++) {
-        const top = yard.map[0][x].type
-        const bottom = yard.map[yard.height - 1][x].type
-        expect(top).toBe(TileType.Fence)
-        const isGate = x === WHINE_HOME_YARD_GATE_X
-        expect(bottom).toBe(isGate ? TileType.FenceGate : TileType.Fence)
-      }
-    })
-
-    it('places no HouseDoorClosed tile (homes not enterable in v1)', () => {
-      for (const row of yard.map) {
-        for (const tile of row) {
-          expect(tile.type).not.toBe(TileType.HouseDoorClosed)
-        }
-      }
-    })
-
-    it('returns fresh map instances on each call (so registry entries are independent)', () => {
-      const a = createWhineHomeYard()
-      const b = createWhineHomeYard()
-      expect(a.map).not.toBe(b.map)
-    })
-
-    it('binds the south gate as an exit back to the village', () => {
-      const binding = yard.gatePositions.get(posKey(WHINE_HOME_YARD_GATE_X, WHINE_HOME_YARD_GATE_Y))
-      expect(binding?.kind).toBe('exit')
-      expect(binding?.targetZoneId).toBe(WHINE_VILLAGE_ID)
-    })
-  })
+  // RP-69a — `createWhineHomeYard` and the per-home yard registry
+  // entries were removed; the village itself is the yard.
 
   describe('genesis registration', () => {
-    it('registers Whine and twelve home yards in state.thresholdZones', () => {
+    it('registers Whine in state.thresholdZones (no per-home yards in RP-69a)', () => {
       const state = createGameState('test-steward', 800, 600)
       const village = state.thresholdZones.get(WHINE_VILLAGE_ID)
       expect(village).toBeDefined()
       expect(village?.zoneVariant).toBe(Zone.WhineVillage)
       expect(village?.pausesPlayerTime).toBe(true)
-      for (let n = 1; n <= 12; n++) {
-        const home = state.thresholdZones.get(whineHomeYardId(n))
-        expect(home).toBeDefined()
-        expect(home?.zoneVariant).toBe(Zone.WhineHomeYard)
-        expect(home?.pausesPlayerTime).toBe(true)
+      // No `whine-home-NN` registry entries.
+      for (const id of state.thresholdZones.keys()) {
+        expect(id.startsWith('whine-home-')).toBe(false)
       }
     })
 
-    it('places a WhineEntrance + 8 WhineApron tiles on the overworld east of the little house', () => {
+    it('stamps a 1x3 vertical WhineEntrance strip wrapped by a 3x5 WhineApron footprint, east of the little house (RP-69a)', () => {
       const state = createGameState('test-steward', 800, 600)
       if (!state.whineEntranceOverworld) {
         // Degenerate genesis (extremely unlikely for this fixture).
@@ -221,12 +181,15 @@ describe('RP-69 Whine, Haunted Village', () => {
       const entrance = state.whineEntranceOverworld
       // Should be east of the little house.
       expect(entrance.x).toBeGreaterThan(state.houseEntranceOverworld.x)
-      // Tile at entrance is WhineEntrance.
-      expect(state.overworldMap[entrance.y][entrance.x].type).toBe(TileType.WhineEntrance)
-      // 8 neighbors are WhineApron.
+      // Three WhineEntrance tiles in a vertical column centered on the
+      // anchor: (cx, cy-1), (cx, cy), (cx, cy+1).
       for (let dy = -1; dy <= 1; dy++) {
+        expect(state.overworldMap[entrance.y + dy][entrance.x].type).toBe(TileType.WhineEntrance)
+      }
+      // The 12 surrounding cells of the 3x5 footprint are WhineApron.
+      for (let dy = -2; dy <= 2; dy++) {
         for (let dx = -1; dx <= 1; dx++) {
-          if (dx === 0 && dy === 0) continue
+          if (dx === 0 && dy >= -1 && dy <= 1) continue // skip entrance strip
           expect(state.overworldMap[entrance.y + dy][entrance.x + dx].type).toBe(TileType.WhineApron)
         }
       }
@@ -297,39 +260,9 @@ describe('RP-69 Whine, Haunted Village', () => {
       expect(state.thresholdZones.get(WHINE_VILLAGE_ID)?.entryReturnTile).toBeNull()
     })
 
-    it('Whine→home-yard: stepping on a home gate schedules a whine-home enter; the handler swaps to the right home', () => {
-      const state = createTestState()
-      enterWhineVillage(state, { x: 0, y: 0 })
-      // Walk to home #3's gate.
-      const home = WHINE_HOMES[2] // homeNumber 3
-      state.player = { x: home.gatePosition.x, y: home.gatePosition.y }
-      state.zoneTransition = null
-      const detected = checkHouseTransition(state)
-      expect(detected).toBe(true)
-      const tx = state.zoneTransition as ZoneTransition | null
-      expect(tx?.kind).toBe('whine-home')
-      expect(tx?.direction).toBe('enter')
-
-      enterWhineHomeYard(state, home.gatePosition)
-      expect(state.currentZone).toBe(Zone.WhineHomeYard)
-      // Player lands one tile north of the home yard's south gate.
-      expect(state.player).toEqual({ x: WHINE_HOME_YARD_GATE_X, y: WHINE_HOME_YARD_GATE_Y - 1 })
-      const homeYard = state.thresholdZones.get(whineHomeYardId(home.homeNumber))
-      expect(homeYard?.entryReturnTile).toEqual(home.gatePosition)
-    })
-
-    it('home-yard→Whine: handler restores the village map and returns the player to the corridor near the parent gate', () => {
-      const state = createTestState()
-      enterWhineVillage(state, { x: 0, y: 0 })
-      const home = WHINE_HOMES[0] // home #1 (north)
-      enterWhineHomeYard(state, home.gatePosition)
-
-      exitWhineHomeYardToVillage(state)
-      expect(state.currentZone).toBe(Zone.WhineVillage)
-      // North home gate.y = WHINE_NORTH_HOME_BOTTOM_Y; exit lands at y+1.
-      expect(state.player).toEqual({ x: home.centerX, y: home.gatePosition.y + 1 })
-      expect(state.thresholdZones.get(whineHomeYardId(home.homeNumber))?.entryReturnTile).toBeNull()
-    })
+    // RP-69a — per-home yards were removed; the village itself is the
+    // yard. Homes are closed 4×4 blocks with no threshold gate, so
+    // there is no Whine→home-yard transition path.
   })
 
   describe('DriftBehavior.bounds (substrate)', () => {
@@ -388,6 +321,248 @@ describe('RP-69 Whine, Haunted Village', () => {
         }
       } finally {
         behavior.moveChance = orig
+      }
+    })
+  })
+})
+
+describe('RP-69a — hand-authored Whine variation', () => {
+  describe('BrokenFence tile type', () => {
+    it('has a glyph and color distinct from Fence and FenceGate', () => {
+      expect(TILE_CHARS[TileType.BrokenFence]).toBeDefined()
+      expect(TILE_COLORS[TileType.BrokenFence]).toBeDefined()
+      expect(TILE_CHARS[TileType.BrokenFence]).not.toBe(TILE_CHARS[TileType.Fence])
+      expect(TILE_CHARS[TileType.BrokenFence]).not.toBe(TILE_CHARS[TileType.FenceGate])
+      expect(TILE_COLORS[TileType.BrokenFence]).not.toBe(TILE_COLORS[TileType.Fence])
+    })
+
+    it('is walkable (so the steward can cross a collapsed segment)', () => {
+      expect(isWalkableTile(TileType.BrokenFence)).toBe(true)
+    })
+
+    it('Fence remains non-walkable (intact fence still blocks)', () => {
+      expect(isWalkableTile(TileType.Fence)).toBe(false)
+    })
+  })
+
+  describe('WHINE_HOME_VARIANTS table', () => {
+    it('has 13 entries indexed 0..12 (index 0 unused, 1..12 per-home)', () => {
+      expect(WHINE_HOME_VARIANTS.length).toBe(13)
+    })
+
+    it('every entry conforms to the variant shape (villageJitter + oak)', () => {
+      for (let n = 0; n <= 12; n++) {
+        const v = WHINE_HOME_VARIANTS[n]
+        expect(v).toBeDefined()
+        expect(typeof v.villageJitter.dx).toBe('number')
+        expect(typeof v.villageJitter.dy).toBe('number')
+        expect(v.oak === null || (typeof v.oak.x === 'number' && typeof v.oak.y === 'number')).toBe(true)
+      }
+    })
+
+    it('villageJitter values stay within the documented range per home', () => {
+      for (let n = 1; n <= 12; n++) {
+        const { dx, dy } = WHINE_HOME_VARIANTS[n].villageJitter
+        expect(dx).toBeGreaterThanOrEqual(-2)
+        expect(dx).toBeLessThanOrEqual(2)
+        expect(dy).toBeGreaterThanOrEqual(-1)
+        expect(dy).toBeLessThanOrEqual(1)
+      }
+    })
+
+    it('every oak anchor sits inside the village interior away from the perimeter', () => {
+      // Village is 40 wide × 66 tall. Safe oak anchor range so the
+      // 5×5 footprint stays clear of the perimeter (x ∈ [0, 39] and
+      // y ∈ [0, 65] are Fence) is x ∈ [3, 36], y ∈ [3, 62].
+      for (let n = 1; n <= 12; n++) {
+        const oak = WHINE_HOME_VARIANTS[n].oak
+        if (oak === null) continue
+        expect(oak.x).toBeGreaterThanOrEqual(3)
+        expect(oak.x).toBeLessThanOrEqual(WHINE_WIDTH - 4)
+        expect(oak.y).toBeGreaterThanOrEqual(3)
+        expect(oak.y).toBeLessThanOrEqual(WHINE_HEIGHT - 4)
+      }
+    })
+
+    // RP-69a coverage floor: the shipped table must show non-trivial
+    // variation so a future maintainer cannot quietly revert it.
+    it('coverage: at least one home has non-zero villageJitter.dx', () => {
+      expect(WHINE_HOME_VARIANTS.slice(1).some(v => v.villageJitter.dx !== 0)).toBe(true)
+    })
+
+    it('coverage: at least one home has non-zero villageJitter.dy', () => {
+      expect(WHINE_HOME_VARIANTS.slice(1).some(v => v.villageJitter.dy !== 0)).toBe(true)
+    })
+
+    it('coverage: at least three homes have an oak in the village', () => {
+      const oakCount = WHINE_HOME_VARIANTS.slice(1).filter(v => v.oak !== null).length
+      expect(oakCount).toBeGreaterThanOrEqual(3)
+    })
+  })
+
+  describe('village-perimeter fence variation', () => {
+    it('broken and missing fence positions only reference village-perimeter cells and never the south FenceGate', () => {
+      const isPerimeter = (x: number, y: number): boolean =>
+        x === 0 || x === WHINE_WIDTH - 1 || y === 0 || y === WHINE_HEIGHT - 1
+      const isGate = (x: number, y: number): boolean =>
+        y === WHINE_HEIGHT - 1 && x >= WHINE_GATE_X - 1 && x <= WHINE_GATE_X + 1
+      for (const p of WHINE_VILLAGE_BROKEN_FENCE) {
+        expect(isPerimeter(p.x, p.y)).toBe(true)
+        expect(isGate(p.x, p.y)).toBe(false)
+      }
+      for (const p of WHINE_VILLAGE_MISSING_FENCE) {
+        expect(isPerimeter(p.x, p.y)).toBe(true)
+        expect(isGate(p.x, p.y)).toBe(false)
+      }
+    })
+
+    it('broken and missing lists are disjoint (no cell is both)', () => {
+      const brokenKeys = new Set(WHINE_VILLAGE_BROKEN_FENCE.map(p => posKey(p.x, p.y)))
+      for (const p of WHINE_VILLAGE_MISSING_FENCE) {
+        expect(brokenKeys.has(posKey(p.x, p.y))).toBe(false)
+      }
+    })
+
+    it('createWhineVillage stamps BrokenFence at every broken position', () => {
+      const village = createWhineVillage()
+      for (const p of WHINE_VILLAGE_BROKEN_FENCE) {
+        expect(village.map[p.y][p.x].type).toBe(TileType.BrokenFence)
+      }
+    })
+
+    it('createWhineVillage stamps Dirt at every missing position', () => {
+      const village = createWhineVillage()
+      for (const p of WHINE_VILLAGE_MISSING_FENCE) {
+        expect(village.map[p.y][p.x].type).toBe(TileType.Dirt)
+      }
+    })
+
+    it('coverage: at least one broken and one missing position are present', () => {
+      expect(WHINE_VILLAGE_BROKEN_FENCE.length).toBeGreaterThanOrEqual(1)
+      expect(WHINE_VILLAGE_MISSING_FENCE.length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('village jitter — WHINE_HOMES carries post-jitter descriptors', () => {
+    it('every home descriptor reflects its variant.villageJitter offset along the village long axis (y) and short axis (x)', () => {
+      // Reconstruct the base center for each home and verify the
+      // descriptor's centerY = base + variant.dy. dx shifts footprint
+      // columns rather than the centerY itself.
+      for (const home of WHINE_HOMES) {
+        const i = home.homeNumber <= 6 ? home.homeNumber - 1 : home.homeNumber - 7
+        const baseCenterY = 7 + 10 * i
+        const variant = WHINE_HOME_VARIANTS[home.homeNumber]
+        expect(home.centerY).toBe(baseCenterY + variant.villageJitter.dy)
+      }
+    })
+
+    it('post-jitter footprints stay inside the 40x66 village (1..width-2, 1..height-2 perimeter clearance)', () => {
+      for (const home of WHINE_HOMES) {
+        expect(home.footprintLeftX).toBeGreaterThanOrEqual(1)
+        expect(home.footprintRightX).toBeLessThanOrEqual(WHINE_WIDTH - 2)
+        const minY = home.centerY - 1
+        const maxY = home.centerY + 2
+        expect(minY).toBeGreaterThanOrEqual(1)
+        expect(maxY).toBeLessThanOrEqual(WHINE_HEIGHT - 2)
+      }
+    })
+
+    it('post-jitter footprints never cross the main street column', () => {
+      for (const home of WHINE_HOMES) {
+        for (let x = home.footprintLeftX; x <= home.footprintRightX; x++) {
+          expect(x).not.toBe(WHINE_MAIN_STREET_X)
+        }
+      }
+    })
+
+    it('post-jitter footprints are pairwise disjoint', () => {
+      const footprintCells = (home: {
+        centerY: number
+        footprintLeftX: number
+        footprintRightX: number
+      }): Set<string> => {
+        const cells = new Set<string>()
+        for (let y = home.centerY - 1; y <= home.centerY + 2; y++) {
+          for (let x = home.footprintLeftX; x <= home.footprintRightX; x++) {
+            cells.add(`${String(x)},${String(y)}`)
+          }
+        }
+        return cells
+      }
+      for (let i = 0; i < WHINE_HOMES.length; i++) {
+        for (let j = i + 1; j < WHINE_HOMES.length; j++) {
+          const a = footprintCells(WHINE_HOMES[i])
+          const b = footprintCells(WHINE_HOMES[j])
+          for (const cell of b) {
+            expect(a.has(cell)).toBe(false)
+          }
+        }
+      }
+    })
+
+    it('createWhineVillage paints HouseRoof/HouseEaves at the post-jitter footprint of each home (no per-home FenceGate)', () => {
+      const village = createWhineVillage()
+      for (const home of WHINE_HOMES) {
+        // Inner roof cells should be HouseRoof.
+        for (let y = home.centerY; y <= home.centerY + 1; y++) {
+          for (let x = home.footprintLeftX + 1; x <= home.footprintRightX - 1; x++) {
+            expect(village.map[y][x].type).toBe(TileType.HouseRoof)
+          }
+        }
+        // Every cell on the 4×4 footprint perimeter is HouseEaves —
+        // no FenceGate slot since RP-69a removed per-home yards.
+        const minX = home.footprintLeftX
+        const maxX = home.footprintRightX
+        const minY = home.centerY - 1
+        const maxY = home.centerY + 2
+        for (let y = minY; y <= maxY; y++) {
+          for (let x = minX; x <= maxX; x++) {
+            const onPerimeter = x === minX || x === maxX || y === minY || y === maxY
+            if (onPerimeter) expect(village.map[y][x].type).toBe(TileType.HouseEaves)
+          }
+        }
+      }
+    })
+  })
+
+  describe('village oak spawning', () => {
+    it('spawns one ECS oak per home with a non-null oak variant, each scoped to Zone.WhineVillage', () => {
+      // createTestState destroys all OakData entities to keep tests
+      // hermetic — re-register Whine so the variant oaks repopulate.
+      const state = createTestState()
+      const village = createWhineVillage()
+      registerWhineVillage(state, village)
+
+      let villageOakCount = 0
+      for (const eid of state.world.query(ComponentType.OakData, ComponentType.EntityZone)) {
+        const ez = state.world.getComponent(eid, ComponentType.EntityZone)
+        if (ez?.zone !== Zone.WhineVillage) continue
+        villageOakCount++
+      }
+      const expectedOakHomes = WHINE_HOME_VARIANTS.slice(1).filter(v => v.oak !== null).length
+      expect(villageOakCount).toBe(expectedOakHomes)
+    })
+
+    it("every variant oak's 5×5 footprint sits on the village's walkable interior (not the perimeter, not a home roof or eaves)", () => {
+      const village = createWhineVillage()
+      for (let n = 1; n <= 12; n++) {
+        const variant = WHINE_HOME_VARIANTS[n]
+        if (variant.oak === null) continue
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            const x = variant.oak.x + dx
+            const y = variant.oak.y + dy
+            // Inside the playable interior (perimeter excluded).
+            expect(x).toBeGreaterThanOrEqual(1)
+            expect(x).toBeLessThanOrEqual(WHINE_WIDTH - 2)
+            expect(y).toBeGreaterThanOrEqual(1)
+            expect(y).toBeLessThanOrEqual(WHINE_HEIGHT - 2)
+            // Not on a home footprint (HouseRoof or HouseEaves).
+            const tileType = village.map[y][x].type
+            expect(tileType).not.toBe(TileType.HouseRoof)
+            expect(tileType).not.toBe(TileType.HouseEaves)
+          }
+        }
       }
     })
   })

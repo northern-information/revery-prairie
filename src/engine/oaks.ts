@@ -106,6 +106,38 @@ export const spawnOak = (state: GameState, anchorX: number, anchorY: number, tim
   return eid
 }
 
+// RP-69a — spawn an oak inside a non-overworld zone (currently used by
+// the Whine home yards). Identity derives from `seed` plus the anchor
+// position so identical anchors across two homes produce distinct
+// genetics. The entity carries `EntityZone = { zone }` so the renderer's
+// in-zone gate (`isEntityInCurrentZone`) routes it to the named yard
+// without leaking into adjacent zones. No isValidOakPosition check —
+// yard positions are hand-authored and validated by the RP-69a variant
+// table tests, not at runtime.
+export const spawnZoneOak = (
+  state: GameState,
+  anchorX: number,
+  anchorY: number,
+  time: number,
+  zone: Zone,
+  seed: string
+): number => {
+  const eid = state.world.createEntity()
+  state.world.addComponent(eid, ComponentType.Position, { x: anchorX, y: anchorY })
+  state.world.addComponent(eid, ComponentType.MultiPosition, {
+    positions: getOakBodyPositions(anchorX, anchorY),
+  })
+  const identity = sha256Sync(`${seed}:${String(anchorX)},${String(anchorY)}`).toUpperCase()
+  state.world.addComponent(eid, ComponentType.OakData, {
+    plantedTime: time,
+    identity,
+    traits: generateTraitBag(identity),
+  })
+  state.world.addComponent(eid, ComponentType.EntityTag, 'oak')
+  state.world.addComponent(eid, ComponentType.EntityZone, { zone })
+  return eid
+}
+
 // Iso projection: px = (x - y) * w, py = (x + y) * h/2. So a 5x5 logical
 // footprint becomes a tall diamond on screen, with the screen-vertical axis
 // running along (dx + dy). The diamond has 9 iso rows (isoRow in [-4, +4]).

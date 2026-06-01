@@ -117,7 +117,10 @@ export const isWalkableTile = (tileType: TileType): boolean =>
   // RP-67 — yard exterior tiles. The roof, eaves, and fence block
   // movement. HouseDoorClosed (the front door from outside) and
   // FenceGate (the south gate) are walkable; stepping on them triggers
-  // their respective zone transitions.
+  // their respective zone transitions. RP-69a — BrokenFence is the
+  // weathered yard fence variant and is intentionally walkable (omitted
+  // from the exclude list above), so the steward can cross a collapsed
+  // segment without using the gate.
   tileType !== TileType.HouseRoof &&
   tileType !== TileType.HouseEaves &&
   tileType !== TileType.Fence &&
