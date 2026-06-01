@@ -82,9 +82,12 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.CellarBulkheadInterior]: '█',
   // RP-69 — Whine, Haunted Village approach. Entrance reads as a
   // stack of horizontal bars (the village as a row of houses seen
-  // from the prairie). RP-69a stamps three of these tiles in a row
-  // for a wider entry threshold.
+  // from the prairie). RP-69a stamps three of these tiles in a
+  // vertical column for a taller entry threshold; the apron reuses
+  // the house apron's path glyph for visual continuity with the
+  // existing approach idiom.
   [TileType.WhineEntrance]: '≡',
+  [TileType.WhineApron]: '·',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -153,7 +156,11 @@ export const TILE_COLORS: Record<TileType, string> = {
   // Apron keeps the warm dirt color the house apron uses so the
   // approach footprint reads continuously with the path the steward is
   // already walking on.
-  [TileType.WhineEntrance]: '#8A6B92',
+  // RP-69a — match the little-house palette so the village reads as
+  // "another home" rather than something egregoric. The original purple
+  // (`#8A6B92`) sat too close to the egregore violet (`#B080D0`).
+  [TileType.WhineEntrance]: '#7A5A38',
+  [TileType.WhineApron]: '#5A4128',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering
@@ -836,24 +843,9 @@ export const WHINE_OVERWORLD_OFFSET_Y = 0
 export const WHINE_PLACEMENT_DISTANCES = [22, 24, 26, 28] as const
 export const WHINE_PLACEMENT_DY_OFFSETS = [0, -2, 2, -4, 4] as const
 
-// Per-home yard template (15 × 13 since RP-69a — was 9 × 7 in RP-69 v1).
-// Each of the twelve Whine homes opens into an instance of this map. The
-// larger interior was needed to fit a 5×5 yard oak alongside the 5×3 roof
-// block under the RP-69a variation system. The south FenceGate is the
-// single threshold tile back to the village; no HouseDoorClosed (homes
-// are not enterable in this revision).
-export const WHINE_HOME_YARD_WIDTH = 15
-export const WHINE_HOME_YARD_HEIGHT = 13
-export const WHINE_HOME_YARD_GATE_X = 7 // center of south edge
-export const WHINE_HOME_YARD_GATE_Y = 12
-// Roof block (5×3): HouseEaves on the surrounding perimeter cells plus
-// HouseRoof on the inner 3×1 row. Anchored toward the top of the yard
-// so the steward steps in and the house reads as "behind me" relative
-// to the gate at the south edge.
-export const WHINE_HOME_YARD_ROOF_MIN_X = 5
-export const WHINE_HOME_YARD_ROOF_MAX_X = 9
-export const WHINE_HOME_YARD_ROOF_MIN_Y = 1
-export const WHINE_HOME_YARD_ROOF_MAX_Y = 3
+// RP-69a removed the per-home yard zones. The village itself is the
+// yard, and each home is a closed 4×4 HouseEaves+HouseRoof block in
+// the village map. No yard constants needed.
 
 // Whine ghost drift cadence.
 export const WHINE_GHOST_MOVE_CHANCE = 0.15

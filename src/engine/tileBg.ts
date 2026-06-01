@@ -73,8 +73,10 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.CellarBulkheadInterior]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
   // RP-69 — Whine approach bg. Entrance carries a faintly cooler,
   // smoke-tinted shadow under the dust-violet glyph so the village
-  // reads as something the prairie remembers but does not own.
-  [TileType.WhineEntrance]: ['#2F2632', '#312834', '#2D2430', '#302632'],
+  // mirrors the house entrance/apron palette so Whine reads as
+  // "another home" approach instead of an egregoric site.
+  [TileType.WhineEntrance]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
+  [TileType.WhineApron]: ['#322215', '#342417', '#302115', '#332416'],
 }
 
 export const getTileBgColor = (tileType: TileType, x: number, y: number): string => {

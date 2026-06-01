@@ -246,7 +246,7 @@ export const checkHouseTransition = (state: GameState): boolean => {
   // home yard, the south FenceGate exits back to Whine.
   if (state.currentZone === Zone.Overworld) {
     const standingTile = state.map[py]?.[px]?.type
-    if (standingTile === TileType.WhineEntrance) {
+    if (standingTile === TileType.WhineEntrance || standingTile === TileType.WhineApron) {
       const apronTile = { x: px, y: py }
       if (!isReentryLocked(state, apronTile)) {
         scheduleZoneTransition(state, performance.now(), {

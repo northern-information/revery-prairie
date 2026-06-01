@@ -45,7 +45,6 @@ import { createLittleHouseYard, registerLittleHouseYard } from './yard'
 import {
   createWhineVillage,
   placeWhineOnOverworld,
-  registerWhineHomeYards,
   registerWhineVillage,
   WHINE_HOMES,
 } from './whine'
@@ -476,7 +475,6 @@ export const createGameState = (
   registerLittleHouseYard(state, yard)
   const whineVillage = createWhineVillage()
   registerWhineVillage(state, whineVillage)
-  registerWhineHomeYards(state)
   state.whineEntranceOverworld = placeWhineOnOverworld(
     state.overworldMap,
     state.overworldMapWidth,

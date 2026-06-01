@@ -79,11 +79,12 @@ export const TileType = {
   CellarBulkhead: 'cellarBulkhead',
   CellarBulkheadInterior: 'cellarBulkheadInterior',
   // Whine, Haunted Village (RP-69). WhineEntrance is the overworld
-  // tile that opens into the Whine zone — stamped as a 1x3 horizontal
-  // strip per RP-69a (was a single tile + 8 WhineApron neighbors in
-  // the original RP-69; WhineApron was removed since the wider entry
-  // row obviates the apron mechanic).
+  // tile that opens into the Whine zone — stamped as a 3-tall vertical
+  // strip per RP-69a (rotated from the original 1×3 horizontal row).
+  // WhineApron tiles surround the entrance in a 3×5 footprint and
+  // also trigger entry — mirroring the cave/ruin/house apron pattern.
   WhineEntrance: 'whineEntrance',
+  WhineApron: 'whineApron',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]
