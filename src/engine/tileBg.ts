@@ -60,6 +60,9 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.HouseDoorClosed]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
   [TileType.Fence]: ['#3A2C1A', '#3C2E1C', '#382A18', '#3B2D1B'],
   [TileType.FenceGate]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
+  // RP-69a — broken-fence bg: dirt-family shades so a broken stake reads
+  // as "the fence collapsed and the dirt is showing through."
+  [TileType.BrokenFence]: ['#352718', '#372919', '#332515', '#362818'],
   // RP-37 — Knot Cellar. Deep earthen browns for floor and alcove;
   // near-black for the corridor walls; the bulkhead surfaces match
   // the cave/ruin exit pink-on-warm-brown idiom.
@@ -70,10 +73,8 @@ export const TILE_BG_PALETTES: Record<TileType, readonly string[]> = {
   [TileType.CellarBulkheadInterior]: ['#3D2A1A', '#3F2C1B', '#412D1C', '#3B281A'],
   // RP-69 — Whine approach bg. Entrance carries a faintly cooler,
   // smoke-tinted shadow under the dust-violet glyph so the village
-  // reads as something the prairie remembers but does not own. Apron
-  // mirrors the house apron's warm-brown shadow for path continuity.
+  // reads as something the prairie remembers but does not own.
   [TileType.WhineEntrance]: ['#2F2632', '#312834', '#2D2430', '#302632'],
-  [TileType.WhineApron]: ['#322215', '#342417', '#302115', '#332416'],
 }
 
 export const getTileBgColor = (tileType: TileType, x: number, y: number): string => {

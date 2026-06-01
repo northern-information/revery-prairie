@@ -59,6 +59,11 @@ export const TileType = {
   HouseDoorClosed: 'houseDoorClosed',
   Fence: 'fence',
   FenceGate: 'fenceGate',
+  // RP-69a — a weathered fence segment authored per Whine yard. Walkable
+  // (unlike Fence), reads as a collapsed/broken post against the dirt-
+  // family palette. Authored positions live in `WHINE_HOME_VARIANTS`
+  // [N].brokenFenceSegments and are applied inside `createWhineHomeYard`.
+  BrokenFence: 'brokenFence',
   // The Knot Cellar (RP-37). A narrow corridor archive accessed via a
   // bulkhead in the back yard. CellarFloor is the central 3-wide
   // corridor; CellarWall the side walls and far end; CellarAlcoveFloor
@@ -73,13 +78,12 @@ export const TileType = {
   CellarAlcoveFloor: 'cellarAlcoveFloor',
   CellarBulkhead: 'cellarBulkhead',
   CellarBulkheadInterior: 'cellarBulkheadInterior',
-  // Whine, Haunted Village (RP-69). WhineEntrance is the single
-  // overworld tile that opens into the Whine zone; WhineApron the 8
-  // neighbors that also trigger entry — mirroring the house apron
-  // pattern but landing in Whine's threshold-zone region instead of
-  // a structure interior.
+  // Whine, Haunted Village (RP-69). WhineEntrance is the overworld
+  // tile that opens into the Whine zone — stamped as a 1x3 horizontal
+  // strip per RP-69a (was a single tile + 8 WhineApron neighbors in
+  // the original RP-69; WhineApron was removed since the wider entry
+  // row obviates the apron mechanic).
   WhineEntrance: 'whineEntrance',
-  WhineApron: 'whineApron',
 } as const
 
 export type TileType = (typeof TileType)[keyof typeof TileType]

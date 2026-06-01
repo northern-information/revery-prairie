@@ -1,0 +1,134 @@
+plan:
+  id: RP-69a-whine-variation
+  title: 'RP-69a: hand-authored variation across the twelve Whine homes — village jitter, yard-roof offsets, oak placements, broken and missing fence segments. Deterministic, no RNG, same every tenure.'
+  created: 2026-05-31
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: brokenfence-tile-type
+    title: 'Add TileType.BrokenFence (walkable, distinct glyph and weathered color). Update TILE_CHARS, TILE_COLORS, tile-bg palette, isWalkableTile. Test BrokenFence walkability and tile-table coverage.'
+    spec_id: RP-69a-whine-variation
+    spec_sections:
+      - broken-fence-tile-type
+    context_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+      - src/engine/tileBg.ts
+      - src/engine/__tests__/whine.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/constants.ts
+      - src/engine/position.ts
+      - src/engine/tileBg.ts
+      - src/engine/__tests__/whine.test.ts
+    depends_on: []
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: "npx vitest run src/engine/__tests__/whine.test.ts -t 'BrokenFence'"
+
+  - id: variants-table-and-shape
+    title: 'Define the WHINE_HOME_VARIANTS readonly table in src/engine/whine.ts (13-entry array indexed by home number). Include the variant shape interface. Ship with hand-authored values that satisfy variant-table-coverage (≥1 nonzero jitter, ≥3 oaks, ≥3 homes with broken segments, ≥1 home with missing segments).'
+    spec_id: RP-69a-whine-variation
+    spec_sections:
+      - whine-home-variants-table
+      - variant-table-coverage
+    context_files:
+      - src/engine/whine.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/whine.test.ts
+    output_files:
+      - src/engine/whine.ts
+      - src/engine/__tests__/whine.test.ts
+    depends_on:
+      - brokenfence-tile-type
+    verification:
+      - command: "npx vitest run src/engine/__tests__/whine.test.ts -t 'WHINE_HOME_VARIANTS'"
+
+  - id: village-jitter-application
+    title: "Apply WHINE_HOME_VARIANTS[N].villageJitter inside createWhineVillage. Update WHINE_HOMES so each descriptor's centerX, footprintTopY/BottomY, and gatePosition reflect the post-jitter values. Yard-disjoint invariant test verifies no footprint overlap and main-street-row clearance."
+    spec_id: RP-69a-whine-variation
+    spec_sections:
+      - village-home-position-jitter
+      - variant-table-jitter-keeps-yards-disjoint
+    context_files:
+      - src/engine/whine.ts
+      - src/engine/__tests__/whine.test.ts
+    output_files:
+      - src/engine/whine.ts
+      - src/engine/__tests__/whine.test.ts
+    depends_on:
+      - variants-table-and-shape
+    verification:
+      - command: "npx vitest run src/engine/__tests__/whine.test.ts -t 'jitter|disjoint'"
+
+  - id: yard-roof-offset-and-fence-segments
+    title: 'Change createWhineHomeYard signature to take homeNumber, apply yardRoofOffset to the 5×3 roof block, replace listed perimeter cells with BrokenFence or Dirt per variant. Update registerWhineHomeYards to call createWhineHomeYard(homeNumber). Tests cover roof-offset bounds, broken/missing fence cell types, and the gate-stays-functional invariant.'
+    spec_id: RP-69a-whine-variation
+    spec_sections:
+      - yard-roof-position-jitter
+      - yard-broken-fence-segments
+      - yard-missing-fence-segments
+      - yard-gate-stays-functional
+    context_files:
+      - src/engine/whine.ts
+      - src/engine/__tests__/whine.test.ts
+    output_files:
+      - src/engine/whine.ts
+      - src/engine/__tests__/whine.test.ts
+    depends_on:
+      - village-jitter-application
+    verification:
+      - command: "npx vitest run src/engine/__tests__/whine.test.ts -t 'roof|broken|missing|gate-stays'"
+
+  - id: yard-oak-spawning
+    title: 'For each home N with a non-null WHINE_HOME_VARIANTS[N].oak, spawn an ECS oak inside that yard at genesis. EntityZone = { zone: Zone.WhineHomeYard }. Identity derived from stewardName + per-home seed. Tests assert oak count matches non-null variant count, each oak fits its yard interior post-roof-offset, and EntityZone routes to the correct yard.'
+    spec_id: RP-69a-whine-variation
+    spec_sections:
+      - yard-oak-placement
+      - home-yard-oak-fits-walkable-interior
+      - oak-in-yard-renders-via-existing-oak-pass
+    context_files:
+      - src/engine/whine.ts
+      - src/engine/oaks.ts
+      - src/engine/state.ts
+      - src/engine/__tests__/whine.test.ts
+    output_files:
+      - src/engine/whine.ts
+      - src/engine/__tests__/whine.test.ts
+    depends_on:
+      - yard-roof-offset-and-fence-segments
+    verification:
+      - command: "npx vitest run src/engine/__tests__/whine.test.ts -t 'oak'"
+
+  - id: existing-rp-69-test-rebase
+    title: 'Update existing RP-69 tests that hard-code home-N gate positions and yard-tile types to read from WHINE_HOMES (post-jitter) and from the variant-aware createWhineHomeYard. No coordinate literals should remain in tests; the variants are the source of truth.'
+    spec_id: RP-69a-whine-variation
+    spec_sections:
+      - village-home-position-jitter
+      - yard-roof-position-jitter
+    context_files:
+      - src/engine/__tests__/whine.test.ts
+      - src/engine/whine.ts
+    output_files:
+      - src/engine/__tests__/whine.test.ts
+    depends_on:
+      - yard-oak-spawning
+    verification:
+      - command: 'npx vitest run src/engine/__tests__/whine.test.ts'
+
+  - id: full-verification
+    title: 'Run typecheck, full test suite, and lint. Capture any breakage from downstream consumers (drift-behavior-bounds ghost spawn positions, renderer oak loop, serialization schema).'
+    spec_id: RP-69a-whine-variation
+    spec_sections: []
+    context_files: []
+    output_files: []
+    depends_on:
+      - existing-rp-69-test-rebase
+    verification:
+      - command: 'npx tsc -b --noEmit'
+      - command: 'npm run test'
+      - command: 'npm run lint'

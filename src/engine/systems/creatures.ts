@@ -41,9 +41,13 @@ export const creatureSystems = (callbacks: GameLoopCallbacks): TickSystem[] => [
   {
     id: 'character-behaviors',
     intervalMs: GHOST_TICK_MS,
-    zone: 'overworld',
+    // RP-69 — characters with DriftBehavior live in the overworld AND
+    // in Zone.WhineVillage (the twelve Whine ghosts). Running on every
+    // tick and letting tickCharacterBehaviors filter by currentZone
+    // covers both cases without needing a parallel system per zone.
+    zone: 'always',
     fn: state => {
-      tickCharacterBehaviors(state, Zone.Overworld)
+      tickCharacterBehaviors(state)
     },
   },
   // RP-25 — egregoric fauna tick (wrongBee + pierceWalker). Mirrors

@@ -68,6 +68,9 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.HouseDoorClosed]: '█',
   [TileType.Fence]: '╫',
   [TileType.FenceGate]: '█',
+  // RP-69a — Fence is `╫` (post + crosspiece); BrokenFence drops the
+  // crosspiece (`╪` reads as "stake without rail").
+  [TileType.BrokenFence]: '╪',
   // RP-37 — Knot Cellar tiles. Floor reads as cellar-dust dirt (`·`);
   // walls are stone `#`; alcove floor reuses `·` (the knot glyph `§`
   // is overlaid by the knotCellarKnots render pass when an alcove is
@@ -77,12 +80,11 @@ export const TILE_CHARS: Record<TileType, string> = {
   [TileType.CellarAlcoveFloor]: '·',
   [TileType.CellarBulkhead]: '█',
   [TileType.CellarBulkheadInterior]: '█',
-  // RP-69 — Whine, Haunted Village approach tiles. Entrance reads as
-  // a stack of horizontal bars (the village as a row of houses seen
-  // from the prairie); the apron reuses the house apron's path glyph
-  // for visual continuity with the existing approach idiom.
+  // RP-69 — Whine, Haunted Village approach. Entrance reads as a
+  // stack of horizontal bars (the village as a row of houses seen
+  // from the prairie). RP-69a stamps three of these tiles in a row
+  // for a wider entry threshold.
   [TileType.WhineEntrance]: '≡',
-  [TileType.WhineApron]: '·',
 }
 
 export const TILE_COLORS: Record<TileType, string> = {
@@ -135,6 +137,9 @@ export const TILE_COLORS: Record<TileType, string> = {
   [TileType.HouseDoorClosed]: '#ff69b4',
   [TileType.Fence]: '#8B6F3D',
   [TileType.FenceGate]: '#ff69b4',
+  // RP-69a — weathered grey-brown sits between the fresh fence and the
+  // dirt palette so a broken stake reads as "the fence used to be here."
+  [TileType.BrokenFence]: '#6E5A3F',
   // RP-37 — Knot Cellar tile glyph colors. Floor and alcove glyphs are
   // deep earthen browns; the wall is near-black; the bulkhead pair uses
   // the reserved user-action pink per the cave/ruin exit idiom.
@@ -149,7 +154,6 @@ export const TILE_COLORS: Record<TileType, string> = {
   // approach footprint reads continuously with the path the steward is
   // already walking on.
   [TileType.WhineEntrance]: '#8A6B92',
-  [TileType.WhineApron]: '#5A4128',
 }
 
 // Ruin visual palette — shared with genesis civilization rendering
@@ -798,23 +802,33 @@ export const CELLAR_KNOT_COLOR = '#D4B58A'
 // southwest-facing register as the little house yard's gate. Per-home
 // yard zones use a single shared 9×7 template (fence ring, south gate
 // at (4, 6), 5×3 roof block; no door — homes not enterable in v1).
-export const WHINE_WIDTH = 66
-export const WHINE_HEIGHT = 40
-export const WHINE_GATE_X = 11
-export const WHINE_GATE_Y = 39
-export const WHINE_MAIN_STREET_Y = 20
-// Six homes per side. Index i ∈ [0, 5]; centerX = 7 + 10 * i.
+// RP-69a — village rotated 90° to portrait (40 wide × 66 tall) so the
+// camera follows naturally along its long axis. Homes live in two
+// columns (west and east) along the long axis with a north-south main
+// street between them. South-facing 3-wide perimeter gate at the
+// bottom-center, mirroring the little-house yard's south gate idiom.
+export const WHINE_WIDTH = 40
+export const WHINE_HEIGHT = 66
+// Center column of the 3-wide south-facing perimeter gate. The gate
+// spans x ∈ [WHINE_GATE_X - 1, WHINE_GATE_X + 1] on the south fence row.
+export const WHINE_GATE_X = 20
+export const WHINE_GATE_Y = WHINE_HEIGHT - 1
+// Main street is a vertical column at x = WHINE_MAIN_STREET_X. Walkable
+// Dirt from y = 1 to y = WHINE_HEIGHT - 2.
+export const WHINE_MAIN_STREET_X = 20
+// Six homes per side. Index i ∈ [0, 5]; centerY = 7 + 10 * i.
 export const WHINE_HOME_COUNT_PER_SIDE = 6
-export const WHINE_HOME_CENTER_X_BASE = 7
-export const WHINE_HOME_CENTER_X_STRIDE = 10
-// Home footprint extends from centerX-1..centerX+2 (4 wide) and
-// y ∈ [3, 6] (north) or y ∈ [33, 36] (south). 4 tall.
+export const WHINE_HOME_CENTER_Y_BASE = 7
+export const WHINE_HOME_CENTER_Y_STRIDE = 10
+// Home footprint is 4×4. West homes sit at x ∈ [3, 6]; east homes at
+// x ∈ [33, 36]. Each home's threshold gate faces the main street
+// column on the side of the footprint nearest the street.
 export const WHINE_HOME_FOOTPRINT_WIDTH = 4
 export const WHINE_HOME_FOOTPRINT_HEIGHT = 4
-export const WHINE_NORTH_HOME_TOP_Y = 3
-export const WHINE_NORTH_HOME_BOTTOM_Y = 6 // south-facing gate row for north homes
-export const WHINE_SOUTH_HOME_TOP_Y = 33 // north-facing gate row for south homes
-export const WHINE_SOUTH_HOME_BOTTOM_Y = 36
+export const WHINE_WEST_HOME_LEFT_X = 3
+export const WHINE_WEST_HOME_RIGHT_X = 6 // east-facing gate column for west homes
+export const WHINE_EAST_HOME_LEFT_X = 33 // west-facing gate column for east homes
+export const WHINE_EAST_HOME_RIGHT_X = 36
 // Overworld placement offset east of houseEntranceOverworld. Genesis
 // walks a deterministic ring if the strict offset is blocked.
 export const WHINE_OVERWORLD_OFFSET_X = 25
@@ -822,16 +836,22 @@ export const WHINE_OVERWORLD_OFFSET_Y = 0
 export const WHINE_PLACEMENT_DISTANCES = [22, 24, 26, 28] as const
 export const WHINE_PLACEMENT_DY_OFFSETS = [0, -2, 2, -4, 4] as const
 
-// Per-home yard template. Each of the twelve Whine homes opens into an
-// instance of this map. No HouseDoorClosed — homes are not enterable.
-export const WHINE_HOME_YARD_WIDTH = 9
-export const WHINE_HOME_YARD_HEIGHT = 7
-export const WHINE_HOME_YARD_GATE_X = 4
-export const WHINE_HOME_YARD_GATE_Y = 6
-// Roof block (5x3 cells of HouseEaves on the perimeter + HouseRoof on
-// the inner 3x1 row).
-export const WHINE_HOME_YARD_ROOF_MIN_X = 2
-export const WHINE_HOME_YARD_ROOF_MAX_X = 6
+// Per-home yard template (15 × 13 since RP-69a — was 9 × 7 in RP-69 v1).
+// Each of the twelve Whine homes opens into an instance of this map. The
+// larger interior was needed to fit a 5×5 yard oak alongside the 5×3 roof
+// block under the RP-69a variation system. The south FenceGate is the
+// single threshold tile back to the village; no HouseDoorClosed (homes
+// are not enterable in this revision).
+export const WHINE_HOME_YARD_WIDTH = 15
+export const WHINE_HOME_YARD_HEIGHT = 13
+export const WHINE_HOME_YARD_GATE_X = 7 // center of south edge
+export const WHINE_HOME_YARD_GATE_Y = 12
+// Roof block (5×3): HouseEaves on the surrounding perimeter cells plus
+// HouseRoof on the inner 3×1 row. Anchored toward the top of the yard
+// so the steward steps in and the house reads as "behind me" relative
+// to the gate at the south edge.
+export const WHINE_HOME_YARD_ROOF_MIN_X = 5
+export const WHINE_HOME_YARD_ROOF_MAX_X = 9
 export const WHINE_HOME_YARD_ROOF_MIN_Y = 1
 export const WHINE_HOME_YARD_ROOF_MAX_Y = 3
 

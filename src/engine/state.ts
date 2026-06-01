@@ -491,12 +491,15 @@ export const createGameState = (
   // from there.
   registerWhineGhostDefinitions(WHINE_HOMES.length)
   for (const home of WHINE_HOMES) {
-    const isNorth = home.side === 'north'
-    const initialY = isNorth ? home.footprintBottomY + 1 : home.footprintTopY - 1
+    // Each ghost spawns just inside the main street column from its
+    // home — west homes get a ghost at (footprintRightX + 1, centerY),
+    // east homes at (footprintLeftX - 1, centerY).
+    const isWest = home.side === 'west'
+    const initialX = isWest ? home.footprintRightX + 1 : home.footprintLeftX - 1
     createCharacterEntity(
       state,
       whineGhostId(home.homeNumber),
-      { x: home.centerX, y: initialY },
+      { x: initialX, y: home.centerY },
       {
         behavior: { type: 'drift', moveChance: 0.15, freezeOnDialog: false },
         zone: Zone.WhineVillage,
