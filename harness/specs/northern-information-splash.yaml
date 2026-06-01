@@ -38,7 +38,7 @@ behaviors:
       the splash sits in a "begin" state. The PNG colophon is NOT
       rendered yet. Instead the splash root shows the black backdrop
       with the film-grain-overlay-strong utility plus a small
-      centered hint label reading "Click To Begin" (Title Case). The
+      centered hint label reading "Press Any Key To Begin" (Title Case). The
       hint uses the same monospace family as the rest of the game
       and a subtle opacity (~0.6) so it reads as an instruction, not
       as the colophon. No requestAnimationFrame timer is running yet;
@@ -51,7 +51,7 @@ behaviors:
     outputs:
       - 'splash root carries bg-black, film-grain-overlay-strong'
       - '<img> for the colophon is NOT in the DOM yet'
-      - 'a single centered label with text "Click To Begin" is visible'
+      - 'a single centered label with text "Press Any Key To Begin" is visible'
       - 'no RAF loop is scheduled'
     state_changes:
       - field: 'NorthernInformationSplash.startedRef'

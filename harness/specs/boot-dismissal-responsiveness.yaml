@@ -1,0 +1,251 @@
+id: boot-dismissal-responsiveness
+name: 'Boot dismissal — responsive skip gestures'
+priority: medium
+layer: integration
+source_files:
+  - src/components/NorthernInformationSplash.tsx
+  - src/hooks/useKeyboard.ts
+  - src/engine/genesis/state.ts
+dependencies:
+  - northern-information-splash
+  - genesis-gameplay-formalization
+  - genesis-transition
+
+behaviors:
+  - id: genesis-skip-on-any-key
+    description: >
+      During the genesis epoch sequence (state.genesis is non-null and
+      state.genesis.epochIndex < GENESIS_EPOCHS.length), ANY keydown
+      received via the useKeyboard window listener calls
+      completeGenesis(state) and refreshes the UI. This matches the
+      genesis-gameplay-formalization behavior `skip-genesis-still-works`
+      ("Pressing any key to skip genesis ... must still work") and the
+      documented contract in docs/claude/genesis.md ("press any key →
+      fast-forward"). The pre-fix code restricted the skip to only
+      Escape, Space, and Enter — every other key was swallowed silently
+      with `return`, making the documented "any key" contract a lie.
+      After the fix, every key the keyboard listener sees during genesis
+      triggers completeGenesis, including letters, digits, arrow keys,
+      Tab, Shift, function keys, and modifier-only presses. The handler
+      still returns immediately after firing so no other useKeyboard
+      branch (sprint toggle, scan, movement, dialog) runs during
+      genesis.
+    inputs:
+      - 'state.genesis active with epochIndex < GENESIS_EPOCHS.length'
+      - 'any keydown event reaches the useKeyboard handler'
+    outputs:
+      - 'completeGenesis(state) is invoked exactly once per keypress'
+      - 'refreshUI() is invoked exactly once per keypress'
+      - 'handler returns before reaching any gameplay key branch'
+    state_changes:
+      - field: 'state.genesis'
+        effect: 'cleared via completeGenesis (advanced to GENESIS_EPOCHS.length, then nulled at finalizeGenesisHandoff)'
+      - field: 'state.bootTitleCard'
+        effect: 'set by completeGenesis (unless the dev skipGenesis path bypasses it)'
+    determinism: deterministic
+
+  - id: genesis-skip-respects-input-gate
+    description: >
+      The existing input-tag gate at the top of useKeyboard's
+      handleKeyDown remains authoritative. If a text input or textarea
+      has focus, only Escape and Tab pass through the gate; all other
+      keys (including any-key skip during genesis) are still dropped
+      before the genesis branch runs. In practice this only matters
+      for harness/test contexts since the boot flow does not mount an
+      input element above the genesis canvas — NamePrompt unmounts
+      before GameScreen mounts the genesis renderer. The behavior is
+      preserved to keep the gate's invariant simple ("text input
+      focused ⇒ only Escape/Tab"), not because the boot flow needs it.
+    inputs:
+      - 'state.genesis active'
+      - 'document.activeElement is an INPUT or TEXTAREA at keydown time'
+      - 'pressed key is neither Escape nor Tab'
+    outputs:
+      - 'handler returns at the input-tag gate; completeGenesis is NOT invoked'
+    state_changes: []
+    determinism: deterministic
+
+  - id: splash-skip-cuts-to-black-immediately
+    description: >
+      When the running splash (startedRef === true, completedRef ===
+      false) receives a skip click or keydown, the visual instantly
+      cuts to a solid-black overlay at opacity 1 with the colophon
+      image removed from the DOM. The pre-fix behavior continued the
+      triangle-wave tween at whatever opacity the elapsed time had
+      reached and let it decay across the remaining
+      SPLASH_FADE_OUT_MS (1600ms) — long enough that the click felt
+      unresponsive. The post-fix behavior sets a `skippedRef` ref,
+      stops the triangle-wave RAF loop from driving opacity, and
+      renders the root with `style.opacity = 1` and no `<img>`
+      child. A fresh, short fade-out (SKIP_FADE_OUT_MS, 200ms) then
+      decays the splash opacity from 1 to 0 on its own RAF schedule,
+      ending with onComplete. onFadeOutStart still fires at the same
+      moment as the skip gesture so the underlying screen begins
+      mounting under the opaque black cover, exactly as the existing
+      crossfade contract requires.
+    inputs:
+      - 'splash startedRef is true, completedRef is false'
+      - 'click on splash backdrop OR keydown received'
+    outputs:
+      - 'skippedRef flipped from false to true'
+      - 'fadeOutStartedRef flipped from false to true'
+      - 'onFadeOutStart invoked exactly once'
+      - 'stopSplashAudio(300) invoked exactly once'
+      - '<img> for the colophon is no longer rendered in the DOM'
+      - 'splash root style.opacity = 1 on the frame the skip fires'
+      - 'a 200ms fade-out tween begins with origin opacity = 1'
+      - 'onComplete invoked exactly once when the 200ms tween elapses'
+    state_changes:
+      - field: 'NorthernInformationSplash.skippedRef'
+        effect: 'flipped from false to true on first skip gesture'
+      - field: 'NorthernInformationSplash.fadeOutStartedRef'
+        effect: 'flipped from false to true on first skip gesture'
+      - field: '(audio module) splashTrack'
+        effect: 'gain ramped to 0 over 300ms, then track destroyed'
+    determinism: deterministic
+
+  - id: splash-skip-idempotent
+    description: >
+      Once a skip gesture has fired, subsequent clicks and keydowns on
+      the splash are no-ops. This is enforced by `completedRef`
+      (existing) and by the new `skippedRef`: the skip branch checks
+      `skippedRef` (or `completedRef`) before invoking
+      `onFadeOutStart`, `stopSplashAudio`, or mutating any other ref.
+      The 200ms skip fade-out continues to run uninterrupted; the
+      additional gestures do not extend, restart, or short-circuit
+      the fade.
+    inputs:
+      - 'second, third, or Nth click/keydown during or after the 200ms skip fade-out'
+    outputs:
+      - 'onFadeOutStart called exactly once across all gestures'
+      - 'stopSplashAudio called exactly once across all gestures'
+      - 'onComplete called exactly once when the 200ms tween elapses'
+    state_changes: []
+    determinism: deterministic
+
+  - id: splash-natural-completion-unchanged
+    description: >
+      If no skip gesture is given, the running splash completes via
+      the existing triangle-wave path: 2000ms fade-in, 2400ms hold,
+      1600ms fade-out, onComplete at total 6000ms after the first
+      gesture. `skippedRef` remains false; the new short-fade tween
+      is never engaged; onFadeOutStart fires once at the natural
+      4400ms mark; the image stays mounted until the existing
+      `elapsed >= SPLASH_TOTAL_MS` check in the render body causes
+      the component to return null on its final frame. This behavior
+      is strictly preserved — the responsiveness change is opt-in
+      via the skip gesture, never affecting the unattended playback.
+    inputs:
+      - 'splash started, no skip gesture received before elapsed >= SPLASH_TOTAL_MS'
+    outputs:
+      - 'opacity follows triangle wave exactly as today'
+      - 'onFadeOutStart fires once at elapsed >= 4400ms'
+      - 'onComplete fires once at elapsed >= 6000ms'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: genesis-skip-via-modifier-only
+    description: 'player holds Shift, Cmd, Ctrl, or Alt alone during genesis'
+    expected: >
+      Modifier-only keydowns fire on the document (e.key = "Shift" /
+      "Meta" / "Control" / "Alt"). With the any-key fix they
+      complete genesis immediately, same as a letter key. The
+      pre-fix behavior had a Shift special-case (sprint toggle) that
+      ran AFTER the genesis check returned — that branch is now
+      dead code during genesis (the handler returns from the
+      genesis branch first), as already required by the existing
+      docs.
+
+  - id: genesis-skip-during-input-gate
+    description: 'a text input is focused while genesis is running (test harness scenario)'
+    expected: >
+      The input-tag gate at the top of handleKeyDown runs before the
+      genesis branch. Only Escape and Tab pass; all other keys are
+      dropped. This is intentional and matches the existing gate
+      invariant. In production the boot flow never mounts an input
+      above genesis, so this case is reachable only via tests.
+
+  - id: splash-skip-during-fade-in
+    description: 'skip gesture at elapsed = 200ms during the 2000ms fade-in (image at opacity ≈ 0.1)'
+    expected: >
+      The image is removed from the DOM and the root opacity snaps
+      to 1 (fully opaque black) on the same frame. The 200ms skip
+      fade-out begins. The player sees a fast snap-to-black
+      followed by a clean reveal of the screen below. No "the dim
+      logo just disappeared" artifact.
+
+  - id: splash-skip-during-fade-out
+    description: 'skip gesture at elapsed = 5000ms during the natural fade-out (image at opacity ≈ 0.625)'
+    expected: >
+      onFadeOutStart has already fired at 4400ms; the skip branch
+      detects fadeOutStartedRef and does NOT re-invoke
+      onFadeOutStart. skippedRef still flips to true, the image
+      unmounts, opacity snaps to 1, and the 200ms skip fade-out
+      runs. stopSplashAudio(300) is invoked (idempotent on a
+      destroyed track). The player feels the skip even though the
+      splash was already on its way out.
+
+  - id: skip-fires-onfadeoutstart-once-when-natural-fade-already-began
+    description: 'natural triangle wave reached 4400ms (onFadeOutStart fired), THEN skip gesture arrives'
+    expected: >
+      `fadeOutStartedRef` is already true at skip time. The skip
+      branch must check it before re-invoking onFadeOutStart, so
+      onFadeOutStart still fires exactly once. The other skip
+      effects (skippedRef, image-removed, opacity=1, 200ms tween,
+      onComplete) all still apply.
+
+  - id: rapid-multiple-skip-clicks
+    description: 'user clicks 5 times in quick succession on the splash'
+    expected: >
+      The first click runs the full skip branch. Clicks 2–5 are
+      gated by skippedRef and exit immediately. onFadeOutStart,
+      stopSplashAudio, and onComplete each fire exactly once. The
+      200ms fade-out is not restarted, extended, or shortened.
+
+failure_conditions:
+  - trigger: 'a non-Escape/Space/Enter keydown during genesis does NOT advance to gameplay'
+    expected: >
+      Must not happen. The reproduction: enter the genesis sequence,
+      press the "a" key, observe that completeGenesis was NOT
+      invoked. A regression test in src/hooks/__tests__/useKeyboard.test.ts
+      (or the appropriate genesis test file) must press a non-special
+      key and assert completeGenesis was called. The test must fail
+      on main and pass on the branch.
+
+  - trigger: 'splash skip gesture leaves the colophon <img> mounted with opacity > 0 on the frame the gesture fires'
+    expected: >
+      Must not happen — the cut to black must be on the same render
+      cycle as the gesture. The regression test in
+      src/components/__tests__/NorthernInformationSplash.test.tsx
+      must dispatch a skip keydown and immediately assert that no
+      <img role="img" name="Northern Information"> is in the DOM and
+      that the root opacity is 1. The test must fail on main and
+      pass on the branch.
+
+  - trigger: 'splash skip path takes longer than SKIP_FADE_OUT_MS + one RAF frame (~216ms) before onComplete fires'
+    expected: >
+      Must not happen. The 200ms fade-out is the upper bound on the
+      perceived dismissal time. A test advancing fake timers to
+      SKIP_FADE_OUT_MS + 16 must observe onComplete called exactly
+      once.
+
+  - trigger: 'skip-fires-onfadeoutstart twice (once naturally, once on skip)'
+    expected: >
+      Must not happen. The skip branch must check fadeOutStartedRef
+      before calling onFadeOutStart. App.tsx's screenRevealed state
+      must remain idempotent regardless, but the contract here is
+      single-invocation: onFadeOutStart fires at most once per
+      splash mount.
+
+  - trigger: 'rapid clicks restart the 200ms fade-out timer'
+    expected: >
+      Must not happen. The fade-out start time is captured in a ref
+      on the first skip and the subsequent clicks are gated by
+      skippedRef. Timer arithmetic uses the original skip time as
+      the anchor.
+
+verification:
+  test_file: src/components/__tests__/NorthernInformationSplash.test.tsx
+  test_pattern: 'instant cut to black'
+  command: 'npx vitest run src/components/__tests__/NorthernInformationSplash.test.tsx src/hooks/__tests__/useKeyboard-genesis.test.ts'

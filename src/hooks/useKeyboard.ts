@@ -67,12 +67,13 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, isDraggingRef }: Us
         if (e.key !== 'Escape' && e.key !== 'Tab') return
       }
 
-      // During genesis, Escape/Space/Enter skip; block all other keys
+      // During genesis, any key fast-forwards (matches docs/claude/genesis.md
+      // and the genesis-gameplay-formalization spec). The input-tag gate
+      // above is authoritative for input-focused contexts (tests only —
+      // the boot flow never mounts an input above the genesis canvas).
       if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
-        if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
-          completeGenesis(state)
-          refreshUI()
-        }
+        completeGenesis(state)
+        refreshUI()
         return
       }
 
