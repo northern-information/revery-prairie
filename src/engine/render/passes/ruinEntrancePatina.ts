@@ -1,7 +1,9 @@
+import { FOG_EXPLORED_BRIGHTNESS } from '../../constants'
 import { viewportToScreen } from '../../projection'
 import { getEntranceHaloCells, getEntrancePatinaLayers } from '../../ruins'
 import { Zone } from '../../types'
 import { isTileInVisibleViewport } from '../../viewportBounds'
+import { getLastVisibleSet, getTileVisibility } from '../../visibility'
 import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
 
@@ -13,6 +15,13 @@ import type { RenderPass } from '../passes'
 // ("O" + "·") is rendered by the tile-glyph slot. Drawn in the effect slot
 // so the patina sits above the underlying terrain glyph but below screen
 // overlays. Overworld-only.
+//
+// The effect slot runs after fogMask (world-overlay) and the central
+// tile-glyph loop, both of which respect fog of war. Each perimeter cell
+// consults the cached visibility set so the patina does not leak ruin
+// locations through unexplored fog: unexplored cells are skipped, remembered
+// cells dim to FOG_EXPLORED_BRIGHTNESS (in lock-step with the dimmed bg
+// mask and tile glyph), and visible cells render at full alpha.
 
 const isActive = (state: GameState): boolean => state.currentZone === Zone.Overworld && state.ruinInteriors.length > 0
 
@@ -21,6 +30,8 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   const { charWidth, charHeight } = metrics
   const offsetScale = charWidth * 0.25
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
+  const visibleSet = getLastVisibleSet() ?? new Set<string>()
+  const savedAlpha = ctx.globalAlpha
   for (const interior of state.ruinInteriors) {
     const ex = interior.entranceOverworld.x
     const ey = interior.entranceOverworld.y
@@ -30,6 +41,9 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
       const vx = cell.x - camera.x
       const vy = cell.y - camera.y
       if (!isTileInVisibleViewport(vx, vy, viewportWidth, viewportHeight)) continue
+      const visibility = getTileVisibility(state, cell.x, cell.y, visibleSet)
+      if (visibility === 'unexplored') continue
+      ctx.globalAlpha = visibility === 'remembered' ? FOG_EXPLORED_BRIGHTNESS : 1
       const { px, py } = viewportToScreen(vx, vy, charWidth, charHeight, viewportWidth, viewportHeight)
       const pyLift = py + liftAt(tierGrid, cell.x, cell.y, state.mapWidth, state.mapHeight)
       const layers = getEntrancePatinaLayers(cell.x, cell.y, ex, ey)
@@ -39,6 +53,7 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
       }
     }
   }
+  ctx.globalAlpha = savedAlpha
 }
 
 export const ruinEntrancePatinaPass: RenderPass = {

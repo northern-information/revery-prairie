@@ -1,0 +1,127 @@
+id: fog-ruin-patina-leak
+name: 'Ruin entrance patina respects fog of war'
+priority: high
+layer: engine
+source_files:
+  - src/engine/render/passes/ruinEntrancePatina.ts
+  - src/engine/__tests__/ruin-entrance-patina.test.ts
+dependencies:
+  - ruin-entrance-verdigris-halo
+  - fog-bg-mask
+  - overworld-fog-of-war
+
+behaviors:
+  - id: patina-skipped-on-unexplored
+    description: >
+      The ruinEntrancePatina render pass (effect slot) must not draw any
+      glyph on a halo perimeter cell whose fog-of-war visibility is
+      `unexplored`. The pass runs after fogMask (world-overlay) and
+      after the central tile-glyph loop, so any glyph it draws sits on
+      top of the opaque BG_COLOR diamond that fogMask painted over the
+      tile. Without a per-cell visibility check the patina leaks ruin
+      locations through the fog — the player sees verdigris `+`/`*`
+      clusters on a black background in regions they have never visited.
+      The pass must consult `getTileVisibility(state, cell.x, cell.y,
+      getLastVisibleSet() ?? new Set())` for each perimeter cell and
+      skip when the result is `unexplored`. The sibling ruinEntranceHalo
+      pass is correct without a visibility check only because it lives
+      in the world-overlay slot — fogMask covers it on the way down.
+      The patina pass is one slot too late for that to work and must
+      gate itself.
+    inputs:
+      - 'overworld renderer drawing effect slot with ruinInteriors present'
+      - 'fog of war active (hasFogOfWar(Zone.Overworld) === true)'
+      - 'one or more halo perimeter cells have visibility = unexplored'
+    outputs:
+      - 'no fillText call is issued for any unexplored halo cell'
+      - 'unexplored areas of the overworld show no patina glyphs regardless of ruin proximity'
+    state_changes: []
+    determinism: deterministic
+
+  - id: patina-dimmed-on-remembered
+    description: >
+      On halo perimeter cells whose fog visibility is `remembered`
+      (explored before, not currently in line of sight), the patina
+      glyphs render at FOG_EXPLORED_BRIGHTNESS (0.4) — matching the dim
+      tier used by the central tile loop for remembered static landmarks
+      and by fogMask for the dim background mask. RP-62 made `remembered`
+      the sole memory tier, so this is the only dimmed state the pass
+      needs to handle. Implementation: wrap the glyph draws in
+      `ctx.globalAlpha = FOG_EXPLORED_BRIGHTNESS` for remembered cells,
+      restoring the prior alpha before exiting the pass. Color values
+      themselves are unchanged — the alpha multiplies the rendered RGB
+      consistently with how dimColor + the central loop dim other
+      remembered tile content.
+    inputs:
+      - 'halo perimeter cell visibility = remembered'
+    outputs:
+      - 'glyph rendered at globalAlpha = FOG_EXPLORED_BRIGHTNESS, all other state restored after the pass'
+    state_changes: []
+    determinism: deterministic
+
+  - id: patina-unchanged-on-visible
+    description: >
+      On halo perimeter cells whose visibility is `visible` the patina
+      pass behaves exactly as today — full color, full alpha, both
+      layers drawn per `getEntrancePatinaLayers`. The fix is strictly
+      additive: it gates and dims, but does not alter visible-cell
+      output.
+    inputs:
+      - 'halo perimeter cell visibility = visible'
+    outputs:
+      - 'glyph rendered at full color and globalAlpha = 1, identical to current output'
+    state_changes: []
+    determinism: deterministic
+
+  - id: visibility-set-fetched-once-per-frame
+    description: >
+      The pass fetches `getLastVisibleSet()` once at the top of `draw`
+      and reuses the result for every cell. The visibility set is
+      already cached on the visibility module by computeZoneVisibility,
+      which runs once per frame before world-overlay (renderer.ts).
+      Mirrors how fogMask consumes the cached set.
+    inputs:
+      - 'visibility.ts cached _lastVisibleSet'
+    outputs:
+      - 'one getLastVisibleSet call per pass invocation; falls back to empty Set if null'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: fog-disabled-no-op-change
+    description: 'hasFogOfWar returns false (currently no overworld config disables it, but the helper supports it)'
+    expected: 'getTileVisibility returns "visible" for every cell regardless of the cached set; patina renders at full color exactly as today'
+
+  - id: visible-set-null
+    description: 'getLastVisibleSet returns null (visibility never computed for this frame — should not happen in normal flow, but the API allows it)'
+    expected: 'pass falls back to `new Set()`, which means every fog-active cell resolves to remembered or unexplored — fail closed (dim or hide) rather than leak full-color patina'
+
+  - id: entrance-on-fog-boundary
+    description: 'one ruin entrance has some halo cells visible and some unexplored (player is right at the edge of the discovery radius)'
+    expected: 'visible cells render normally, unexplored cells render nothing, remembered cells render dimmed — the patina ring breaks cleanly along the fog boundary'
+
+  - id: entrance-overworld-only-still-holds
+    description: 'pass remains overworld-only via existing isActive predicate; no fog handling needed in cave or ruin zones because the pass is inactive there'
+    expected: 'no behavioral change in cave or ruin zones; the fix touches only the per-cell loop body in the overworld code path'
+
+failure_conditions:
+  - trigger: 'patina pass draws a glyph on a cell whose visibility is `unexplored`'
+    expected: >
+      must not happen — this is the bug the spec exists to prevent. The
+      reproduction: place a ruin interior whose entrance halo cells are
+      not in the visible set and not in the explored set, run
+      ruinEntrancePatinaPass.draw against a mock canvas context, assert
+      no fillText calls were issued. The regression test for this lives
+      in src/engine/__tests__/ruin-entrance-patina.test.ts and must
+      fail on main and pass on the fix branch.
+
+  - trigger: 'patina pass draws a glyph at full alpha on a cell whose visibility is `remembered`'
+    expected: 'must not happen — remembered patina must be dimmed to FOG_EXPLORED_BRIGHTNESS so it composes correctly with the dimmed background mask and the dimmed entrance glyph'
+
+  - trigger: 'patina pass does not restore globalAlpha after dimming a remembered cell'
+    expected: 'must not happen — leaking alpha state to subsequent effect-slot passes would silently dim every later overlay. Capture savedAlpha at the top of draw and restore at the bottom'
+
+verification:
+  test_file: src/engine/__tests__/ruin-entrance-patina.test.ts
+  test_pattern: 'fog of war'
+  command: 'npx vitest run src/engine/__tests__/ruin-entrance-patina.test.ts'

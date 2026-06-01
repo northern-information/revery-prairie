@@ -1,0 +1,92 @@
+plan:
+  id: fog-ruin-patina-leak
+  title: Gate ruin entrance patina by fog-of-war visibility so it does not leak through unexplored tiles
+  created: 2026-05-31
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: add-regression-tests-failing-on-main
+    title: Add fog-of-war regression tests to ruin-entrance-patina.test.ts (red on main, green on the fix)
+    spec_id: fog-ruin-patina-leak
+    spec_sections:
+      - patina-skipped-on-unexplored
+      - patina-dimmed-on-remembered
+      - patina-unchanged-on-visible
+      - visibility-set-fetched-once-per-frame
+    context_files:
+      - src/engine/__tests__/ruin-entrance-patina.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/render/passes/ruinEntrancePatina.ts
+      - src/engine/visibility.ts
+      - src/engine/constants.ts
+      - src/engine/ruins.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/ruin-entrance-patina.test.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/engine/__tests__/ruin-entrance-patina.test.ts
+    repair: retry
+    tags: [test]
+    notes: >
+      Add a new `describe('fog of war', ...)` block. Construct a
+      minimal GameState with one ruinInterior and a mock canvas context
+      that records fillText calls. Three cases:
+      1. All halo cells `unexplored` → assert zero fillText calls.
+      2. Halo cells `remembered` (in fogExplored but not in
+         visibleSet) → assert fillText was called and `globalAlpha`
+         observed at draw time was FOG_EXPLORED_BRIGHTNESS.
+      3. Halo cells `visible` (in the visibleSet for the frame) →
+         assert fillText was called at globalAlpha 1 (no behavioral
+         change vs current).
+      Set `_lastVisibleSet` via `computeZoneVisibility` if it's the
+      cleanest path, otherwise inject through a helper if one exists
+      in helpers.ts. Tests must FAIL on main (current pass has no
+      visibility gating) and PASS after the implementation task lands.
+
+  - id: gate-patina-pass-by-visibility
+    title: Add per-cell fog-of-war gating + dim in ruinEntrancePatinaPass.draw
+    spec_id: fog-ruin-patina-leak
+    spec_sections:
+      - patina-skipped-on-unexplored
+      - patina-dimmed-on-remembered
+      - patina-unchanged-on-visible
+      - visibility-set-fetched-once-per-frame
+    context_files:
+      - src/engine/render/passes/ruinEntrancePatina.ts
+      - src/engine/render/passes/fogMask.ts
+      - src/engine/visibility.ts
+      - src/engine/constants.ts
+      - src/engine/renderer.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/render/passes/ruinEntrancePatina.ts
+    depends_on:
+      - add-regression-tests-failing-on-main
+    verification:
+      - npm run typecheck
+      - npm run lint
+      - npx vitest run src/engine/__tests__/ruin-entrance-patina.test.ts
+    repair: retry
+    tags: [engine]
+    notes: >
+      In `draw`:
+      1. Fetch `visibleSet = getLastVisibleSet() ?? new Set<string>()`
+         once at the top of the function, alongside the existing
+         tierGrid setup.
+      2. Capture `savedAlpha = ctx.globalAlpha` at the top of draw.
+      3. Inside the per-cell loop, compute
+         `visibility = getTileVisibility(state, cell.x, cell.y,
+         visibleSet)`. If `visibility === 'unexplored'`, `continue`
+         before any fillText. If `visibility === 'remembered'`, set
+         `ctx.globalAlpha = FOG_EXPLORED_BRIGHTNESS` for that cell's
+         layer draws; restore to 1 (or savedAlpha) for the next cell.
+         For 'visible', no alpha change.
+      4. Restore `ctx.globalAlpha = savedAlpha` at the end of draw so
+         later effect-slot passes are not affected.
+      Imports to add: `getLastVisibleSet`, `getTileVisibility` from
+      `../../visibility`; `FOG_EXPLORED_BRIGHTNESS` from
+      `../../constants`. No signature changes elsewhere.
