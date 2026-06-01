@@ -145,29 +145,93 @@ export const WHINE_GHOST_PROFILES: readonly WhineGhostProfile[] = [
   defaultGhost(0),
   // Home 01 — west column, northmost. Edit fields to give this ghost a
   // distinct identity.
-  defaultGhost(1),
+  {
+    name: 'Joel',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ["I don't remember much..."],
+  },
   // Home 02
-  defaultGhost(2),
+  {
+    name: 'Billy',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ['I used to fix clocks...', '...', 'I used to fix things...'],
+  },
   // Home 03
-  defaultGhost(3),
+  {
+    name: 'Abby',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: [
+      'I want to see my kids again.',
+      'They used to play in the prairie...',
+      'I told them not to go in the ruins...',
+    ],
+  },
   // Home 04
-  defaultGhost(4),
+  {
+    name: 'Jess',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ['They say angels still visit the prairie sometimes.'],
+  },
   // Home 05
-  defaultGhost(5),
+  {
+    name: 'Vale',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ["I wonder if we'll have another gusty year?"],
+  },
   // Home 06 — west column, southmost.
-  defaultGhost(6),
+  {
+    name: 'David',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ['I miss the burns...', 'The bright green shoots coming up through the scortch.'],
+  },
   // Home 07 — east column, northmost.
-  defaultGhost(7),
+  {
+    name: 'Alexa',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ['My story was never told...', 'They tried.', 'But there was no one to listen.'],
+  },
   // Home 08
-  defaultGhost(8),
+  {
+    name: 'Virgil',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ['I wanted to be an architect in the cities...', '...', 'But the cities are gone now.'],
+  },
   // Home 09
-  defaultGhost(9),
+  {
+    name: 'Amy',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ['I used to sing...', 'They told me I needed to tend the fields instead...'],
+  },
   // Home 10
-  defaultGhost(10),
+  {
+    name: 'Rachel',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ['Never fall in love at a tavern...'],
+  },
   // Home 11
-  defaultGhost(11),
+  {
+    name: 'Camilla',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ['...', 'I miss the warmth of the sun...', 'The purr of a cat.'],
+  },
   // Home 12 — east column, southmost.
-  defaultGhost(12),
+  {
+    name: 'Esmarelda',
+    glyph: 'ö',
+    glyphColor: '#E0C080',
+    dialog: ['Please leave me alone.', 'I have no more stories to tell.'],
+  },
 ]
 
 export const createWhineGhostDefinition = (n: number): CharacterDefinition => {
