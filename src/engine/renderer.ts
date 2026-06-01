@@ -201,6 +201,8 @@ let _lastCanvasH = -1
 // Reused every frame to avoid per-frame allocation / GC pressure.
 const _beePositions = new Set<string>()
 const _monarchPositions = new Set<string>()
+const _wrongBeePositions = new Set<string>()
+const _pierceWalkerMap = new Map<string, string>()
 const _groundItemMap = new Map<string, { definitionId: string; glinting?: boolean }>()
 const _previewMap = new Map<string, { char: string; color: string; isValid: boolean }>()
 const _pathPositions = new Set<string>()
@@ -419,6 +421,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Clear pooled collections for this frame
   _beePositions.clear()
   _monarchPositions.clear()
+  _wrongBeePositions.clear()
+  _pierceWalkerMap.clear()
   _groundItemMap.clear()
   _previewMap.clear()
   _pathPositions.clear()
@@ -446,6 +450,8 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Alias pooled collections for readability
   const beePositions = _beePositions
   const monarchPositions = _monarchPositions
+  const wrongBeePositions = _wrongBeePositions
+  const pierceWalkerMap = _pierceWalkerMap
   const groundItemMap = _groundItemMap
   const previewMap = _previewMap
   const pathPositions = _pathPositions
@@ -555,6 +561,19 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (tag === 'monarch') {
         char = MONARCH_CHAR
         color = MONARCH_COLOR
+      } else if (tag === 'wrongBee') {
+        // RP-25 — wrongBee shares the bee glyph but takes the
+        // egregoric color; the same color token used for egregoric
+        // flora tiles.
+        char = BEE_CHAR
+        color = TILE_COLORS[TileType.Egregore]
+      } else if (tag === 'pierceWalker') {
+        // RP-25 — pierceWalker renders its per-entity PUA codepoint.
+        const glyph = state.world.getComponent(eid, ComponentType.PierceWalkerGlyph)
+        if (glyph) {
+          char = glyph.codepoint
+          color = TILE_COLORS[TileType.Egregore]
+        }
       }
     }
     if (char === null || color === null) continue
@@ -578,6 +597,23 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     if (suppressedEntities.has(eid)) continue
     const mpos = state.world.getComponent(eid, ComponentType.Position)
     if (mpos) monarchPositions.add(posKey(mpos.x, mpos.y))
+  }
+
+  // RP-25 — egregoric fauna positions (from ECS). wrongBee tiles
+  // share a single glyph; pierceWalker stores its codepoint per
+  // entity, so its map carries the glyph string per tile.
+  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
+    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
+    if (!inZone(eid)) continue
+    if (suppressedEntities.has(eid)) continue
+    const epos = state.world.getComponent(eid, ComponentType.Position)
+    if (!epos) continue
+    if (tag === 'wrongBee') {
+      wrongBeePositions.add(posKey(epos.x, epos.y))
+    } else if (tag === 'pierceWalker') {
+      const glyph = state.world.getComponent(eid, ComponentType.PierceWalkerGlyph)
+      if (glyph) pierceWalkerMap.set(posKey(epos.x, epos.y), glyph.codepoint)
+    }
   }
 
   // Populate ground item positions (from ECS). placedCamera-tagged
@@ -1436,6 +1472,14 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
       } else if (beePositions.has(tileKey)) {
         char = BEE_CHAR
         color = BEE_COLOR
+        isEntity = true
+      } else if (pierceWalkerMap.has(tileKey)) {
+        char = pierceWalkerMap.get(tileKey) ?? '?'
+        color = TILE_COLORS[TileType.Egregore]
+        isEntity = true
+      } else if (wrongBeePositions.has(tileKey)) {
+        char = BEE_CHAR
+        color = TILE_COLORS[TileType.Egregore]
         isEntity = true
       } else if (satelliteMap.has(tileKey)) {
         const sat = satelliteMap.get(tileKey)

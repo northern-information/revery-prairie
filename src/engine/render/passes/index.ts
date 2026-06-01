@@ -13,6 +13,9 @@ export { tileBgCompositePass } from './tileBgComposite'
 export { waterfallFlowPass } from './waterfallFlow'
 export { ruinEntranceHaloPass } from './ruinEntranceHalo'
 export { angelGoldAuraPass } from './angelGoldAura'
+// RP-25 — Egregoric fauna alpha pulse. Slotted next to the angel
+// aura so both world-overlay halos draw in a predictable order.
+export { egregoreFaunaAuraPass } from './egregoreFaunaAura'
 export { prairieHaloPass } from './prairieHalo'
 // fogMask must register before film grain so the grain is uniform across
 // the entire viewport — explored prairie, unexplored fog, and the Space

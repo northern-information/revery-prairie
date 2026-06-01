@@ -90,6 +90,22 @@ export const CHRONICLE_TEMPLATES = {
     text: (s: Record<string, string>) => `${s.region} kept its egregoric thread.`,
   },
 
+  // --- egregoric-fauna-sighting (RP-25) ---
+  'wrong-thing-walked': {
+    id: 'wrong-thing-walked',
+    category: ChronicleTemplateCategory.EgregoricFaunaSighting,
+    tone: ChronicleTemplateTone.Negative,
+    slots: ['region'] as const,
+    text: (s: Record<string, string>) => `Something not-of-${s.region} walked there.`,
+  },
+  'script-took-shape': {
+    id: 'script-took-shape',
+    category: ChronicleTemplateCategory.EgregoricFaunaSighting,
+    tone: ChronicleTemplateTone.Negative,
+    slots: ['region'] as const,
+    text: (s: Record<string, string>) => `The script took shape in ${s.region} that year.`,
+  },
+
   // --- meteorite-impact ---
   'meteorite-landed': {
     id: 'meteorite-landed',
