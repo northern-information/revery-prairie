@@ -1,0 +1,135 @@
+id: elevation-zone-gate
+name: 'Elevation-derived tile lift and cliff walls apply only in Zone.Overworld'
+priority: high
+layer: engine
+source_files:
+  - src/engine/tileBgCache.ts
+  - src/engine/satellites.ts
+  - src/engine/types.ts
+dependencies:
+  - satellite-crater-as-effect
+
+behaviors:
+  - id: elevation-applies-overworld-only
+    description: >
+      state.elevation is an overworld-coordinate Map<string, number>
+      seeded at genesis and mutated at runtime by satellite impacts (a
+      5x5 crater drops the affected posKeys by 25/10/3 at center/ring/
+      edge). It is never zone-scoped — the same Map is read in every
+      zone. To prevent overworld elevation deltas from bleeding into the
+      visual rendering of non-overworld zones whose maps share the same
+      posKey space (LittleHouseYard, HouseInterior, WhineVillage,
+      WhineHomeYard, KnotCellar), the bg-cache must treat every tile in
+      a non-overworld zone as flat (lift 0) and paint no cube cliff
+      walls between neighbors.
+    inputs:
+      - 'state.currentZone is any value other than Zone.Overworld'
+      - 'state.elevation contains entries (genesis-seeded or satellite-mutated) at posKeys that fall inside the current zone map'
+    outputs:
+      - 'Every in-bounds tile in the current zone renders at lift 0 in the bg-cache (no elevation-derived vertical offset)'
+      - 'No cube cliff walls are painted between neighbors in the bg-cache (selfLift / southLift / eastLift all collapse to 0 for in-bounds tiles)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: elevation-applies-in-overworld
+    description: >
+      In Zone.Overworld the existing elevation behavior is unchanged.
+      tileBgCache.paintTileBg reads state.elevation via tierAtFromState,
+      computes a per-tile lift from getTierLift(getElevationTier(...)),
+      and paints cube cliff walls between neighbors at different tiers
+      (with WALL_CLIFF_SHADE darkening when the step is unclimbable,
+      WALL_LEFT_SHADE / WALL_RIGHT_SHADE otherwise). Satellite craters
+      continue to produce visible 5x5 pits in the overworld via their
+      elevation drops.
+    inputs:
+      - 'state.currentZone === Zone.Overworld'
+    outputs:
+      - 'Tile lift in the bg-cache matches getTierLift(getElevationTier(state.elevation.get(posKey)))'
+      - 'Cube cliff walls are painted at tier transitions with the existing shade rules'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: overworld-crater-coords-overlap-yard
+    description: >
+      An overworld satellite crater has mutated state.elevation at a 5x5
+      block of posKeys whose (x, y) coordinates also fall within the
+      bounds of the little-house yard map (yard is 23x32; overworld is
+      147x147 so any overworld coord in [0, 22] x [0, 31] collides).
+      Player enters the yard.
+    expected: >
+      Yard tiles at those posKeys render at the same lift as their
+      neighbors (lift 0). No grey cliff wall patch appears between the
+      cratered coords and their non-cratered neighbors. The yard reads
+      as a flat dirt floor inside the fence ring.
+
+  - id: overworld-crater-coords-overlap-whine
+    description: >
+      Same as the yard case but for the Whine village zone
+      (Zone.WhineVillage). The Whine map's Dirt floor covers overworld
+      posKeys that collide with the crater's 5x5 set.
+    expected: >
+      Whine floor tiles render flat. No grey cliff wall patch leaks into
+      the village view.
+
+  - id: overworld-crater-coords-overlap-house-interior
+    description: >
+      Same as the yard case but for the house interior
+      (Zone.HouseInterior). HouseFloor tiles at overworld posKeys that
+      collide with the crater set render flat.
+    expected: >
+      House interior renders flat. No grey cliff wall patch appears on
+      the floor.
+
+  - id: fresh-genesis-no-crater
+    description: >
+      A fresh game with no satellite crashes (state.craters empty, no
+      runtime elevation mutations beyond the genesis-seeded uniform
+      field). Player enters any non-overworld zone.
+    expected: >
+      Zone renders flat as before. Behavior is unchanged from current
+      main since the genesis-seeded elevation in the zone-map region is
+      uniform enough that the bg-cache produced no visible cliff walls
+      anyway.
+
+  - id: overworld-after-fix
+    description: >
+      Player on the overworld with one or more satellite craters
+      mutating state.elevation.
+    expected: >
+      Crater elevation pits still render with cliff walls and lifted
+      tile geometry on the overworld. No regression to the overworld's
+      crater appearance.
+
+failure_conditions:
+  - trigger: >
+      A satellite has impacted at an overworld coord (cx, cy) inside the
+      bounds of the little-house yard map. state.elevation contains the
+      5x5 pit at posKeys [(cx-2, cy-2) .. (cx+2, cy+2)]. Player enters
+      the yard.
+    expected: >
+      No grey 5x5 cliff-wall patch appears in the yard. Yard floor reads
+      flat. (Regression test must fail on main and pass after the fix.)
+
+  - trigger: >
+      A satellite impact at the same coord and the player enters
+      Zone.WhineVillage.
+    expected: >
+      No grey patch in the Whine floor.
+
+  - trigger: >
+      A satellite impact at the same coord and the player enters
+      Zone.HouseInterior.
+    expected: >
+      No grey patch on the house floor.
+
+  - trigger: >
+      Player on the overworld with a satellite crater.
+    expected: >
+      Crater pit still visible with cliff walls (existing overworld
+      behavior preserved).
+
+verification:
+  test_file: src/engine/__tests__/tileBgCache.test.ts
+  test_pattern: 'elevation zone gate|crater leak|non-overworld'
+  command: 'npx vitest run src/engine/__tests__/tileBgCache.test.ts'

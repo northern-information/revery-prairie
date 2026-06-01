@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 
 import { setMapTile } from '../map'
+import { posKey } from '../position'
+import * as projection from '../projection'
 import { flushDirtyTiles, getOrBuildCache, invalidateMapCache, markTileDirty } from '../tileBgCache'
-import { TileType } from '../types'
+import { TileType, Zone } from '../types'
 import { createTestState } from './helpers'
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { GameState } from '../types'
+import type { GameState, Tile } from '../types'
 
 const charWidth = 12
 const charHeight = 16
@@ -114,5 +116,103 @@ describe('tileBgCache', () => {
     expect(entry.dirty.has('20,20')).toBe(true)
     flushDirtyTiles(state, state.map)
     expect(entry.dirty.size).toBe(0)
+  })
+})
+
+// Regression: state.elevation is overworld-coordinate and is mutated by
+// satellite impacts (satellites.ts:155 drops a 5x5 elevation pit). Reads
+// in tileBgCache.ts (liftAtFromState) were not zone-gated, so the
+// pit leaked into non-overworld zones (yard, house interior, Whine) as
+// grey cliff-wall patches at the same world coords. The bg-cache must
+// treat every in-bounds tile as flat in non-overworld zones; only
+// perimeter walls from out-of-bounds neighbors should remain.
+describe('tileBgCache elevation zone gate', () => {
+  // 11x11 Dirt-only map keeps the crater rim (interior tiles) away from
+  // the perimeter, so any extra drawCellWalls calls beyond the baseline
+  // (perimeter-only) come from the crater pit.
+  const makeFlatDirtMap = (size: number): Tile[][] => {
+    const m: Tile[][] = []
+    for (let y = 0; y < size; y++) {
+      const row: Tile[] = []
+      for (let x = 0; x < size; x++) row.push({ type: TileType.Dirt })
+      m.push(row)
+    }
+    return m
+  }
+
+  const setUniformElevation = (s: GameState, value: number): void => {
+    s.elevation.clear()
+    for (let y = 0; y < s.mapHeight; y++) {
+      for (let x = 0; x < s.mapWidth; x++) {
+        s.elevation.set(posKey(x, y), value)
+      }
+    }
+  }
+
+  // Mirrors satellites.ts applyImpact: center -25, ring -10, edge -3
+  // from a base elevation. A 5x5 pit centered at (cx, cy).
+  const applyCraterPit = (s: GameState, cx: number, cy: number, base: number): void => {
+    s.elevation.set(posKey(cx, cy), base - 25)
+    for (let dy = -2; dy <= 2; dy++) {
+      for (let dx = -2; dx <= 2; dx++) {
+        if (dx === 0 && dy === 0) continue
+        const cheb = Math.max(Math.abs(dx), Math.abs(dy))
+        const drop = cheb === 1 ? 10 : 3
+        s.elevation.set(posKey(cx + dx, cy + dy), base - drop)
+      }
+    }
+  }
+
+  // Counts drawCellWalls calls during a single cache build. The spy is
+  // installed lazily so the existing tests above are unaffected.
+  const countCliffWalls = (s: GameState): number => {
+    const spy = vi.spyOn(projection, 'drawCellWalls')
+    spy.mockClear()
+    invalidateMapCache(s.map)
+    getOrBuildCache(s, s.map, charWidth, charHeight)
+    const calls = spy.mock.calls.length
+    spy.mockRestore()
+    return calls
+  }
+
+  const nonOverworldZones = [Zone.LittleHouseYard, Zone.HouseInterior, Zone.WhineVillage] as const
+
+  for (const zone of nonOverworldZones) {
+    it(`does not paint extra cliff walls in ${zone} when state.elevation has a satellite crater pit`, () => {
+      state.map = makeFlatDirtMap(11)
+      state.mapWidth = 11
+      state.mapHeight = 11
+      state.currentZone = zone
+
+      // Baseline: uniform elevation, no pit. Only perimeter walls from
+      // out-of-bounds neighbors should be drawn.
+      setUniformElevation(state, 50)
+      const baselineWalls = countCliffWalls(state)
+
+      // With the crater pit at the map center (3x3 rim well inside the
+      // 11x11 map), the rim tiles would gain cliff walls if the gate
+      // is missing. After the fix the count must equal the baseline.
+      setUniformElevation(state, 50)
+      applyCraterPit(state, 5, 5, 50)
+      const withPitWalls = countCliffWalls(state)
+
+      expect(withPitWalls).toBe(baselineWalls)
+    })
+  }
+
+  it('still paints cliff walls in Zone.Overworld when state.elevation has a satellite crater pit (regression guard against over-gating)', () => {
+    state.map = makeFlatDirtMap(11)
+    state.mapWidth = 11
+    state.mapHeight = 11
+    state.currentZone = Zone.Overworld
+
+    setUniformElevation(state, 50)
+    const baselineWalls = countCliffWalls(state)
+
+    setUniformElevation(state, 50)
+    applyCraterPit(state, 5, 5, 50)
+    const withPitWalls = countCliffWalls(state)
+
+    expect(withPitWalls).toBeGreaterThan(baselineWalls)
   })
 })
