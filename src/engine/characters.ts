@@ -104,21 +104,82 @@ export const registerGhostDefinitions = (numbers: number[]): void => {
 }
 
 // RP-69 — Whine, Haunted Village ghosts. Twelve named drifting
-// ghosts, one per home. Names are TODO placeholders authored by humans
-// later per the lore rule; dialog is empty ('...') so the v1 register
-// is silent drift only. Existing scan/interaction paths see a valid
-// CharacterDefinition either way.
+// ghosts, one per home. Names + dialog are authored by humans per the
+// lore rule. Each ghost has its own slot in WHINE_GHOST_PROFILES so
+// distinct identities can be filled in independently — edit any row
+// below to make that ghost distinct. The default row template uses a
+// placeholder name and silent dialog so unauthored ghosts still
+// resolve to a valid CharacterDefinition.
 const padHomeNumber = (n: number): string => n.toString().padStart(2, '0')
 
 export const whineGhostId = (n: number): string => `whine-ghost-${padHomeNumber(n)}`
 
-export const createWhineGhostDefinition = (n: number): CharacterDefinition => ({
-  id: whineGhostId(n),
+// Per-home identity for the twelve Whine ghosts. To author a distinct
+// ghost, edit the corresponding row: change `name`, replace `dialog`
+// with the lines you want, optionally swap `glyph` or `glyphColor`.
+// All rows are independent — editing home 03 does not affect home 07.
+//
+// The array is 13 entries (index 0 unused) so callers index by home
+// number directly.
+interface WhineGhostProfile {
+  name: string
+  glyph: string
+  glyphColor: string
+  dialog: readonly string[]
+}
+
+const DEFAULT_WHINE_GHOST_GLYPH = 'ö'
+const DEFAULT_WHINE_GHOST_COLOR = '#FFFFFF'
+const DEFAULT_WHINE_GHOST_DIALOG: readonly string[] = ['...']
+
+const defaultGhost = (n: number): WhineGhostProfile => ({
   name: `TODO: Whine ghost ${padHomeNumber(n)}`,
-  glyph: 'ö',
-  glyphColor: '#FFFFFF',
-  dialog: ['...'],
+  glyph: DEFAULT_WHINE_GHOST_GLYPH,
+  glyphColor: DEFAULT_WHINE_GHOST_COLOR,
+  dialog: DEFAULT_WHINE_GHOST_DIALOG,
 })
+
+export const WHINE_GHOST_PROFILES: readonly WhineGhostProfile[] = [
+  // Index 0 — unused (no home zero); kept so callers can index by home
+  // number directly. Leave as default.
+  defaultGhost(0),
+  // Home 01 — west column, northmost. Edit fields to give this ghost a
+  // distinct identity.
+  defaultGhost(1),
+  // Home 02
+  defaultGhost(2),
+  // Home 03
+  defaultGhost(3),
+  // Home 04
+  defaultGhost(4),
+  // Home 05
+  defaultGhost(5),
+  // Home 06 — west column, southmost.
+  defaultGhost(6),
+  // Home 07 — east column, northmost.
+  defaultGhost(7),
+  // Home 08
+  defaultGhost(8),
+  // Home 09
+  defaultGhost(9),
+  // Home 10
+  defaultGhost(10),
+  // Home 11
+  defaultGhost(11),
+  // Home 12 — east column, southmost.
+  defaultGhost(12),
+]
+
+export const createWhineGhostDefinition = (n: number): CharacterDefinition => {
+  const profile = WHINE_GHOST_PROFILES[n]
+  return {
+    id: whineGhostId(n),
+    name: profile.name,
+    glyph: profile.glyph,
+    glyphColor: profile.glyphColor,
+    dialog: [...profile.dialog],
+  }
+}
 
 export const registerWhineGhostDefinitions = (count: number): void => {
   for (let n = 1; n <= count; n++) {
