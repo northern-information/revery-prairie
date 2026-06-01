@@ -27,6 +27,7 @@ vi.stubGlobal('AudioContext', MockAudioContext)
 
 const FADE_OUT_START_MS = 4400
 const SPLASH_TOTAL_MS = 6000
+const SKIP_FADE_OUT_MS = 200
 
 let mockTime = 0
 
@@ -74,7 +75,7 @@ describe('Northern Information splash', () => {
       const root = container.querySelector('[data-panel="northern-information-splash"]')
       expect(root).not.toBeNull()
       expect(root?.getAttribute('data-state')).toBe('pre-gesture')
-      expect(screen.getByText('Click To Begin')).toBeInTheDocument()
+      expect(screen.getByText('Press Any Key To Begin')).toBeInTheDocument()
       expect(screen.queryByRole('img', { name: 'Northern Information' })).toBeNull()
     })
 
@@ -256,6 +257,186 @@ describe('Northern Information splash', () => {
 
       expect(onFadeOutStart).toHaveBeenCalledTimes(1)
       expect(stopAudio).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('skip cuts instantly to black', () => {
+    // Advance the RAF-driven render so the splash component re-renders
+    // and the skip-branch render path takes effect. Fake timers fire
+    // pending requestAnimationFrame callbacks when advanced; advance
+    // by one frame (~16ms) so the next render reads the current mockTime.
+    const flushRaf = (): void => {
+      act(() => {
+        vi.advanceTimersByTime(16)
+      })
+    }
+
+    it('removes the colophon image and snaps root opacity to 1 on the skip frame', () => {
+      const { container } = renderSplash()
+      firstGesture()
+      // Splash is in running state, image is mounted, triangle wave running.
+      expect(screen.getByRole('img', { name: 'Northern Information' })).toBeInTheDocument()
+
+      mockTime = 200
+      nowSpy.mockReturnValue(mockTime)
+      firstGesture()
+      flushRaf()
+
+      expect(screen.queryByRole('img', { name: 'Northern Information' })).toBeNull()
+      const root = container.querySelector<HTMLElement>('[data-panel="northern-information-splash"]')
+      expect(root).not.toBeNull()
+      expect(root?.style.opacity).toBe('1')
+      expect(root?.getAttribute('data-state')).toBe('skipping')
+    })
+
+    it('invokes onComplete exactly once within SKIP_FADE_OUT_MS + one frame', () => {
+      const onComplete = vi.fn()
+      renderSplash({ onComplete })
+      firstGesture()
+
+      const skipStart = 200
+      mockTime = skipStart
+      nowSpy.mockReturnValue(mockTime)
+      firstGesture()
+      expect(onComplete).not.toHaveBeenCalled()
+
+      // Mid-tween: 100ms into the 200ms skip fade-out — not done yet.
+      mockTime = skipStart + 100
+      nowSpy.mockReturnValue(mockTime)
+      act(() => {
+        vi.advanceTimersByTime(20)
+      })
+      expect(onComplete).not.toHaveBeenCalled()
+
+      // Past the 200ms skip fade-out — onComplete should fire.
+      mockTime = skipStart + SKIP_FADE_OUT_MS + 16
+      nowSpy.mockReturnValue(mockTime)
+      act(() => {
+        vi.advanceTimersByTime(20)
+      })
+      expect(onComplete).toHaveBeenCalledTimes(1)
+
+      // Idempotent across further frames.
+      mockTime = skipStart + SKIP_FADE_OUT_MS + 1000
+      nowSpy.mockReturnValue(mockTime)
+      act(() => {
+        vi.advanceTimersByTime(20)
+      })
+      expect(onComplete).toHaveBeenCalledTimes(1)
+    })
+
+    it('tweens opacity from 1 toward 0 during the skip fade-out (not an instant unmount)', () => {
+      const { container } = renderSplash()
+      firstGesture()
+
+      const skipStart = 200
+      mockTime = skipStart
+      nowSpy.mockReturnValue(mockTime)
+      firstGesture()
+      flushRaf()
+
+      // At skipStart + 100ms (50% through the 200ms tween), opacity
+      // should be roughly 0.5 — somewhere strictly between 0 and 1.
+      mockTime = skipStart + 100
+      nowSpy.mockReturnValue(mockTime)
+      flushRaf()
+
+      const root = container.querySelector<HTMLElement>('[data-panel="northern-information-splash"]')
+      expect(root).not.toBeNull()
+      const opacity = parseFloat(root?.style.opacity ?? '0')
+      expect(opacity).toBeGreaterThan(0)
+      expect(opacity).toBeLessThan(1)
+    })
+
+    it('does not re-trigger onFadeOutStart or stopAudio on rapid repeat gestures', () => {
+      const onFadeOutStart = vi.fn()
+      const onComplete = vi.fn()
+      const stopAudio = vi.fn()
+      renderSplash({ onFadeOutStart, onComplete, stopAudio })
+      firstGesture()
+
+      mockTime = 200
+      nowSpy.mockReturnValue(mockTime)
+      firstGesture()
+      firstGesture()
+      firstGesture()
+      firstGesture()
+      firstGesture()
+
+      expect(onFadeOutStart).toHaveBeenCalledTimes(1)
+      expect(stopAudio).toHaveBeenCalledTimes(1)
+      expect(stopAudio).toHaveBeenCalledWith(300)
+
+      // Advance past skip fade-out; onComplete still fires exactly once.
+      mockTime = 200 + SKIP_FADE_OUT_MS + 16
+      nowSpy.mockReturnValue(mockTime)
+      act(() => {
+        vi.advanceTimersByTime(20)
+      })
+      expect(onComplete).toHaveBeenCalledTimes(1)
+    })
+
+    it('skip after onFadeOutStart already fired naturally still snaps to black, but does not re-call onFadeOutStart', () => {
+      const onFadeOutStart = vi.fn()
+      const onComplete = vi.fn()
+      const { container } = renderSplash({ onFadeOutStart, onComplete })
+
+      firstGesture()
+
+      // Drive the natural triangle wave past the 4400ms mark so
+      // onFadeOutStart fires from the RAF loop.
+      mockTime = FADE_OUT_START_MS + 1
+      nowSpy.mockReturnValue(mockTime)
+      act(() => {
+        vi.advanceTimersByTime(20)
+      })
+      expect(onFadeOutStart).toHaveBeenCalledTimes(1)
+
+      // Player skips mid-natural-fade-out.
+      mockTime = FADE_OUT_START_MS + 600
+      nowSpy.mockReturnValue(mockTime)
+      firstGesture()
+      flushRaf()
+
+      // Skip branch takes over: image removed, root in skipping state,
+      // onFadeOutStart not re-called.
+      expect(screen.queryByRole('img', { name: 'Northern Information' })).toBeNull()
+      const root = container.querySelector<HTMLElement>('[data-panel="northern-information-splash"]')
+      expect(root?.getAttribute('data-state')).toBe('skipping')
+      expect(onFadeOutStart).toHaveBeenCalledTimes(1)
+
+      // Skip fade-out finishes within SKIP_FADE_OUT_MS + one frame.
+      mockTime = FADE_OUT_START_MS + 600 + SKIP_FADE_OUT_MS + 16
+      nowSpy.mockReturnValue(mockTime)
+      act(() => {
+        vi.advanceTimersByTime(20)
+      })
+      expect(onComplete).toHaveBeenCalledTimes(1)
+    })
+
+    it('natural completion path keeps the image mounted across the natural fade-out (no skip side-effects)', () => {
+      const onComplete = vi.fn()
+      const { container } = renderSplash({ onComplete })
+      firstGesture()
+
+      // Halfway through the natural 1600ms fade-out — image must still be present.
+      mockTime = FADE_OUT_START_MS + 800
+      nowSpy.mockReturnValue(mockTime)
+      act(() => {
+        vi.advanceTimersByTime(20)
+      })
+
+      expect(screen.getByRole('img', { name: 'Northern Information' })).toBeInTheDocument()
+      const root = container.querySelector<HTMLElement>('[data-panel="northern-information-splash"]')
+      expect(root?.getAttribute('data-state')).toBe('running')
+
+      // Natural completion fires at 6000ms exactly as before.
+      mockTime = SPLASH_TOTAL_MS + 1
+      nowSpy.mockReturnValue(mockTime)
+      act(() => {
+        vi.advanceTimersByTime(20)
+      })
+      expect(onComplete).toHaveBeenCalledTimes(1)
     })
   })
 

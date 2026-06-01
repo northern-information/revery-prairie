@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createTestState } from '@/engine/__tests__/helpers'
 import { dropItem } from '@/engine/entities'
+import { completeGenesis, GENESIS_EPOCHS } from '@/engine/genesis'
 import {
   advanceDialog,
   breakWall,
@@ -25,6 +26,16 @@ vi.mock('@/engine/entities', async importOriginal => {
   return {
     ...actual,
     dropItem: vi.fn(() => false),
+  }
+})
+
+vi.mock('@/engine/genesis', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/engine/genesis')>()
+  return {
+    ...actual,
+    // Wrap the real function so other tests (and createTestState's
+    // genesis cleanup) still observe the actual state mutation.
+    completeGenesis: vi.fn(actual.completeGenesis),
   }
 })
 
@@ -156,6 +167,9 @@ beforeEach(() => {
   vi.mocked(getAdjacentCharacter).mockReturnValue(null)
   vi.mocked(interactWithCharacter).mockReturnValue({ opened: false, gift: null, coyoteToggled: false })
   vi.mocked(dropItem).mockReturnValue(false)
+  // createTestState calls completeGenesis internally during setup;
+  // clear that call so per-test assertions start from a clean slate.
+  vi.mocked(completeGenesis).mockClear()
 })
 
 // --- tests ---
@@ -633,6 +647,153 @@ describe('useKeyboard', () => {
       expect(interactWithCharacter).not.toHaveBeenCalled()
       expect(state.scanInProgress).not.toBeNull()
       expect(state.scanInProgress?.kind === 'flora' && state.scanInProgress.species).toBe(FloraSpecies.Clover)
+    })
+  })
+
+  describe('genesis skip — any key advances', () => {
+    // createTestState completes genesis at construction. Re-prime
+    // state.genesis to an in-progress sim so the useKeyboard genesis
+    // branch fires. mutationsPrecomputed=true so completeGenesis (if
+    // it were the real function) would skip runAllMutations — defensive
+    // in case the mock is ever loosened.
+    const primeGenesis = () => {
+      state.genesis = { epochIndex: 0, mutationsPrecomputed: true } as unknown as GameState['genesis']
+    }
+
+    it('advances on a letter key (the bug — used to require Escape/Space/Enter)', () => {
+      primeGenesis()
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('a')
+      })
+
+      expect(completeGenesis).toHaveBeenCalledWith(state)
+      expect(refreshUI).toHaveBeenCalled()
+    })
+
+    it('advances on a digit key', () => {
+      primeGenesis()
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('1')
+      })
+
+      expect(completeGenesis).toHaveBeenCalledWith(state)
+      expect(refreshUI).toHaveBeenCalled()
+    })
+
+    it('advances on a modifier-only press (Shift)', () => {
+      primeGenesis()
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('Shift')
+      })
+
+      expect(completeGenesis).toHaveBeenCalledWith(state)
+      expect(refreshUI).toHaveBeenCalled()
+      // Sprint must NOT toggle during genesis — the genesis branch must
+      // return before reaching the Shift sprint handler below it.
+      expect(state.sprinting).toBe(false)
+    })
+
+    it('advances on a function key (F5)', () => {
+      primeGenesis()
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('F5')
+      })
+
+      expect(completeGenesis).toHaveBeenCalledWith(state)
+      expect(refreshUI).toHaveBeenCalled()
+    })
+
+    it('still advances on Escape (regression check)', () => {
+      primeGenesis()
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('Escape')
+      })
+
+      expect(completeGenesis).toHaveBeenCalledWith(state)
+    })
+
+    it('still advances on Space (regression check)', () => {
+      primeGenesis()
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey(' ')
+      })
+
+      expect(completeGenesis).toHaveBeenCalledWith(state)
+    })
+
+    it('still advances on Enter (regression check)', () => {
+      primeGenesis()
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('Enter')
+      })
+
+      expect(completeGenesis).toHaveBeenCalledWith(state)
+    })
+
+    it('does NOT advance when state.genesis is null', () => {
+      // createTestState leaves state.genesis null — this is the
+      // post-genesis baseline. Sanity check: any-key skip must not
+      // accidentally fire during normal gameplay.
+      state.genesis = null
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('a')
+      })
+
+      expect(completeGenesis).not.toHaveBeenCalled()
+    })
+
+    it('does NOT advance when epochIndex has already reached GENESIS_EPOCHS.length', () => {
+      state.genesis = {
+        epochIndex: GENESIS_EPOCHS.length,
+        mutationsPrecomputed: true,
+      } as unknown as GameState['genesis']
+      renderKeyboardHook()
+
+      act(() => {
+        fireKey('a')
+      })
+
+      expect(completeGenesis).not.toHaveBeenCalled()
+    })
+
+    it('respects the input-tag gate (focused INPUT swallows non-Escape/Tab keys)', () => {
+      primeGenesis()
+      const input = document.createElement('input')
+      document.body.appendChild(input)
+      input.focus()
+      try {
+        renderKeyboardHook()
+
+        act(() => {
+          fireKey('a')
+        })
+
+        expect(completeGenesis).not.toHaveBeenCalled()
+
+        act(() => {
+          fireKey('Escape')
+        })
+
+        expect(completeGenesis).toHaveBeenCalledWith(state)
+      } finally {
+        input.remove()
+      }
     })
   })
 })

@@ -7,10 +7,14 @@ const SPLASH_HOLD_MS = 2400
 const SPLASH_FADE_OUT_MS = 1600
 const SPLASH_TOTAL_MS = SPLASH_FADE_IN_MS + SPLASH_HOLD_MS + SPLASH_FADE_OUT_MS
 const SKIP_AUDIO_FADE_MS = 300
+// Skip-gesture short fade — snaps to opaque black, then tweens to
+// transparent over 200ms so the dismissal feels responsive instead of
+// riding the remaining slope of the natural triangle wave.
+const SKIP_FADE_OUT_MS = 200
 
 const SPLASH_IMAGE_SRC = '/applied-sciences-and-phantasms-working-division-flourescent.png'
 const SPLASH_AUDIO_SRC = '/sfx/northern-information.mp3'
-const HINT_LABEL = 'Click To Begin'
+const HINT_LABEL = 'Press Any Key To Begin'
 
 const now = (): number => (typeof performance === 'undefined' ? Date.now() : performance.now())
 
@@ -48,10 +52,36 @@ export const NorthernInformationSplash = ({
   const completedRef = useRef(false)
   const imgRef = useRef<HTMLImageElement | null>(null)
   const startedRef = useRef(false)
+  // Skip state — set when the player dismisses the running splash.
+  // skipStartRef anchors the 200ms skip fade-out tween; the render
+  // branch reads skippedRef and skipStartRef to draw an opaque-black
+  // overlay decaying to transparent. Distinct from the natural
+  // triangle-wave fade so the gesture feels instant.
+  const skippedRef = useRef(false)
+  const skipStartRef = useRef<number | null>(null)
+
+  // Begin the skip transition. Idempotent: only the first call
+  // mutates refs and invokes the parent callbacks. Used by both
+  // the keydown listener and the click handler so the two paths
+  // cannot diverge.
+  const triggerSkipRef = useRef<(() => void) | null>(null)
+  triggerSkipRef.current = (): void => {
+    if (completedRef.current || skippedRef.current) return
+    skippedRef.current = true
+    skipStartRef.current = now()
+    stopAudio(SKIP_AUDIO_FADE_MS)
+    if (!fadeOutStartedRef.current) {
+      fadeOutStartedRef.current = true
+      onFadeOutStart()
+    }
+    // Force a render so the skip branch takes over from the
+    // running triangle-wave render path immediately.
+    force(n => n + 1)
+  }
 
   // Single global keydown listener. Behaviour depends on startedRef:
   //   - pre-gesture: first keydown starts the splash + audio
-  //   - running: keydown skips the splash with a fast audio fade-out
+  //   - running: keydown skips the splash with an instant cut to black
   useEffect(() => {
     const onKey = (): void => {
       if (completedRef.current) return
@@ -62,17 +92,13 @@ export const NorthernInformationSplash = ({
         playAudio(SPLASH_AUDIO_SRC)
         return
       }
-      if (!fadeOutStartedRef.current) {
-        fadeOutStartedRef.current = true
-        stopAudio(SKIP_AUDIO_FADE_MS)
-        onFadeOutStart()
-      }
+      triggerSkipRef.current?.()
     }
     document.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('keydown', onKey)
     }
-  }, [onFadeOutStart, playAudio, stopAudio])
+  }, [playAudio])
 
   // RAF loop only runs once started.
   useEffect(() => {
@@ -82,6 +108,22 @@ export const NorthernInformationSplash = ({
       if (!alive) return
       const start = startRef.current
       if (start === null) return
+      // Skip path: fire onComplete when the 200ms skip tween elapses.
+      // Runs before the natural fade-in/out check so the skip is the
+      // authoritative completion source once engaged.
+      if (skippedRef.current && skipStartRef.current !== null) {
+        const skipElapsed = now() - skipStartRef.current
+        if (skipElapsed >= SKIP_FADE_OUT_MS) {
+          if (!completedRef.current) {
+            completedRef.current = true
+            onComplete()
+          }
+          return
+        }
+        force(n => n + 1)
+        rafRef.current = requestAnimationFrame(loop)
+        return
+      }
       const elapsed = now() - start
       if (elapsed >= FADE_OUT_START_MS && !fadeOutStartedRef.current) {
         fadeOutStartedRef.current = true
@@ -122,11 +164,7 @@ export const NorthernInformationSplash = ({
       playAudio(SPLASH_AUDIO_SRC)
       return
     }
-    if (!fadeOutStartedRef.current) {
-      fadeOutStartedRef.current = true
-      stopAudio(SKIP_AUDIO_FADE_MS)
-      onFadeOutStart()
-    }
+    triggerSkipRef.current?.()
   }
 
   // Pre-gesture: black backdrop + film grain + hint label. No image yet.
@@ -141,6 +179,24 @@ export const NorthernInformationSplash = ({
       >
         <span className="font-mono text-sm text-white/60 select-none">{HINT_LABEL}</span>
       </div>
+    )
+  }
+
+  // Skip path: snap to opaque black (no image), tween opacity 1→0
+  // over SKIP_FADE_OUT_MS. Distinct render branch from the natural
+  // triangle wave so the gesture reads as instant.
+  if (skippedRef.current && skipStartRef.current !== null) {
+    const skipElapsed = now() - skipStartRef.current
+    if (skipElapsed >= SKIP_FADE_OUT_MS) return null
+    const skipAlpha = Math.max(0, 1 - skipElapsed / SKIP_FADE_OUT_MS)
+    return (
+      <div
+        data-panel="northern-information-splash"
+        data-state="skipping"
+        className="film-grain-overlay-strong fixed inset-0 z-50 flex cursor-pointer items-center justify-center bg-black"
+        style={{ opacity: skipAlpha }}
+        onClick={handleClick}
+      />
     )
   }
 

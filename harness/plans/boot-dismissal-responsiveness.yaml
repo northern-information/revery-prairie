@@ -1,0 +1,252 @@
+plan:
+  id: boot-dismissal-responsiveness
+  title: Genesis advances on any key + splash skip-gesture cuts instantly to black
+  created: 2026-05-31
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test
+
+tasks:
+  - id: add-genesis-any-key-regression-test
+    title: Add useKeyboard regression test asserting any-key advances genesis (red on main, green on the fix)
+    spec_id: boot-dismissal-responsiveness
+    spec_sections:
+      - genesis-skip-on-any-key
+      - genesis-skip-respects-input-gate
+    context_files:
+      - src/hooks/__tests__/useKeyboard.test.ts
+      - src/hooks/useKeyboard.ts
+      - src/engine/genesis/state.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/hooks/__tests__/useKeyboard.test.ts
+    depends_on: []
+    verification:
+      - npx vitest run src/hooks/__tests__/useKeyboard.test.ts
+    repair: retry
+    tags: [test]
+    notes: >
+      Add a new `describe('genesis skip — any key', ...)` block in
+      the existing useKeyboard.test.ts. Mock @/engine/genesis to
+      capture completeGenesis calls (the module already exports
+      GENESIS_EPOCHS; mirror the pattern used by the other mocks
+      at the top of the file). Setup helper: build a GameState
+      with `state.genesis = { epochIndex: 0, mutationsPrecomputed:
+      false } as typeof state.genesis` so the genesis-active
+      branch fires.
+      Cases:
+      1. Fire a `KeyboardEvent('keydown', { key: 'a' })` on
+         `window` and assert completeGenesis was called exactly
+         once and refreshUI was called. This case MUST fail on
+         main (current code only accepts Escape/Space/Enter).
+      2. Repeat for `key: 'q'`, `key: '1'`, `key: 'Shift'`, and
+         `key: 'F5'` (modifier-only + function key) — all should
+         advance genesis.
+      3. Sanity: Escape, Space, Enter still advance genesis (no
+         regression).
+      4. Input-gate preservation: render with a hidden `<input>`
+         focused (set document.activeElement via attach + focus,
+         or stub `(document.activeElement as HTMLElement).tagName
+         === 'INPUT'` in a beforeEach), press `'a'`, assert
+         completeGenesis was NOT called. Press `'Escape'`, assert
+         completeGenesis WAS called.
+      Use the existing `fireKey` helper if it dispatches against
+      `window`; otherwise add a tiny local helper that does so.
+      Restore refreshUI via vi.fn() captured per test.
+
+  - id: loosen-genesis-key-filter
+    title: Drop the Escape/Space/Enter filter in useKeyboard's genesis branch — any key advances
+    spec_id: boot-dismissal-responsiveness
+    spec_sections:
+      - genesis-skip-on-any-key
+      - genesis-skip-respects-input-gate
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/engine/genesis/state.ts
+      - docs/claude/genesis.md
+    output_files:
+      - src/hooks/useKeyboard.ts
+    depends_on:
+      - add-genesis-any-key-regression-test
+    verification:
+      - npm run typecheck
+      - npx vitest run src/hooks/__tests__/useKeyboard.test.ts
+    repair: retry
+    tags: [engine]
+    notes: >
+      In `handleKeyDown` (currently lines 70–77), replace:
+        if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
+          if (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter') {
+            completeGenesis(state)
+            refreshUI()
+          }
+          return
+        }
+      with:
+        if (state.genesis && state.genesis.epochIndex < GENESIS_EPOCHS.length) {
+          completeGenesis(state)
+          refreshUI()
+          return
+        }
+      The input-tag gate above this block already handles the
+      "input focused — only Escape/Tab" case so we do not need a
+      per-key allowlist here. Update the inline comment to read
+      "During genesis, any key fast-forwards" to match the docs.
+      No other call sites need to change — useMouse already
+      advances on any canvas click.
+
+  - id: add-splash-skip-cut-to-black-regression-tests
+    title: Add splash skip-cut-to-black + 200ms fade-out + idempotency tests (red on main, green on the fix)
+    spec_id: boot-dismissal-responsiveness
+    spec_sections:
+      - splash-skip-cuts-to-black-immediately
+      - splash-skip-idempotent
+      - splash-natural-completion-unchanged
+    context_files:
+      - src/components/__tests__/NorthernInformationSplash.test.tsx
+      - src/components/NorthernInformationSplash.tsx
+    output_files:
+      - src/components/__tests__/NorthernInformationSplash.test.tsx
+    depends_on: []
+    verification:
+      - npx vitest run src/components/__tests__/NorthernInformationSplash.test.tsx
+    repair: retry
+    tags: [test]
+    notes: >
+      Add a new `describe('skip cuts instantly to black', ...)`
+      block. Re-use the existing `renderSplash`, `firstGesture`,
+      and `nowSpy` patterns at the top of the file. Tests:
+      1. After firstGesture (running) and then a second keydown,
+         immediately (without advancing timers) assert
+         `queryByRole('img', { name: 'Northern Information' })`
+         returns null AND the splash root's `style.opacity` is
+         '1'. (Asserts the same-frame cut to black + image
+         removal.)
+      2. Same setup; advance fake timers + mockTime to 200ms past
+         the skip gesture; assert `onComplete` has been called
+         exactly once. (Asserts the SKIP_FADE_OUT_MS upper bound.)
+      3. Same setup; advance only 100ms past skip; assert
+         `onComplete` has NOT yet been called and the splash root
+         is still mounted with `style.opacity` between 0 and 1
+         exclusive. (Asserts the fade-out is a tween, not an
+         instant unmount.)
+      4. Rapid-clicks idempotency: firstGesture, then 5 keydowns
+         in a row; assert `onFadeOutStart`, `stopAudio`, and
+         `onComplete` were each called exactly once after the
+         200ms tween elapses.
+      5. Natural completion unchanged: firstGesture, advance to
+         FADE_OUT_START_MS+1 then to SPLASH_TOTAL_MS+1 with NO
+         skip gesture; assert onFadeOutStart fired at 4400 and
+         onComplete fired at 6000 (the existing test already
+         covers this — extend it to also assert the <img> is
+         still mounted at elapsed = 5000ms, distinguishing the
+         natural path from the skip path).
+      6. Skip during natural fade-out (already at elapsed=5000ms):
+         dispatch a keydown after onFadeOutStart fired naturally;
+         assert onFadeOutStart still called exactly once total,
+         the <img> is removed, opacity snaps to 1, onComplete
+         fires within SKIP_FADE_OUT_MS + one frame.
+      Use `vi.advanceTimersByTime` with `nowSpy.mockReturnValue`
+      together — both are needed because the splash uses
+      performance.now() for elapsed AND requestAnimationFrame for
+      RAF scheduling.
+
+  - id: implement-splash-skip-cut-to-black
+    title: Rewrite splash skip path to snap-to-black + 200ms tween in NorthernInformationSplash
+    spec_id: boot-dismissal-responsiveness
+    spec_sections:
+      - splash-skip-cuts-to-black-immediately
+      - splash-skip-idempotent
+      - splash-natural-completion-unchanged
+    context_files:
+      - src/components/NorthernInformationSplash.tsx
+      - src/App.tsx
+    output_files:
+      - src/components/NorthernInformationSplash.tsx
+    depends_on:
+      - add-splash-skip-cut-to-black-regression-tests
+    verification:
+      - npm run typecheck
+      - npx vitest run src/components/__tests__/NorthernInformationSplash.test.tsx
+    repair: retry
+    tags: [component]
+    notes: >
+      Changes to NorthernInformationSplash.tsx:
+      1. Add constants near the top:
+           const SKIP_FADE_OUT_MS = 200
+      2. Add a new ref: `const skippedRef = useRef(false)` and
+         a new ref `const skipStartRef = useRef<number | null>(null)`
+         (used to compute elapsed against the skip start, not the
+         original startRef).
+      3. Extract the skip logic into a single private function
+         `triggerSkip(): void` that:
+           - returns early if `completedRef.current` or `skippedRef.current`
+           - sets `skippedRef.current = true`
+           - sets `skipStartRef.current = now()`
+           - calls `stopAudio(SKIP_AUDIO_FADE_MS)` (300ms)
+           - if `!fadeOutStartedRef.current`, sets it to true and
+             calls `onFadeOutStart()`
+           - calls `force(n => n + 1)` to schedule a render so
+             the skip branch in render takes over from the
+             triangle wave
+      4. Update the keydown handler and `handleClick` so the
+         second-gesture branch calls `triggerSkip()` instead of
+         hand-rolling the same effects (consolidates the two
+         paths so they cannot diverge).
+      5. In the running render branch, BEFORE computing the
+         triangle wave alpha, check `skippedRef.current`. If
+         true, branch to a new render path:
+           - compute `skipElapsed = now() - (skipStartRef.current ?? now())`
+           - if `skipElapsed >= SKIP_FADE_OUT_MS`, mark
+             `completedRef.current = true`, call `onComplete()`
+             once (guard with a separate ref or the existing
+             completedRef), return null.
+           - otherwise, render a black backdrop div with no
+             <img> child, `style.opacity = 1 - skipElapsed / SKIP_FADE_OUT_MS`,
+             same className as the existing root.
+      6. Add `data-state="skipping"` to the skip-branch root so
+         tests can distinguish it from pre-gesture and running.
+      7. The existing RAF loop already calls `force(n => n + 1)`
+         every frame so the skip-branch render will be polled at
+         frame rate without any new RAF scheduler. Keep that
+         loop running while skipped so the skip tween animates.
+      8. The defensive unmount cleanup
+         (`useEffect(() => () => { stopAudio(0) }, [stopAudio])`)
+         remains unchanged — it already handles all paths.
+      No changes to App.tsx are required: `onFadeOutStart` still
+      fires once on skip, `onComplete` still fires once when the
+      skip tween finishes, and the App's `screenRevealed` /
+      `splashComplete` flags reach their final values in the
+      same order as today.
+
+  - id: verify-no-additional-regressions
+    title: Run the full suite + typecheck + lint to verify no other behavior regressed
+    spec_id: boot-dismissal-responsiveness
+    spec_sections:
+      - genesis-skip-on-any-key
+      - splash-skip-cuts-to-black-immediately
+      - splash-skip-idempotent
+      - splash-natural-completion-unchanged
+    context_files:
+      - src/hooks/useKeyboard.ts
+      - src/components/NorthernInformationSplash.tsx
+    output_files: []
+    depends_on:
+      - loosen-genesis-key-filter
+      - implement-splash-skip-cut-to-black
+    verification:
+      - npm run typecheck
+      - npm run lint
+      - npm run test
+    repair: retry
+    tags: [verify]
+    notes: >
+      Final sweep. If any other test depends on the Escape/Space/Enter
+      filter (e.g., asserting that an "a" keypress during genesis is a
+      no-op), update or delete those expectations — the new contract
+      is the source of truth. If any test depends on the splash
+      letting the triangle wave decay through after a skip click, the
+      same applies — the new contract supersedes. Investigate any
+      lint/type errors at the call sites of `triggerSkip` and the new
+      refs in NorthernInformationSplash.tsx.
