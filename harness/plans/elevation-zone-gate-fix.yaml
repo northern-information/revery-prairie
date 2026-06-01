@@ -1,0 +1,99 @@
+plan:
+  id: elevation-zone-gate-fix
+  title: 'Gate state.elevation reads in tileBgCache.ts to Zone.Overworld so satellite crater elevation pits do not leak grey cliff-wall patches into the yard, house interior, Whine, and other non-overworld zones whose maps share posKey space with the overworld.'
+  created: 2026-05-31
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: regression-test-elevation-leak
+    title: >
+      Add a regression test in src/engine/__tests__/tileBgCache.test.ts
+      that fails on main and passes after the fix. The test seeds a
+      crater-shaped elevation pit (5x5 centered at e.g. (5, 5) with
+      center elevation 25 and surrounding elevation 50, matching what
+      satellites.ts:155 produces), switches state.currentZone to
+      Zone.LittleHouseYard, points state.map at a small flat Dirt-only
+      yard-shaped map covering those coords, calls getOrBuildCache +
+      flushDirtyTiles, then asserts that the cache canvas does NOT
+      contain any pixels darkened by WALL_LEFT_SHADE / WALL_RIGHT_SHADE
+      / WALL_CLIFF_SHADE between the cratered and non-cratered tiles —
+      i.e. all in-bounds tiles painted flat with no cube walls between
+      them. Repeat the assertion with Zone.HouseInterior and
+      Zone.WhineVillage so all three reported leak zones are covered.
+      Cross-reference: simplest way to assert no walls were drawn is to
+      stub or spy on drawCellWalls (used at tileBgCache.ts:203) and
+      assert zero calls when in a non-overworld zone with a crater
+      elevation field present.
+    spec_id: elevation-zone-gate
+    spec_sections:
+      - elevation-applies-overworld-only
+      - overworld-crater-coords-overlap-yard
+      - overworld-crater-coords-overlap-whine
+      - overworld-crater-coords-overlap-house-interior
+    context_files:
+      - src/engine/tileBgCache.ts
+      - src/engine/tileBg.ts
+      - src/engine/types.ts
+      - src/engine/satellites.ts
+      - src/engine/constants.ts
+      - src/engine/__tests__/tileBgCache.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/tileBgCache.test.ts
+    depends_on: []
+    verification:
+      - command: 'npx vitest run src/engine/__tests__/tileBgCache.test.ts'
+
+  - id: gate-bgcache-lift-by-zone
+    title: >
+      In src/engine/tileBgCache.ts modify liftAtFromState (currently at
+      line 111) to short-circuit to 0 when state.currentZone !==
+      Zone.Overworld, mirroring the existing pattern used by
+      platformLiftAtFromState (line 113) and waterSinkAtFromState (line
+      123). The change is a one-line guard at the top of
+      liftAtFromState. With selfLift, southLift, and eastLift all
+      collapsing to 0 for in-bounds tiles in non-overworld zones, the
+      cliff-wall branch at lines 193-214 of paintTileBg is skipped
+      (leftDepth = rightDepth = 0). The isClimbableStep call at lines
+      199-200 is inside that branch so it no longer fires either. Add
+      a comment at liftAtFromState explaining the gate and citing
+      satellites.ts:155 (the elevation mutator) and the regression
+      test path so future readers know why the gate exists.
+    spec_id: elevation-zone-gate
+    spec_sections:
+      - elevation-applies-overworld-only
+      - elevation-applies-in-overworld
+    context_files:
+      - src/engine/tileBgCache.ts
+      - src/engine/types.ts
+      - src/engine/satellites.ts
+    output_files:
+      - src/engine/tileBgCache.ts
+    depends_on:
+      - regression-test-elevation-leak
+    verification:
+      - command: 'npx vitest run src/engine/__tests__/tileBgCache.test.ts'
+      - command: 'npx tsc -b --noEmit'
+
+  - id: verify-overworld-elevation-intact
+    title: >
+      Run the existing tileBgCache, satelliteImpacts, and renderer
+      tests to confirm overworld elevation rendering (cliffs, crater
+      pits, water sinks) is unchanged.
+    spec_id: elevation-zone-gate
+    spec_sections:
+      - elevation-applies-in-overworld
+      - overworld-after-fix
+    context_files:
+      - src/engine/tileBgCache.ts
+      - src/engine/__tests__/tileBgCache.test.ts
+      - src/engine/__tests__/satelliteImpacts.test.ts
+      - src/engine/__tests__/renderer-crater-zone-gate.test.ts
+    output_files: []
+    depends_on:
+      - gate-bgcache-lift-by-zone
+    verification:
+      - command: 'npx vitest run src/engine/__tests__/tileBgCache.test.ts src/engine/__tests__/satelliteImpacts.test.ts src/engine/__tests__/renderer-crater-zone-gate.test.ts'
