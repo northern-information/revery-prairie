@@ -92,6 +92,9 @@ const MANUAL_LORE: Partial<Record<string, { lore: string; hints?: ManualHint[]; 
   'entity:beehive': { lore: 'Awareness is to watch as the millions of drones you captured just walk away.' },
   'entity:monarch': { lore: 'Danaus plexippus. Milkweed is vital to its lifecycle.' },
   'entity:oak': { lore: 'TODO' },
+  // RP-25 — egregoric fauna. Lore is human-authored only.
+  'entity:wrongBee': { lore: 'TODO' },
+  'entity:pierceWalker': { lore: 'TODO' },
   // Characters
   // RP-21 — Gron's manual entry uses the round-5 doctrine phrase
   // verbatim. Rendered in Voynich via the glitched flag (see

@@ -1,5 +1,6 @@
 import { BEE_TICK_MS, COYOTE_TICK_MS, GHOST_TICK_MS, MONARCH_TICK_MS } from '../constants'
 import { tickCoyote } from '../coyote'
+import { tickEgregoreFauna } from '../egregoreFauna'
 import { tickBees, tickCharacterBehaviors } from '../entities'
 import { tickMonarchs } from '../monarch'
 import { Zone } from '../types'
@@ -43,6 +44,19 @@ export const creatureSystems = (callbacks: GameLoopCallbacks): TickSystem[] => [
     zone: 'overworld',
     fn: state => {
       tickCharacterBehaviors(state, Zone.Overworld)
+    },
+  },
+  // RP-25 — egregoric fauna tick (wrongBee + pierceWalker). Mirrors
+  // the bee tick cadence so wrongBees feel temporally adjacent. The
+  // tick handler gates on Zone.Overworld internally; the system also
+  // declares zone: 'overworld' so the loop map-swap routing skips it
+  // in other zones.
+  {
+    id: 'egregore-fauna',
+    intervalMs: BEE_TICK_MS,
+    zone: 'overworld',
+    fn: (state, time) => {
+      tickEgregoreFauna(state, time)
     },
   },
   {

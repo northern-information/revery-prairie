@@ -922,9 +922,9 @@ features:
       when it shows egregoric activity. Egregoric fauna is that register
       walking around.
     depends_on: ['RP-8b']
-    status: todo
-    spec: null
-    plan: null
+    status: in-progress
+    spec: harness/specs/RP-25-egregoric-fauna.yaml
+    plan: harness/plans/RP-25-egregoric-fauna.yaml
     pr: null
     notes: >
       v4 thinktank round 8 (2026-05-20). The cosmology has bees, ghosts,

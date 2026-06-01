@@ -1382,6 +1382,7 @@ export const ChronicleTemplateCategory = {
   SpeciesExtinction: 'species-extinction',
   EgregoreReach: 'egregore-reach',
   EgregoreAdvance: 'egregore-advance',
+  EgregoricFaunaSighting: 'egregoric-fauna-sighting',
   MeteoriteImpact: 'meteorite-impact',
   StoneCircle: 'stone-circle',
   HallowedGround: 'hallowed-ground',

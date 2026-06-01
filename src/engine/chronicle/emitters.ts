@@ -338,6 +338,38 @@ export const emitHallowedGround = (state: GameState, anchor: Position): void => 
   })
 }
 
+// --- Egregoric fauna first sighting (RP-25) ---
+//
+// Called from the egregoreFauna spawn path on the first wrongBee /
+// pierceWalker creation in a save (recordDiscovery returns true). The
+// spawn helper gates so emit gets one call per fauna kind per save;
+// the emitter still verifies overworld + region to be defensive.
+// faunaKind is recorded in the event metadata for downstream UI but
+// is not rendered into the template text (per RP-22, chronicle text
+// names regions, not species).
+export const emitEgregoricFaunaFirstSighting = (
+  state: GameState,
+  faunaKind: 'wrongBee' | 'pierceWalker',
+  pos: Position
+): void => {
+  if (!isOverworld(state)) return
+  const region = resolveRegionForPosition(state, pos)
+  const template = pickTemplate('egregoric-fauna-sighting', 'negative')
+  const slots: Record<string, string> = {
+    region: region.name,
+    faunaKind,
+    year: String(yearOf(state)),
+  }
+  addChronicleEvent(state, {
+    templateId: template.id,
+    regionId: region.id,
+    year: yearOf(state),
+    season: seasonOf(state),
+    tone: template.tone,
+    slots,
+  })
+}
+
 // --- Tick orchestrator ---
 
 // Single entry-point called from gameLoop. Runs the species + egregore

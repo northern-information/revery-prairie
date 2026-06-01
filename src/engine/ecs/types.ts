@@ -32,6 +32,12 @@ export const ComponentType = {
   // mixing is allowed in the bag. Bag is emptied when the entity
   // enters Chebyshev-1 of any beehive. See src/engine/pollination.ts.
   PollenBag: 'pollenBag',
+  // RP-25 — wrongBee lifespan countdown. Egregoric fauna leaves no
+  // terran residue; the entity is destroyed when ticksRemaining hits 0.
+  WrongBeeLifecycle: 'wrongBeeLifecycle',
+  // RP-25 — pierceWalker glyph codepoint, stable per entity for its
+  // lifetime. Drawn from EGREGORE_GLYPHS at spawn.
+  PierceWalkerGlyph: 'pierceWalkerGlyph',
 } as const
 
 export type ComponentType = (typeof ComponentType)[keyof typeof ComponentType]
@@ -101,4 +107,6 @@ export interface ComponentDataMap {
   }
   [ComponentType.PickupExemption]: Record<string, never>
   [ComponentType.PollenBag]: { loads: PollenLoad[] }
+  [ComponentType.WrongBeeLifecycle]: { ticksRemaining: number }
+  [ComponentType.PierceWalkerGlyph]: { codepoint: string }
 }

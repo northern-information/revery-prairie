@@ -1,0 +1,352 @@
+plan:
+  id: RP-25-egregoric-fauna
+  title: 'RP-25 Egregoric fauna — wrongBee + pierceWalker, seam-gated spawn, chronicle, manual entries, aura render pass'
+  created: 2026-05-31
+  # Cross-cutting: adds two ECS component types, registers a new gameLoop
+  # system, adds a render pass, edits renderer.ts, manual.ts, and the
+  # chronicle emitter index. Engine layer at the core. Full suite is the
+  # right gate.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  # --- Tier 0: Backlog paperwork ---
+
+  - id: backlog-paths-populated
+    title: 'Populate `spec:` and `plan:` paths for the RP-25 entry in docs/backlog.yaml. The entry already has status: in-progress (flipped on main by /churn). Set `spec: harness/specs/RP-25-egregoric-fauna.yaml` and `plan: harness/plans/RP-25-egregoric-fauna.yaml`. Leave `pr:` null; it gets set when the PR opens. No other fields touched.'
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - schema-fields
+    context_files:
+      - docs/backlog.yaml
+    output_files:
+      - docs/backlog.yaml
+    depends_on: []
+    verification: []
+    repair: skip
+    tags:
+      - docs
+
+  # --- Tier 1: ECS component types ---
+
+  - id: add-egregore-fauna-component-types
+    title: "Add two new entries to ComponentType in src/engine/ecs/types.ts: `WrongBeeLifecycle: 'wrongBeeLifecycle'` and `PierceWalkerGlyph: 'pierceWalkerGlyph'`. Extend the ComponentValueMap so `[ComponentType.WrongBeeLifecycle]: { ticksRemaining: number }` and `[ComponentType.PierceWalkerGlyph]: { codepoint: number }`. Mirror the existing pattern (EntityTag, Position, DriftBehavior). No changes to schema.test.ts — these are ECS components, stored inside state.world, not new top-level GameState fields."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - wrong-bee-spawn
+      - pierce-walker-spawn
+    context_files:
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/ecs/types.ts
+    depends_on:
+      - backlog-paths-populated
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 2: Module skeleton + seam detection ---
+
+  - id: implement-seam-cluster-detection-and-constants
+    title: "Replace the egregoreFauna.ts stub with: export const WRONG_BEE_CAP = 3; PIERCE_WALKER_CAP = 1; WRONG_BEE_SPAWN_CHANCE = 0.005; PIERCE_WALKER_SPAWN_CHANCE = 0.001; WRONG_BEE_LIFESPAN_TICKS = 600; WRONG_BEE_ATTRACTION_RADIUS = 6; PIERCE_WALKER_MOVE_CHANCE = 0.1. Export `isSeamCluster(state: GameState, x: number, y: number): boolean` per the seam-cluster-detection behavior: returns true iff (x, y) is in state.egregorePositions AND at least 2 OTHER egregoric tiles are within Chebyshev distance 2. Use a set lookup over state.egregorePositions for O(N) detection (or a precomputed Set if measurement proves the linear scan slow — start with the simpler version). Also export a helper `enumerateSeamClusters(state): Position[]` that returns all positions in state.egregorePositions that satisfy isSeamCluster — used by spawn paths."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - seam-cluster-detection
+    context_files:
+      - src/engine/egregoreFauna.ts
+      - src/engine/types.ts
+      - src/engine/egregore.ts
+    output_files:
+      - src/engine/egregoreFauna.ts
+    depends_on:
+      - add-egregore-fauna-component-types
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 3: Spawn paths ---
+
+  - id: implement-fauna-spawn
+    title: "Extend egregoreFauna.ts with two internal helpers and an exported tick driver. `attemptWrongBeeSpawn(state, rng = Math.random)`: gates on state.zone === Zone.Overworld, enumerateSeamClusters(state).length > 0, live wrongBee count < WRONG_BEE_CAP, and rng() < WRONG_BEE_SPAWN_CHANCE. On success: pick a random cluster, pick a random walkable tile within Chebyshev distance 1 of it (skip the player's tile and any other entity-occupied tile), create the entity with components EntityTag='wrongBee', Position, DriftBehavior { moveChance: 0.4, bounds: null }, WrongBeeLifecycle { ticksRemaining: WRONG_BEE_LIFESPAN_TICKS }. Call recordDiscovery(state, 'fauna:wrongBee') and, if it returns true, call emitEgregoricFaunaFirstSighting(state, 'wrongBee', positionOfSpawn). `attemptPierceWalkerSpawn(state, rng = Math.random)`: gates on overworld, cluster present, live pierceWalker count < PIERCE_WALKER_CAP, rng() < PIERCE_WALKER_SPAWN_CHANCE. On success: pick a random cluster tile not occupied by the player; pick a PUA codepoint via the existing egregore glyph picker (pickEgregoreCodepoint or equivalent — find the exact export name in src/engine/egregore.ts and reuse it; if it returns null/undefined, suppress this spawn — see failure_conditions); create the entity with EntityTag='pierceWalker', Position (on the cluster tile), PierceWalkerGlyph { codepoint }. Append the position to state.egregoreSpecimens. Call recordDiscovery(state, 'fauna:pierceWalker') and emitEgregoricFaunaFirstSighting on first sighting. Export `tickEgregoreFauna(state, time, rng = Math.random)`: early-returns when state.zone !== Zone.Overworld; otherwise calls both attempt* helpers, then ticks live entities (see next task)."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - wrong-bee-spawn
+      - pierce-walker-spawn
+    context_files:
+      - src/engine/egregoreFauna.ts
+      - src/engine/types.ts
+      - src/engine/manual.ts
+      - src/engine/egregore.ts
+      - src/engine/ecs/world.ts
+    output_files:
+      - src/engine/egregoreFauna.ts
+    depends_on:
+      - implement-seam-cluster-detection-and-constants
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 4: Per-tick motion + lifespan ---
+
+  - id: implement-fauna-motion-and-lifespan
+    title: "Add three internal tick helpers to egregoreFauna.ts and call them from tickEgregoreFauna. `tickWrongBeeMotion(state, rng)`: for each entity with EntityTag === 'wrongBee', find the nearest seam tile within Chebyshev distance WRONG_BEE_ATTRACTION_RADIUS. If none, perform a DriftBehavior step (random walkable adjacent tile with probability moveChance, otherwise no-op). If a target exists, enumerate the 8 adjacent walkable tiles, filter to those that strictly decrease Chebyshev distance to the target, and step to a uniformly-random tile from that set. If the filtered set is empty, fall back to any walkable adjacent tile (no preference). Do NOT run any pollen pickup, hive return, or pollinator-preference logic for wrongBees. `tickWrongBeeLifespan(state)`: decrement WrongBeeLifecycle.ticksRemaining by 1 for every wrongBee; destroy the entity when ticksRemaining transitions 1 → 0. `tickPierceWalkerMotion(state, rng)`: for each entity with EntityTag === 'pierceWalker', enumerate the 8 neighbors of its position, filter to those in state.egregorePositions; if empty, no move. Otherwise with probability PIERCE_WALKER_MOVE_CHANCE, step to a uniformly-random filtered neighbor. PierceWalkers have no lifespan in v1. Wire all three into tickEgregoreFauna in order: spawn attempts first, then wrongBee motion, then wrongBee lifespan, then pierceWalker motion."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - wrong-bee-routing-violation
+      - wrong-bee-lifespan-expiry
+      - pierce-walker-seam-bound-motion
+    context_files:
+      - src/engine/egregoreFauna.ts
+      - src/engine/types.ts
+      - src/engine/ecs/world.ts
+      - src/engine/movement.ts
+    output_files:
+      - src/engine/egregoreFauna.ts
+    depends_on:
+      - implement-fauna-spawn
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 5: Wire into gameLoop ---
+
+  - id: register-egregore-fauna-system
+    title: "Register tickEgregoreFauna as a gameLoop system in src/engine/gameLoop.ts. System id: 'egregore-fauna'. intervalMs: match the existing pollinator/bee tick cadence (look up the constant used by bee routing — likely BEE_ROUTING_TICK_MS or similar; reuse the same value so wrongBees feel temporally adjacent to native bees). priority: pick a value AFTER bee routing and BEFORE rendering — inspect the existing priority numbers in gameLoop.ts and slot in just after the bee-routing system. The system runs unconditionally; tickEgregoreFauna handles the zone gate internally."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - wrong-bee-spawn
+      - pierce-walker-spawn
+    context_files:
+      - src/engine/gameLoop.ts
+      - src/engine/egregoreFauna.ts
+    output_files:
+      - src/engine/gameLoop.ts
+    depends_on:
+      - implement-fauna-motion-and-lifespan
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 6: Pickup and pathfinding exclusions ---
+
+  - id: extend-pickup-and-pathfinding-for-fauna
+    title: "Two narrow edits, must land together: (1) In src/engine/entities.ts (or wherever pickUpGroundItems lives — find the location currently used to exclude native bees), extend the EntityTag exclusion to also skip 'wrongBee' and 'pierceWalker'. (2) In src/engine/movement.ts (or wherever getBlockedPositions lives), add pierceWalker entity positions to the blocked set, the same way ghost positions are added. WrongBees do NOT block movement (they're bees — players can walk through). Use exact existing patterns; do not refactor."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - wrong-bee-walk-over-noop
+      - pierce-walker-no-pickup-no-interaction
+    context_files:
+      - src/engine/entities.ts
+      - src/engine/movement.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/entities.ts
+      - src/engine/movement.ts
+    depends_on:
+      - implement-fauna-motion-and-lifespan
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 7: Renderer entries ---
+
+  - id: add-fauna-renderer-entries
+    title: "Extend the entity render loop in src/engine/renderer.ts (around the existing `if (tag === 'bee') { ... }` block near line 552). Add a branch for 'wrongBee' that renders glyph 'b' using the existing egregoric color token (the same color token already used by egregoric flora — find it in src/engine/egregore.ts or src/engine/colors). Add a branch for 'pierceWalker' that renders the codepoint from PierceWalkerGlyph.codepoint using the Voynich/egregoric typeface and color, matching how egregoric flora codepoints render. Do not introduce a new color or font face; reuse the existing egregoric ones."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - rendering
+    context_files:
+      - src/engine/renderer.ts
+      - src/engine/egregore.ts
+      - src/engine/colors.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/renderer.ts
+    depends_on:
+      - implement-fauna-motion-and-lifespan
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+
+  # --- Tier 8: Aura render pass ---
+
+  - id: implement-egregore-fauna-aura-pass
+    title: "Replace the egregoreFaunaAura.ts stub with the alpha-pulse render pass per the egregoric-fauna-aura behavior. Pattern after an existing simple pass that draws per-entity fillRects (e.g. prairieHalo.ts or angelGoldAura.ts — pick whichever is structurally closer). The pass: queries state.world for entities tagged 'wrongBee' or 'pierceWalker'; for each, looks up Position; computes screen position via the existing camera/iso helpers used by other passes; draws a single-tile fillRect at that screen position using the egregoric color token at alpha = 0.15 + 0.10 * Math.sin(state.tickCount * 0.05 + entityId * 0.7); early-returns when state.zone !== Zone.Overworld. Cache reads/writes route through cacheContract per docs/claude/rendering.md (consult an existing pass that uses the cache for the canonical shape). Register the new pass in src/engine/render/passes/index.ts AFTER tile bg composite and BEFORE the entity glyph loop in renderer.ts — find the appropriate insertion point in the registration order and place egregoreFaunaAura there."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - egregoric-fauna-aura
+    context_files:
+      - src/engine/render/passes/egregoreFaunaAura.ts
+      - src/engine/render/passes/index.ts
+      - src/engine/render/passes/prairieHalo.ts
+      - src/engine/render/passes/angelGoldAura.ts
+      - src/engine/render/cacheContract.ts
+      - src/engine/ecs/types.ts
+      - src/engine/egregore.ts
+    output_files:
+      - src/engine/render/passes/egregoreFaunaAura.ts
+      - src/engine/render/passes/index.ts
+    depends_on:
+      - implement-fauna-motion-and-lifespan
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - render
+
+  # --- Tier 9: Chronicle emitter ---
+
+  - id: add-chronicle-fauna-emitter
+    title: "Add `emitEgregoricFaunaFirstSighting(state: GameState, faunaKind: 'wrongBee' | 'pierceWalker', position: Position)` to src/engine/chronicle/emitters.ts. Mirror the emitSeasonRollover pattern: gate on isOverworld(state); resolve the named region containing `position` via state.namedRegions.find(); call pickTemplate('egregoric-fauna-sighting', tone, state) to choose a template; fill slots { region, faunaKind }; call addChronicleEvent. Then add a new CHRONICLE_TEMPLATES entry with category 'egregoric-fauna-sighting' — find the templates registry (likely src/engine/chronicle/templates.ts) and add 1–2 short copies per tone, using { region } and { faunaKind } slots. Keep copy spare and observational — per RP-22 doctrine, the world speaks of itself, never the player. NEVER use the word 'invasive' anywhere in the copy (CI guard)."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - chronicle-first-sighting
+    context_files:
+      - src/engine/chronicle/emitters.ts
+      - src/engine/chronicle/templates.ts
+      - src/engine/chronicle/index.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/chronicle/emitters.ts
+      - src/engine/chronicle/templates.ts
+    depends_on:
+      - implement-fauna-spawn
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - chronicle
+
+  # --- Tier 10: Manual entries ---
+
+  - id: add-fauna-manual-entries
+    title: "Add two entries to MANUAL_LORE in src/engine/manual.ts: `'entity:wrongBee': { lore: 'TODO' }` and `'entity:pierceWalker': { lore: 'TODO' }`. Per CLAUDE.md, lore is human-authored ONLY — leave the value as the literal string 'TODO'. Do not invent prose. Confirm the entries are gated by their discovery keys ('fauna:wrongBee', 'fauna:pierceWalker') — if the buildItemEntries loop needs a corresponding entity registration (mirror the pattern used for 'entity:beehive'), add it; otherwise the discovery key alone suffices."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - manual-entries
+    context_files:
+      - src/engine/manual.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/manual.ts
+    depends_on:
+      - implement-fauna-spawn
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - manual
+
+  # --- Tier 11: Tests ---
+
+  - id: tests-seam-cluster-detection
+    title: "Rewrite src/engine/__tests__/egregore-fauna.test.ts seam-cluster section. Cover: isolated egregoric tile (1 in egregorePositions) returns false; cluster of 3 within radius 2 all return true; cluster on diagonal (Chebyshev 2 corner) counts; non-egregoric tile returns false even with neighbors; enumerateSeamClusters returns exactly the qualifying positions. Use clearAroundPlayer() to prepare terrain; reset state.egregorePositions = [] in each test setup; set positions explicitly via state.egregorePositions.push."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - seam-cluster-detection
+    context_files:
+      - src/engine/egregoreFauna.ts
+      - src/engine/__tests__/egregore-fauna.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/egregore-fauna.test.ts
+    depends_on:
+      - implement-seam-cluster-detection-and-constants
+    verification:
+      - npx vitest run src/engine/__tests__/egregore-fauna.test.ts -t 'seam'
+    repair: retry
+    tags:
+      - test
+
+  - id: tests-wrong-bee
+    title: "Extend src/engine/__tests__/egregore-fauna.test.ts with wrongBee spawn, motion, lifespan, and walk-over cases. Cover: spawn requires zone === Overworld (force state.zone to cave and confirm no spawn); spawn requires a seam cluster (zero clusters → no spawn even with Math.random pinned to 0); spawn respects WRONG_BEE_CAP (force 3 alive, then 100 spawn attempts → still 3); spawn calls recordDiscovery('fauna:wrongBee') exactly once across multiple spawns; motion: with a single seam tile at known position and a wrongBee at Chebyshev distance 5, the bee steps strictly toward the seam (assert new Chebyshev < old); motion fallback: surround the bee with non-walkable tiles → no step; lifespan: ticksRemaining counts down deterministically; entity destroyed on transition 1 → 0; walk-over noop: place player adjacent to wrongBee, call pickUpGroundItems → backpack unchanged, wrongBee still alive. Mock Math.random via vi.spyOn(Math, 'random') with vi.restoreAllMocks() in finally per docs/claude/testing.md."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - wrong-bee-spawn
+      - wrong-bee-routing-violation
+      - wrong-bee-lifespan-expiry
+      - wrong-bee-walk-over-noop
+    context_files:
+      - src/engine/egregoreFauna.ts
+      - src/engine/__tests__/egregore-fauna.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/__tests__/egregore-fauna.test.ts
+    depends_on:
+      - tests-seam-cluster-detection
+      - extend-pickup-and-pathfinding-for-fauna
+    verification:
+      - npx vitest run src/engine/__tests__/egregore-fauna.test.ts -t 'wrongBee'
+    repair: retry
+    tags:
+      - test
+
+  - id: tests-pierce-walker
+    title: "Extend src/engine/__tests__/egregore-fauna.test.ts with pierceWalker spawn, motion, and exclusion cases. Cover: spawn requires overworld + cluster + cap 1 (force 1 alive, repeated attempts produce none); spawn lands on an egregoric tile (asserts the spawn position is in state.egregorePositions); spawn appends the position to state.egregoreSpecimens; spawn calls recordDiscovery('fauna:pierceWalker') once; motion: with two adjacent egregoric tiles, the walker steps with probability PIERCE_WALKER_MOVE_CHANCE (pin Math.random to 0.05 → step; pin to 0.5 → no step); motion never leaves the seam (set up a walker surrounded by non-egregoric tiles → no movement); pierceWalker added to getBlockedPositions (pathfinding around its tile); pickUpGroundItems excludes pierceWalker. Mock Math.random per testing doctrine."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - pierce-walker-spawn
+      - pierce-walker-seam-bound-motion
+      - pierce-walker-no-pickup-no-interaction
+    context_files:
+      - src/engine/egregoreFauna.ts
+      - src/engine/__tests__/egregore-fauna.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/movement.ts
+    output_files:
+      - src/engine/__tests__/egregore-fauna.test.ts
+    depends_on:
+      - tests-wrong-bee
+    verification:
+      - npx vitest run src/engine/__tests__/egregore-fauna.test.ts -t 'pierceWalker'
+    repair: retry
+    tags:
+      - test
+
+  - id: tests-chronicle-and-manual
+    title: "Extend src/engine/__tests__/egregore-fauna.test.ts with chronicle and manual cases. Cover: first wrongBee spawn appends exactly one ChronicleEvent with templateId starting 'egregoric-fauna-sighting' and slots.faunaKind === 'wrongBee'; second wrongBee spawn (recordDiscovery returns false) does NOT append; same for pierceWalker; cave zone spawn attempts produce no chronicle events; manual entries for entity:wrongBee and entity:pierceWalker are gated by their discovery keys (assert they are NOT in the visible manual until recordDiscovery is called, then they appear). Use the existing chronicle test helpers (find an existing chronicle test for the import pattern)."
+    spec_id: RP-25-egregoric-fauna
+    spec_sections:
+      - chronicle-first-sighting
+      - manual-entries
+    context_files:
+      - src/engine/egregoreFauna.ts
+      - src/engine/chronicle/emitters.ts
+      - src/engine/manual.ts
+      - src/engine/__tests__/egregore-fauna.test.ts
+      - src/engine/__tests__/helpers.ts
+    output_files:
+      - src/engine/__tests__/egregore-fauna.test.ts
+    depends_on:
+      - tests-pierce-walker
+      - add-chronicle-fauna-emitter
+      - add-fauna-manual-entries
+    verification:
+      - npx vitest run src/engine/__tests__/egregore-fauna.test.ts
+    repair: retry
+    tags:
+      - test
+
+  # global_verification (typecheck + test + lint) runs after the final task.
+  # No dedicated full-verify task — plan validator rejects empty output_files
+  # and the global gate covers it.

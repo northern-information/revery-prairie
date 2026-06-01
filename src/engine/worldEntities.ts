@@ -28,6 +28,22 @@ const WORLD_ENTITIES = {
     category: 'life',
     unlockKey: 'entity:oak',
   },
+  // RP-25 — egregoric fauna. Names are placeholders pending human
+  // authorship; the glyphs and color follow the egregoric register.
+  wrongBee: {
+    name: 'Wrong Bee',
+    glyph: 'b',
+    glyphColor: '#B080D0',
+    category: 'egregore',
+    unlockKey: 'fauna:wrongBee',
+  },
+  pierceWalker: {
+    name: 'Pierce Walker',
+    glyph: '\u{F166}',
+    glyphColor: '#B080D0',
+    category: 'egregore',
+    unlockKey: 'fauna:pierceWalker',
+  },
 } as const satisfies Record<string, WorldEntityEntry>
 
 export interface WorldEntityDefinition extends WorldEntityEntry {
