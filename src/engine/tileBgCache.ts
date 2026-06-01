@@ -108,7 +108,17 @@ const tierAtFromState = (state: GameState, x: number, y: number): number => {
   return getElevationTier(state.elevation.get(posKey(x, y)))
 }
 
-const liftAtFromState = (state: GameState, x: number, y: number): number => getTierLift(tierAtFromState(state, x, y))
+// state.elevation is overworld-coordinate and mutated by satellite
+// impacts (satellites.ts applyImpact drops a 5x5 pit). Reading it in
+// non-overworld zones lifts tiles based on coincident overworld coords
+// and paints cliff walls between cratered and non-cratered neighbors —
+// a grey 5x5 patch leak in the yard / house interior / Whine. Mirror
+// the zone gate used by platformLiftAtFromState and waterSinkAtFromState
+// so non-overworld zones render flat.
+const liftAtFromState = (state: GameState, x: number, y: number): number => {
+  if (state.currentZone !== Zone.Overworld) return 0
+  return getTierLift(tierAtFromState(state, x, y))
+}
 
 const platformLiftAtFromState = (state: GameState, map: Tile[][], x: number, y: number): number => {
   if (state.currentZone !== Zone.Overworld) return 0
