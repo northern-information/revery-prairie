@@ -91,9 +91,25 @@ Carried forward from v2/v3/v4/v5/v6/v7/v9/v10 with no changes:
 - **Amendment to `RP-22`:** the chronicle's "the village" named-region binds to Whine when `RP-69` ships.
 - **Amendment to v11 R8:** the R8-tracked-but-unid'd "Threshold zones substrate" item is folded into `RP-69`'s scope. Whine is the motivating second case that forces `ThresholdZone` to become a registry rather than a singleton. `state.yardMap` → `state.thresholdZones: Record<ZoneId, ThresholdZoneState>` lands inside the Whine PR.
 
+**Locked in round 10:**
+
+- **Two surfaces, two verbs.** The minimap (`src/components/Minimap.tsx`) stays as it is — the passive god's-eye glance, untouched. _The map_ is a new diegetic item held in the inventory, consulted via the in-hand layer (`RP-59`) with the verb _consult_. _The minimap is the eye; the map is the hand._
+- **The map is an item.** New `Map` item type, single instance per tenure. Lives in the bag like any other item; the hand declares. Source (cellar-found vs. tenure-start grant vs. craft) deferred to spec.
+- **Consulting the map opens a full-screen modal that pauses the prairie clock.** `pausesPlayerTime: true`, matching the yard, cellar, house, cave, and Whine.
+- **Discovery-gated.** The map only shows what the steward has walked. Composition reads from existing state: `state.discoveredTiles`, `state.placedCameras`, `state.placedMeteorites`, the little house, Whine (`RP-69` when shipped), and `RP-22`'s named regions. _What is unwalked is fog. What is walked but un-noticed is sketch. What is marked is hot pink._
+- **Annotations are steward-authored and hot pink.** New uid-keyed table `state.mapAnnotations: Record<string, MapAnnotation>` (`{ tileKey, label, color, authoredAt }`). Hot-pink-as-user-action stays locked.
+- **Labels read from the chronicle.** Named regions (`RP-22`) are the source of truth for region labels; the map does not duplicate naming logic.
+- **One visual language.** ASCII-on-canvas at a reduced pitch, same register as the rest of the prairie.
+- **Player-facing noun is _the map_.** No _cartograph_, no _atlas_, no _ledger_. The cosmology is plain-spoken; the surface is too.
+
 **Open in v11:**
 
 - Does the cellar Knot eventually want a diegetic interface in the little house, and if so is the typewriter (`RP-66`) that interface?
+- (R10) Where does the steward _get_ the map — cellar-found inheritance, tenure-start grant, or craft?
+- (R10) Annotation input UX: typed labels (no prose-input substrate yet), or a fixed palette of glyph-pins (hot-pink `*`, `?`, `!`) the steward stamps onto a tile? Room leans glyph-pins for v1.
+- (R10) Does the camera-marker on the map carry the contact-sheet density visually (v11 R4) — a denser dot for a busier roll?
+- (R10) Predecessor maps as `RP-24` inheritance — when a predecessor's camera is found, is their _map_ found too, with their annotations frozen on it?
+- (R10) Egregore tiles on the map: appear when discovered, or refused-to-render with a small Voynich-leak in the rendering region?
 
 ---
 
@@ -440,3 +456,40 @@ _Tyler: "I'd like to introduce 'Whine, Haunted Village.' It will use our new yar
 - (Calla) Whether ghosts carry dialog in v1 (silent drift only) or a single line each. Round leans silent; the tone landing depends on this.
 - (Astrid) Whether the manual gets one entry for Whine, twelve entries for individual ghosts, or both. Lore is human-authored — the spec names the slots only.
 - (Boon) Whether the yard-flora-sampling rule (v11 R8) applies to each Whine home's yard, or whether village homes have a distinct fixed composition (e.g., always sparse / always dormant to read as long-abandoned).
+
+---
+
+## Round 10: the map is not the territory
+
+_Tyler: "i would like to introduce a map as a core part of gameplay. i love maps. we have a minimap. the overworld is somewhat a map. but the map is not the territory. i think a map can enrich the gameplay a lot by giving locations of cameras, ruins, characters, the little house, etc. what does the room think?"_
+
+> **Astrid:** _The map is not the territory_ is not a slogan; it is the doctrine in one sentence. The minimap is the prairie's own eye on itself — pixels reading pixels, the system telling the steward where the system is. That is fine, and it should stay. But _a map_ — the thing Tyler is asking for — is something else entirely. A map is the steward's claim against forgetting. It is the surface where the lineage records what it has noticed. The cosmology insists: heat death is the antagonist, tending is the verb, the inventory is the character sheet. _The map is the steward's claim against forgetting_, and that puts it in the same register as the Knot and the camera — an artifact that the lineage authors and that outlives the tenure. It belongs in the bag. It is read by hand. _Emily Dickinson: "the brain is wider than the sky."_ The map is the prairie wider than itself by exactly the width of one steward's attention. Discovery-gated — what has not been walked is not yet on the map. The gaps are not a UI failing. The gaps _are_ the prairie's scale.
+
+> **Boon:** Substrate. This is two systems with one name. The minimap (`src/components/Minimap.tsx`, `src/components/minimapStructures.ts`) is a passive HUD widget — a god's-eye render of the prairie at a fixed pitch, drawn from authoritative state every tick. The thing Tyler is asking for is an _item_, held in hand (`RP-59`), consulted via a full-screen modal overlay. New `Map` item type with a `PlaceableSpec`-adjacent verb — _consult_, not _place_ — bound to in-hand left-click or a held-read keybinding. The map's content is composed at consult-time from existing state: `state.discoveredTiles` (the discovery infrastructure that already feeds the chronicle), `state.placedCameras`, `state.placedMeteorites`, `state.namedRegions` (`RP-22`), the little house at its known coordinates, Whine when `RP-69` lands. Annotations are a new uid-keyed table: `state.mapAnnotations: Record<string, MapAnnotation>` — `{ tileKey, label, color, authoredAt }` — hot pink by convention, steward-authored, persisted on the map item. _The annotations are the part that survives a re-roll into a new tenure if the map does_ — which is the lineage hook. Depends on `RP-22` (named regions for labels) and `RP-59` (in-hand layer). Size: M. The minimap stays untouched.
+
+> **Calla:** Session shape. Right now the steward navigates by memory and the minimap's glance — and the minimap is doing more work than it should. It is the eye _and_ the hand, both at once, and the hand-job is bad: you cannot mark a camera on the minimap; you cannot ask the minimap _where was the ruin with the long view of the pond_. A real map separates the two verbs. The minimap is what you look at while moving; the map is what you look at when you have stopped. _Two registers, two surfaces, two paces of attention._ The map should pause the prairie clock the moment it opens — same rule as the yard, the cellar, the village, every other contemplative surface the prairie has. My one worry, and it is the load-bearing one: a fully-revealed god's-eye map _collapses the rediscovery loop_. The prairie's geography being earned-by-walking is one of the only mechanics doing the cosmology's work of _the prairie does not owe the steward access_ (v11 R3). Discovery-gating is not a nice-to-have; it is the constraint that lets a map exist at all here. What is unwalked is fog. What is walked but un-noticed is sketch. What is _marked_ is hot pink.
+
+> **Delta:** The minimap is the eye; the map is the hand. _The map is not the territory_ is the line of the round, but the round-line is the one underneath it: a map is a register of attention. What the steward has marked is what the steward saw enough to say _here_. Everything else is just walking. The cosmology has been quietly preparing this surface for a long time — the chronicle (`RP-22`) names regions because regions are the unit a map labels; the camera (`RP-23`) makes a 3x3 patch of prairie into an artifact because artifacts want to be located; the Knot (`RP-37`) is read in the cellar because the cellar is where the lineage already keeps its records. The map joins that shelf. And — _permanence is a capitalist assumption — but ruin is not_ — a predecessor's map is inheritance in exactly the way a predecessor's camera is. That is `RP-24` territory and we are not opening it here, but the door is now visible. One naming nit, since the room is in the habit: call it _the map_ in player-facing copy (no _cartograph_, no _atlas_, no _ledger_); the cosmology is plain-spoken and the surface should be too.
+
+### Consensus
+
+- **Two surfaces, two verbs.** The minimap stays as it is — the passive god's-eye glance, untouched. _The map_ is a new diegetic item held in the inventory, consulted via the in-hand layer (`RP-59`) with the verb _consult_. Glance vs. held read.
+- **The map is an item.** New item type, single instance per tenure (placement and source TBD at spec — the room leans cellar-found, not steward-craftable). Lives in the bag like any other item; the bag holds, the hand declares.
+- **Consulting the map opens a full-screen modal.** Pauses the prairie clock for the duration (`pausesPlayerTime: true`, matching the yard, cellar, house, cave, Whine).
+- **Discovery-gated.** The map only shows what the steward has walked. Composition reads from existing state: `state.discoveredTiles`, `state.placedCameras`, `state.placedMeteorites`, the little house, Whine (when `RP-69` lands), and any named region from `RP-22`'s chronicle that has been entered. _What is unwalked is fog. What is walked but un-noticed is sketch. What is marked is hot pink._
+- **Annotations are steward-authored and hot pink.** New uid-keyed table `state.mapAnnotations: Record<string, MapAnnotation>` (`{ tileKey, label, color, authoredAt }`). Hot-pink-as-user-action stays locked (the same rule the cursor and the placement preview obey).
+- **Labels read from the chronicle.** Named regions (`RP-22`) are the source of truth for region labels; the map does not duplicate naming logic.
+- **One visual language.** ASCII-on-canvas, same register as the rest of the prairie. The map is rendered with the prairie's own glyphs at a reduced pitch — not a separate art-direction.
+- **The minimap is _the eye_; the map is _the hand_.** Two paces of attention, two surfaces, no overlap of responsibility.
+
+### Tracked as
+
+- **`RP-70` The Map (diegetic, held)** — M, depends on `['RP-22', 'RP-59']`. New `Map` item held in-hand and consulted via full-screen modal that pauses the prairie clock. Composes from existing discovery state — `state.discoveredTiles`, `state.placedCameras`, `state.placedMeteorites`, the little house, Whine (`RP-69` when shipped), and `RP-22`'s named regions. New `state.mapAnnotations: Record<string, MapAnnotation>` table for steward-authored marks; annotations render hot pink. Minimap is untouched. Source of the map item (cellar-found vs. tenure-start grant vs. craft) deferred to spec.
+
+### Open questions deferred to specs
+
+- (Astrid) Where does the steward _get_ the map? Room leans cellar-found — inheritance from a predecessor — but tenure-start grant in the bag is also coherent.
+- (Boon) Annotation input UX: typed labels (requires keyboard text entry the prairie does not yet have), or a fixed palette of glyph-pins (hot-pink `*`, `?`, `!`, etc.) the steward stamps onto a tile? Room leans the latter for v1 — the prairie has not learned to read prose-input yet.
+- (Calla) Does the camera-marker on the map carry the contact-sheet density visually (v11 R4) — a denser dot for a busier roll? Coherent with _the map is a register of attention_, but possibly out of scope for v1.
+- (Delta) Predecessor maps as `RP-24` inheritance — when a predecessor's camera is found, is their _map_ found too, with their annotations frozen on it? Deferred; the door is visible but not opened here.
+- (Astrid) Egregore tiles on the map: do they appear at all once discovered, or does the map _refuse to render_ them (a small Voynich-leak in the rendering region)? The cosmology has a posture here either way.
