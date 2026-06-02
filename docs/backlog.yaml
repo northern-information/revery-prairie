@@ -2979,10 +2979,29 @@ features:
       passive god's-eye glance.
     depends_on: ['RP-22', 'RP-59']
     status: in-progress
-    spec: null
-    plan: null
+    spec: harness/specs/RP-70-the-map.yaml
+    plan: harness/plans/RP-70-the-map.yaml
     pr: null
     notes: >
+      Implementation reframe (2026-06-02, supersedes the summary
+      above). The map shipped as a read-only **permacomputer tab**, not
+      a held inventory item: it is a key item found in the Knot cellar
+      that records an `item:map` discovery (no backpack slot) and
+      auto-opens the MAP tab via `state.onMapAcquired`. It is NOT
+      fog-gated — a fixed inherited chart always showing the little
+      house, cave, Whine, every ruin, bodies of water, named-region
+      labels, placed cameras/meteorites, and Geodetic Markers. It does
+      NOT pause the prairie clock (`pausesPlayerTime` overridden — it is
+      decorative in the codebase anyway). There is no `mapAnnotations`
+      table and no `state.discoveredTiles` field (that field never
+      existed; fog lives in `overworldFogExplored`). Marking is
+      item-shaped via 10 **Geodetic Markers** (GM-1..GM-10): 7 in the
+      cellar with the map, 1 inside each of the bee, clover, and coyote
+      ruins. Dropped markers surface on the map; the consult tab is
+      read-only. RP-71's flora-mark render-path widening still applies.
+      Canonical permacomputer order: MANUAL, MAP, DIVINATION, COYOTE,
+      ALBUM, SYS.
+
       v11 thinktank round 10 (2026-06-01). _The map is not the
       territory._ The round split two surfaces with one name: the
       minimap is the eye (passive HUD glance), the map is the hand
