@@ -34,6 +34,12 @@ const drawIsoTile = (ctx: CanvasRenderingContext2D, layout: IsoLayout, worldX: n
 
 // A landmark glyph drawn at a world tile, optionally labeled. Glyph size
 // tracks the pitch so landmarks stay legible against the sparse field.
+// Landmark glyphs use a fixed, readable size rather than scaling with the
+// (tiny ~1.6px) tile pitch — at 147 tiles the pitch is far too small for
+// legible text. Labels sit just below the glyph.
+const LANDMARK_GLYPH_PX = 14
+const LABEL_PX = 9
+
 const drawLandmark = (
   ctx: CanvasRenderingContext2D,
   layout: IsoLayout,
@@ -43,17 +49,16 @@ const drawLandmark = (
   label?: string
 ) => {
   const { px, py } = projectIso(pos.x, pos.y, layout)
-  const fontPx = Math.max(10, layout.tilePx * 3)
   ctx.fillStyle = color
-  ctx.font = `${String(fontPx)}px monospace`
+  ctx.font = `${String(LANDMARK_GLYPH_PX)}px monospace`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(glyph, px, py)
   if (label) {
     ctx.fillStyle = REGION_LABEL_COLOR
-    ctx.font = `${String(Math.max(8, fontPx * 0.5))}px monospace`
+    ctx.font = `${String(LABEL_PX)}px monospace`
     ctx.textBaseline = 'top'
-    ctx.fillText(label, px, py + fontPx * 0.55)
+    ctx.fillText(label, px, py + LANDMARK_GLYPH_PX * 0.6)
   }
 }
 
@@ -82,7 +87,7 @@ const drawMap = (ctx: CanvasRenderingContext2D, state: GameState) => {
   ctx.fillStyle = REGION_LABEL_COLOR
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.font = `${String(Math.max(9, layout.tilePx * 1.6))}px monospace`
+  ctx.font = `${String(LABEL_PX)}px monospace`
   for (const region of state.namedRegions) {
     const { px, py } = projectIso(region.anchor.x, region.anchor.y, layout)
     ctx.fillText(region.name, px, py)
