@@ -121,12 +121,12 @@ features:
       RP-1 — collectibles only, no planting (RP-11 wires planting).
 
 
-      v11 thinktank round 10 (2026-06-02). The 3→5 starter-ruin bump
+      v11 thinktank round 12 (2026-06-02). The 3→5 starter-ruin bump
       this PR introduced has been retired in design — the live cast
       returns to the three main-quest ruins (Bee, Clover, Coyote),
-      reframed as the Dormant Gardens of `RP-70`. The +2 Wildflower
+      reframed as the Dormant Gardens of `RP-72`. The +2 Wildflower
       and TallGrass seed-delivery ruins are deleted at the placement
-      layer by `RP-71`, which relocates wildflowerSeeds and
+      layer by `RP-73`, which relocates wildflowerSeeds and
       tallGrassSeeds delivery inside the three Dormant Gardens
       themselves (cache or kudzu-harvest, surface picked at spec).
       Seed-item resurrection from this PR is preserved; only the
@@ -738,14 +738,14 @@ features:
       winters._
 
 
-      v11 thinktank round 10 (2026-06-02). Per-garden three-stage
+      v11 thinktank round 12 (2026-06-02). Per-garden three-stage
       name transitions added to the named-regions binding for the
       three Dormant Gardens: _Dormant Garden of Bee_ → _Awakened
       Garden of Bee_ (post-opening, pre-final-stage) → _The Garden of
       Bee_ (fully unfurled), and the same arc for Clover and Coyote.
       Gate-opening is itself a chronicle event, emitted from
       `src/engine/chronicle/emitters.ts` on the dormant→awakening
-      state transition driven by `RP-70`.
+      state transition driven by `RP-72`.
 
   - id: 'RP-23'
     name: Time-lapse camera (analog 35mm field instrument)
@@ -1950,8 +1950,8 @@ features:
       boundary. Cliffs may rise or fall driven by egregoric thermogenic
       activity from the prior winter; mesa reachability drifts year
       over year as the topography shifts. The ruin-surface/sink half
-      of this item was retired in v11 R10 — the three Dormant Gardens
-      are persistent and grow in place (`RP-70`), so the prairie no
+      of this item was retired in v11 R12 — the three Dormant Gardens
+      are persistent and grow in place (`RP-72`), so the prairie no
       longer surfaces or sinks ruins. Lifting
       `generateAllRuinInteriors` from genesis-time to runtime is no
       longer required.
@@ -1997,9 +1997,9 @@ features:
       RP-44's spec must wire both triggers.
 
 
-      v11 thinktank round 10 (2026-06-02). Scope reduced — the
+      v11 thinktank round 12 (2026-06-02). Scope reduced — the
       ruin-surface/sink half is retired and replaced by awakened-
-      garden growth in `RP-70`. The three Dormant Gardens (Bee,
+      garden growth in `RP-72`. The three Dormant Gardens (Bee,
       Clover, Coyote) are persistent across all tenures and grow in
       place; the prairie no longer surfaces new ruins or sinks old
       ones. `RP-37` removed from `depends_on` because the
@@ -2967,6 +2967,112 @@ features:
       fixed long-abandoned composition.
 
   - id: 'RP-70'
+    name: The Map (diegetic, held)
+    summary: >
+      A new `Map` item held in the inventory and consulted via the
+      in-hand layer (`RP-59`) with the verb _consult_. Consulting
+      opens a full-screen modal that pauses the prairie clock
+      (`pausesPlayerTime: true`). The map is discovery-gated: it
+      composes at consult-time from existing state —
+      `state.discoveredTiles`, `state.placedCameras`,
+      `state.placedMeteorites`, the little house, Whine (when
+      `RP-69` ships), and named regions from `RP-22`'s chronicle.
+      A new uid-keyed `state.mapAnnotations: Record<string, MapAnnotation>`
+      table stores steward-authored marks (`{ tileKey, label,
+      color, authoredAt }`), rendered in hot pink. Rendered
+      ASCII-on-canvas at a reduced pitch in the same visual
+      register as the prairie. The minimap
+      (`src/components/Minimap.tsx`) is untouched — it remains the
+      passive god's-eye glance.
+    size: M
+    depends_on: ['RP-22', 'RP-59']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 10 (2026-06-01). _The map is not the
+      territory._ The round split two surfaces with one name: the
+      minimap is the eye (passive HUD glance), the map is the hand
+      (held, consulted, annotated). Astrid framed the map as the
+      steward's claim against forgetting — an artifact in the same
+      register as the Knot and the camera, authored by the lineage
+      and outlasting the tenure. Calla's load-bearing worry was
+      that a fully-revealed god's-eye map collapses the
+      rediscovery loop (v11 R3 _the prairie does not owe the
+      steward access_) — hence discovery-gating is not a
+      nice-to-have but the constraint that lets a map exist here
+      at all. Delta's reframe became the lock: _the map is a
+      register of attention_; what is unwalked is fog, what is
+      walked but un-noticed is sketch, what is marked is hot pink.
+      Player-facing noun is _the map_ (no
+      cartograph/atlas/ledger). Open at spec: where the steward
+      gets the map (room leans cellar-found inheritance);
+      annotation input UX (room leans a fixed palette of hot-pink
+      glyph-pins over prose entry, since the prairie has no
+      text-input substrate yet); whether camera-markers carry
+      contact-sheet density visually (v11 R4); whether predecessor
+      maps land as `RP-24` inheritance (door visible, not opened
+      in this round); how egregore tiles are treated on the map
+      (appear when discovered, or refuse-to-render with a small
+      Voynich leak).
+
+      v11 thinktank round 11 (2026-06-02). _Amendment:_ the map's
+      render path is widened to consume `state.markedFlora`
+      alongside `state.mapAnnotations`. Schema and substrate of
+      RP-70 are unchanged; RP-71 lands the new flora-keyed table
+      and extends the render path only.
+
+  - id: 'RP-71'
+    name: Plant marking (flora-keyed map annotations)
+    summary: >
+      A new `state.markedFlora: Record<FloraUid, FloraMark>` table
+      (`{ floraUid, markedAt, glyph }`), sibling to
+      `state.mapAnnotations` (`RP-70`). Marks bind to a specific
+      flora's lifecycle uid and follow the plant through its
+      stages. Mark/unmark are authored through the in-hand map
+      (`RP-59`) in the world — the map's consult-modal is
+      read-only. Marks render on the map at the flora's resolved
+      tile, and on the overworld as a small hot-pink tag glyph on
+      the flora's tile. When a marked flora leaves `state`
+      (withered, harvested, dormancy-killed), the key is dropped
+      and a chronicle event (`RP-22`) fires in the named-region
+      register. Cap on simultaneous marks (room leans 4–6, exact
+      count at spec). Egregore-rendered flora and egregore tiles
+      refuse the mark — `canMark` returns false and the loaded
+      cursor drops the tag glyph.
+    size: S
+    depends_on: ['RP-70', 'RP-59', 'RP-3']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 11 (2026-06-02). _To mark is to admit
+      one._ R10 gave the map _places_; R11 gives it _bodies_.
+      Astrid framed the cosmology cost: _what the steward marks,
+      the prairie remembers — until the prairie unmakes it_. No
+      persistence past the entity, no graveyard of ribbons. Boon
+      chose a sibling table (`state.markedFlora`) over widening
+      `state.mapAnnotations` so GC stays trivial — when the flora
+      lifecycle entry leaves `state`, drop the key. Calla's
+      load-bearing addition: a marked plant withering must fire a
+      chronicle event so the loss is readable rather than silent.
+      Delta named the seam — this is where genetics (`RP-3`) and
+      care-as-verb finally meet the same surface; marking the two
+      breeding parents and returning when both bloom is the
+      motivating workflow. Egregores refuse the mark (Delta's
+      coherence check, doctrinally clean). Forward note, not a v1
+      lock: when `RP-24` predecessor maps land, predecessor-authored
+      marks travel with them. Open at spec: exact mark gesture
+      (room leans in-hand-map left-click in the world, not the
+      consult-modal); cap on simultaneous marks; whether
+      harvested-vs-withered fires distinct chronicle phrasing;
+      glyph choice (single character vs. numbered tag for
+      breeding-pair UX); whether the manual gets its own _Marking_
+      entry or folds into _The Map_.
+
+  - id: 'RP-72'
     name: Awakened Gardens
     summary: >
       The three Dormant Gardens of Bee, Clover, Coyote — `RP-5`'s
@@ -2995,7 +3101,7 @@ features:
     plan: null
     pr: null
     notes: >
-      v11 thinktank round 10 (2026-06-02). Cosmology line of the
+      v11 thinktank round 12 (2026-06-02). Cosmology line of the
       round: _ruins are receipts._ The walls were left by an order
       that thought itself permanent; the kudzu is the prairie's
       reply, written in a language the walls did not have — the
@@ -3025,28 +3131,28 @@ features:
       hazard surface inside gardens (round leans environmental-only,
       no adversarial entities).
 
-  - id: 'RP-71'
+  - id: 'RP-73'
     name: Retire the seed-delivery ruins; relocate seed delivery into the gardens
     summary: >
       Delete the wildflower-delivery and tallgrass-delivery starter
       ruins (`RP-5`'s +2) from the placement layer
       (`ruins.ts` role-registration site). Re-source wildflowerSeeds
       and tallGrassSeeds inside the three Dormant Gardens of
-      `RP-70` — either as small caches within each garden's interior
+      `RP-72` — either as small caches within each garden's interior
       or as harvest from the metabolic flora itself; surface picked
       at spec. The `state.seedGenomes` mechanic and the deterministic
       vault-genome derivation (`stewardName, ruinIndex, vaultSlot` →
       genome) from `RP-11` are preserved; the vault identifiers just
       relocate.
     size: S
-    depends_on: ['RP-70']
+    depends_on: ['RP-72']
     status: todo
     spec: null
     plan: null
     pr: null
     notes: >
-      v11 thinktank round 10 (2026-06-02). Cosmology cleanup
-      companion to `RP-70`. _Seeds in a vault_ is the wrong
+      v11 thinktank round 12 (2026-06-02). Cosmology cleanup
+      companion to `RP-72`. _Seeds in a vault_ is the wrong
       cosmology — a doomsday-seed-bank image, a permanence fantasy,
       an asset on a balance sheet; living seeds belong inside the
       kudzu, not in storage. The deletion is a small mechanical
