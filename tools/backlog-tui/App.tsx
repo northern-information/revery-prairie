@@ -1,7 +1,7 @@
 import { watch } from 'node:fs'
 import { resolve } from 'node:path'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { groupByColumn, loadFeatures, STATUS_COLUMNS, WRITABLE_STATUSES } from './data.js'
+import { groupByColumn, loadFeatures, STATUS_COLUMNS, wrapText, WRITABLE_STATUSES } from './data.js'
 import { DetailPane } from './DetailPane.js'
 import { moveFeatureAndOpenPr, openUrl } from './git.js'
 import { Kanban } from './Kanban.js'
@@ -64,6 +64,7 @@ export const App = () => {
   const [load, setLoad] = useState<LoadState>(() => tryLoad())
   const [selectedId, setSelectedId] = useState<string | null>(() => pickDefaultId(tryLoad().features))
   const [expanded, setExpanded] = useState(false)
+  const [notesScroll, setNotesScroll] = useState(0)
   const [termWidth, setTermWidth] = useState(() => stdout.columns || 120)
   const [termHeight, setTermHeight] = useState(() => stdout.rows || 40)
   const [mode, setMode] = useState<Mode>({ kind: 'browse' })
@@ -148,6 +149,27 @@ export const App = () => {
   }, [reload])
 
   const selected = locate && groups ? (groups[locate.column][locate.index] ?? null) : null
+
+  // Notes can run hundreds of characters, so when expanded they live in a
+  // fixed-height viewport that scrolls internally — the expanded pane never
+  // grows the TUI past one screen. Ink has no scroll offset (only clipping), so
+  // we wrap the notes to visual lines ourselves and window them. Inner text
+  // width = termWidth − outer padding (2) − pane border (2) − paddingX (2).
+  const NOTE_VIEWPORT = 8
+  const noteWidth = Math.max(10, termWidth - 6)
+  const noteLines = useMemo(
+    () => (expanded && selected?.notes ? wrapText(selected.notes, noteWidth) : []),
+    [expanded, selected?.notes, noteWidth]
+  )
+  const maxNotesScroll = Math.max(0, noteLines.length - NOTE_VIEWPORT)
+  // Clamp the live offset so a viewport/width change can't strand it past the end.
+  const clampedNotesScroll = Math.min(notesScroll, maxNotesScroll)
+
+  // Reset the notes offset whenever the selection or expand state changes, so a
+  // newly opened card always starts at the top of its notes.
+  useEffect(() => {
+    setNotesScroll(0)
+  }, [selectedId, expanded])
 
   useInput((input, key) => {
     if (input === 'q' || (key.ctrl && input === 'c')) {
@@ -253,6 +275,14 @@ export const App = () => {
       return
     }
 
+    // While expanded with scrollable notes, ↑/↓ scroll the notes viewport
+    // instead of moving between cards. Esc/Enter/Space collapses back out.
+    if (expanded && maxNotesScroll > 0 && (key.upArrow || key.downArrow)) {
+      const dir = key.upArrow ? -1 : 1
+      setNotesScroll(s => Math.min(maxNotesScroll, Math.max(0, s + dir)))
+      return
+    }
+
     if (key.upArrow) {
       const items = groups[locate.column]
       const next = items[Math.max(0, locate.index - 1)]
@@ -263,6 +293,11 @@ export const App = () => {
       const items = groups[locate.column]
       const next = items[Math.min(items.length - 1, locate.index + 1)]
       if (next) setSelectedId(next.id)
+      return
+    }
+
+    if (key.escape && expanded) {
+      setExpanded(false)
       return
     }
 
@@ -302,18 +337,23 @@ export const App = () => {
   const thinktankCount = scan?.unmappedThinktank.length ?? 0
 
   // Cap each column to a visible-card budget so the tallest column (usually
-  // SHIPPED) can't push the browsing view past one screen. Subtract the fixed
-  // chrome and a detail-pane reservation from the terminal height; each column
-  // scrolls a window around its selected card. CHROME_ROWS covers: outer
-  // padding (2) + dashboard (1) + scan (1) + Kanban marginTop (1) + column
-  // border (2) + column header + its margin (2) + DetailPane marginTop (1) +
-  // hint marginTop + hint (2) + the two scroll affordance rows (2). DETAIL_ROWS
-  // reserves room for the collapsed detail pane at its worst case (a card with
-  // full in-flight evidence). Expanding a long-notes card may still scroll —
-  // that drill-in is deliberate; the browsing view always fits.
+  // SHIPPED) can't push the TUI past one screen. Subtract the fixed chrome and a
+  // detail-pane reservation from the terminal height; each column scrolls a
+  // window around its selected card. CHROME_ROWS covers: outer padding (2) +
+  // dashboard (1) + scan (1) + Kanban marginTop (1) + column border (2) + column
+  // header + its margin (2) + DetailPane marginTop (1) + hint marginTop + hint
+  // (2) + the two column scroll affordance rows (2).
+  //
+  // The detail pane reservation depends on expand state: collapsed it's a card
+  // with full in-flight evidence; expanded it adds the fixed notes viewport plus
+  // its scroll affordances. Reserving the expanded budget shrinks the columns
+  // while a card is open (you're reading the pane anyway) so the whole TUI —
+  // including the scrolling notes viewport — always fits on one screen.
   const CHROME_ROWS = 14
-  const DETAIL_ROWS = 13
-  const visibleCards = Math.max(3, termHeight - CHROME_ROWS - DETAIL_ROWS)
+  const COLLAPSED_DETAIL_ROWS = 13
+  const EXPANDED_DETAIL_ROWS = 26
+  const detailRows = expanded ? EXPANDED_DETAIL_ROWS : COLLAPSED_DETAIL_ROWS
+  const visibleCards = Math.max(3, termHeight - CHROME_ROWS - detailRows)
 
   return (
     <Box flexDirection="column" padding={1} width={termWidth}>
@@ -357,13 +397,25 @@ export const App = () => {
         />
       </Box>
       <Box marginTop={1}>
-        <DetailPane feature={selected} all={load.features} expanded={expanded} scan={scan} />
+        <DetailPane
+          feature={selected}
+          all={load.features}
+          expanded={expanded}
+          scan={scan}
+          noteLines={noteLines}
+          notesScroll={clampedNotesScroll}
+          noteViewport={NOTE_VIEWPORT}
+        />
       </Box>
 
       <ModeOverlay mode={mode} selected={selected} />
 
       <Box marginTop={1}>
-        <Text dimColor>[←→] column [↑↓] card [enter] expand [m] move [r] reload [q] quit</Text>
+        {expanded && maxNotesScroll > 0 ? (
+          <Text dimColor>[↑↓] scroll notes [esc] collapse [m] move [r] reload [q] quit</Text>
+        ) : (
+          <Text dimColor>[←→] column [↑↓] card [enter] expand [m] move [r] reload [q] quit</Text>
+        )}
       </Box>
     </Box>
   )

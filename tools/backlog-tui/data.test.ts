@@ -1,4 +1,4 @@
-import { setStatusInYamlText, windowStart } from './data.js'
+import { setStatusInYamlText, windowStart, wrapText } from './data.js'
 import { describe, expect, it } from 'vitest'
 
 const SAMPLE = `# header comment
@@ -128,5 +128,47 @@ describe('windowStart', () => {
       expect(sel).toBeGreaterThanOrEqual(start)
       expect(sel).toBeLessThan(start + visible)
     }
+  })
+})
+
+describe('wrapText', () => {
+  it('keeps short text on a single line', () => {
+    expect(wrapText('hello world', 40)).toEqual(['hello world'])
+  })
+
+  it('wraps on word boundaries without exceeding the width', () => {
+    const lines = wrapText('the quick brown fox jumps', 10)
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(10)
+    // No word is split when it fits on its own.
+    expect(lines.join(' ')).toBe('the quick brown fox jumps')
+  })
+
+  it('preserves explicit newlines as line breaks', () => {
+    expect(wrapText('line one\nline two', 40)).toEqual(['line one', 'line two'])
+  })
+
+  it('keeps blank lines from double newlines', () => {
+    expect(wrapText('a\n\nb', 40)).toEqual(['a', '', 'b'])
+  })
+
+  it('hard-breaks a single word longer than the width', () => {
+    const lines = wrapText('a'.repeat(25), 10)
+    expect(lines).toEqual(['aaaaaaaaaa', 'aaaaaaaaaa', 'aaaaa'])
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(10)
+  })
+
+  it('wraps a long single-line note so it becomes scrollable (no embedded newlines)', () => {
+    // The real backlog has single-line notes up to ~629 chars. Without wrapping
+    // these are one indivisible Text and cannot scroll. wrapText must split them.
+    const note = Array.from({ length: 100 }, (_, i) => `word${i}`).join(' ')
+    const lines = wrapText(note, 30)
+    expect(lines.length).toBeGreaterThan(1)
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(30)
+    // Round-trips: rejoining the wrapped lines reproduces the words in order.
+    expect(lines.join(' ').split(/ +/)).toEqual(note.split(' '))
+  })
+
+  it('returns a single blank line for empty text', () => {
+    expect(wrapText('', 40)).toEqual([''])
   })
 })

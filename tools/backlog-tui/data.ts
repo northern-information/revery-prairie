@@ -172,3 +172,41 @@ export const depSummary = (feature: Feature, all: Feature[]): { id: string; stat
     status: byId.get(id)?.status ?? 'todo',
   }))
 }
+
+// Greedy word-wrap `text` into visual lines no wider than `width` columns.
+// Mirrors how Ink soft-wraps a <Text>, so windowing the result lets us scroll a
+// long notes block by hand (Ink core has no scroll offset — it only clips).
+// Explicit newlines in the source start a new line; words longer than `width`
+// are hard-broken so a single long token can't blow past the column.
+export const wrapText = (text: string, width: number): string[] => {
+  if (width < 1) return text.length > 0 ? [text] : []
+  const lines: string[] = []
+  for (const paragraph of text.split('\n')) {
+    if (paragraph.length === 0) {
+      lines.push('')
+      continue
+    }
+    let current = ''
+    for (const word of paragraph.split(/ +/)) {
+      // Hard-break a word that can't fit on its own line.
+      let remaining = word
+      while (remaining.length > width) {
+        if (current.length > 0) {
+          lines.push(current)
+          current = ''
+        }
+        lines.push(remaining.slice(0, width))
+        remaining = remaining.slice(width)
+      }
+      const candidate = current.length === 0 ? remaining : `${current} ${remaining}`
+      if (candidate.length > width) {
+        lines.push(current)
+        current = remaining
+      } else {
+        current = candidate
+      }
+    }
+    lines.push(current)
+  }
+  return lines
+}

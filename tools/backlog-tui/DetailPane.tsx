@@ -10,6 +10,12 @@ interface DetailPaneProps {
   all: Feature[]
   expanded: boolean
   scan: InFlightScan | null
+  // Notes pre-wrapped to visual lines by the parent (empty unless expanded).
+  noteLines: string[]
+  // Index of the first note line to render — the scroll offset, pre-clamped.
+  notesScroll: number
+  // Number of note lines visible in the fixed-height viewport at once.
+  noteViewport: number
 }
 
 const STATUS_COLOR = {
@@ -18,7 +24,7 @@ const STATUS_COLOR = {
   shipped: 'green',
 } as const
 
-export const DetailPane = ({ feature, all, expanded, scan }: DetailPaneProps) => {
+export const DetailPane = ({ feature, all, expanded, scan, noteLines, notesScroll, noteViewport }: DetailPaneProps) => {
   if (!feature) {
     return (
       <Box borderStyle="round" borderColor="gray" paddingX={1}>
@@ -84,10 +90,16 @@ export const DetailPane = ({ feature, all, expanded, scan }: DetailPaneProps) =>
           ))}
         </Box>
       ) : null}
-      {expanded && feature.notes ? (
+      {expanded && noteLines.length > 0 ? (
         <Box marginTop={1} flexDirection="column">
           <Text dimColor>notes:</Text>
-          <Text>{feature.notes}</Text>
+          {notesScroll > 0 ? <Text dimColor>{`↑ ${notesScroll} more`}</Text> : null}
+          {noteLines.slice(notesScroll, notesScroll + noteViewport).map((line, i) => (
+            <Text key={notesScroll + i}>{line === '' ? ' ' : line}</Text>
+          ))}
+          {notesScroll + noteViewport < noteLines.length ? (
+            <Text dimColor>{`↓ ${noteLines.length - notesScroll - noteViewport} more`}</Text>
+          ) : null}
         </Box>
       ) : null}
     </Box>
