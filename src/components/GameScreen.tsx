@@ -9,6 +9,7 @@ import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
 import { ItemInfo } from './ItemInfo'
 import { ManualPanel } from './ManualPanel'
+import { MapPanel } from './MapPanel'
 import { Menu } from './Menu'
 import { MeteoritePickupPrompt } from './MeteoritePickupPrompt'
 import { Minimap } from './Minimap'
@@ -166,7 +167,17 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           )
         })()}
       <ReverySummary revery={state.revery} state={state} />
-      {activeScreen && activeScreen !== 'scan-result' && (
+      {/* RP-70 — the map mounts full-screen (not inside the 500px shell),
+          following the scan-result / time-lapse precedent. */}
+      {activeScreen === 'map' && (
+        <MapPanel
+          state={state}
+          onDismiss={() => {
+            setActiveScreen(null)
+          }}
+        />
+      )}
+      {activeScreen && activeScreen !== 'scan-result' && activeScreen !== 'map' && (
         <PermacomputerShell
           state={state}
           activeScreen={activeScreen}

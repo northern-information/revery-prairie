@@ -35,6 +35,8 @@ The `state.playerSpawn` field and the `PlayerSpawn` interface are removed entire
 ## Placed meteorites (RP-18)
 
 - **`placedMeteorites: Position[]`** — multi-spawner, single lifecycle. `PlaceableSpec.place` in `src/engine/placeable.ts` appends an entry when a meteorite is placed (RP-59 — left-click on the cursor tile while in hand). `pickUpFacingOrStandingPlacedMeteorite` in `src/engine/interaction.ts` splices an entry out when the player taps F on or while facing a placed meteorite tile. All other readers are read-only (the `stoneCircles` render pass, the egregore spread containment filter, the manual unlock check).
+- **`placedMarkers: PlacedMarker[]`** (RP-70) — single-owner write pair. The `geodeticMarker` `PlaceableSpec.place` in `src/engine/placeable.ts` appends a `{ uid, x, y, zone, label }` entry (label = lowest free `GM-N` in 1..10 via `nextFreeMarkerLabel`); `tryPlacedMarkerInteraction` in `src/engine/interaction.ts` splices it out on pickup, freeing the label. Read-only readers: the `MapPanel` render of the map tab. The matching `placedMarker`-tagged ECS entity is the world render hook; `state.placedMarkers` is the serializable source of truth.
+- **`onMapAcquired: (() => void) | null`** (RP-70) — engine→React callback field, mirrors `onPlayerMoved`. Fired once from the `pickUpGroundItems` map intercept (`src/engine/entities.ts`) when the steward picks up the cellar map key item; wired by `GameCanvas` to `setActiveScreen('map')`. Excluded from serialization (`FUNCTION_FIELDS`).
 
 ## Named regions + chronicle (RP-22)
 

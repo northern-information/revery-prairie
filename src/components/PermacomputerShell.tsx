@@ -8,6 +8,10 @@ type TabScreen = NonNullable<PermacomputerScreen>
 
 const SCREEN_TABS: { screen: TabScreen; label: string; isVisible: (state: GameState) => boolean }[] = [
   { screen: 'manual', label: 'MANUAL', isVisible: () => true },
+  // RP-70 — the inherited prairie map. Appears once the steward has
+  // found the map in the Knot cellar (a one-way gate, append-only like
+  // COYOTE). Sits right after MANUAL as the second reference surface.
+  { screen: 'map', label: 'MAP', isVisible: state => state.manualDiscoveries.has('item:map') },
   { screen: 'divination', label: 'DIVINATION', isVisible: state => canCast(state) },
   {
     screen: 'coyote',

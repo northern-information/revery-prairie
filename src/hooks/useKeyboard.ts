@@ -13,6 +13,7 @@ import {
   openLockedGateDialog,
   pickUpFacingOrStandingPlacedMeteorite,
   tryPlacedCameraInteraction,
+  tryPlacedMarkerInteraction,
   unlockRuinDoor,
   updateFacingEntity,
 } from '@/engine/interaction'
@@ -27,6 +28,7 @@ import type { GameState } from '@/engine/types'
 export type PermacomputerScreen =
   | 'system'
   | 'manual'
+  | 'map'
   | 'divination'
   | 'coyote'
   | 'album'
@@ -170,6 +172,14 @@ export const useKeyboard = ({ state, refreshUI, itemInfoRef, isDraggingRef }: Us
           // up). Routes through tryPlacedCameraInteraction.
           const cameraResult = tryPlacedCameraInteraction(state)
           if (cameraResult !== 'none') {
+            refreshUI()
+            return
+          }
+          // RP-70 — adjacent Geodetic Marker picks back up into the
+          // backpack, freeing its GM-N label. Runs alongside the camera
+          // branch; both are placed-artifact recoveries.
+          const markerResult = tryPlacedMarkerInteraction(state, performance.now())
+          if (markerResult !== 'none') {
             refreshUI()
             return
           }

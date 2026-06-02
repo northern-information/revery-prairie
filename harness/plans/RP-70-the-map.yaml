@@ -1,0 +1,330 @@
+plan:
+  id: RP-70-the-map
+  title: >
+    RP-70 — The Map: a read-only permacomputer MAP tab (key item, not
+    inventory; not fog-gated; no clock pause) plus item-shaped marking via
+    10 Geodetic Markers (7 cellar + 1 inside each of 3 ruins). Adds a
+    PlacedMarker type + state.placedMarkers, a geodeticMarker item and
+    PlaceableSpec, marker retrieval, an onMapAcquired callback that
+    auto-opens the tab, a HOT_PINK shared constant, and a canvas MapPanel.
+    Amends permacomputer-tab-visibility for the new tab and order.
+  created: 2026-06-02
+  # Cross-cutting. Mutates GameState shape (adds placedMarkers), touches the
+  # engine (items, placeable, interaction, genesis seeding, callbacks),
+  # serialization schema, and the React UI (permacomputer tab + new panel).
+  # Full suite required.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: doctrine-status-update
+    title: >
+      Set spec and plan paths and status under the RP-70 entry in
+      docs/backlog.yaml (spec: harness/specs/RP-70-the-map.yaml, plan:
+      harness/plans/RP-70-the-map.yaml, status: in_progress). Add a notes
+      paragraph recording the locked reframe: the map is a read-only
+      permacomputer tab and key item (not an inventory item, no in-hand
+      consult), unlocked by a manualDiscoveries item:map flag on cellar
+      pickup with auto-open; it is NOT fog-gated (fixed inherited chart of
+      house/cave/Whine/3 ruins/water) and does NOT pause the prairie clock
+      (pausesPlayerTime overridden); marking is item-shaped via 10 Geodetic
+      Markers split 7 cellar + 3 ruins; no mapAnnotations table. Note that
+      RP-71's render-path widening still applies. Update docs/claude/state.md
+      (placedMarkers ownership) and docs/claude/entities.md (Geodetic Marker
+      place/retrieve, GM-N labeling).
+    spec_id: RP-70
+    spec_sections: []
+    context_files:
+      - docs/backlog.yaml
+      - docs/claude/state.md
+      - docs/claude/entities.md
+    output_files:
+      - docs/backlog.yaml
+      - docs/claude/state.md
+      - docs/claude/entities.md
+    depends_on: []
+    verification: []
+    repair: skip
+    tags: [docs]
+
+  - id: state-field
+    title: >
+      Add the PlacedMarker interface to types.ts ({ uid: ItemUid; x: number;
+      y: number; zone: Zone; label: string }). Add placedMarkers:
+      PlacedMarker[] to GameState near placedCameras. Initialize
+      placedMarkers: [] in createGameState. Register 'placedMarkers' in
+      EXPECTED_FIELDS in the serialization schema test.
+    spec_id: RP-70
+    spec_sections: [geodetic-marker-placement]
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on: [doctrine-status-update]
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/schema.test.ts
+    repair: retry
+    tags: [engine, state]
+
+  - id: hot-pink-constant
+    title: >
+      Add `export const HOT_PINK = '#ff69b4'` to src/engine/constants.ts with
+      a comment noting it is the reserved user-action color (per CLAUDE.md).
+      Do not change Minimap.tsx (it keeps its inlined literals — Minimap is
+      out of scope and must remain byte-unchanged).
+    spec_id: RP-70
+    spec_sections: [map-tab-composition]
+    context_files:
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/constants.ts
+    depends_on: [doctrine-status-update]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, constants]
+
+  - id: geodetic-marker-item
+    title: >
+      Add a geodeticMarker entry to ITEMS in src/engine/items.ts (name:
+      'Geodetic Marker', a glyph, glyphColor HOT_PINK, an appropriate
+      category). Stackable like other countable items. Do NOT add a `map`
+      item — the map is not an inventory item.
+    spec_id: RP-70
+    spec_sections: [geodetic-marker-placement]
+    context_files:
+      - src/engine/items.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/items.ts
+    depends_on: [hot-pink-constant]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, items]
+
+  - id: marker-placeable
+    title: >
+      Register a geodeticMarker PlaceableSpec in src/engine/placeable.ts (verb
+      'lay'), mirroring the camera entry. canPlace: in-bounds, walkable,
+      unoccupied, not the player tile (reuse the camera occupancy check
+      shape). place: derive the lowest free GM-N label in 1..10 by scanning
+      state.placedMarkers labels, push PlacedMarker {uid, x, y,
+      zone: state.currentZone, label}, create an ECS entity tagged
+      'placedMarker' with Position + EntityZone + ItemDrop
+      {definitionId:'geodeticMarker'}, removeItem the placed instance,
+      advanceInHand(state, 'geodeticMarker', uid). Add a small pure helper
+      nextFreeMarkerLabel(state) for the label derivation so it can be unit
+      tested.
+    spec_id: RP-70
+    spec_sections: [geodetic-marker-placement, all-markers-placed-no-op, marker-label-reuse-after-pickup]
+    context_files:
+      - src/engine/placeable.ts
+      - src/engine/types.ts
+      - src/engine/inHand.ts
+      - src/engine/inventory.ts
+      - src/engine/zone.ts
+    output_files:
+      - src/engine/placeable.ts
+    depends_on: [state-field, geodetic-marker-item]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, placeable]
+
+  - id: marker-retrieval
+    title: >
+      Extend the placed-entity pickup path in src/engine/interaction.ts so a
+      placed Geodetic Marker is recoverable like a placed camera (facing +
+      interact). On pickup remove the matching state.placedMarkers entry and
+      its 'placedMarker' ECS entity, return a geodeticMarker instance to the
+      backpack preserving the original uid, freeing the GM-N label. Proximity
+      walk-over pickup must continue to ignore 'placedMarker' (it filters on
+      'groundItem').
+    spec_id: RP-70
+    spec_sections: [geodetic-marker-retrieval]
+    context_files:
+      - src/engine/interaction.ts
+      - src/engine/placeable.ts
+      - src/engine/types.ts
+      - src/engine/inventory.ts
+    output_files:
+      - src/engine/interaction.ts
+    depends_on: [marker-placeable]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, interaction]
+
+  - id: genesis-seeding
+    title: >
+      Seed acquisition at genesis. Cellar (src/engine/house.ts and/or
+      src/engine/state.ts cellar genesis): place the discoverable map and a
+      stack of 7 geodeticMarker instances following the existing cellar
+      content pattern. The map pickup records recordDiscovery(state,
+      'item:map'), fires spawnPickupBloom, triggers the onMapAcquired
+      callback, and does NOT enter the backpack. Ruins (src/engine/ruins.ts
+      genesis): place one geodeticMarker groundItem ECS entity just inside
+      each of the three ruins at ruinInteriors[i].entranceInterior with
+      EntityZone set to that ruin's zone. Total markers = 7 + 3 = 10. Ruin
+      markers are seeded once and persist; pickup is permanent; re-entry does
+      not re-seed.
+    spec_id: RP-70
+    spec_sections: [cellar-map-acquisition, geodetic-marker-genesis-seeding, ruin-marker-not-duplicated-on-reentry]
+    context_files:
+      - src/engine/state.ts
+      - src/engine/house.ts
+      - src/engine/ruins.ts
+      - src/engine/items.ts
+      - src/engine/manual.ts
+      - src/engine/effects.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/state.ts
+      - src/engine/house.ts
+      - src/engine/ruins.ts
+    depends_on: [marker-retrieval]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, genesis]
+
+  - id: auto-open-callback
+    title: >
+      Add onMapAcquired?: () => void to GameLoopCallbacks in
+      src/engine/systems/types.ts. Fire it from the cellar map-pickup site
+      (same pattern as onScanComplete). Thread the callback through to the
+      React layer and wire it to setActiveScreen('map') in the same place
+      onScanComplete is wired (GameCanvas.tsx → GameScreen.tsx /
+      useKeyboard.ts). If the pickup site cannot reach callbacks directly,
+      thread it the way onScanComplete reaches commitScan.
+    spec_id: RP-70
+    spec_sections: [cellar-map-acquisition]
+    context_files:
+      - src/engine/systems/types.ts
+      - src/engine/gameLoop.ts
+      - src/components/GameCanvas.tsx
+      - src/components/GameScreen.tsx
+      - src/hooks/useKeyboard.ts
+    output_files:
+      - src/engine/systems/types.ts
+      - src/components/GameCanvas.tsx
+      - src/components/GameScreen.tsx
+    depends_on: [genesis-seeding]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, integration]
+
+  - id: map-tab-wiring
+    title: >
+      Add 'map' to the PermacomputerScreen union in src/hooks/useKeyboard.ts.
+      Add a SCREEN_TABS entry { screen: 'map', label: 'MAP', isVisible: state
+      => state.manualDiscoveries.has('item:map') } in PermacomputerShell.tsx,
+      positioned immediately after MANUAL so canonical order is MANUAL, MAP,
+      DIVINATION, COYOTE, ALBUM, SYS. Render {activeScreen === 'map' &&
+      <MapPanel state={state} />} inside PermacomputerShell.children in
+      GameScreen.tsx.
+    spec_id: RP-70
+    spec_sections: [map-tab-gated-by-discovery]
+    context_files:
+      - src/components/PermacomputerShell.tsx
+      - src/hooks/useKeyboard.ts
+      - src/components/GameScreen.tsx
+      - src/components/MapPanel.tsx
+    output_files:
+      - src/components/PermacomputerShell.tsx
+      - src/hooks/useKeyboard.ts
+      - src/components/GameScreen.tsx
+    depends_on: [auto-open-callback]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component, integration]
+
+  - id: map-panel-render
+    title: >
+      Implement src/components/MapPanel.tsx — a read-only ASCII chart on its
+      own canvas, reusing minimapProjection primitives (computeIsoLayout,
+      projectIso, drawIsoTile) at a reduced pitch (larger than Minimap, no
+      fog tinting, no drawTileLayer reuse). Draw order: sparse base → water
+      (state.ponds + state.rivers) → landmark glyphs (house, cave, Whine, the
+      3 ruins with names) → named-region labels (state.namedRegions) → placed
+      cameras (state.placedCameras) and meteorites (state.placedMeteorites) →
+      Geodetic Markers (state.placedMarkers) in HOT_PINK with GM-N labels. No
+      click-to-annotate; closes with the permacomputer (Esc / tab switch),
+      no close gear, no focus ring. Markers render at their stored x,y
+      regardless of zone (all-markers-projected).
+    spec_id: RP-70
+    spec_sections: [map-tab-composition, non-overworld-marker-on-map, minimap-untouched]
+    context_files:
+      - src/components/MapPanel.tsx
+      - src/components/Minimap.tsx
+      - src/components/minimapProjection.ts
+      - src/engine/types.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/components/MapPanel.tsx
+    depends_on: [map-tab-wiring]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [component, render]
+
+  - id: amend-tab-visibility-spec
+    title: >
+      Amend harness/specs/permacomputer-tab-visibility.yaml to include the
+      MAP tab: add it to the canonical order (MANUAL, MAP, DIVINATION,
+      COYOTE, ALBUM, SYS) in the tab-gating behavior text and note its
+      one-way gate (state.manualDiscoveries item:map, append-only like
+      COYOTE). Add RP-70 to its dependencies. Run npm run spec:validate to
+      confirm it stays clean.
+    spec_id: RP-70
+    spec_sections: [map-tab-gated-by-discovery]
+    context_files:
+      - harness/specs/permacomputer-tab-visibility.yaml
+      - harness/specs/RP-70-the-map.yaml
+    output_files:
+      - harness/specs/permacomputer-tab-visibility.yaml
+    depends_on: [map-tab-wiring]
+    verification:
+      - npm run spec:validate
+    repair: retry
+    tags: [harness, spec]
+
+  - id: tests
+    title: >
+      Fill in src/engine/__tests__/RP-70-the-map.test.ts (replace the it.todo
+      stubs). Cover: tab gate flips false→true on item:map; cellar map
+      acquisition records item:map and does NOT add a backpack item; genesis
+      seeds exactly 7 cellar + 3 ruin markers (10 total, each ruin marker
+      zone-tagged); nextFreeMarkerLabel returns lowest free GM-N and reuses a
+      freed index after pickup; placement pushes PlacedMarker + advances
+      in-hand + removes the instance; retrieval frees the label and preserves
+      uid; placement on an illegal tile is a no-op; placedMarkers survives a
+      serialization round-trip. Mock Math.random with vi.spyOn + a finally
+      vi.restoreAllMocks(); use clearAroundPlayer() for terrain prep; reset
+      relevant entity arrays before count asserts (testing doctrine).
+    spec_id: RP-70
+    spec_sections: [geodetic-marker-placement, geodetic-marker-retrieval, geodetic-marker-genesis-seeding, cellar-map-acquisition, map-tab-gated-by-discovery, all-markers-placed-no-op, marker-label-reuse-after-pickup]
+    context_files:
+      - src/engine/__tests__/RP-70-the-map.test.ts
+      - src/engine/placeable.ts
+      - src/engine/interaction.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/__tests__/RP-70-the-map.test.ts
+    depends_on: [map-panel-render, amend-tab-visibility-spec]
+    verification:
+      - npx vitest run src/engine/__tests__/RP-70-the-map.test.ts
+    repair: retry
+    tags: [engine, test]

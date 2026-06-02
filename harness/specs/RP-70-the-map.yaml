@@ -1,0 +1,211 @@
+id: RP-70
+name: 'The Map (permacomputer tab) and Geodetic Markers'
+priority: medium
+layer: integration
+source_files:
+  - src/engine/items.ts
+  - src/engine/placeable.ts
+  - src/engine/interaction.ts
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/constants.ts
+  - src/engine/systems/types.ts
+  - src/components/PermacomputerShell.tsx
+  - src/components/MapPanel.tsx
+  - src/components/GameScreen.tsx
+  - src/hooks/useKeyboard.ts
+dependencies: ['RP-22-named-regions-chronicle', 'RP-59-in-hand-place']
+
+# RP-70 reframes the backlog's "held item consulted via RP-59" into a
+# permacomputer tab. The map is a key item (not an inventory item), the
+# consult surface is read-only, the prairie clock is NOT paused (the
+# backlog's pausesPlayerTime is overridden), and the map is NOT
+# fog-gated — it is a fixed inherited chart. Marking is item-shaped via
+# Geodetic Markers. No fog/sketch/marked tier vocabulary appears here.
+
+behaviors:
+  - id: map-tab-gated-by-discovery
+    description: >
+      The permacomputer MAP tab is hidden until the steward has
+      acquired the map. PermacomputerShell SCREEN_TABS includes an
+      entry { screen: 'map', label: 'MAP' } whose isVisible(state)
+      returns state.manualDiscoveries.has('item:map'). Before
+      acquisition the tab is absent from the rendered tab bar; after
+      acquisition it is present and selectable. Mirrors the COYOTE tab
+      gate on 'event:rescue-coyote'. Canonical tab order becomes
+      MANUAL, MAP, DIVINATION, COYOTE, ALBUM, SYS — MAP sits
+      immediately after MANUAL. The permacomputer-tab-visibility spec
+      is amended in the same change to reflect this order and gate.
+    inputs:
+      - 'GameState with manualDiscoveries not containing item:map'
+      - 'GameState with manualDiscoveries containing item:map'
+    outputs:
+      - 'boolean from isVisible: false before acquisition, true after'
+    state_changes: []
+    determinism: deterministic
+
+  - id: cellar-map-acquisition
+    description: >
+      The Knot cellar contains a discoverable map. Acquiring it records
+      recordDiscovery(state, 'item:map') (unlocking the MAP tab) and
+      spawnPickupBloom at the acquisition tile. The map does NOT enter
+      state.backpack — it occupies no inventory slot. The pickup is
+      intercepted in pickUpGroundItems before the backpack-fit path.
+      Acquisition also triggers the permacomputer to auto-open to the MAP
+      tab via the state.onMapAcquired callback field (an engine-level
+      hook mirroring state.onPlayerMoved; the React layer wires it to
+      setActiveScreen('map')). Acquiring it a second time is impossible
+      (the cellar entity is destroyed on first pickup).
+    inputs:
+      - 'GameState where the steward acquires the cellar map'
+    outputs:
+      - 'recordDiscovery returns true on first acquisition'
+    state_changes:
+      - field: manualDiscoveries
+        effect: "'item:map' added"
+      - field: backpack
+        effect: 'unchanged — the map is not added as an inventory item'
+      - field: onMapAcquired
+        effect: 'callback invoked once, wired by the React layer to setActiveScreen(map)'
+    determinism: deterministic
+
+  - id: geodetic-marker-genesis-seeding
+    description: >
+      Genesis seeds exactly 10 geodeticMarker items as groundItem ECS
+      entities. 7 are placed in the Knot cellar (EntityZone
+      Zone.KnotCellar). The remaining 3 are placed one each just inside
+      the bee, clover, and coyote ruins — the three role-ruins among the
+      5 Starter ruins — on a walkable interior tile nearest the entrance
+      (never on the entrance tile itself, which the steward spawns on),
+      with EntityZone {zone: Zone.Ruin, ruinIndex}. The wildflower and
+      tallGrass ruins get no marker. 7 + 3 = 10, keeping the GM-1..GM-10
+      label space intact. Markers are seeded once at genesis and persist
+      through serialization; picking one up removes it permanently and
+      re-entering a ruin does not re-seed.
+    inputs:
+      - 'GameState immediately after createGameState (genesis complete)'
+    outputs:
+      - 'total geodeticMarker count across cellar and ruin interiors equals 10'
+      - 'exactly 3 ruin-zoned markers, in the bee, clover, and coyote ruins'
+    state_changes:
+      - field: world
+        effect: 'one groundItem ItemDrop geodeticMarker entity per cellar slot (7) and one inside each of the bee/clover/coyote ruins (3), each EntityZone-tagged'
+    determinism: deterministic
+
+  - id: geodetic-marker-placement
+    description: >
+      A geodeticMarker held in hand (RP-59) is placed on left-click via
+      a geodeticMarker PlaceableSpec (verb 'lay') mirroring the camera.
+      Placement pushes a PlacedMarker {uid, x, y, zone, label} to
+      state.placedMarkers, creates an ECS entity tagged 'placedMarker'
+      with Position + EntityZone + ItemDrop {definitionId:
+      'geodeticMarker'} as the render hook, removes the placed instance
+      from the backpack, and calls advanceInHand to keep the next
+      marker in hand. The label is GM-N where N is the lowest free
+      index in 1..10 across current state.placedMarkers — picking a
+      marker up frees its number for reuse. The placed instance's uid
+      is preserved on the PlacedMarker.
+    inputs:
+      - 'GameState with a geodeticMarker in hand and the cursor over a walkable, unoccupied, in-bounds tile that is not the player tile'
+    outputs:
+      - 'void; state.placedMarkers gains one entry'
+    state_changes:
+      - field: placedMarkers
+        effect: 'one PlacedMarker appended with the held uid, cursor x/y, current zone, and the lowest free GM-N label'
+      - field: world
+        effect: "one ECS entity tagged 'placedMarker' created at the cursor tile with the geodeticMarker ItemDrop render hook"
+      - field: backpack
+        effect: 'the placed geodeticMarker instance removed'
+      - field: equippedItemUid
+        effect: 'advanced to the next backpack geodeticMarker, or cleared when the stack is exhausted'
+    determinism: deterministic
+
+  - id: geodetic-marker-retrieval
+    description: >
+      A placed Geodetic Marker is recoverable like a placed camera —
+      facing it and interacting picks it back up. Retrieval removes the
+      matching state.placedMarkers entry and its 'placedMarker' ECS
+      entity, returns a geodeticMarker instance to the backpack with
+      the original uid preserved, and frees the GM-N label for reuse by
+      the next placement.
+    inputs:
+      - 'GameState with the player facing a placed Geodetic Marker and interacting'
+    outputs:
+      - 'the marker returned to the backpack; its map mark removed'
+    state_changes:
+      - field: placedMarkers
+        effect: 'the matching PlacedMarker entry removed, freeing its GM-N label'
+      - field: world
+        effect: "the corresponding 'placedMarker' ECS entity destroyed"
+      - field: backpack
+        effect: 'a geodeticMarker instance returned with the original uid'
+    determinism: deterministic
+
+  - id: map-tab-composition
+    description: >
+      MapPanel mounts full-screen (via ModalShell — a z-30 portal over the
+      whole viewport, not inside the 500px permacomputer shell) following
+      the ScanResultModal / TimeLapsePlayback precedent; Escape or a
+      backdrop click closes it back to the game. It renders a sparse ASCII
+      chart on a canvas sized to the full viewport (maximized over
+      everything, including the bottom bar), fitting the iso diamond to the
+      viewport via a local layout helper plus projectIso/drawIsoTile. It
+      always draws, regardless of fog: the dirt landmass (every non-Space
+      overworld tile filled in a dirt color, with a lighter coastline rim
+      at tiles 4-adjacent to the Space void or map edge), bodies of water
+      (state.ponds and state.rivers) layered over the dirt, and one icon
+      glyph per named element — the little house
+      (state.houseEntranceOverworld), the cave
+      (state.caveEntranceOverworld), Whine (state.whineEntranceOverworld),
+      every ruin (state.ruinInteriors[].entranceOverworld), each named
+      region (state.namedRegions, a faint ring at the anchor), placed
+      cameras (state.placedCameras), placed meteorites
+      (state.placedMeteorites), and Geodetic Markers (state.placedMarkers,
+      hot pink via the shared HOT_PINK constant). Place names are NOT drawn
+      on the map — each icon reveals its name on hover via a DOM tooltip,
+      resolved by the pure findHoveredIcon lookup against hit-targets
+      captured during the draw pass. The canvas is never redrawn on
+      mousemove; hover state lives in React/DOM. The panel is read-only —
+      no click-to-annotate. The prairie clock is NOT paused while the map
+      is open.
+    inputs:
+      - 'GameState with the MAP tab open (activeScreen === map)'
+    outputs:
+      - 'a full-screen canvas chart drawing the dirt landmass, water, and one icon per landmark/region/camera/meteorite/marker, with names revealed on hover'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: all-markers-placed-no-op
+    description: 'All 10 Geodetic Markers are already placed in the world, so none remain in the backpack and none can be held in hand'
+    expected: 'placement cannot be initiated (nothing in hand to place); the 10-marker cap is enforced purely by physical scarcity with no error and no message'
+  - id: marker-label-reuse-after-pickup
+    description: 'GM-3 is placed (leaving 1,2 used and 4..N free), then picked back up, then a new marker is placed'
+    expected: 'the freed index 3 is the lowest free index and is reused — the new placement is labeled GM-3'
+  - id: non-overworld-marker-on-map
+    description: 'A Geodetic Marker is placed inside a ruin or the cave (non-overworld zone)'
+    expected: 'the marker is recorded in state.placedMarkers with its zone and is drawn on the map tab projected at its stored x,y tile coordinates (per the all-markers-projected decision); interior coordinates project at face value'
+  - id: ruin-marker-not-duplicated-on-reentry
+    description: 'The player enters a ruin, leaves without taking its seeded marker, then re-enters'
+    expected: 'the ruin marker is the same single genesis-seeded entity — re-entry does not create a second marker'
+  - id: map-tab-clock-not-paused
+    description: 'The MAP tab is open for a span of real time covering a weather tick'
+    expected: 'state.seasonalPhase advances normally while the tab is open — the map does not freeze the prairie clock'
+  - id: minimap-untouched
+    description: 'The MAP tab and Minimap coexist'
+    expected: 'src/components/Minimap.tsx is unchanged — the passive HUD minimap remains the separate god-eye glance'
+
+failure_conditions:
+  - trigger: 'A geodeticMarker placement is attempted on a non-walkable, out-of-bounds, occupied, or player-occupied tile'
+    expected: 'canPlace returns false, no PlacedMarker is appended, no ECS entity is created, the marker stays in hand'
+  - trigger: 'manualDiscoveries does not contain item:map'
+    expected: 'the MAP tab isVisible returns false and the tab is absent from the permacomputer tab bar'
+  - trigger: 'The cellar map is acquired'
+    expected: 'the map is not added to state.backpack and consumes no inventory slot'
+  - trigger: 'All 10 markers are placed and the steward attempts another placement'
+    expected: 'no geodeticMarker is in hand, so placement is a no-op — state.placedMarkers length stays at 10'
+
+verification:
+  test_file: src/engine/__tests__/RP-70-the-map.test.ts
+  test_pattern: 'RP-70'
+  command: 'npx vitest run src/engine/__tests__/RP-70-the-map.test.ts -t RP-70'

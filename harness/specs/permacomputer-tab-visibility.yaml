@@ -9,17 +9,20 @@ dependencies:
   - coyote-companion
   - hexagram-casting
   - main-questline-foundation
+  - RP-70
 behaviors:
   - id: tab-gating
     description: >
       the permacomputer shell renders only the tabs whose unlock
       condition is satisfied by the current GameState. MANUAL is
-      always visible. DIVINATION is visible when canCast(state) is
-      true — i.e. the player currently has at least 3 glinting coins
-      in their backpack. COYOTE is visible when
-      state.manualDiscoveries has 'event:rescue-coyote'. tab
-      order is preserved: MANUAL, DIVINATION, COYOTE — hidden tabs
-      are skipped without leaving a gap.
+      always visible. MAP is visible when state.manualDiscoveries has
+      'item:map' (RP-70 — a one-way append-only gate like COYOTE).
+      DIVINATION is visible when canCast(state) is true — i.e. the
+      player currently has at least 3 glinting coins in their backpack.
+      COYOTE is visible when state.manualDiscoveries has
+      'event:rescue-coyote'. tab order is preserved: MANUAL, MAP,
+      DIVINATION, COYOTE, ALBUM, SYS — hidden tabs are skipped without
+      leaving a gap.
     inputs:
       - 'GameState passed to PermacomputerShell as a prop'
     outputs:
