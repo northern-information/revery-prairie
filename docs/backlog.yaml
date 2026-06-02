@@ -946,10 +946,10 @@ features:
       when it shows egregoric activity. Egregoric fauna is that register
       walking around.
     depends_on: ['RP-8b']
-    status: in-progress
+    status: shipped
     spec: harness/specs/RP-25-egregoric-fauna.yaml
     plan: harness/plans/RP-25-egregoric-fauna.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/497
     notes: >
       v4 thinktank round 8 (2026-05-20). The cosmology has bees, ghosts,
       angels, coyote, shooting stars — none egregoric. Tyler's "egregoric
@@ -1640,10 +1640,10 @@ features:
       for chronicle events from `RP-22` — hung Knots carry that year's
       chronicle sentences as a hover or interact surface.
     depends_on: ['RP-33', 'RP-36', 'RP-67']
-    status: in-progress
+    status: shipped
     spec: harness/specs/RP-37-knot-cellar.yaml
     plan: harness/plans/RP-37-knot-cellar.yaml
-    pr: null
+    pr: https://github.com/northern-information/revery-prairie/pull/495
     notes: >
       v6 thinktank round 6 (2026-05-22). The Revery is the prairie
       sleeping; the Knot Cellar is where what survived the harvest
@@ -1847,7 +1847,6 @@ features:
     spec: harness/specs/RP-41-cliffs-verticality.yaml
     plan: harness/plans/RP-41-cliffs-verticality.yaml
     pr: https://github.com/northern-information/revery-prairie/pull/474
-    size: M
     notes: >
       v7 thinktank round 3 (2026-05-23). Flat-prairie prior is a
       cliché, not a biome — Loess Hills, Illinois hill prairies, Ozark
@@ -2605,7 +2604,6 @@ features:
       that mention portrait: `dialog-box-presentation`,
       `trapped-coyote-stays-put`, `dialog-descender-clipping`,
       `angels`, `ruin-locked-door`, `minimap`.
-    size: S
     depends_on: []
     status: shipped
     spec: null
@@ -2644,7 +2642,6 @@ features:
       (things that respond to `[f]` with a line), or whether Gate
       should move to a different system entirely. Not blocking on
       RP-61.
-    size: XS
     depends_on: []
     status: shipped
     spec: harness/specs/RP-63-interactable-speakers.yaml
@@ -2678,7 +2675,6 @@ features:
       `src/engine/genesis/` and `src/engine/characters.ts` and route
       them through the new precondition so nothing important spawns
       inside the unreachable cohort introduced by RP-41.
-    size: S
     depends_on: ['RP-41']
     status: todo
     spec: null
@@ -2721,7 +2717,6 @@ features:
       egregore revokes the route. Frozen waterfalls extend
       `state.reachableMass` for the duration of winter; recompute
       hooks fire at season boundaries.
-    size: L
     depends_on: ['RP-41', 'RP-43']
     status: shipped
     spec: harness/specs/RP-64-waterfalls.yaml
@@ -2776,7 +2771,6 @@ features:
       "cliff x-ray" idea to any lifted tile, not just cliffs. Goal
       is "the steward stays visible at all times" even when walking
       behind a mesa or under a high ridge.
-    size: M
     depends_on: ['RP-41']
     status: shipped
     spec: harness/specs/RP-65-xray-alpha.yaml
@@ -2938,12 +2932,11 @@ features:
       registry (`state.yardMap` →
       `state.thresholdZones: Record<ZoneId, ThresholdZoneState>`),
       subsuming the R8-tracked "Threshold zones substrate" item.
-    size: L
     depends_on: ['RP-67']
-    status: todo
-    spec: null
-    plan: null
-    pr: null
+    status: shipped
+    spec: harness/specs/RP-69-whine-haunted-village.yaml
+    plan: harness/plans/RP-69-whine-haunted-village.yaml
+    pr: https://github.com/northern-information/revery-prairie/pull/494
     notes: >
       v11 thinktank round 9 (2026-05-31). _Whine is the prairie's
       first plural._ The full name "Whine, Haunted Village" lives in
@@ -2984,7 +2977,6 @@ features:
       register as the prairie. The minimap
       (`src/components/Minimap.tsx`) is untouched — it remains the
       passive god's-eye glance.
-    size: M
     depends_on: ['RP-22', 'RP-59']
     status: todo
     spec: null
@@ -3041,7 +3033,6 @@ features:
       count at spec). Egregore-rendered flora and egregore tiles
       refuse the mark — `canMark` returns false and the loaded
       cursor drops the tag glyph.
-    size: S
     depends_on: ['RP-70', 'RP-59', 'RP-3']
     status: todo
     spec: null
@@ -3094,7 +3085,6 @@ features:
       _Awakened Garden of X_ → _The Garden of X_. Opening the gate
       is irreversible per tenure. Replaces the ruin-reroll half of
       `RP-44`.
-    size: L
     depends_on: ['RP-5']
     status: todo
     spec: null
@@ -3144,7 +3134,6 @@ features:
       vault-genome derivation (`stewardName, ruinIndex, vaultSlot` →
       genome) from `RP-11` are preserved; the vault identifiers just
       relocate.
-    size: S
     depends_on: ['RP-72']
     status: todo
     spec: null
