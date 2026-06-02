@@ -445,6 +445,7 @@ export const createGameState = (
     onGenesisComplete: null,
     cameraFilm: new Map(),
     placedCameras: [],
+    placedMarkers: [],
     cameraArchive: new Map(),
     playbackCameraUid: null,
     photographAlbum: [],

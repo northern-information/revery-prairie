@@ -237,6 +237,21 @@ export interface PlacedCamera {
   predecessor?: PredecessorRecord
 }
 
+// RP-70 — a placed Geodetic Marker. The steward drops a marker to claim
+// a location; its world position surfaces on the map permacomputer tab.
+// uid is the geodeticMarker ItemInstance uid, preserved across the
+// place / pickup cycle so re-placement keeps identity. label is GM-N
+// where N is the lowest free index in 1..10 at placement time —
+// retrieval frees the number for reuse. zone records where it was
+// placed; the map projects every marker at its stored x,y.
+export interface PlacedMarker {
+  uid: ItemUid
+  x: number
+  y: number
+  zone: Zone
+  label: string
+}
+
 // RP-24 — discriminated union for where a predecessor's tenure ended.
 // 'bed' means the steward closed out at the little house (RP-33);
 // { kind: 'field', tile } means they collapsed on the overworld at
@@ -788,6 +803,12 @@ export interface GameState {
   // or null when no modal is open.
   cameraFilm: Map<string, number>
   placedCameras: PlacedCamera[]
+  // RP-70 — Geodetic Markers the steward has placed in the world. Read
+  // at consult-time by the map permacomputer tab; single writer is the
+  // geodeticMarker PlaceableSpec (place) and the marker retrieval path
+  // in interaction.ts (pickup). Marks follow no entity lifecycle beyond
+  // their own place/pickup.
+  placedMarkers: PlacedMarker[]
   cameraArchive: Map<string, TimeLapseFrame[]>
   playbackCameraUid: string | null
   // RP-15. Body-wear values in [0, 1] keyed by ItemInstance.uid.

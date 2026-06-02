@@ -163,6 +163,7 @@ const EXPECTED_FIELDS = [
   'heldKeys',
   'cameraFilm',
   'placedCameras',
+  'placedMarkers',
   'cameraArchive',
   'playbackCameraUid',
   'photographAlbum',
