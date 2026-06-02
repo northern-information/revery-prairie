@@ -154,6 +154,17 @@ export const setStatusInYamlText = (raw: string, id: string, newStatus: Status):
 
 const escapeRegex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+// Compute the start index for a scroll window of `visible` cards over a column
+// of `total` cards. The active column centers the window on `selectedIndex` so
+// the cursor stays in view; inactive columns (selectedIndex === null) pin to the
+// top. Clamped so the window never runs past either end of the list.
+export const windowStart = (total: number, visible: number, selectedIndex: number | null): number => {
+  if (total <= visible || selectedIndex === null) return 0
+  const half = Math.floor(visible / 2)
+  const maxStart = total - visible
+  return Math.min(Math.max(0, selectedIndex - half), maxStart)
+}
+
 export const depSummary = (feature: Feature, all: Feature[]): { id: string; status: Status }[] => {
   const byId = new Map(all.map(f => [f.id, f]))
   return feature.depends_on.map(id => ({

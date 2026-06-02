@@ -1,4 +1,4 @@
-import { setStatusInYamlText } from './data.js'
+import { setStatusInYamlText, windowStart } from './data.js'
 import { describe, expect, it } from 'vitest'
 
 const SAMPLE = `# header comment
@@ -91,5 +91,42 @@ describe('setStatusInYamlText', () => {
     const to = setStatusInYamlText(SAMPLE, 'RP-3', 'shipped')
     const back = setStatusInYamlText(to, 'RP-3', 'todo')
     expect(back).toBe(SAMPLE)
+  })
+})
+
+describe('windowStart', () => {
+  it('returns 0 when everything fits', () => {
+    expect(windowStart(5, 10, 4)).toBe(0)
+    expect(windowStart(10, 10, 9)).toBe(0)
+  })
+
+  it('pins inactive columns to the top regardless of overflow', () => {
+    expect(windowStart(100, 5, null)).toBe(0)
+  })
+
+  it('centers the window on the selected card', () => {
+    // visible 5, half = 2, so selecting index 10 starts at 8
+    expect(windowStart(100, 5, 10)).toBe(8)
+  })
+
+  it('clamps at the top so it never goes negative', () => {
+    expect(windowStart(100, 5, 0)).toBe(0)
+    expect(windowStart(100, 5, 1)).toBe(0)
+  })
+
+  it('clamps at the bottom so the window never runs past the end', () => {
+    // total 100, visible 5 → maxStart 95
+    expect(windowStart(100, 5, 99)).toBe(95)
+    expect(windowStart(100, 5, 97)).toBe(95)
+  })
+
+  it('keeps the selected index inside the rendered window throughout a column', () => {
+    const total = 40
+    const visible = 7
+    for (let sel = 0; sel < total; sel++) {
+      const start = windowStart(total, visible, sel)
+      expect(sel).toBeGreaterThanOrEqual(start)
+      expect(sel).toBeLessThan(start + visible)
+    }
   })
 })

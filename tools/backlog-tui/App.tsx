@@ -65,12 +65,14 @@ export const App = () => {
   const [selectedId, setSelectedId] = useState<string | null>(() => pickDefaultId(tryLoad().features))
   const [expanded, setExpanded] = useState(false)
   const [termWidth, setTermWidth] = useState(() => stdout.columns || 120)
+  const [termHeight, setTermHeight] = useState(() => stdout.rows || 40)
   const [mode, setMode] = useState<Mode>({ kind: 'browse' })
   const [scanState, setScanState] = useState<ScanState>({ kind: 'idle' })
 
   useEffect(() => {
     const onResize = () => {
       setTermWidth(stdout.columns || 120)
+      setTermHeight(stdout.rows || 40)
     }
     stdout.on('resize', onResize)
     return () => {
@@ -299,6 +301,20 @@ export const App = () => {
   const staleCount = scan?.stale.length ?? 0
   const thinktankCount = scan?.unmappedThinktank.length ?? 0
 
+  // Cap each column to a visible-card budget so the tallest column (usually
+  // SHIPPED) can't push the browsing view past one screen. Subtract the fixed
+  // chrome and a detail-pane reservation from the terminal height; each column
+  // scrolls a window around its selected card. CHROME_ROWS covers: outer
+  // padding (2) + dashboard (1) + scan (1) + Kanban marginTop (1) + column
+  // border (2) + column header + its margin (2) + DetailPane marginTop (1) +
+  // hint marginTop + hint (2) + the two scroll affordance rows (2). DETAIL_ROWS
+  // reserves room for the collapsed detail pane at its worst case (a card with
+  // full in-flight evidence). Expanding a long-notes card may still scroll —
+  // that drill-in is deliberate; the browsing view always fits.
+  const CHROME_ROWS = 14
+  const DETAIL_ROWS = 13
+  const visibleCards = Math.max(3, termHeight - CHROME_ROWS - DETAIL_ROWS)
+
   return (
     <Box flexDirection="column" padding={1} width={termWidth}>
       <Box>
@@ -336,26 +352,13 @@ export const App = () => {
           selectedColumn={locate?.column ?? 'next'}
           selectedIndex={locate?.index ?? 0}
           termWidth={termWidth}
+          visibleCards={visibleCards}
           scan={scan}
         />
       </Box>
       <Box marginTop={1}>
         <DetailPane feature={selected} all={load.features} expanded={expanded} scan={scan} />
       </Box>
-
-      {scan && scan.stale.length > 0 ? (
-        <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="red" paddingX={1}>
-          <Text color="red" bold>
-            Stale worktrees / branches detected:
-          </Text>
-          {scan.stale.map(id => {
-            const ev = scan.byId.get(id)
-            const sources = ev ? evidenceSummary(ev) : ''
-            return <Text key={id} dimColor>{`  #${id} — ${sources}`}</Text>
-          })}
-          <Text dimColor>Run /git-cleanup to clear them.</Text>
-        </Box>
-      ) : null}
 
       <ModeOverlay mode={mode} selected={selected} />
 
@@ -364,17 +367,6 @@ export const App = () => {
       </Box>
     </Box>
   )
-}
-
-const evidenceSummary = (ev: import('./scan.js').IdEvidence): string => {
-  const parts: string[] = []
-  if (ev.worktrees.length > 0) parts.push(`${ev.worktrees.length} worktree(s)`)
-  if (ev.remoteBranches.length > 0) parts.push(`${ev.remoteBranches.length} remote-branch(es)`)
-  if (ev.openPrs.length > 0) parts.push(`PR ${ev.openPrs.map(n => `#${n}`).join(', ')}`)
-  if (ev.specs.length > 0) parts.push(`${ev.specs.length} spec edit(s)`)
-  if (ev.plans.length > 0) parts.push(`${ev.plans.length} plan edit(s)`)
-  if (ev.yamlFlips.length > 0) parts.push(`${ev.yamlFlips.length} yaml flip(s)`)
-  return parts.join(', ')
 }
 
 interface ModeOverlayProps {
