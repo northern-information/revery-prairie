@@ -154,10 +154,59 @@ export const setStatusInYamlText = (raw: string, id: string, newStatus: Status):
 
 const escapeRegex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+// Compute the start index for a scroll window of `visible` cards over a column
+// of `total` cards. The active column centers the window on `selectedIndex` so
+// the cursor stays in view; inactive columns (selectedIndex === null) pin to the
+// top. Clamped so the window never runs past either end of the list.
+export const windowStart = (total: number, visible: number, selectedIndex: number | null): number => {
+  if (total <= visible || selectedIndex === null) return 0
+  const half = Math.floor(visible / 2)
+  const maxStart = total - visible
+  return Math.min(Math.max(0, selectedIndex - half), maxStart)
+}
+
 export const depSummary = (feature: Feature, all: Feature[]): { id: string; status: Status }[] => {
   const byId = new Map(all.map(f => [f.id, f]))
   return feature.depends_on.map(id => ({
     id,
     status: byId.get(id)?.status ?? 'todo',
   }))
+}
+
+// Greedy word-wrap `text` into visual lines no wider than `width` columns.
+// Mirrors how Ink soft-wraps a <Text>, so windowing the result lets us scroll a
+// long notes block by hand (Ink core has no scroll offset — it only clips).
+// Explicit newlines in the source start a new line; words longer than `width`
+// are hard-broken so a single long token can't blow past the column.
+export const wrapText = (text: string, width: number): string[] => {
+  if (width < 1) return text.length > 0 ? [text] : []
+  const lines: string[] = []
+  for (const paragraph of text.split('\n')) {
+    if (paragraph.length === 0) {
+      lines.push('')
+      continue
+    }
+    let current = ''
+    for (const word of paragraph.split(/ +/)) {
+      // Hard-break a word that can't fit on its own line.
+      let remaining = word
+      while (remaining.length > width) {
+        if (current.length > 0) {
+          lines.push(current)
+          current = ''
+        }
+        lines.push(remaining.slice(0, width))
+        remaining = remaining.slice(width)
+      }
+      const candidate = current.length === 0 ? remaining : `${current} ${remaining}`
+      if (candidate.length > width) {
+        lines.push(current)
+        current = remaining
+      } else {
+        current = candidate
+      }
+    }
+    lines.push(current)
+  }
+  return lines
 }
