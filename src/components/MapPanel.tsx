@@ -1,12 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { ModalShell } from './ModalShell'
-import { computeIsoLayout, projectIso } from './minimapProjection'
+import { projectIso } from './minimapProjection'
 
 import { HOT_PINK } from '@/engine/constants'
 import { TileType } from '@/engine/types'
 import type { IsoLayout } from './minimapProjection'
 import type { GameState, Position, Tile } from '@/engine/types'
+
+// Fit the iso diamond (mapWidth+mapHeight units wide, half that tall) into
+// a width x height rectangle, maximizing the tile pitch against whichever
+// dimension binds, then center it. Unlike the minimap's square-canvas
+// computeIsoLayout, this fills an arbitrary viewport-sized rectangle so the
+// map is as large as possible. projectIso consumes the same IsoLayout.
+const computeFullscreenLayout = (mapWidth: number, mapHeight: number, width: number, height: number): IsoLayout => {
+  if (mapWidth === 0 || mapHeight === 0) return { tilePx: 0, originX: 0, originY: 0 }
+  const widthUnits = mapWidth + mapHeight
+  // Diamond is widthUnits*tilePx wide and half that tall. Bind on whichever
+  // viewport dimension is tighter.
+  const tilePx = Math.min(width / widthUnits, height / (widthUnits / 2))
+  const drawnWidth = widthUnits * tilePx
+  const drawnHeight = drawnWidth / 2
+  const originX = (width - drawnWidth) / 2 + mapHeight * tilePx
+  const originY = (height - drawnHeight) / 2
+  return { tilePx, originX, originY }
+}
 
 // RP-70 — The Map. A read-only, full-screen ASCII chart of the prairie,
 // launched from the permacomputer MAP tab. Unlike Minimap (a live
@@ -73,14 +91,14 @@ const isCoastline = (map: Tile[][], w: number, h: number, x: number, y: number):
   return neighbors.some(n => n.x < 0 || n.x >= w || n.y < 0 || n.y >= h || map[n.y][n.x].type === TileType.Space)
 }
 
-const drawMap = (ctx: CanvasRenderingContext2D, state: GameState, cssSize: number) => {
+const drawMap = (ctx: CanvasRenderingContext2D, state: GameState, width: number, height: number) => {
   const w = state.overworldMapWidth
   const h = state.overworldMapHeight
   const map = state.overworldMap
-  const layout = computeIsoLayout(w, h, cssSize)
+  const layout = computeFullscreenLayout(w, h, width, height)
 
   ctx.fillStyle = PARCHMENT_BG
-  ctx.fillRect(0, 0, cssSize, cssSize)
+  ctx.fillRect(0, 0, width, height)
   if (layout.tilePx === 0) return
 
   // Coastline — the outline of the dirt island against the Space void.
@@ -137,12 +155,12 @@ const drawMap = (ctx: CanvasRenderingContext2D, state: GameState, cssSize: numbe
   }
 }
 
-// The chart canvas is square (computeIsoLayout centers the diamond — which
-// is cssSize wide by cssSize/2 tall — vertically within a cssSize square).
-// Size it to the smaller viewport dimension so the whole square fits, with
-// a margin clearing the surrounding scrim. The diamond fills the canvas
-// width and sits centered with headroom above and below.
-const computeChartSize = (): number => Math.max(320, Math.min(window.innerWidth, window.innerHeight) - 48)
+// Fill the entire viewport — the map maximizes over everything, including
+// the bottom bar (ModalShell is z-30; the bottom bar is z-10).
+const computeViewport = (): { width: number; height: number } => ({
+  width: window.innerWidth,
+  height: window.innerHeight,
+})
 
 interface MapPanelProps {
   state: GameState
@@ -151,11 +169,11 @@ interface MapPanelProps {
 
 export const MapPanel = ({ state, onDismiss }: MapPanelProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [cssSize, setCssSize] = useState(computeChartSize)
+  const [viewport, setViewport] = useState(computeViewport)
 
   useEffect(() => {
     const onResize = () => {
-      setCssSize(computeChartSize())
+      setViewport(computeViewport())
     }
     window.addEventListener('resize', onResize)
     return () => {
@@ -168,7 +186,7 @@ export const MapPanel = ({ state, onDismiss }: MapPanelProps) => {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    drawMap(ctx, state, cssSize)
+    drawMap(ctx, state, viewport.width, viewport.height)
     // Redraws on every render (refreshUI bumps the consumer) and on resize;
     // the chart is cheap and reads the latest marks each time.
   })
@@ -177,9 +195,9 @@ export const MapPanel = ({ state, onDismiss }: MapPanelProps) => {
     <ModalShell onDismiss={onDismiss} ariaLabel="Prairie map" data-testid="map-overlay">
       <canvas
         ref={canvasRef}
-        width={cssSize}
-        height={cssSize}
-        style={{ width: `${String(cssSize)}px`, height: `${String(cssSize)}px` }}
+        width={viewport.width}
+        height={viewport.height}
+        style={{ width: `${String(viewport.width)}px`, height: `${String(viewport.height)}px` }}
       />
     </ModalShell>
   )

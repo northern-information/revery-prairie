@@ -147,9 +147,10 @@ behaviors:
       whole viewport, not inside the 500px permacomputer shell) following
       the ScanResultModal / TimeLapsePlayback precedent; Escape or a
       backdrop click closes it back to the game. It renders a sparse ASCII
-      chart on a square canvas sized to the viewport using the
-      minimapProjection primitives (computeIsoLayout with a cssSize arg,
-      projectIso, drawIsoTile). It always draws, regardless of fog: the
+      chart on a canvas sized to the full viewport (maximized over
+      everything, including the bottom bar), fitting the iso diamond to the
+      viewport via a local layout helper plus projectIso/drawIsoTile. It
+      always draws, regardless of fog: the
       land coastline (every non-Space overworld tile 4-adjacent to the
       Space void or map edge — the outline of the dirt island), bodies of
       water (state.ponds and state.rivers), the little house
