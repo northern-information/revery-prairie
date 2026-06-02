@@ -102,6 +102,19 @@ Carried forward from v2/v3/v4/v5/v6/v7/v9/v10 with no changes:
 - **One visual language.** ASCII-on-canvas at a reduced pitch, same register as the rest of the prairie.
 - **Player-facing noun is _the map_.** No _cartograph_, no _atlas_, no _ledger_. The cosmology is plain-spoken; the surface is too.
 
+**Locked in round 11:**
+
+- **Marks are entity-keyed, not tile-keyed.** Each mark binds to a specific flora's lifecycle uid; the mark follows the plant through its stages and dies with the plant.
+- **New table: `state.markedFlora: Record<FloraUid, FloraMark>`** — `{ floraUid, markedAt, glyph }`. Sibling to `state.mapAnnotations` (R10), not an extension of it. Single-owner writes through the in-hand-map pipeline; registered in `EXPECTED_FIELDS`.
+- **The verb is the map's, not a new item.** Mark and unmark are authored from in-hand-map close-range pointing in the world; the consult-modal is read-only. No new `Ribbon` item in v1.
+- **Marks render in two places.** On the map at the flora's resolved tile, and on the overworld as a small hot-pink tag glyph on the flora's tile. Hot-pink-as-user-action stays locked.
+- **GC on flora-death.** When a marked flora leaves `state` (withered, harvested, killed by dormancy or winter), the key is dropped. _No persistence past the entity. No graveyard of ribbons._
+- **The chronicle (`RP-22`) catches the moment.** Marked-flora-died emits a chronicle event in the named-region register — _"the wildflower at the south pond has withered."_ Loss is readable, not silent.
+- **Cap on simultaneous marks.** Lean small (4–6) so the steward must choose what to attend to. Exact number deferred to spec.
+- **Egregore tiles refuse the mark.** `canMark` returns false for any egregore-rendered flora or egregore tile. The loaded cursor drops the tag glyph the same way it drops on an illegal place-tile (v11 R1's loaded-cursor rule).
+- **Genetics-breeding (`RP-3`) is the load-bearing use case.** Marking the two parents and returning when both bloom is the workflow the mark makes possible.
+- **Amendment to `RP-70`:** the map's render path also consumes `state.markedFlora`. Schema and substrate of `RP-70` are unchanged; the render is widened. `RP-71` ships after `RP-70`.
+
 **Open in v11:**
 
 - Does the cellar Knot eventually want a diegetic interface in the little house, and if so is the typewriter (`RP-66`) that interface?
@@ -493,3 +506,44 @@ _Tyler: "i would like to introduce a map as a core part of gameplay. i love maps
 - (Calla) Does the camera-marker on the map carry the contact-sheet density visually (v11 R4) — a denser dot for a busier roll? Coherent with _the map is a register of attention_, but possibly out of scope for v1.
 - (Delta) Predecessor maps as `RP-24` inheritance — when a predecessor's camera is found, is their _map_ found too, with their annotations frozen on it? Deferred; the door is visible but not opened here.
 - (Astrid) Egregore tiles on the map: do they appear at all once discovered, or does the map _refuse to render_ them (a small Voynich-leak in the rendering region)? The cosmology has a posture here either way.
+
+---
+
+## Round 11: to mark is to admit one
+
+_Tyler: "what about the ability to 'track' or 'mark' a specific plant? the idea would be it shows up on the map."_
+
+> **Astrid:** _The lineage is the medium_, and a plant is the smallest unit of lineage the steward gets to observe directly. A wildflower that has survived two winters _is itself_ a small lineage; a clover patch that came back is one too. Until now the steward has only ever seen fields — _the prairie as plural by default_. Marking a single plant is the steward saying _I am paying attention to this one_, and that act is the cosmology in miniature: tending is the verb, and the verb finally has an object that is not a tile. But the doctrine demands a cost. _What the steward marks, the prairie remembers — until the prairie unmakes it._ When the marked wildflower withers, the mark dies with it. There is no archive of marks-that-were. The chronicle (`RP-22`) catches the moment, the same way it catches a region being named. _The lineage is preserved by attention, not by storage._ No persistence past the entity; no graveyard of ribbons.
+
+> **Boon:** Substrate. Flora identity already exists — `createFloraLifecycleEntry` (per `docs/claude/inventory.md` and the `RP-3` genetics doc) gives every plant a stable uid through its lifecycle. R10's `state.mapAnnotations: Record<string, MapAnnotation>` is tile-keyed; extending it to flora would pollute the schema and complicate GC. Cleaner: a sibling table `state.markedFlora: Record<FloraUid, FloraMark>` — `{ floraUid, markedAt, glyph }`. Lookup is uid-direct, GC is trivial (when the lifecycle entry leaves `state` — withered, harvested, dormancy-killed — drop the key). Map render iterates the table, resolves each uid to the lifecycle entry's current tile at render-time. Overworld render adds a small hot-pink tag glyph (a `*` or a single character; spec picks) on the flora's tile so the steward can see the mark in the world too, not only on the map. Verb: extend the in-hand map's consult-time pointer — point at a tile, if a flora lives there, mark it. No new item; the map already declared itself the surface where the steward authors. Cap on simultaneous marks: lean small (4–6) so the steward must choose. Depends on `RP-70` (map substrate), `RP-59` (in-hand layer), and the flora lifecycle entry uid contract. Size: S, additive to `RP-70`'s PR shape.
+
+> **Calla:** Session shape, and this is the round's load-bearing shift. The map in R10 gave the steward _places_; the mark gives the steward _bodies_. That is the first time in this game the steward has had a way to follow a single plant through its life. The wildflower the steward marked in spring is the one they walk back to in autumn to see if it set seed. Genetics breeding (`RP-3`) finally has a surface — mark the two parents, the map shows where both are, the steward returns when both bloom. _The mark is what care looks like at the resolution of one plant._ My worry: a marked plant withering and the mark simply vanishing would feel unjust — the steward did the work of caring, and the system erased the evidence. The remedy is small and already idiomatic for this game: when a marked plant dies, the chronicle catches it. _"the wildflower at the south pond has withered"_ — sentence-cased, in the named-region register. The mark is gone from the map; the moment of its going is in the chronicle. That makes the loss readable instead of silent.
+
+> **Delta:** _To mark is to admit one._ R10 made the map a register of attention at the scale of the prairie; R11 makes it a register of attention at the scale of a single life. The prairie is plural by default — and a wildflower is singular when it is tended. _The map gains bodies._ This is also the round where genetics (`RP-3`) and care-as-verb finally meet the same surface; up to now they have been on parallel tracks, both real but never touching. The mark is the seam. One coherence check, since the room has been honest about the egregores: the steward should not be able to mark an egregore tile or an egregore-rendered flora. _The egregores are not for the steward's bookkeeping._ Mechanically: `canMark` returns false; the loaded cursor drops the tag glyph the same way it drops on an illegal place-tile (v11 R1's loaded-cursor rule). Visually coherent. Doctrinally clean. And — the obvious follow: when `RP-24` predecessor maps land, marks on a predecessor's map are _their_ marks. The lineage's prior steward marked a wildflower; you find their map; you see what they were watching.
+
+### Consensus
+
+- **Marks are entity-keyed, not tile-keyed.** Each mark binds to a specific flora's lifecycle uid; the mark follows the plant through stages and dies with the plant.
+- **New table: `state.markedFlora: Record<FloraUid, FloraMark>`** — `{ floraUid, markedAt, glyph }`. Sibling to `state.mapAnnotations` (R10), not an extension of it. Single-owner writes through the in-hand-map pipeline; registered in `EXPECTED_FIELDS`.
+- **The verb is the map's, not a new item.** Mark and unmark are authored from in-hand-map close-range pointing in the world; the consult-modal is read-only. No new `Ribbon` item in v1.
+- **Marks render in two places.** On the map, at the flora's resolved tile (hot-pink glyph). On the overworld, a small hot-pink tag glyph drawn on the flora's tile so the marked plant is visible while walking. Hot-pink-as-user-action stays locked.
+- **GC fires on flora-death.** When a marked flora leaves `state` (withered, harvested, killed by dormancy or winter), the key is dropped. No persistence past the entity. _No graveyard of ribbons._
+- **The chronicle (`RP-22`) catches the moment.** Marked-flora-died emits a chronicle event in the named-region register: _"the wildflower at the south pond has withered."_ Loss is readable, not silent.
+- **Cap on simultaneous marks.** Lean small (4–6) so the steward must choose what to attend to. Exact number deferred to spec.
+- **Egregore tiles refuse the mark.** `canMark` returns false for any egregore-rendered flora or egregore tile. The loaded cursor drops the tag glyph (matches the v11 R1 loaded-cursor rule for illegal place-tiles).
+- **Genetics-breeding (`RP-3`) is the load-bearing use case.** Marking the two parents and returning when both bloom is the workflow the mark makes possible. Spec confirms the breeding-pair UX but does not block on it.
+- **Amendment to `RP-70`:** the map renders `state.markedFlora` alongside `state.mapAnnotations`. `RP-71` ships after `RP-70` and extends the map's render path, not its annotation schema.
+- **Forward note, not a v1 lock:** when `RP-24` predecessor maps land, predecessor-authored marks travel with them. Door is visible; round does not open it.
+
+### Tracked as
+
+- **`RP-71` Plant marking (flora-keyed map annotations)** — S, depends on `['RP-70', 'RP-59', 'RP-3']`. New `state.markedFlora: Record<FloraUid, FloraMark>` table. Mark/unmark authored through the in-hand map (no new item). Marks render on the map and as a small hot-pink tag glyph on the overworld tile. GC on flora-death drops the key and emits a chronicle event (`RP-22`). Cap on simultaneous marks (lean 4–6, exact count at spec). Egregore tiles refuse the mark. Genetics-breeding (`RP-3`) is the motivating workflow.
+- **Amendment to `RP-70`:** the map's render path also consumes `state.markedFlora`. Schema and substrate of `RP-70` are unchanged; the render is widened.
+
+### Open questions deferred to specs
+
+- (Boon) Exact gesture for marking: consult-modal pointer with hover-tile resolves-to-flora, vs. in-hand-map close-range left-click on the world, vs. both. Lean: the consult-modal is read-only, marking happens in the world with the map in hand.
+- (Calla) Exact cap on simultaneous marks. Room leans 4–6. Smaller pushes harder on _the steward must choose_; larger softens the mechanic. Spec picks.
+- (Astrid) When a marked plant is harvested (vs. withered), does the chronicle phrase differ? _"the wildflower at the south pond was taken"_ reads different from _"…has withered."_
+- (Delta) Glyph choice: single character (a `*`, a `+`, a `'`), or a tiny two-character tag (`*1`, `*2`, …) so the steward can tell their marks apart at a glance. Lean: single character for v1; numbered tags is a v2 affordance if breeding-pair UX demands it.
+- (Astrid) Whether the manual gets an entry for _Marking_ specifically, or whether it folds into the _Map_ entry. Lore is human-authored either way; the spec names the slot.
