@@ -9,6 +9,7 @@ import { HexagramPanel } from './HexagramPanel'
 import { InventoryPanel } from './InventoryPanel'
 import { ItemInfo } from './ItemInfo'
 import { ManualPanel } from './ManualPanel'
+import { MapPanel } from './MapPanel'
 import { Menu } from './Menu'
 import { MeteoritePickupPrompt } from './MeteoritePickupPrompt'
 import { Minimap } from './Minimap'
@@ -176,6 +177,7 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           onSwitchScreen={setActiveScreen}
         >
           {activeScreen === 'manual' && <ManualPanel state={state} />}
+          {activeScreen === 'map' && <MapPanel state={state} />}
           {activeScreen === 'divination' && (
             <HexagramPanel
               state={state}

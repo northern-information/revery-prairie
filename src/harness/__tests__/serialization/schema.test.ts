@@ -160,6 +160,7 @@ const EXPECTED_FIELDS = [
   'manualHighlightEntryId',
   'onPlayerMoved',
   'onGenesisComplete',
+  'onMapAcquired',
   'heldKeys',
   'cameraFilm',
   'placedCameras',

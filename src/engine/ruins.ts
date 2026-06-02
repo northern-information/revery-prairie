@@ -1145,6 +1145,40 @@ const spawnRuinGroundItem = (
   state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
 }
 
+// RP-70 — seed one Geodetic Marker just inside each ruin at genesis (so
+// the world holds 10 markers total: 7 in the cellar + 3 here). The
+// marker rewards entering the ruin. Placed on a walkable interior tile
+// near — but never on — the entrance, since the steward spawns on the
+// entrance tile and would otherwise auto-collect it on the first pickup
+// sweep. Seeded once at world creation; the ground-item entity persists
+// through serialization and re-entry, and pickup is permanent. Skips a
+// ruin only if no walkable non-entrance tile exists (degenerate map).
+export const seedRuinGeodeticMarkers = (state: GameState): void => {
+  for (let ruinIndex = 0; ruinIndex < state.ruinInteriors.length; ruinIndex++) {
+    const interior = state.ruinInteriors[ruinIndex]
+    const entranceKey = posKey(interior.entranceInterior.x, interior.entranceInterior.y)
+    // Prefer the closest walkable tile to the entrance (Chebyshev), so
+    // the marker reads as "just inside". Falls back to scan order.
+    let best: Position | null = null
+    let bestDist = Infinity
+    for (let y = 0; y < interior.mapHeight; y++) {
+      for (let x = 0; x < interior.mapWidth; x++) {
+        if (posKey(x, y) === entranceKey) continue
+        if (!isWalkableTile(interior.map[y][x].type)) continue
+        const dist = Math.max(
+          Math.abs(x - interior.entranceInterior.x),
+          Math.abs(y - interior.entranceInterior.y)
+        )
+        if (dist < bestDist) {
+          bestDist = dist
+          best = { x, y }
+        }
+      }
+    }
+    if (best) spawnRuinGroundItem(state, ruinIndex, best, 'geodeticMarker')
+  }
+}
+
 export const spawnDormantGardenItems = (state: GameState, ruinIndex: number): void => {
   const interior = state.ruinInteriors[ruinIndex]
   const garden = interior?.dormantGarden

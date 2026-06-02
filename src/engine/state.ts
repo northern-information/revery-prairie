@@ -35,7 +35,7 @@ import { autoSort } from './inventory'
 import { createBackpack } from './items'
 import { isWalkableTile, posKey } from './position'
 import { detectNamedRegions } from './regions'
-import { generateAllRuinInteriors, placeRuinEntrances } from './ruins'
+import { generateAllRuinInteriors, placeRuinEntrances, seedRuinGeodeticMarkers } from './ruins'
 import { WATERFALL_TILE_WATER_BUMP } from './tileBg'
 import { buildWaterProximity } from './tileWater'
 import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, TileType, Zone } from './types'
@@ -443,6 +443,7 @@ export const createGameState = (
     manualHighlightEntryId: null,
     onPlayerMoved: null,
     onGenesisComplete: null,
+    onMapAcquired: null,
     cameraFilm: new Map(),
     placedCameras: [],
     placedMarkers: [],
@@ -703,6 +704,42 @@ export const createGameState = (
   // Field Camera seeding lives in completeGenesis (post-seedOaks) —
   // the spawn requires the oak network to exist before it can pick
   // the nearest one. See genesis.ts.
+
+  // RP-70 — the inherited cartography. Seed the prairie map and 7 of the
+  // 10 Geodetic Markers in the Knot cellar; the other 3 markers are
+  // seeded one per ruin (seedRuinGeodeticMarkers below). The map is a
+  // key item — picking it up unlocks the permacomputer MAP tab without
+  // entering the backpack (see pickUpGroundItems). Markers are ordinary
+  // backpack items. All ground-item entities are tagged Zone.KnotCellar
+  // so they live in the cellar interior. Walkable cellar tiles are
+  // scanned in row order, skipping the door spawn (player lands there)
+  // and the bulkhead-interior exit stair.
+  {
+    const cellarSpawns: Position[] = []
+    const skip = new Set<string>([
+      posKey(cellar.doorSpawn.x, cellar.doorSpawn.y),
+      posKey(cellar.bulkheadInterior.x, cellar.bulkheadInterior.y),
+    ])
+    for (let cy = 0; cy < cellar.height && cellarSpawns.length < 8; cy++) {
+      for (let cx = 0; cx < cellar.width && cellarSpawns.length < 8; cx++) {
+        if (!isWalkableTile(cellar.map[cy][cx].type)) continue
+        if (skip.has(posKey(cx, cy))) continue
+        cellarSpawns.push({ x: cx, y: cy })
+      }
+    }
+    // First tile holds the map; the remaining 7 hold markers.
+    cellarSpawns.forEach((pos, index) => {
+      const definitionId = index === 0 ? 'map' : 'geodeticMarker'
+      const e = state.world.createEntity()
+      state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+      state.world.addComponent(e, ComponentType.ItemDrop, { definitionId })
+      state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
+      state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.KnotCellar })
+    })
+  }
+
+  // RP-70 — one Geodetic Marker just inside each of the three ruins.
+  seedRuinGeodeticMarkers(state)
 
   autoSort(backpack)
 

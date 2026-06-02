@@ -107,6 +107,17 @@ const ITEMS = {
     glyphColor: '#D4B58A',
     category: ItemCategory.Artifact,
   },
+  // RP-70 — the inherited prairie map. A key item: it has a definition
+  // so it renders as a discoverable in the cellar and resolves a glyph,
+  // but the pickUpGroundItems intercept records the item:map discovery
+  // (unlocking the permacomputer MAP tab) without ever placing it in the
+  // backpack. It occupies no inventory slot and is never held in hand.
+  map: {
+    name: 'Map',
+    glyph: '▤',
+    glyphColor: '#C2B280',
+    category: ItemCategory.Artifact,
+  },
   // RP-70 — surveyor's marker. The steward inherits 10 (GM-1..GM-10) with
   // the map: 7 in the Knot cellar, 1 just inside each of the three ruins.
   // Dropping one claims a location that surfaces on the map permacomputer

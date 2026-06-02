@@ -795,6 +795,12 @@ export interface GameState {
   manualHighlightEntryId: string | null
   onPlayerMoved: (() => void) | null
   onGenesisComplete: ((handoffTime: number) => void) | null
+  // RP-70 — fired once when the steward picks up the inherited cellar
+  // map. The map is a key item (records the item:map discovery, never
+  // enters the backpack); useGameEngine wires this to open the
+  // permacomputer on the MAP tab. Engine-level hook so the pickup site
+  // stays React-agnostic, mirroring onPlayerMoved.
+  onMapAcquired: (() => void) | null
   // Time-lapse camera (precis #23). filmRemaining keyed by camera uid;
   // cameras without an entry are unloaded. placedCameras list each
   // camera entity placed in the world. cameraArchive accumulates

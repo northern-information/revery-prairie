@@ -28,6 +28,7 @@ import type { GameState } from '@/engine/types'
 export type PermacomputerScreen =
   | 'system'
   | 'manual'
+  | 'map'
   | 'divination'
   | 'coyote'
   | 'album'

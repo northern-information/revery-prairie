@@ -104,9 +104,19 @@ export const GameCanvas = ({
     })
     gameLoop.start()
 
+    // RP-70 — opening the inherited map. The engine fires onMapAcquired
+    // from the cellar map pickup (a key item, no backpack slot); the React
+    // layer responds by opening the permacomputer on the MAP tab. Uses the
+    // ref so the latest setActiveScreen is called without re-running this
+    // effect, mirroring onScanComplete.
+    state.onMapAcquired = () => {
+      setActiveScreenRef.current('map')
+    }
+
     return () => {
       window.removeEventListener('resize', onResize)
       gameLoop.stop()
+      state.onMapAcquired = null
     }
   }, [state, metricsRef])
 

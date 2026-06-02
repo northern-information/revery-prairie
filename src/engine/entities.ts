@@ -107,6 +107,17 @@ export const pickUpGroundItems = (state: GameState, time?: number): PickUpResult
     if (state.world.hasComponent(eid, ComponentType.PickupExemption)) continue
     const itemDrop = state.world.getComponent(eid, ComponentType.ItemDrop)
     if (!itemDrop) continue
+    // RP-70 — the inherited map is a key item: it records the item:map
+    // discovery (unlocking the permacomputer MAP tab) and opens that tab
+    // via onMapAcquired, but never enters the backpack and takes no slot.
+    // Handled before the fit/place path so no inventory space is needed.
+    if (itemDrop.definitionId === 'map') {
+      recordDiscovery(state, 'item:map')
+      state.onMapAcquired?.()
+      pickedUp.push('map')
+      state.world.destroyEntity(eid)
+      continue
+    }
     const fit = findFitPosition(state.backpack, itemDrop.definitionId)
     if (fit) {
       const placed = placeItem(state.backpack, itemDrop.definitionId, fit.gridX, fit.gridY)

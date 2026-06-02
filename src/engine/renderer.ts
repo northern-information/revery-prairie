@@ -622,7 +622,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // proximity-pickup sweep from auto-acquiring them.
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.ItemDrop)) {
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-    if (tag !== 'groundItem' && tag !== 'placedCamera') continue
+    if (tag !== 'groundItem' && tag !== 'placedCamera' && tag !== 'placedMarker') continue
     if (!inZone(eid)) continue
     const gpos = state.world.getComponent(eid, ComponentType.Position)
     const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
