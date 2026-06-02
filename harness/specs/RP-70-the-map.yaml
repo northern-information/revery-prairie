@@ -49,11 +49,13 @@ behaviors:
       The Knot cellar contains a discoverable map. Acquiring it records
       recordDiscovery(state, 'item:map') (unlocking the MAP tab) and
       spawnPickupBloom at the acquisition tile. The map does NOT enter
-      state.backpack — it occupies no inventory slot. Acquisition also
-      triggers the permacomputer to auto-open to the MAP tab via the
-      onMapAcquired GameLoopCallback (mirrors onScanComplete →
-      setActiveScreen). Acquiring it a second time is impossible (the
-      cellar source is consumed on first pickup).
+      state.backpack — it occupies no inventory slot. The pickup is
+      intercepted in pickUpGroundItems before the backpack-fit path.
+      Acquisition also triggers the permacomputer to auto-open to the MAP
+      tab via the state.onMapAcquired callback field (an engine-level
+      hook mirroring state.onPlayerMoved; the React layer wires it to
+      setActiveScreen('map')). Acquiring it a second time is impossible
+      (the cellar entity is destroyed on first pickup).
     inputs:
       - 'GameState where the steward acquires the cellar map'
     outputs:
@@ -69,24 +71,25 @@ behaviors:
 
   - id: geodetic-marker-genesis-seeding
     description: >
-      Genesis seeds exactly 10 geodeticMarker items. 7 are placed in
-      the Knot cellar as a discoverable stack that enters the backpack
-      on pickup. 1 is placed just inside each of the three ruins, at
-      state.ruinInteriors[i].entranceInterior, as a groundItem-tagged
-      ECS entity (Position + ItemDrop {definitionId:'geodeticMarker'} +
-      EntityZone set to that ruin's zone). 7 + 3 = 10. Ruin markers are
-      seeded once at genesis and persist through serialization; picking
-      one up removes it permanently and re-entering the ruin does not
-      re-seed.
+      Genesis seeds exactly 10 geodeticMarker items as groundItem ECS
+      entities. 7 are placed in the Knot cellar (EntityZone
+      Zone.KnotCellar). The remaining 3 are placed one each just inside
+      the bee, clover, and coyote ruins — the three role-ruins among the
+      5 Starter ruins — on a walkable interior tile nearest the entrance
+      (never on the entrance tile itself, which the steward spawns on),
+      with EntityZone {zone: Zone.Ruin, ruinIndex}. The wildflower and
+      tallGrass ruins get no marker. 7 + 3 = 10, keeping the GM-1..GM-10
+      label space intact. Markers are seeded once at genesis and persist
+      through serialization; picking one up removes it permanently and
+      re-entering a ruin does not re-seed.
     inputs:
       - 'GameState immediately after createGameState (genesis complete)'
     outputs:
-      - 'total geodeticMarker count across cellar stack and ruin interiors equals 10'
+      - 'total geodeticMarker count across cellar and ruin interiors equals 10'
+      - 'exactly 3 ruin-zoned markers, in the bee, clover, and coyote ruins'
     state_changes:
       - field: world
-        effect: 'one groundItem ECS entity with ItemDrop geodeticMarker created inside each of the 3 ruin interiors, tagged with that ruin EntityZone'
-      - field: backpack
-        effect: 'cellar stack of 7 geodeticMarker instances becomes acquirable; enters backpack only on pickup'
+        effect: 'one groundItem ItemDrop geodeticMarker entity per cellar slot (7) and one inside each of the bee/clover/coyote ruins (3), each EntityZone-tagged'
     determinism: deterministic
 
   - id: geodetic-marker-placement
@@ -146,7 +149,7 @@ behaviors:
       fog: bodies of water (state.ponds and state.rivers), the little
       house (state.houseEntranceOverworld), the cave
       (state.caveEntranceOverworld), Whine
-      (state.whineEntranceOverworld), the three ruins
+      (state.whineEntranceOverworld), every ruin
       (state.ruinInteriors[].entranceOverworld with their names),
       named-region labels (state.namedRegions name + anchor), placed
       cameras (state.placedCameras), placed meteorites

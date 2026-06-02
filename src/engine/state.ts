@@ -738,8 +738,9 @@ export const createGameState = (
     })
   }
 
-  // RP-70 — one Geodetic Marker just inside each of the three ruins.
-  seedRuinGeodeticMarkers(state)
+  // RP-70 — one Geodetic Marker just inside the bee, clover, and coyote
+  // ruins (3 of the 5 Starter ruins), completing the set of 10.
+  seedRuinGeodeticMarkers(state, genesisData.ruins)
 
   autoSort(backpack)
 

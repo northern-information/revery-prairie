@@ -1145,16 +1145,23 @@ const spawnRuinGroundItem = (
   state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
 }
 
-// RP-70 — seed one Geodetic Marker just inside each ruin at genesis (so
-// the world holds 10 markers total: 7 in the cellar + 3 here). The
-// marker rewards entering the ruin. Placed on a walkable interior tile
-// near — but never on — the entrance, since the steward spawns on the
-// entrance tile and would otherwise auto-collect it on the first pickup
-// sweep. Seeded once at world creation; the ground-item entity persists
-// through serialization and re-entry, and pickup is permanent. Skips a
-// ruin only if no walkable non-entrance tile exists (degenerate map).
-export const seedRuinGeodeticMarkers = (state: GameState): void => {
+// RP-70 — seed one Geodetic Marker just inside the bee, clover, and
+// coyote ruins at genesis (so the world holds 10 markers total: 7 in the
+// cellar + 3 here). Starter mode generates 5 ruins (one per RuinRole);
+// only these three role-ruins carry a marker, keeping the GM-1..GM-10
+// label space intact. The marker rewards entering the ruin. Placed on a
+// walkable interior tile near — but never on — the entrance, since the
+// steward spawns on the entrance tile and would otherwise auto-collect
+// it on the first pickup sweep. Seeded once at world creation; the
+// ground-item entity persists through serialization and re-entry, and
+// pickup is permanent. Skips a ruin only if no walkable non-entrance
+// tile exists (degenerate map).
+const MARKER_RUIN_ROLES: ReadonlySet<RuinRole> = new Set([RuinRole.Bee, RuinRole.Clover, RuinRole.Coyote])
+
+export const seedRuinGeodeticMarkers = (state: GameState, ruins: CivilizationRuin[]): void => {
   for (let ruinIndex = 0; ruinIndex < state.ruinInteriors.length; ruinIndex++) {
+    const role = ruins[ruinIndex]?.role
+    if (!role || !MARKER_RUIN_ROLES.has(role)) continue
     const interior = state.ruinInteriors[ruinIndex]
     const entranceKey = posKey(interior.entranceInterior.x, interior.entranceInterior.y)
     // Prefer the closest walkable tile to the entrance (Chebyshev), so
