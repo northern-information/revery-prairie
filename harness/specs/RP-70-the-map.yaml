@@ -150,24 +150,28 @@ behaviors:
       chart on a canvas sized to the full viewport (maximized over
       everything, including the bottom bar), fitting the iso diamond to the
       viewport via a local layout helper plus projectIso/drawIsoTile. It
-      always draws, regardless of fog: the
-      land coastline (every non-Space overworld tile 4-adjacent to the
-      Space void or map edge — the outline of the dirt island), bodies of
-      water (state.ponds and state.rivers), the little house
+      always draws, regardless of fog: the dirt landmass (every non-Space
+      overworld tile filled in a dirt color, with a lighter coastline rim
+      at tiles 4-adjacent to the Space void or map edge), bodies of water
+      (state.ponds and state.rivers) layered over the dirt, and one icon
+      glyph per named element — the little house
       (state.houseEntranceOverworld), the cave
       (state.caveEntranceOverworld), Whine (state.whineEntranceOverworld),
-      every ruin (state.ruinInteriors[].entranceOverworld with their
-      names), named-region labels (state.namedRegions name + anchor),
-      placed cameras (state.placedCameras), placed meteorites
-      (state.placedMeteorites), and Geodetic Markers (state.placedMarkers)
-      drawn in hot pink with their GM-N labels. The panel is read-only — it
-      has no click-to-annotate. The shared HOT_PINK constant from
-      constants.ts is used for marker glyphs and labels. The prairie clock
-      is NOT paused while the map is open.
+      every ruin (state.ruinInteriors[].entranceOverworld), each named
+      region (state.namedRegions, a faint ring at the anchor), placed
+      cameras (state.placedCameras), placed meteorites
+      (state.placedMeteorites), and Geodetic Markers (state.placedMarkers,
+      hot pink via the shared HOT_PINK constant). Place names are NOT drawn
+      on the map — each icon reveals its name on hover via a DOM tooltip,
+      resolved by the pure findHoveredIcon lookup against hit-targets
+      captured during the draw pass. The canvas is never redrawn on
+      mousemove; hover state lives in React/DOM. The panel is read-only —
+      no click-to-annotate. The prairie clock is NOT paused while the map
+      is open.
     inputs:
       - 'GameState with the MAP tab open (activeScreen === map)'
     outputs:
-      - 'a full-screen canvas chart drawing the land coastline, water, landmarks, region labels, placed cameras/meteorites, and Geodetic Markers'
+      - 'a full-screen canvas chart drawing the dirt landmass, water, and one icon per landmark/region/camera/meteorite/marker, with names revealed on hover'
     state_changes: []
     determinism: deterministic
 
