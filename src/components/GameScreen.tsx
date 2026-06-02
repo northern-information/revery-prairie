@@ -167,7 +167,17 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           )
         })()}
       <ReverySummary revery={state.revery} state={state} />
-      {activeScreen && activeScreen !== 'scan-result' && (
+      {/* RP-70 — the map mounts full-screen (not inside the 500px shell),
+          following the scan-result / time-lapse precedent. */}
+      {activeScreen === 'map' && (
+        <MapPanel
+          state={state}
+          onDismiss={() => {
+            setActiveScreen(null)
+          }}
+        />
+      )}
+      {activeScreen && activeScreen !== 'scan-result' && activeScreen !== 'map' && (
         <PermacomputerShell
           state={state}
           activeScreen={activeScreen}
@@ -177,7 +187,6 @@ export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }:
           onSwitchScreen={setActiveScreen}
         >
           {activeScreen === 'manual' && <ManualPanel state={state} />}
-          {activeScreen === 'map' && <MapPanel state={state} />}
           {activeScreen === 'divination' && (
             <HexagramPanel
               state={state}

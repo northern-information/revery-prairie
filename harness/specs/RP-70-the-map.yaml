@@ -143,25 +143,30 @@ behaviors:
 
   - id: map-tab-composition
     description: >
-      MapPanel renders a sparse ASCII chart on its own canvas using the
-      minimapProjection primitives (computeIsoLayout, projectIso,
-      drawIsoTile) at a reduced pitch. It always draws, regardless of
-      fog: bodies of water (state.ponds and state.rivers), the little
-      house (state.houseEntranceOverworld), the cave
-      (state.caveEntranceOverworld), Whine
-      (state.whineEntranceOverworld), every ruin
-      (state.ruinInteriors[].entranceOverworld with their names),
-      named-region labels (state.namedRegions name + anchor), placed
-      cameras (state.placedCameras), placed meteorites
-      (state.placedMeteorites), and Geodetic Markers
-      (state.placedMarkers) drawn in hot pink with their GM-N labels.
-      The panel is read-only — it has no click-to-annotate. The shared
-      HOT_PINK constant from constants.ts is used for marker glyphs and
-      labels. The prairie clock is NOT paused while the tab is open.
+      MapPanel mounts full-screen (via ModalShell — a z-30 portal over the
+      whole viewport, not inside the 500px permacomputer shell) following
+      the ScanResultModal / TimeLapsePlayback precedent; Escape or a
+      backdrop click closes it back to the game. It renders a sparse ASCII
+      chart on a square canvas sized to the viewport using the
+      minimapProjection primitives (computeIsoLayout with a cssSize arg,
+      projectIso, drawIsoTile). It always draws, regardless of fog: the
+      land coastline (every non-Space overworld tile 4-adjacent to the
+      Space void or map edge — the outline of the dirt island), bodies of
+      water (state.ponds and state.rivers), the little house
+      (state.houseEntranceOverworld), the cave
+      (state.caveEntranceOverworld), Whine (state.whineEntranceOverworld),
+      every ruin (state.ruinInteriors[].entranceOverworld with their
+      names), named-region labels (state.namedRegions name + anchor),
+      placed cameras (state.placedCameras), placed meteorites
+      (state.placedMeteorites), and Geodetic Markers (state.placedMarkers)
+      drawn in hot pink with their GM-N labels. The panel is read-only — it
+      has no click-to-annotate. The shared HOT_PINK constant from
+      constants.ts is used for marker glyphs and labels. The prairie clock
+      is NOT paused while the map is open.
     inputs:
       - 'GameState with the MAP tab open (activeScreen === map)'
     outputs:
-      - 'a canvas chart drawing water, landmarks, region labels, placed cameras/meteorites, and Geodetic Markers'
+      - 'a full-screen canvas chart drawing the land coastline, water, landmarks, region labels, placed cameras/meteorites, and Geodetic Markers'
     state_changes: []
     determinism: deterministic
 
