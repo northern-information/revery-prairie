@@ -2925,3 +2925,109 @@ features:
       manual has one entry for Whine, twelve for the ghosts, or both;
       whether per-home yards use the R8 flora-sampling rule or a
       fixed long-abandoned composition.
+
+  - id: 'RP-70'
+    name: The Map (diegetic, held)
+    summary: >
+      A new `Map` item held in the inventory and consulted via the
+      in-hand layer (`RP-59`) with the verb _consult_. Consulting
+      opens a full-screen modal that pauses the prairie clock
+      (`pausesPlayerTime: true`). The map is discovery-gated: it
+      composes at consult-time from existing state —
+      `state.discoveredTiles`, `state.placedCameras`,
+      `state.placedMeteorites`, the little house, Whine (when
+      `RP-69` ships), and named regions from `RP-22`'s chronicle.
+      A new uid-keyed `state.mapAnnotations: Record<string, MapAnnotation>`
+      table stores steward-authored marks (`{ tileKey, label,
+      color, authoredAt }`), rendered in hot pink. Rendered
+      ASCII-on-canvas at a reduced pitch in the same visual
+      register as the prairie. The minimap
+      (`src/components/Minimap.tsx`) is untouched — it remains the
+      passive god's-eye glance.
+    size: M
+    depends_on: ['RP-22', 'RP-59']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 10 (2026-06-01). _The map is not the
+      territory._ The round split two surfaces with one name: the
+      minimap is the eye (passive HUD glance), the map is the hand
+      (held, consulted, annotated). Astrid framed the map as the
+      steward's claim against forgetting — an artifact in the same
+      register as the Knot and the camera, authored by the lineage
+      and outlasting the tenure. Calla's load-bearing worry was
+      that a fully-revealed god's-eye map collapses the
+      rediscovery loop (v11 R3 _the prairie does not owe the
+      steward access_) — hence discovery-gating is not a
+      nice-to-have but the constraint that lets a map exist here
+      at all. Delta's reframe became the lock: _the map is a
+      register of attention_; what is unwalked is fog, what is
+      walked but un-noticed is sketch, what is marked is hot pink.
+      Player-facing noun is _the map_ (no
+      cartograph/atlas/ledger). Open at spec: where the steward
+      gets the map (room leans cellar-found inheritance);
+      annotation input UX (room leans a fixed palette of hot-pink
+      glyph-pins over prose entry, since the prairie has no
+      text-input substrate yet); whether camera-markers carry
+      contact-sheet density visually (v11 R4); whether predecessor
+      maps land as `RP-24` inheritance (door visible, not opened
+      in this round); how egregore tiles are treated on the map
+      (appear when discovered, or refuse-to-render with a small
+      Voynich leak).
+
+      v11 thinktank round 11 (2026-06-02). _Amendment:_ the map's
+      render path is widened to consume `state.markedFlora`
+      alongside `state.mapAnnotations`. Schema and substrate of
+      RP-70 are unchanged; RP-71 lands the new flora-keyed table
+      and extends the render path only.
+
+  - id: 'RP-71'
+    name: Plant marking (flora-keyed map annotations)
+    summary: >
+      A new `state.markedFlora: Record<FloraUid, FloraMark>` table
+      (`{ floraUid, markedAt, glyph }`), sibling to
+      `state.mapAnnotations` (`RP-70`). Marks bind to a specific
+      flora's lifecycle uid and follow the plant through its
+      stages. Mark/unmark are authored through the in-hand map
+      (`RP-59`) in the world — the map's consult-modal is
+      read-only. Marks render on the map at the flora's resolved
+      tile, and on the overworld as a small hot-pink tag glyph on
+      the flora's tile. When a marked flora leaves `state`
+      (withered, harvested, dormancy-killed), the key is dropped
+      and a chronicle event (`RP-22`) fires in the named-region
+      register. Cap on simultaneous marks (room leans 4–6, exact
+      count at spec). Egregore-rendered flora and egregore tiles
+      refuse the mark — `canMark` returns false and the loaded
+      cursor drops the tag glyph.
+    size: S
+    depends_on: ['RP-70', 'RP-59', 'RP-3']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 11 (2026-06-02). _To mark is to admit
+      one._ R10 gave the map _places_; R11 gives it _bodies_.
+      Astrid framed the cosmology cost: _what the steward marks,
+      the prairie remembers — until the prairie unmakes it_. No
+      persistence past the entity, no graveyard of ribbons. Boon
+      chose a sibling table (`state.markedFlora`) over widening
+      `state.mapAnnotations` so GC stays trivial — when the flora
+      lifecycle entry leaves `state`, drop the key. Calla's
+      load-bearing addition: a marked plant withering must fire a
+      chronicle event so the loss is readable rather than silent.
+      Delta named the seam — this is where genetics (`RP-3`) and
+      care-as-verb finally meet the same surface; marking the two
+      breeding parents and returning when both bloom is the
+      motivating workflow. Egregores refuse the mark (Delta's
+      coherence check, doctrinally clean). Forward note, not a v1
+      lock: when `RP-24` predecessor maps land, predecessor-authored
+      marks travel with them. Open at spec: exact mark gesture
+      (room leans in-hand-map left-click in the world, not the
+      consult-modal); cap on simultaneous marks; whether
+      harvested-vs-withered fires distinct chronicle phrasing;
+      glyph choice (single character vs. numbered tag for
+      breeding-pair UX); whether the manual gets its own _Marking_
+      entry or folds into _The Map_.
