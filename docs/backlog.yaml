@@ -116,7 +116,21 @@ features:
     spec: harness/specs/RP-5-ruin-recovery-flora.yaml
     plan: harness/plans/RP-5-ruin-recovery-flora.yaml
     pr: https://github.com/northern-information/revery-prairie/pull/318
-    notes: 'Resurrects wildflowerSeeds and tallGrassSeeds items deleted in RP-1 — collectibles only, no planting (RP-11 wires planting).'
+    notes: >
+      Resurrects wildflowerSeeds and tallGrassSeeds items deleted in
+      RP-1 — collectibles only, no planting (RP-11 wires planting).
+
+
+      v11 thinktank round 10 (2026-06-02). The 3→5 starter-ruin bump
+      this PR introduced has been retired in design — the live cast
+      returns to the three main-quest ruins (Bee, Clover, Coyote),
+      reframed as the Dormant Gardens of `RP-70`. The +2 Wildflower
+      and TallGrass seed-delivery ruins are deleted at the placement
+      layer by `RP-71`, which relocates wildflowerSeeds and
+      tallGrassSeeds delivery inside the three Dormant Gardens
+      themselves (cache or kudzu-harvest, surface picked at spec).
+      Seed-item resurrection from this PR is preserved; only the
+      delivery surface changes. `RP-5` stays shipped historically.
 
   - id: 'RP-6'
     name: Naturalist's manual
@@ -722,6 +736,16 @@ features:
       Revery-summary surface (`RP-4`) and manual surfaces (`RP-6`) are
       preserved. _The manual catalogs species; the cellar catalogs
       winters._
+
+
+      v11 thinktank round 10 (2026-06-02). Per-garden three-stage
+      name transitions added to the named-regions binding for the
+      three Dormant Gardens: _Dormant Garden of Bee_ → _Awakened
+      Garden of Bee_ (post-opening, pre-final-stage) → _The Garden of
+      Bee_ (fully unfurled), and the same arc for Clover and Coyote.
+      Gate-opening is itself a chronicle event, emitted from
+      `src/engine/chronicle/emitters.ts` on the dormant→awakening
+      state transition driven by `RP-70`.
 
   - id: 'RP-23'
     name: Time-lapse camera (analog 35mm field instrument)
@@ -1920,18 +1944,18 @@ features:
       suspect. Drives winter geology (RP-44).
 
   - id: 'RP-44'
-    name: Winter geology and ruin re-roll
+    name: Winter geology (scope reduced)
     summary: >
-      Once-per-year geological transition driven by egregoric
-      thermogenic activity from the prior winter. Surface new ruins in
-      unseen territory near strong rhizome activity; sink ruins that
-      have not been visited recently. Year 1 ruins hold key items
-      (camera, cellar key, foundational tools); year 2+ ruins are
-      roguelike accoutrements only (hats, chairs, journal pages,
-      brittle artifacts). Sunk ruins logged in the cellar Knot (`RP-37`)
-      — the cellar remembers what the prairie lets go. Cliffs may also
-      rise or fall on the same boundary (smaller scope decision).
-    depends_on: ['RP-41', 'RP-43', 'RP-37']
+      Once-per-year geological transition on the winter→spring
+      boundary. Cliffs may rise or fall driven by egregoric thermogenic
+      activity from the prior winter; mesa reachability drifts year
+      over year as the topography shifts. The ruin-surface/sink half
+      of this item was retired in v11 R10 — the three Dormant Gardens
+      are persistent and grow in place (`RP-70`), so the prairie no
+      longer surfaces or sinks ruins. Lifting
+      `generateAllRuinInteriors` from genesis-time to runtime is no
+      longer required.
+    depends_on: ['RP-41', 'RP-43']
     status: todo
     spec: null
     plan: null
@@ -1971,6 +1995,22 @@ features:
       hook also fires at season boundaries (Winter↔Spring) for RP-64
       frozen-waterfall freeze/thaw, not only at year boundaries.
       RP-44's spec must wire both triggers.
+
+
+      v11 thinktank round 10 (2026-06-02). Scope reduced — the
+      ruin-surface/sink half is retired and replaced by awakened-
+      garden growth in `RP-70`. The three Dormant Gardens (Bee,
+      Clover, Coyote) are persistent across all tenures and grow in
+      place; the prairie no longer surfaces new ruins or sinks old
+      ones. `RP-37` removed from `depends_on` because the
+      sunk-ruins-logged-in-cellar-Knot mechanic no longer applies.
+      The expensive piece named in the v7 R3 notes — lifting
+      `generateAllRuinInteriors` from genesis-time to runtime — is no
+      longer required and exits the dependency graph. What remains in
+      `RP-44`: year-boundary cliff rise/fall, mesa-reachability
+      drift, the season-boundary reachableMass recompute hook from
+      v11 R5. Renamed _Winter geology and ruin re-roll_ →
+      _Winter geology (scope reduced)_.
 
   - id: 'RP-45'
     name: Seismographs
@@ -2925,3 +2965,94 @@ features:
       manual has one entry for Whine, twelve for the ghosts, or both;
       whether per-home yards use the R8 flora-sampling rule or a
       fixed long-abandoned composition.
+
+  - id: 'RP-70'
+    name: Awakened Gardens
+    summary: >
+      The three Dormant Gardens of Bee, Clover, Coyote — `RP-5`'s
+      preserved main-quest ruins — reframed as open-air labyrinths.
+      Each is a bounded overworld sub-region walled by a ring of
+      ruin-wall tiles with a single entry gate; no zone swap, the
+      steward walks under sky. Inside, a new metabolic-flora category
+      (working name _kudzu_) drives a per-year wall-breaking
+      automaton — walls flip ruin-wall → debris → kudzu-floor on a
+      deterministic per-garden seed (`hash(gardenId, growthYear)`),
+      exposing previously-occluded interior tiles. Stage progression
+      `dormant → awakening → growth-year-N → fully-unfurled` advances
+      on year-boundary. New `state.gardenStates: Record<GardenId,
+      GardenState>` field; new tile family (`RuinWall`, `RuinDebris`,
+      `KudzuFloor`, `KudzuWall`, final naming at spec); new
+      `src/engine/flora/metabolic.ts` lifecycle; per-stage hand-
+      authored reveals inside the existing genesis-time interiors.
+      Chronicle and manual name arc: _Dormant Garden of X_ →
+      _Awakened Garden of X_ → _The Garden of X_. Opening the gate
+      is irreversible per tenure. Replaces the ruin-reroll half of
+      `RP-44`.
+    size: L
+    depends_on: ['RP-5']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 10 (2026-06-02). Cosmology line of the
+      round: _ruins are receipts._ The walls were left by an order
+      that thought itself permanent; the kudzu is the prairie's
+      reply, written in a language the walls did not have — the
+      doctrine _permanence is a capitalist assumption_ (v4) now has
+      its mechanic. The patrons (Bee, Clover, Coyote) are the main
+      quest, so opening all three gates in year 1 is the expected
+      ritual — pacing across years is the steward's _returns_, not
+      their _openings_. Genesis-time interior generation stays at
+      genesis-time; awakening only uncovers what is already there —
+      this is the technical solve Tyler named for the
+      `generateAllRuinInteriors`-at-runtime problem `RP-44` had been
+      blocking on. The patrons are _felt_, not portrayed (consistent
+      with v11 R2 — no animated portraits). The garden is
+      contemplative, not adversarial; the metabolic flora is not
+      hostile. The word _invasive_ is banned (`docs/claude/
+      egregores.md`); _metabolic_ is the cosmology word and the
+      truer word. Open at spec: final tile-family names; species
+      name(s) for the metabolic flora (lore is human-authored, spec
+      lists slot); whether year-1 gate-opening reveals an immediate
+      first-courtyard flood or waits for the lifecycle tick (round
+      leans _immediate_); how each patron registers inside their
+      garden (glyph, music cue, ambient behavior); the fully-
+      unfurled terminal-stage payoff (Knot, egregore patch,
+      artifact, patron's true form — lore is human, spec lists
+      slot); whether the three gardens are architecturally
+      differentiated (concentric/grid/broken) or shape-equivalent;
+      hazard surface inside gardens (round leans environmental-only,
+      no adversarial entities).
+
+  - id: 'RP-71'
+    name: Retire the seed-delivery ruins; relocate seed delivery into the gardens
+    summary: >
+      Delete the wildflower-delivery and tallgrass-delivery starter
+      ruins (`RP-5`'s +2) from the placement layer
+      (`ruins.ts` role-registration site). Re-source wildflowerSeeds
+      and tallGrassSeeds inside the three Dormant Gardens of
+      `RP-70` — either as small caches within each garden's interior
+      or as harvest from the metabolic flora itself; surface picked
+      at spec. The `state.seedGenomes` mechanic and the deterministic
+      vault-genome derivation (`stewardName, ruinIndex, vaultSlot` →
+      genome) from `RP-11` are preserved; the vault identifiers just
+      relocate.
+    size: S
+    depends_on: ['RP-70']
+    status: todo
+    spec: null
+    plan: null
+    pr: null
+    notes: >
+      v11 thinktank round 10 (2026-06-02). Cosmology cleanup
+      companion to `RP-70`. _Seeds in a vault_ is the wrong
+      cosmology — a doomsday-seed-bank image, a permanence fantasy,
+      an asset on a balance sheet; living seeds belong inside the
+      kudzu, not in storage. The deletion is a small mechanical
+      change (placement-layer removal + delivery relocation), but
+      the design weight is large — it returns the live ruin cast to
+      the three patrons and reserves the word _garden_ for them
+      alone. Open at spec: which surface (cache vs harvest); whether
+      Bee's garden delivers a particular subset of seeds (e.g.
+      patron-themed) or all three gardens deliver the full pool.
