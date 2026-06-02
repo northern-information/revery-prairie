@@ -41,6 +41,37 @@ export const loadFeatures = (path: string): Feature[] => {
   if (!parsed.features || !Array.isArray(parsed.features)) {
     throw new Error(`Expected top-level "features:" array in ${path}`)
   }
+  const ids = new Set<string>()
+  for (const feature of parsed.features) {
+    if (!WRITABLE_STATUSES.includes(feature.status)) {
+      throw new Error(
+        `Feature ${JSON.stringify(feature.id)} in ${path} has invalid status ${JSON.stringify(feature.status)}. ` +
+          `Expected one of: ${WRITABLE_STATUSES.join(', ')}.`
+      )
+    }
+    // ids and depends_on entries are used as React keys in the TUI; a blank or
+    // duplicate value surfaces as an opaque "two children with the same key"
+    // warning. Fail loud here at the data boundary instead.
+    if (!feature.id || !feature.id.trim()) {
+      throw new Error(`Found a feature with a blank id in ${path}.`)
+    }
+    if (ids.has(feature.id)) {
+      throw new Error(`Duplicate feature id ${JSON.stringify(feature.id)} in ${path}.`)
+    }
+    ids.add(feature.id)
+    const seenDeps = new Set<string>()
+    for (const dep of feature.depends_on) {
+      if (!dep || !dep.trim()) {
+        throw new Error(`Feature ${JSON.stringify(feature.id)} in ${path} has a blank depends_on entry.`)
+      }
+      if (seenDeps.has(dep)) {
+        throw new Error(
+          `Feature ${JSON.stringify(feature.id)} in ${path} lists ${JSON.stringify(dep)} in depends_on more than once.`
+        )
+      }
+      seenDeps.add(dep)
+    }
+  }
   return parsed.features
 }
 
