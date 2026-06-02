@@ -2978,7 +2978,7 @@ features:
       (`src/components/Minimap.tsx`) is untouched — it remains the
       passive god's-eye glance.
     depends_on: ['RP-22', 'RP-59']
-    status: todo
+    status: in-progress
     spec: null
     plan: null
     pr: null
