@@ -26,7 +26,7 @@ export const isInteractableAt = (state: GameState, x: number, y: number): boolea
   if (
     spatialAtInCurrentZone(state, x, y).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-      return tag === 'character' || tag === 'placedCamera'
+      return tag === 'character' || tag === 'placedCamera' || tag === 'placedMarker'
     })
   ) {
     return true
@@ -750,6 +750,59 @@ export const packUpPlaybackCamera = (state: GameState, uid: string): boolean => 
   if (entityId !== null) state.world.destroyEntity(entityId)
   state.playbackCameraUid = null
   return true
+}
+
+// RP-70 — find the adjacent placedMarker entity (Chebyshev distance 1),
+// if any, in the current zone, paired with its PlacedMarker struct.
+const findAdjacentPlacedMarker = (
+  state: GameState
+): { eid: number; marker: import('./types').PlacedMarker } | null => {
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue
+      const x = state.player.x + dx
+      const y = state.player.y + dy
+      for (const eid of spatialAtInCurrentZone(state, x, y)) {
+        if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'placedMarker') continue
+        const pos = state.world.getComponent(eid, ComponentType.Position)
+        if (!pos) continue
+        const marker = state.placedMarkers.find(m => m.x === pos.x && m.y === pos.y && m.zone === state.currentZone)
+        if (!marker) continue
+        return { eid, marker }
+      }
+    }
+  }
+  return null
+}
+
+export type PlacedMarkerInteractionResult = 'picked-up' | 'no-space' | 'none'
+
+// RP-70 — handle the interaction key facing an adjacent Geodetic Marker.
+// Picks it back up into the backpack with its original uid, removes the
+// PlacedMarker entry (freeing its GM-N label for reuse) and the world
+// entity, and fires a pickup bloom. Backpack-full blocks pickup without
+// disturbing the placement. The map read drops the mark the moment the
+// PlacedMarker entry is gone.
+export const tryPlacedMarkerInteraction = (state: GameState, time?: number): PlacedMarkerInteractionResult => {
+  const adjacent = findAdjacentPlacedMarker(state)
+  if (!adjacent) return 'none'
+  const { eid, marker } = adjacent
+
+  const fit = findFitPosition(state.backpack, 'geodeticMarker')
+  if (!fit) return 'no-space'
+  state.backpack.items.push({
+    uid: marker.uid,
+    definitionId: 'geodeticMarker',
+    gridX: fit.gridX,
+    gridY: fit.gridY,
+  })
+  const idx = state.placedMarkers.findIndex(m => m.uid === marker.uid)
+  if (idx !== -1) state.placedMarkers.splice(idx, 1)
+  state.world.destroyEntity(eid)
+  if (time !== undefined) {
+    spawnPickupBloom(state, marker.x, marker.y, time)
+  }
+  return 'picked-up'
 }
 
 // RP-18 — return the tile of a placed meteorite under the player's foot
