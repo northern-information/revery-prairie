@@ -1640,7 +1640,7 @@ features:
       for chronicle events from `RP-22` — hung Knots carry that year's
       chronicle sentences as a hover or interact surface.
     depends_on: ['RP-33', 'RP-36', 'RP-67']
-    status: in_progress
+    status: in-progress
     spec: harness/specs/RP-37-knot-cellar.yaml
     plan: harness/plans/RP-37-knot-cellar.yaml
     pr: null
