@@ -32,7 +32,10 @@ behaviors:
       returns state.manualDiscoveries.has('item:map'). Before
       acquisition the tab is absent from the rendered tab bar; after
       acquisition it is present and selectable. Mirrors the COYOTE tab
-      gate on 'event:rescue-coyote'.
+      gate on 'event:rescue-coyote'. Canonical tab order becomes
+      MANUAL, MAP, DIVINATION, COYOTE, ALBUM, SYS — MAP sits
+      immediately after MANUAL. The permacomputer-tab-visibility spec
+      is amended in the same change to reflect this order and gate.
     inputs:
       - 'GameState with manualDiscoveries not containing item:map'
       - 'GameState with manualDiscoveries containing item:map'
