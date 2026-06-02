@@ -1,4 +1,4 @@
-import { COIN_GLINTING_COLOR } from './constants'
+import { COIN_GLINTING_COLOR, HOT_PINK } from './constants'
 import { ItemCategory } from './types'
 
 import type { Container, ItemCategory as ItemCategoryType, ItemDefinition } from './types'
@@ -106,6 +106,18 @@ const ITEMS = {
     glyph: '§',
     glyphColor: '#D4B58A',
     category: ItemCategory.Artifact,
+  },
+  // RP-70 — surveyor's marker. The steward inherits 10 (GM-1..GM-10) with
+  // the map: 7 in the Knot cellar, 1 just inside each of the three ruins.
+  // Dropping one claims a location that surfaces on the map permacomputer
+  // tab in hot pink. Marking is item-shaped — the map itself is read-only.
+  // Placed via the geodeticMarker PlaceableSpec (verb 'lay'); recoverable
+  // like a placed camera. The cap is physical scarcity, not a counter.
+  geodeticMarker: {
+    name: 'Geodetic Marker',
+    glyph: '⚑',
+    glyphColor: HOT_PINK,
+    category: ItemCategory.Tool,
   },
 } as const satisfies Record<string, ItemEntry>
 

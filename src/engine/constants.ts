@@ -1,5 +1,13 @@
 import { TileType } from './types'
 
+// Reserved user-action color per CLAUDE.md — cursor highlight, path
+// dots, combine/drop previews, inventory drop targets, every
+// zone-crossing exit tile, and RP-70 Geodetic Markers on the map. Never
+// used for world entities, terrain, or NPC behavior. Several call sites
+// still inline the literal '#ff69b4' (e.g. Minimap.tsx); new code reads
+// this constant.
+export const HOT_PINK = '#ff69b4'
+
 export const MAP_WIDTH = 147
 export const MAP_HEIGHT = 147
 export const SPACE_BORDER = 10
