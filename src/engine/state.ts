@@ -353,7 +353,7 @@ export const createGameState = (
     })(),
     get world(): World {
       const w = this.worlds.get(worldKey(this.currentZone, this.currentRuinIndex ?? undefined))
-      if (!w) throw new Error(`No world for zone ${String(this.currentZone)} ruin=${String(this.currentRuinIndex)}`)
+      if (!w) throw new Error(`No world for zone ${this.currentZone} ruin=${String(this.currentRuinIndex)}`)
       return w
     },
     meteorShower: {

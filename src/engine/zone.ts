@@ -37,7 +37,7 @@ export const getWorldForZone = (state: GameState, zone: Zone, ruinIndex?: number
   let w = state.worlds.get(key)
   if (!w) {
     if (zone !== Zone.Ruin) {
-      throw new Error(`No pre-created world for non-Ruin zone ${String(zone)}`)
+      throw new Error(`No pre-created world for non-Ruin zone ${zone}`)
     }
     w = createWorld()
     state.worlds.set(key, w)
@@ -95,4 +95,32 @@ export const queryAllZones = (
     }
   }
   return result
+}
+
+// Re-home an entity from one zone's world to another by copying every
+// component and destroying the original. Entity ids are namespaced per
+// world (each World maintains its own counter), so the returned id may
+// differ from the input id. Used when an entity "follows" the player
+// across a zone transition — coyote follows into the cave today; any
+// future moving NPC follows the same pattern. The caller should update
+// any external references (state.placedCameras-style fields) to point
+// at the new id.
+//
+// Copies every known ComponentType the source has. Unknown components
+// (added by future code) will be silently dropped — keep the
+// ComponentType enum in sync with the copy loop.
+export const moveEntityAcrossWorlds = (sourceWorld: World, sourceEid: Entity, targetWorld: World): Entity => {
+  if (sourceWorld === targetWorld) return sourceEid
+  const newEid = targetWorld.createEntity()
+  for (const type of Object.values(ComponentType)) {
+    if (!sourceWorld.hasComponent(sourceEid, type)) continue
+    const data = sourceWorld.getComponent(sourceEid, type)
+    if (data === undefined) continue
+    // Position is replicated into the target world's spatial index
+    // automatically by addComponent. Other components are copied
+    // verbatim.
+    targetWorld.addComponent(newEid, type, data)
+  }
+  sourceWorld.destroyEntity(sourceEid)
+  return newEid
 }

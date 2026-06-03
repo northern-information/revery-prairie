@@ -8,7 +8,14 @@ import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
 import { MainQuestPhase, Zone } from './types'
 import { isTileInVisibleViewport } from './viewportBounds'
-import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
+import {
+  getCurrentEntityZone,
+  getWorldForZone,
+  isEntityInCurrentZone,
+  moveEntityAcrossWorlds,
+  queryAllZones,
+  spatialAtInCurrentZone,
+} from './zone'
 
 import type { Entity } from './ecs/types'
 import type { GameState, Position } from './types'
@@ -364,22 +371,33 @@ const tickDeliver = (
  *  — the trapped quest NPC stays at its spawn past the rubble. */
 export const transitionCoyoteToZone = (state: GameState, zone: Zone): void => {
   const trapped = state.mainQuestPhase === MainQuestPhase.AwaitingCoyote
-  // Find coyote in any zone
-  for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
-    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+  // Find the coyote across every world — he may be in any zone right
+  // now and following the player into a new zone means re-homing his
+  // entity to the new zone's world (entity ids are per-world).
+  for (const { world: sourceWorld, eid } of queryAllZones(
+    state,
+    ComponentType.CharacterIdentity,
+    ComponentType.Position
+  )) {
+    const identity = sourceWorld.getComponent(eid, ComponentType.CharacterIdentity)
     if (identity?.definitionId !== 'coyote') continue
 
     if (trapped) return
 
-    // Update zone — caller has already set state.currentZone/currentRuinIndex
-    state.world.addComponent(eid, ComponentType.EntityZone, getCurrentEntityZone(state))
+    // Re-home the coyote into the target zone's world. moveEntityAcrossWorlds
+    // copies every component (including EntityZone — overwritten below) and
+    // destroys the old entity. Update the EntityZone tag to match the new
+    // zone so the defense-in-depth filters still agree.
+    const targetWorld = getWorldForZone(state, state.currentZone, state.currentRuinIndex ?? undefined)
+    const newEid = moveEntityAcrossWorlds(sourceWorld, eid, targetWorld)
+    targetWorld.addComponent(newEid, ComponentType.EntityZone, getCurrentEntityZone(state))
 
     // Find adjacent walkable tile near player
     const blocked = getBlockedPositions(state, zone)
     blocked.add(posKey(state.player.x, state.player.y))
     const adjacent = findAdjacentWalkable(state, state.player, blocked)
     if (adjacent) {
-      state.world.moveEntity(eid, adjacent.x, adjacent.y)
+      targetWorld.moveEntity(newEid, adjacent.x, adjacent.y)
     }
 
     return
