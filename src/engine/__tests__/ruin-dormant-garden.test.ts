@@ -4,6 +4,7 @@ import { clearRuinDebris } from '../interaction'
 import { isWalkableTile, posKey } from '../position'
 import { generateRuinInterior, repairAqueductBreak, spawnDormantGardenSeeds, tickDormantGardenDecay } from '../ruins'
 import { RuinArchetype, TileType, Zone } from '../types'
+import { getWorldForZone } from '../zone'
 import { createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -488,10 +489,11 @@ describe('ruin dormant garden', () => {
 
     const groundItemIdAtRuin = (state: ReturnType<typeof createTestState>, ruinIndex: number): string[] => {
       const ids: string[] = []
-      for (const eid of state.world.query(ComponentType.ItemDrop, ComponentType.EntityZone)) {
-        const zone = state.world.getComponent(eid, ComponentType.EntityZone)
+      const world = getWorldForZone(state, Zone.Ruin, ruinIndex)
+      for (const eid of world.query(ComponentType.ItemDrop, ComponentType.EntityZone)) {
+        const zone = world.getComponent(eid, ComponentType.EntityZone)
         if (zone?.zone !== Zone.Ruin || zone.ruinIndex !== ruinIndex) continue
-        const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+        const drop = world.getComponent(eid, ComponentType.ItemDrop)
         if (drop) ids.push(drop.definitionId)
       }
       return ids

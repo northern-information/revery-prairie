@@ -9,6 +9,7 @@ import { recordDiscovery } from '../manual'
 import { movePlayer } from '../movement'
 import { posKey } from '../position'
 import { MainQuestPhase, TileType, Zone } from '../types'
+import { getWorldForZone } from '../zone'
 import { clearAroundPlayer, createTestState, getBeeEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -253,7 +254,9 @@ describe('main questline > combine seal', () => {
     expect(combineFromBackpack(state, 'bee', 'clover')).toBe(true)
 
     expect(state.mainQuestPhase).toBe(MainQuestPhase.Gathering)
-    const gronPos = requireValue(state.world.getComponent(gronEid, ComponentType.Position))
+    // Gron was created in the overworld world; state.world here is the cave.
+    const overworldWorld = getWorldForZone(state, Zone.Overworld)
+    const gronPos = requireValue(overworldWorld.getComponent(gronEid, ComponentType.Position))
     expect(gronPos.x).toBe(state.player.x + 5)
     expect(gronPos.y).toBe(state.player.y + 5)
     expect(state.activeDialog).toBeNull()

@@ -7,7 +7,7 @@ import { getBlockedPositions } from '../movement'
 import { posKey } from '../position'
 import { createGameState } from '../state'
 import { TileType, Zone } from '../types'
-import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from '../zone'
+import { getCurrentEntityZone, getWorldForZone, isEntityInCurrentZone, spatialAtInCurrentZone } from '../zone'
 import { describe, expect, it } from 'vitest'
 
 import type { Entity } from '../ecs/types'
@@ -51,6 +51,8 @@ const enterRuinWithInterior = (state: GameState, interior: RuinInterior): void =
   state.map = interior.map
   state.mapWidth = interior.mapWidth
   state.mapHeight = interior.mapHeight
+  // Lazy-create the per-ruin ECS world so state.world resolves.
+  getWorldForZone(state, Zone.Ruin, interior.ruinIndex)
 }
 
 describe('zone isolation: Moab not reachable from outside cave', () => {
@@ -107,20 +109,23 @@ describe('zone isolation: cross-ruin entity bleed', () => {
     state.ruinInteriors[0] = ruin0
     state.ruinInteriors[1] = ruin1
 
-    // Place a ground item in ruin 0 at (10, 10)
-    const itemEid = state.world.createEntity()
-    state.world.addComponent(itemEid, ComponentType.Position, { x: 10, y: 10 })
-    state.world.addComponent(itemEid, ComponentType.ItemDrop, { definitionId: 'coin' })
-    state.world.addComponent(itemEid, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(itemEid, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex: 0 })
+    // Place a ground item in ruin 0's world at (10, 10)
+    const ruin0World = getWorldForZone(state, Zone.Ruin, 0)
+    const itemEid = ruin0World.createEntity()
+    ruin0World.addComponent(itemEid, ComponentType.Position, { x: 10, y: 10 })
+    ruin0World.addComponent(itemEid, ComponentType.ItemDrop, { definitionId: 'coin' })
+    ruin0World.addComponent(itemEid, ComponentType.EntityTag, 'groundItem')
+    ruin0World.addComponent(itemEid, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex: 0 })
 
     // Enter ruin 1
     enterRuinWithInterior(state, ruin1)
 
-    // The spatial index DOES have the entity at (10, 10)
-    expect(state.world.spatial.at(10, 10)).toContain(itemEid)
-    // But zone-scoped lookup excludes it
+    // Ruin 0's spatial index DOES have the entity at (10, 10)
+    expect(ruin0World.spatial.at(10, 10)).toContain(itemEid)
+    // But zone-scoped lookup in ruin 1 excludes it (different world entirely)
     expect(spatialAtInCurrentZone(state, 10, 10)).not.toContain(itemEid)
+    // isEntityInCurrentZone reads state.world (ruin 1's world); the eid only
+    // exists in ruin 0's world, so it isn't in the current zone.
     expect(isEntityInCurrentZone(state, itemEid)).toBe(false)
   })
 
@@ -154,12 +159,13 @@ describe('zone isolation: cross-ruin entity bleed', () => {
     state.ruinInteriors[0] = ruin0
     state.ruinInteriors[1] = ruin1
 
-    // Seed ruin 0 with a ground item at (15, 10)
-    const foreign = state.world.createEntity()
-    state.world.addComponent(foreign, ComponentType.Position, { x: 15, y: 10 })
-    state.world.addComponent(foreign, ComponentType.ItemDrop, { definitionId: 'coin' })
-    state.world.addComponent(foreign, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(foreign, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex: 0 })
+    // Seed ruin 0 with a ground item at (15, 10), in ruin 0's world
+    const ruin0World = getWorldForZone(state, Zone.Ruin, 0)
+    const foreign = ruin0World.createEntity()
+    ruin0World.addComponent(foreign, ComponentType.Position, { x: 15, y: 10 })
+    ruin0World.addComponent(foreign, ComponentType.ItemDrop, { definitionId: 'coin' })
+    ruin0World.addComponent(foreign, ComponentType.EntityTag, 'groundItem')
+    ruin0World.addComponent(foreign, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex: 0 })
 
     // Enter ruin 1, put player at (15, 11) with a coin in backpack, face up toward (15, 10)
     enterRuinWithInterior(state, ruin1)
@@ -172,12 +178,15 @@ describe('zone isolation: cross-ruin entity bleed', () => {
     expect(dropped).toBe(true)
 
     // Confirm a new ground item exists in ruin 1 at the adjacent tile, separate from ruin 0's
-    const items = state.world
-      .query(ComponentType.EntityTag, ComponentType.EntityZone, ComponentType.Position)
-      .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
-    const ruinIndexes = items
-      .map(eid => state.world.getComponent(eid, ComponentType.EntityZone)?.ruinIndex)
-      .filter((i): i is number => i !== undefined)
+    const ruin1World = getWorldForZone(state, Zone.Ruin, 1)
+    const ruinIndexes: number[] = []
+    for (const w of [ruin0World, ruin1World]) {
+      for (const eid of w.query(ComponentType.EntityTag, ComponentType.EntityZone, ComponentType.Position)) {
+        if (w.getComponent(eid, ComponentType.EntityTag) !== 'groundItem') continue
+        const ri = w.getComponent(eid, ComponentType.EntityZone)?.ruinIndex
+        if (ri !== undefined) ruinIndexes.push(ri)
+      }
+    }
     expect(ruinIndexes).toContain(0)
     expect(ruinIndexes).toContain(1)
   })

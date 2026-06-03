@@ -6,6 +6,7 @@ import { containerHasItem, placeItem } from '../inventory'
 import { getPlaceableSpec, nextFreeMarkerLabel } from '../placeable'
 import { createGameState } from '../state'
 import { Zone } from '../types'
+import { queryAllZones } from '../zone'
 import { deserializeState, serializeState } from '../../harness/serialize'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -19,11 +20,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-// Count ground-item ECS entities carrying a given ItemDrop definitionId.
+// Count ground-item ECS entities carrying a given ItemDrop definitionId
+// across every per-zone world.
 const countItemDrops = (state: GameState, definitionId: string): number => {
   let n = 0
-  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.ItemDrop)) {
-    const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+  for (const { world, eid } of queryAllZones(state, ComponentType.EntityTag, ComponentType.ItemDrop)) {
+    const drop = world.getComponent(eid, ComponentType.ItemDrop)
     if (drop?.definitionId === definitionId) n++
   }
   return n
@@ -55,9 +57,9 @@ describe('RP-70 — The Map and Geodetic Markers', () => {
       // clover, and coyote ruins (the other Starter ruins get none),
       // each zone-tagged to its ruin index.
       const ruinMarkerIndices = new Set<number>()
-      for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.ItemDrop, ComponentType.EntityZone)) {
-        const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
-        const zone = state.world.getComponent(eid, ComponentType.EntityZone)
+      for (const { world, eid } of queryAllZones(state, ComponentType.EntityTag, ComponentType.ItemDrop, ComponentType.EntityZone)) {
+        const drop = world.getComponent(eid, ComponentType.ItemDrop)
+        const zone = world.getComponent(eid, ComponentType.EntityZone)
         if (drop?.definitionId === 'geodeticMarker' && zone?.zone === Zone.Ruin && zone.ruinIndex !== undefined) {
           ruinMarkerIndices.add(zone.ruinIndex)
         }

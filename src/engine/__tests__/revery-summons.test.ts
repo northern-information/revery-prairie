@@ -3,6 +3,7 @@ import { createCharacterEntity } from '../entities'
 import { posKey } from '../position'
 import { initiateRevery, tickRevery } from '../revery'
 import { OmenKind, ReveryPhase, TileType, Zone } from '../types'
+import { getWorldForZone } from '../zone'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -72,7 +73,10 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     initiateRevery(state, 1000, OmenKind.ReveryKnot)
     if (state.revery) state.revery.summons = true
     tickRevery(state, 0, 1000)
-    const gronPos = state.world.getComponent(gron, ComponentType.Position)
+    // Gron lives in the overworld world (created while currentZone was Overworld);
+    // tickRevery transitions the scene to HouseInterior, so query overworld directly.
+    const overworldWorld = getWorldForZone(state, Zone.Overworld)
+    const gronPos = overworldWorld.getComponent(gron, ComponentType.Position)
     expect(gronPos).toBeDefined()
     const dx = Math.abs((gronPos?.x ?? 0) - stewardAtSummons.x)
     const dy = Math.abs((gronPos?.y ?? 0) - stewardAtSummons.y)
@@ -126,7 +130,8 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     state.map[py - 1][px] = { type: TileType.CaveWall }
     state.map[py + 1][px] = { type: TileType.CaveWall }
     const gron = placeGron(state, px + 5, py + 5)
-    const originalGronPos = state.world.getComponent(gron, ComponentType.Position)
+    const overworldWorld = getWorldForZone(state, Zone.Overworld)
+    const originalGronPos = overworldWorld.getComponent(gron, ComponentType.Position)
     const ox = originalGronPos?.x
     const oy = originalGronPos?.y
     initiateRevery(state, 1000, OmenKind.ReveryKnot)
@@ -134,7 +139,8 @@ describe('summons sequence — Omen → Observing (RP-32)', () => {
     expect(() => {
       tickRevery(state, 0, 1000)
     }).not.toThrow()
-    const finalPos = state.world.getComponent(gron, ComponentType.Position)
+    // After tickRevery the scene swaps to HouseInterior; Gron still lives in overworld.
+    const finalPos = overworldWorld.getComponent(gron, ComponentType.Position)
     // Gron position unchanged
     expect(finalPos?.x).toBe(ox)
     expect(finalPos?.y).toBe(oy)

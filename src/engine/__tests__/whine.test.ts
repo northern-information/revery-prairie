@@ -38,6 +38,7 @@ import { TileType, Zone } from '../types'
 import type { ZoneTransition } from '../types'
 import { whineGhostId } from '../characters'
 import { getLore } from '../manual'
+import { getWorldForZone } from '../zone'
 import { createTestState } from './helpers'
 
 describe('RP-69 Whine, Haunted Village', () => {
@@ -197,13 +198,14 @@ describe('RP-69 Whine, Haunted Village', () => {
 
     it('spawns twelve named ghost entities in Zone.WhineVillage at genesis with unbounded drift', () => {
       const state = createGameState('test-steward', 800, 600)
+      const whineWorld = getWorldForZone(state, Zone.WhineVillage)
       let whineGhostCount = 0
-      for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
-        const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-        const zoneTag = state.world.getComponent(eid, ComponentType.EntityZone)
+      for (const eid of whineWorld.query(ComponentType.CharacterIdentity)) {
+        const identity = whineWorld.getComponent(eid, ComponentType.CharacterIdentity)
+        const zoneTag = whineWorld.getComponent(eid, ComponentType.EntityZone)
         if (identity?.definitionId.startsWith('whine-ghost-') && zoneTag?.zone === Zone.WhineVillage) {
           whineGhostCount++
-          const behavior = state.world.getComponent(eid, ComponentType.Behavior)
+          const behavior = whineWorld.getComponent(eid, ComponentType.Behavior)
           expect(behavior?.type).toBe('drift')
           // Ghosts roam the whole village like the three overworld ghosts —
           // no bounds rectangle. They start in front of their assigned
@@ -274,10 +276,11 @@ describe('RP-69 Whine, Haunted Village', () => {
     // anchor for the filter logic in tickDrift.
     it('honors a bounds rectangle when one is attached to a DriftBehavior', () => {
       const state = createGameState('test-steward', 800, 600)
-      // Find ghost #1's entity.
+      const whineWorld = getWorldForZone(state, Zone.WhineVillage)
+      // Find ghost #1's entity in the Whine world.
       let ghostEid: number | null = null
-      for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
-        const id = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+      for (const eid of whineWorld.query(ComponentType.CharacterIdentity)) {
+        const id = whineWorld.getComponent(eid, ComponentType.CharacterIdentity)
         if (id?.definitionId === whineGhostId(1)) {
           ghostEid = eid
           break
@@ -285,12 +288,12 @@ describe('RP-69 Whine, Haunted Village', () => {
       }
       expect(ghostEid).not.toBeNull()
       if (ghostEid === null) return
-      const behavior = state.world.getComponent(ghostEid, ComponentType.Behavior)
+      const behavior = whineWorld.getComponent(ghostEid, ComponentType.Behavior)
       expect(behavior?.type).toBe('drift')
       if (behavior?.type !== 'drift') return
 
       // Attach a tight bounds rectangle around the ghost's spawn tile.
-      const pos = state.world.getComponent(ghostEid, ComponentType.Position)
+      const pos = whineWorld.getComponent(ghostEid, ComponentType.Position)
       if (!pos) return
       const b = {
         minX: pos.x - 1,
@@ -311,7 +314,7 @@ describe('RP-69 Whine, Haunted Village', () => {
       try {
         for (let i = 0; i < 50; i++) {
           tickCharacterBehaviors(state)
-          const live = state.world.getComponent(ghostEid, ComponentType.Position)
+          const live = whineWorld.getComponent(ghostEid, ComponentType.Position)
           expect(live).toBeDefined()
           if (!live) return
           expect(live.x).toBeGreaterThanOrEqual(b.minX)
@@ -533,9 +536,10 @@ describe('RP-69a — hand-authored Whine variation', () => {
       const village = createWhineVillage()
       registerWhineVillage(state, village)
 
+      const whineWorld = getWorldForZone(state, Zone.WhineVillage)
       let villageOakCount = 0
-      for (const eid of state.world.query(ComponentType.OakData, ComponentType.EntityZone)) {
-        const ez = state.world.getComponent(eid, ComponentType.EntityZone)
+      for (const eid of whineWorld.query(ComponentType.OakData, ComponentType.EntityZone)) {
+        const ez = whineWorld.getComponent(eid, ComponentType.EntityZone)
         if (ez?.zone !== Zone.WhineVillage) continue
         villageOakCount++
       }
