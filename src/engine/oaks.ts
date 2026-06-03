@@ -127,9 +127,8 @@ export const spawnZoneOak = (
   seed: string
 ): number => {
   // Route into the target zone's world (Whine village, future
-  // multi-instance ruins, etc.). Pre-per-zone-worlds this used
-  // state.world and relied on consumers filtering via
-  // isEntityInCurrentZone.
+  // multi-instance ruins, etc.). The entity belongs to that world by
+  // construction — no EntityZone tag needed.
   const world = getWorldForZone(state, zone)
   const eid = world.createEntity()
   world.addComponent(eid, ComponentType.Position, { x: anchorX, y: anchorY })
