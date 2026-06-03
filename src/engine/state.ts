@@ -14,6 +14,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
+import type { World } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from './egregore/species'
 import { createCharacterEntity } from './entities'
@@ -39,6 +40,7 @@ import { generateAllRuinInteriors, placeRuinEntrances, seedRuinGeodeticMarkers }
 import { WATERFALL_TILE_WATER_BUMP } from './tileBg'
 import { buildWaterProximity } from './tileWater'
 import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, TileType, Zone } from './types'
+import { worldKey } from './zone'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 import { createLittleHouseYard, registerLittleHouseYard } from './yard'
@@ -330,7 +332,30 @@ export const createGameState = (
     emilyInvitation: 'unoffered',
     tenureOpened: false,
     giftsReceived: new Set<string>(),
-    world: createWorld(),
+    // Per-zone ECS worlds. Pre-create one world per non-Ruin Zone enum
+    // value; ruin worlds are created lazily by getWorldForZone on first
+    // entry. state.world below points at the overworld world at
+    // genesis; every zone transition handler reassigns it.
+    worlds: (() => {
+      const m = new Map<string, World>()
+      for (const zone of [
+        Zone.Overworld,
+        Zone.Cave,
+        Zone.HouseInterior,
+        Zone.LittleHouseYard,
+        Zone.KnotCellar,
+        Zone.WhineVillage,
+        Zone.WhineHomeYard,
+      ]) {
+        m.set(worldKey(zone), createWorld())
+      }
+      return m
+    })(),
+    get world(): World {
+      const w = this.worlds.get(worldKey(this.currentZone, this.currentRuinIndex ?? undefined))
+      if (!w) throw new Error(`No world for zone ${String(this.currentZone)} ruin=${String(this.currentRuinIndex)}`)
+      return w
+    },
     meteorShower: {
       active: false,
       remainingStars: 0,

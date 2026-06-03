@@ -54,6 +54,10 @@ export const deserializeState = (json: string): GameState => JSON.parse(json, de
 export const FUNCTION_FIELDS: (keyof GameState)[] = [
   'previewFn',
   'pendingAction',
+  // Per-zone worlds. Each entry is a World whose properties are
+  // function-typed closures (createEntity, query, etc.) — same
+  // round-trip behavior as the legacy single `world` field below.
+  'worlds',
   'world',
   'genesis',
   'onPlayerMoved',

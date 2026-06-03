@@ -1,7 +1,9 @@
 import { ComponentType } from './ecs/types'
+import { createWorld } from './ecs/world'
 import { Zone } from './types'
 
 import type { Entity } from './ecs/types'
+import type { World } from './ecs/world'
 import type { GameState } from './types'
 
 // Canonical string key for a zone-world lookup in state.worlds. Ruins
@@ -21,6 +23,26 @@ export const getCurrentEntityZone = (state: GameState): { zone: Zone; ruinIndex?
     return { zone: state.currentZone, ruinIndex: state.currentRuinIndex }
   }
   return { zone: state.currentZone }
+}
+
+// Returns the ECS world for the given zone, creating it on demand for
+// Ruin zones (non-Ruin zones are eagerly populated in createGameState
+// and throw if somehow missing). Callers that need to read or mutate a
+// specific zone's entities — genesis seeding into non-active zones,
+// the revery cross-zone count, the overworld-only celestial code when
+// running from a non-overworld tick — go through this helper rather
+// than state.world (which is always the active zone's world).
+export const getWorldForZone = (state: GameState, zone: Zone, ruinIndex?: number): World => {
+  const key = worldKey(zone, ruinIndex)
+  let w = state.worlds.get(key)
+  if (!w) {
+    if (zone !== Zone.Ruin) {
+      throw new Error(`No pre-created world for non-Ruin zone ${String(zone)}`)
+    }
+    w = createWorld()
+    state.worlds.set(key, w)
+  }
+  return w
 }
 
 // Strict zone membership check: an entity belongs to the current zone iff it

@@ -597,6 +597,13 @@ export interface GameState {
   // across save/load so re-opening a save does not re-trigger.
   tenureOpened: boolean
   giftsReceived: Set<string>
+  // Per-zone ECS worlds. Each non-Ruin Zone has exactly one world,
+  // pre-created in createGameState and keyed by worldKey(zone). Each
+  // Ruin instance has its own world keyed by `ruin:${ruinIndex}`,
+  // created lazily on first entry via getWorldForZone. state.world
+  // below is a moving reference that always points at the active zone's
+  // world; it is reassigned by every zone transition handler.
+  worlds: Map<string, World>
   world: World
   // RP-17 — per-species growth-preview queues. Each species owns
   // its own pending-preview Set so wildflower previews don't commit as
