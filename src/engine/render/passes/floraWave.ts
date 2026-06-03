@@ -3,7 +3,6 @@ import { ComponentType } from '../../ecs/types'
 import { viewportToScreen } from '../../projection'
 import { TileType, Zone } from '../../types'
 import { getVisibleTileBounds } from '../../viewportBounds'
-import { isEntityInCurrentZone } from '../../zone'
 import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
 
@@ -113,7 +112,6 @@ const drawPollenBursts = (
   const bounds = getVisibleTileBounds(viewportWidth, viewportHeight)
 
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.Position, ComponentType.EntityTag)) {
-    if (!isEntityInCurrentZone(state, eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'pollenBurst') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)

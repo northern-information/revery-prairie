@@ -12,7 +12,7 @@
 import { WILDFLOWER_BASE_GROWTH_CHANCE, WILDFLOWER_MAX_GROWTH_PER_TICK } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { CARDINAL, isInBounds, posKey } from '@/engine/position'
-import { FloraSpecies, TileType, Zone } from '@/engine/types'
+import { FloraSpecies, TileType } from '@/engine/types'
 import type { SelectGrowthTargets, SpeciesSpreadConfig } from '@/engine/flora/spreadConfig'
 import type { GameState, Position } from '@/engine/types'
 
@@ -23,7 +23,6 @@ const findPollinatorPositions = (state: GameState): Position[] => {
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'bee' && tag !== 'monarch') continue
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (pos) positions.push({ x: pos.x, y: pos.y })
   }

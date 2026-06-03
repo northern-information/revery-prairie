@@ -20,7 +20,10 @@ import { setMapTile } from './map'
 import { findPath } from './pathfinding'
 import { posKey } from './position'
 import { MoabState, Season, TileType, Zone } from './types'
+import { getWorldForZone, moveEntityAcrossWorlds, queryAllZones } from './zone'
 
+import type { Entity } from './ecs/types'
+import type { World } from './ecs/world'
 import type { GameState, Position } from './types'
 
 export const MOAB_PACE_MS = 500
@@ -29,18 +32,21 @@ const REFUSAL_HUMIDITY_THRESHOLD = 30
 
 const samePos = (a: Position, b: Position): boolean => a.x === b.x && a.y === b.y
 
-const findMoabEntity = (state: GameState): number | null => {
-  for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
-    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-    if (identity?.definitionId === 'moab') return eid
+// Moab lives in either the Cave world (idle) or the Overworld world
+// (emerged for the burn-line walk). Searches both via queryAllZones so
+// the helpers work regardless of state.currentZone.
+const findMoab = (state: GameState): { world: World; eid: Entity } | null => {
+  for (const hit of queryAllZones(state, ComponentType.CharacterIdentity, ComponentType.Position)) {
+    const identity = hit.world.getComponent(hit.eid, ComponentType.CharacterIdentity)
+    if (identity?.definitionId === 'moab') return hit
   }
   return null
 }
 
 const getMoabPosition = (state: GameState): Position | null => {
-  const eid = findMoabEntity(state)
-  if (eid === null) return null
-  const pos = state.world.getComponent(eid, ComponentType.Position)
+  const hit = findMoab(state)
+  if (!hit) return null
+  const pos = hit.world.getComponent(hit.eid, ComponentType.Position)
   return pos ? { x: pos.x, y: pos.y } : null
 }
 
@@ -51,12 +57,13 @@ export const checkBurnLineRefusal = (state: GameState, line: Position[]): string
     return 'extreme-weather'
   }
 
-  // Character positions (Gron, Coyote, ghosts, etc.) in the overworld.
+  // Character positions in the overworld (Gron, Coyote, ghosts, etc.).
+  // Per-zone worlds — read the overworld world directly rather than
+  // relying on state.world being overworld at call time.
   const characterPositions = new Set<string>()
-  for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
-    const zone = state.world.getComponent(eid, ComponentType.EntityZone)?.zone
-    if (zone !== Zone.Overworld) continue
-    const pos = state.world.getComponent(eid, ComponentType.Position)
+  const overworld = getWorldForZone(state, Zone.Overworld)
+  for (const eid of overworld.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
+    const pos = overworld.getComponent(eid, ComponentType.Position)
     if (!pos) continue
     characterPositions.add(posKey(pos.x, pos.y))
   }
@@ -93,16 +100,21 @@ const burnTile = (state: GameState, pos: Position): void => {
   // Dirt / Sand / BurntFlora and other types: no-op.
 }
 
+// Re-home Moab into the target zone's world. Used to emerge him from
+// Cave into Overworld at thaw and return him at frost. Per-zone worlds
+// require an actual cross-world copy + destroy — addComponent on the
+// EntityZone tag (the old approach) wouldn't have moved the entity.
 const setMoabZone = (state: GameState, zone: Zone): void => {
-  const eid = findMoabEntity(state)
-  if (eid === null) return
-  state.world.addComponent(eid, ComponentType.EntityZone, { zone })
+  const hit = findMoab(state)
+  if (!hit) return
+  if (hit.world === getWorldForZone(state, zone)) return
+  moveEntityAcrossWorlds(hit.world, hit.eid, getWorldForZone(state, zone))
 }
 
 const setMoabPosition = (state: GameState, pos: Position, durationMs?: number): void => {
-  const eid = findMoabEntity(state)
-  if (eid === null) return
-  state.world.moveEntity(eid, pos.x, pos.y, durationMs)
+  const hit = findMoab(state)
+  if (!hit) return
+  hit.world.moveEntity(hit.eid, pos.x, pos.y, durationMs)
 }
 
 // Winter → Spring transition handler. Reads from state.lockedBurnLine

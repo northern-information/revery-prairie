@@ -12,7 +12,6 @@ import { CARDINAL, DIRECTIONS, isInBounds, isWalkableTile, posKey } from './posi
 import { invalidateMapCache } from './tileBgCache'
 import { archivePlacedCameraFrames } from './timeLapse'
 import { MainQuestPhase, MoabState, Season, TileType, Zone } from './types'
-import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
 import type { GameState, Position } from './types'
 
@@ -24,7 +23,7 @@ export interface GiftAnnouncement {
 
 export const isInteractableAt = (state: GameState, x: number, y: number): boolean => {
   if (
-    spatialAtInCurrentZone(state, x, y).some(eid => {
+    state.world.spatial.at(x, y).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
       return tag === 'character' || tag === 'placedCamera' || tag === 'placedMarker'
     })
@@ -99,7 +98,7 @@ export const getAdjacentCharacter = (
   const py = state.player.y
 
   const findCharAt = (x: number, y: number): { definitionId: string; pos: { x: number; y: number } } | null => {
-    for (const eid of spatialAtInCurrentZone(state, x, y)) {
+    for (const eid of state.world.spatial.at(x, y)) {
       if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'character') continue
       const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
       const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -449,7 +448,6 @@ export const clearRuinDebris = (state: GameState, time = performance.now()): boo
     startTime: time,
   })
   state.world.addComponent(crumbleEntity, ComponentType.EntityTag, 'crumble')
-  state.world.addComponent(crumbleEntity, ComponentType.EntityZone, getCurrentEntityZone(state))
   spawnPickupBloom(state, state.player.x, state.player.y, time)
 
   updateFacingEntity(state)
@@ -503,10 +501,10 @@ const rescueCoyote = (state: GameState): void => {
         pos.y = target.y
       }
     }
-    // Switch behavior to follow.
+    // Switch behavior to follow. Per-zone worlds: the coyote is already
+    // in the active zone's world (state.world.query found him); no
+    // EntityZone retag needed.
     state.world.addComponent(coyoteEid, ComponentType.Behavior, { type: 'follow' })
-    // Move the coyote into the current zone so it gets carried out on exit.
-    state.world.addComponent(coyoteEid, ComponentType.EntityZone, getCurrentEntityZone(state))
   }
 
   state.coyoteCargo = null
@@ -643,7 +641,6 @@ export const breakWall = (state: GameState, time: number): boolean => {
     startTime: time,
   })
   state.world.addComponent(crumbleEntity, ComponentType.EntityTag, 'crumble')
-  state.world.addComponent(crumbleEntity, ComponentType.EntityZone, getCurrentEntityZone(state))
 
   // Convert breakable wall tiles to CaveFloor
   for (const pos of state.caveBreakableWallPositions) {
@@ -670,7 +667,7 @@ const findAdjacentPlacedCamera = (state: GameState): { eid: number; camera: impo
       if (dx === 0 && dy === 0) continue
       const x = state.player.x + dx
       const y = state.player.y + dy
-      for (const eid of spatialAtInCurrentZone(state, x, y)) {
+      for (const eid of state.world.spatial.at(x, y)) {
         const tag = state.world.getComponent(eid, ComponentType.EntityTag)
         if (tag !== 'placedCamera') continue
         const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -762,7 +759,7 @@ const findAdjacentPlacedMarker = (
       if (dx === 0 && dy === 0) continue
       const x = state.player.x + dx
       const y = state.player.y + dy
-      for (const eid of spatialAtInCurrentZone(state, x, y)) {
+      for (const eid of state.world.spatial.at(x, y)) {
         if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'placedMarker') continue
         const pos = state.world.getComponent(eid, ComponentType.Position)
         if (!pos) continue

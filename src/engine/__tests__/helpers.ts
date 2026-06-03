@@ -190,7 +190,6 @@ export const createMeteoriteEntity = (state: GameState, x: number, y: number): E
   world.addComponent(e, ComponentType.Position, { x, y })
   world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
   world.addComponent(e, ComponentType.EntityTag, 'meteorite')
-  world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 
@@ -213,7 +212,6 @@ export const createBeeEntity = (state: GameState, x: number, y: number, zone?: Z
   const e = world.createEntity()
   world.addComponent(e, ComponentType.Position, { x, y })
   world.addComponent(e, ComponentType.EntityTag, 'bee')
-  world.addComponent(e, ComponentType.EntityZone, { zone: targetZone })
   world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
   // RP-17 — bees carry an empty PollenBag at creation. Tests that
   // exercise bee-mediated pollination read this component directly.
@@ -243,7 +241,6 @@ export const createGroundItemEntity = (state: GameState, definitionId: string, x
   world.addComponent(e, ComponentType.Position, { x, y })
   world.addComponent(e, ComponentType.ItemDrop, { definitionId })
   world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-  world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 
@@ -310,7 +307,6 @@ export const createBeehiveEntity = (state: GameState, x: number, y: number): Ent
   world.addComponent(e, ComponentType.Position, { x, y })
   world.addComponent(e, ComponentType.EntityTag, 'beehive')
   world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
-  world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 

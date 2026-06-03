@@ -9,24 +9,17 @@ import { CLIMBABLE_STEP_THRESHOLD, DIRECTIONS, isClimbableStep, isInBounds, isWa
 import { isReveryLocked } from './revery'
 import { getFrozenStairwaySet } from './waterfalls'
 import { isDiagonalDirection, TileType, Zone } from './types'
-import { isEntityInCurrentZone } from './zone'
 import { isInputGated } from './zoneTransition'
 
 import type { Direction, GameState, Position } from './types'
 
-// Filter matching the current zone (with ruinIndex) when zone arg is omitted
-// or matches state.currentZone; otherwise falls back to zone-only comparison
-// for callers that ask about a different zone than the active one.
-const inZoneForBlocking = (state: GameState, eid: number, zone: Zone): boolean => {
-  if (zone === state.currentZone) return isEntityInCurrentZone(state, eid)
-  return state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
-}
-
-export const getBlockedPositions = (state: GameState, zone?: Zone, opts?: { ignoreCoyote?: boolean }): Set<string> => {
-  const z = zone ?? state.currentZone
+export const getBlockedPositions = (state: GameState, _zone?: Zone, opts?: { ignoreCoyote?: boolean }): Set<string> => {
+  // Per-zone worlds: state.world.query only returns entities in the
+  // active zone. The zone arg is preserved for back-compat at call sites
+  // — callers always pass either undefined or a zone equal to
+  // state.currentZone (verified by inspection).
   const set = new Set<string>()
   for (const eid of state.world.query(ComponentType.Blocking, ComponentType.Position)) {
-    if (!inZoneForBlocking(state, eid, z)) continue
     if (opts?.ignoreCoyote) {
       const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
       if (identity?.definitionId === 'coyote') continue
@@ -38,7 +31,6 @@ export const getBlockedPositions = (state: GameState, zone?: Zone, opts?: { igno
   }
   // Angel body tiles block movement
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.MultiPosition)) {
-    if (!inZoneForBlocking(state, eid, z)) continue
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
     if (!multi) continue
     for (const p of multi.positions) {
@@ -47,7 +39,6 @@ export const getBlockedPositions = (state: GameState, zone?: Zone, opts?: { igno
   }
   // Oak body tiles block movement
   for (const eid of state.world.query(ComponentType.OakData, ComponentType.MultiPosition)) {
-    if (!inZoneForBlocking(state, eid, z)) continue
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
     if (!multi) continue
     for (const p of multi.positions) {

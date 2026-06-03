@@ -21,7 +21,6 @@ import { createFloraLifecycleEntry } from './floraLifecycleEntry'
 import { setMapTile } from './map'
 import { isInBounds, posKey } from './position'
 import { FloraSpecies, TileType, Zone } from './types'
-import { getCurrentEntityZone } from './zone'
 
 import type { GameState, WaveEmission } from './types'
 
@@ -84,7 +83,6 @@ const spawnPollenBurst = (state: GameState, x: number, y: number, time: number):
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pollenBurst', startTime: time })
   state.world.addComponent(e, ComponentType.EntityTag, 'pollenBurst')
-  state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
 }
 
 const advanceWave = (state: GameState, wave: WaveEmission, time: number): number => {

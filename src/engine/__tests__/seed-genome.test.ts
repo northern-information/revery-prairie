@@ -30,7 +30,6 @@ const spawnSeedDrop = (state: GameState, definitionId: string, x: number, y: num
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.ItemDrop, { definitionId, genome })
   state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 
@@ -65,7 +64,6 @@ describe('seed pickup transfers genome to seedGenomes', () => {
     state.world.addComponent(e, ComponentType.Position, { x: state.player.x, y: state.player.y })
     state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'clover' })
     state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
 
     pickUpGroundItems(state, 0)
     expect(state.seedGenomes.size).toBe(0)

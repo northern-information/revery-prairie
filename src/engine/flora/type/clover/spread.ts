@@ -18,7 +18,7 @@
 import { CLOVER_BASE_GROWTH_CHANCE, CLOVER_BEE_GROWTH_BONUS, CLOVER_MAX_GROWTH_PER_TICK } from '@/engine/constants'
 import { ComponentType } from '@/engine/ecs/types'
 import { CARDINAL, isInBounds, posKey, tileHash } from '@/engine/position'
-import { FloraSpecies, TileType, Zone } from '@/engine/types'
+import { FloraSpecies, TileType } from '@/engine/types'
 import type { FloraPatch, SelectGrowthTargets, SpeciesSpreadConfig } from '@/engine/flora/spreadConfig'
 import type { GameState, Position } from '@/engine/types'
 
@@ -76,7 +76,6 @@ const countBeesOnPatch = (patch: FloraPatch, state: GameState): number => {
   let count = 0
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (pos && patch.tiles.has(posKey(pos.x, pos.y))) {
       count++

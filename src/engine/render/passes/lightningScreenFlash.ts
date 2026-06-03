@@ -1,6 +1,5 @@
 import { LIGHTNING_DURATION_MS, LIGHTNING_SCREEN_FLASH_MS, LIGHTNING_SCREEN_FLASH_OPACITY } from '../../constants'
 import { ComponentType } from '../../ecs/types'
-import { isEntityInCurrentZone } from '../../zone'
 import { registerPass } from '../passes'
 
 import type { CharMetrics, GameState } from '../../types'
@@ -9,7 +8,6 @@ import type { RenderPass } from '../passes'
 const earliestLightningElapsed = (state: GameState, time: number): number => {
   let earliest = Infinity
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!isEntityInCurrentZone(state, eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'lightning') continue
     const effect = state.world.getComponent(eid, ComponentType.TimedEffect)

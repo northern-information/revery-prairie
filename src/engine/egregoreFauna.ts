@@ -15,7 +15,6 @@ import { EGREGORE_GLYPHS } from './egregore'
 import { recordDiscovery } from './manual'
 import { isInBounds, isWalkableTile, ORDINAL } from './position'
 import { Zone } from './types'
-import { getCurrentEntityZone } from './zone'
 
 import type { GameState, Position } from './types'
 
@@ -129,7 +128,6 @@ export const attemptWrongBeeSpawn = (
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, pos)
   state.world.addComponent(e, ComponentType.EntityTag, WRONG_BEE_TAG)
-  state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
   state.world.addComponent(e, ComponentType.WrongBeeLifecycle, {
     ticksRemaining: WRONG_BEE_LIFESPAN_TICKS,
   })
@@ -163,7 +161,6 @@ export const attemptPierceWalkerSpawn = (
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, pos)
   state.world.addComponent(e, ComponentType.EntityTag, PIERCE_WALKER_TAG)
-  state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
   state.world.addComponent(e, ComponentType.PierceWalkerGlyph, { codepoint })
   state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
 
