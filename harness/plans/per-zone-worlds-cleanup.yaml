@@ -1,0 +1,283 @@
+plan:
+  id: per-zone-worlds-cleanup
+  title: Drop EntityZone and the isEntityInCurrentZone / spatialAtInCurrentZone / getCurrentEntityZone helpers after per-zone worlds make them redundant
+  created: 2026-06-03
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test:engine
+
+tasks:
+  # --- Tier 1: Production-code consumers stop using the filter helpers ---
+
+  - id: remove-filter-helper-callers
+    title: |
+      Across src/engine/ and src/hooks/, delete every `if (!isEntityInCurrentZone(state, eid)) continue`
+      and `if (!inZone(eid)) continue` line. The per-zone-world refactor (per-zone-ecs-worlds)
+      means the calling loop now iterates a single zone's entities; the filter is a no-op.
+
+      Replace every `spatialAtInCurrentZone(state, x, y)` call with `state.world.spatial.at(x, y)`.
+
+      Remove the `getCurrentEntityZone(state)` calls — they were only used to produce
+      EntityZone component data, which is being deleted in a subsequent task. Any call site
+      that passes the result to addComponent(EntityZone, ...) is dropped wholesale; any other
+      call (e.g., as a value to log or compare) becomes an inline access of state.currentZone
+      and state.currentRuinIndex.
+
+      Update import lines to drop the names. Do NOT touch tests in this task — they get
+      their own pass.
+
+      Files to grep for filter-helper imports / call sites (non-exhaustive — use a fresh
+      grep before editing each file):
+        - src/engine/renderer.ts (~20 inZone(eid) sites under various closures)
+        - src/engine/coyote.ts
+        - src/engine/entities.ts
+        - src/engine/effects.ts
+        - src/engine/placeable.ts
+        - src/engine/interaction.ts
+        - src/engine/satellites.ts
+        - src/engine/oaks.ts
+        - src/engine/celestial.ts
+        - src/engine/clover.ts
+        - src/engine/monarch.ts
+        - src/engine/torchbearer.ts
+        - src/engine/egregoreFauna.ts
+        - src/engine/angels.ts
+        - src/engine/lightning.ts
+        - src/engine/proximityMusic.ts
+        - src/engine/movement.ts
+        - src/engine/tileWater.ts
+        - src/engine/floraWaves.ts
+        - src/engine/render/passes/*.ts
+        - src/hooks/useCanvasDrop.ts
+
+      Run `npm run typecheck` after the sweep. Any TS error about an unused import points
+      to a forgotten cleanup site — fix it. Then run `npx vitest run` on the engine suite.
+    spec_id: per-zone-worlds-cleanup
+    spec_sections:
+      - in-zone-filter-helpers-deleted
+      - existing-cross-zone-isolation-still-holds
+    context_files:
+      - src/engine/zone.ts
+      - src/engine/renderer.ts
+      - src/engine/coyote.ts
+      - src/engine/entities.ts
+      - src/engine/effects.ts
+      - src/engine/placeable.ts
+      - src/engine/interaction.ts
+    output_files:
+      - src/engine/renderer.ts
+      - src/engine/coyote.ts
+      - src/engine/entities.ts
+      - src/engine/effects.ts
+      - src/engine/placeable.ts
+      - src/engine/interaction.ts
+      - src/engine/satellites.ts
+      - src/engine/oaks.ts
+      - src/engine/celestial.ts
+      - src/engine/clover.ts
+      - src/engine/monarch.ts
+      - src/engine/torchbearer.ts
+      - src/engine/egregoreFauna.ts
+      - src/engine/angels.ts
+      - src/engine/lightning.ts
+      - src/engine/proximityMusic.ts
+      - src/engine/movement.ts
+      - src/engine/tileWater.ts
+      - src/engine/floraWaves.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - cleanup
+
+  # --- Tier 2: Drop the EntityZone component itself ---
+
+  - id: remove-entityzone-writes-and-reads-production
+    title: |
+      Across src/engine/ and src/hooks/, delete every
+      `addComponent(eid, ComponentType.EntityZone, ...)` line and every
+      `getComponent(eid, ComponentType.EntityZone)` reader. Per-zone-worlds
+      makes the data redundant — the world the entity lives in is the zone
+      it belongs to.
+
+      Special cases:
+        - src/engine/zone.ts: getCurrentEntityZone (and its return type) is
+          removed in the previous task. Re-confirm no callers remain.
+        - src/engine/scan.ts oakAt: drops the EntityZone read it picked up
+          during Phase 1 (if any) and any `if (target.zone !== ...)` check.
+        - src/engine/coyote.ts transitionCoyoteToZone: stops calling
+          addComponent(EntityZone, ...) after moveEntityAcrossWorlds.
+
+      Once production code no longer references ComponentType.EntityZone, the
+      enum entry and ComponentDataMap entry can be removed in the next task.
+    spec_id: per-zone-worlds-cleanup
+    spec_sections:
+      - entityzone-component-deleted
+    context_files:
+      - src/engine/ecs/types.ts
+      - src/engine/zone.ts
+    output_files:
+      - src/engine/entities.ts
+      - src/engine/coyote.ts
+      - src/engine/effects.ts
+      - src/engine/placeable.ts
+      - src/engine/interaction.ts
+      - src/engine/satellites.ts
+      - src/engine/oaks.ts
+      - src/engine/celestial.ts
+      - src/engine/clover.ts
+      - src/engine/monarch.ts
+      - src/engine/torchbearer.ts
+      - src/engine/egregoreFauna.ts
+      - src/engine/angels.ts
+      - src/engine/lightning.ts
+      - src/engine/state.ts
+      - src/engine/predecessors.ts
+      - src/engine/ruins.ts
+      - src/hooks/useCanvasDrop.ts
+    depends_on:
+      - remove-filter-helper-callers
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - cleanup
+
+  - id: remove-entityzone-from-componenttype-enum
+    title: |
+      In src/engine/ecs/types.ts:
+        - delete the `EntityZone: 'entityZone'` entry from the ComponentType
+          const object.
+        - delete the corresponding ComponentDataMap entry.
+
+      In src/engine/zone.ts:
+        - delete the isEntityInCurrentZone, spatialAtInCurrentZone, and
+          getCurrentEntityZone exports. Their bodies and any internal helpers
+          go with them.
+        - leave worldKey, getWorldForZone, queryAllZones, and
+          moveEntityAcrossWorlds in place — those are the new API.
+
+      Verify no production file still imports the removed exports
+      (`grep -rn 'isEntityInCurrentZone\|spatialAtInCurrentZone\|getCurrentEntityZone' src/` returns nothing).
+    spec_id: per-zone-worlds-cleanup
+    spec_sections:
+      - entityzone-component-deleted
+      - in-zone-filter-helpers-deleted
+    context_files:
+      - src/engine/ecs/types.ts
+      - src/engine/zone.ts
+    output_files:
+      - src/engine/ecs/types.ts
+      - src/engine/zone.ts
+    depends_on:
+      - remove-entityzone-writes-and-reads-production
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - cleanup
+
+  # --- Tier 3: Update tests ---
+
+  - id: update-tests-no-entityzone
+    title: |
+      Across src/engine/__tests__/, drop every EntityZone read / write.
+      Tests that asserted "entity has EntityZone matching zone X" become
+      "entity exists in state.worlds.get(worldKey(zone-X))". Tests that
+      created entities directly via state.world.createEntity and tagged
+      with EntityZone use getWorldForZone(state, zone) instead.
+
+      Drop imports of isEntityInCurrentZone, spatialAtInCurrentZone, and
+      getCurrentEntityZone from test files. Replace
+      spatialAtInCurrentZone(state, x, y) with state.world.spatial.at(x, y).
+
+      Files to update (use `grep -rn 'EntityZone\|isEntityInCurrentZone\|spatialAtInCurrentZone\|getCurrentEntityZone' src/engine/__tests__ src/hooks/__tests__ src/components/__tests__` for the canonical list):
+        - src/engine/__tests__/zoneIsolation.test.ts (highest density)
+        - src/engine/__tests__/cave.test.ts
+        - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+        - src/engine/__tests__/pickupZoneFilter.test.ts
+        - src/engine/__tests__/egregore-fauna.test.ts
+        - src/engine/__tests__/helpers.ts
+        - src/engine/__tests__/whine.test.ts
+        - src/engine/__tests__/satelliteImpacts.test.ts
+        - src/engine/__tests__/RP-70-the-map.test.ts
+        - others surfaced by the grep
+
+      Run `npm run test:engine` to verify all tests still pass. Investigate
+      every failure individually — do not mass-update assertions to bypass.
+    spec_id: per-zone-worlds-cleanup
+    spec_sections:
+      - existing-cross-zone-isolation-still-holds
+      - entityzone-component-deleted
+    context_files:
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/zoneIsolation.test.ts
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/zone.ts
+      - src/engine/ecs/types.ts
+    output_files:
+      - src/engine/__tests__/zoneIsolation.test.ts
+      - src/engine/__tests__/cave.test.ts
+      - src/engine/__tests__/trapped-coyote-stays-put.test.ts
+      - src/engine/__tests__/pickupZoneFilter.test.ts
+      - src/engine/__tests__/egregore-fauna.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/__tests__/whine.test.ts
+      - src/engine/__tests__/satelliteImpacts.test.ts
+      - src/engine/__tests__/RP-70-the-map.test.ts
+    depends_on:
+      - remove-entityzone-from-componenttype-enum
+    verification:
+      - npm run test:engine
+      - npm run lint
+    repair: retry
+    tags:
+      - engine
+      - test
+      - cleanup
+
+  # --- Tier 4: Documentation ---
+
+  - id: update-docs-and-claude-md
+    title: |
+      Update docs that reference the old EntityZone / inZone pattern:
+        - CLAUDE.md "rules that fire when adding content": the bullet for
+          "new GameState field" stays; if any other bullet mentions
+          EntityZone or isEntityInCurrentZone, rewrite to point at the
+          per-zone-worlds pattern.
+        - docs/claude/state.md: update the entity-zone-ownership section.
+        - docs/claude/rendering.md: the renderer section that mentions the
+          inZone(eid) gate should describe per-zone worlds instead.
+        - docs/claude/multiplayer.md: only mention EntityZone if multiplayer
+          actually consumed it (per the audit, it does not).
+        - docs/claude/per-zone-worlds-audit.md: append a closing note
+          acknowledging Phase 2 cleanup landed.
+
+      Use sentence case for prose, backticks for identifiers and paths.
+      Do not introduce new doc files — only edit existing.
+    spec_id: per-zone-worlds-cleanup
+    spec_sections:
+      - in-zone-filter-helpers-deleted
+      - entityzone-component-deleted
+    context_files:
+      - CLAUDE.md
+      - docs/claude/state.md
+      - docs/claude/rendering.md
+      - docs/claude/multiplayer.md
+      - docs/claude/per-zone-worlds-audit.md
+    output_files:
+      - CLAUDE.md
+      - docs/claude/state.md
+      - docs/claude/rendering.md
+      - docs/claude/per-zone-worlds-audit.md
+    depends_on:
+      - update-tests-no-entityzone
+    verification: []
+    repair: retry
+    tags:
+      - docs
