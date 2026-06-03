@@ -39,11 +39,24 @@ class MockAudioBufferSourceNode {
   stop = vi.fn()
 }
 
+// All MockAudioBufferSourceNodes constructed by MockAudioContext are pushed
+// here so individual tests can audit every source the audio module created.
+// Reset in beforeEach. A "live orphan" is a source where start has been
+// called and stop has NOT — the diagnostic for the setAmbient race.
+let createdSources: MockAudioBufferSourceNode[] = []
+
+const countLiveSources = (): number =>
+  createdSources.filter(s => s.start.mock.calls.length > 0 && s.stop.mock.calls.length === 0).length
+
 class MockAudioContext {
   state = 'running'
   destination = {}
   createGain = vi.fn(() => new MockGainNode())
-  createBufferSource = vi.fn(() => new MockAudioBufferSourceNode())
+  createBufferSource = vi.fn(() => {
+    const node = new MockAudioBufferSourceNode()
+    createdSources.push(node)
+    return node
+  })
   decodeAudioData = vi.fn((buf: ArrayBuffer) => Promise.resolve(buf as unknown as AudioBuffer))
   resume = vi.fn(() => Promise.resolve())
   close = vi.fn(() => Promise.resolve())
@@ -97,6 +110,7 @@ beforeEach(async () => {
   await flush()
   rafCallbacks = []
   rafId = 0
+  createdSources = []
   vi.restoreAllMocks()
   vi.stubGlobal('AudioContext', MockAudioContext)
   vi.stubGlobal(
@@ -503,6 +517,62 @@ describe('audio manager', () => {
 
       expect(_getState().splashTrack).toBeNull()
       expect(gain?.disconnect).toHaveBeenCalled()
+    })
+  })
+
+  // setAmbient race (regression: orphan tracks on rapid mount/unmount/remount).
+  // The createTrack promise resolution path only checks `ambientUrl !==
+  // requestedUrl` to decide whether to install the new track. When two
+  // setAmbient calls are issued for the SAME url (typical sequence:
+  // useMusic mounts during genesis, React StrictMode simulates an
+  // unmount/remount, both mounts call setAmbient(overworld)), both
+  // resolved tracks pass the url-equality guard. The second .then()
+  // overwrites ambientTrack; the first track is started but unreferenced
+  // and plays forever. The "Audio: Off" toggle in the settings panel
+  // only mutes the currently-referenced ambientTrack, so the orphan
+  // survives that path too. The fix is a per-call request token.
+  describe('setAmbient race (regression: orphan tracks on rapid mount/unmount/remount)', () => {
+    it('two setAmbient calls for the same URL with stopAll between leave at most one live source', async () => {
+      setAmbient('/music/overworld.mp3')
+      // stopAll fires before the first createTrack resolves — mirrors a
+      // StrictMode cleanup mid-load.
+      stopAll()
+      setAmbient('/music/overworld.mp3')
+      await flush()
+      await flush()
+
+      expect(countLiveSources()).toBeLessThanOrEqual(1)
+    })
+
+    it('two setAmbient calls for the same URL with no stopAll leave at most one live source', async () => {
+      // Both calls fire before either createTrack resolves — mirrors a
+      // remount where the previous setAmbient's promise had not yet
+      // settled when the new effect runs.
+      setAmbient('/music/overworld.mp3')
+      setAmbient('/music/overworld.mp3')
+      await flush()
+      await flush()
+
+      expect(countLiveSources()).toBeLessThanOrEqual(1)
+    })
+
+    it('setAudioEnabled(false) during a setAmbient load does not leave a track playing at gain 1', async () => {
+      setAmbient('/music/overworld.mp3')
+      // Toggle audio off BEFORE the createTrack resolves — the user
+      // hit "Audio: Off" while genesis was still loading the track.
+      setAudioEnabled(false)
+      await flush()
+      // Advance the fadeBoth tween so we observe the terminal gain, not
+      // the initial 0 the GainNode happens to default to.
+      completeFade()
+
+      const { ambientTrack } = _getState()
+      // Either the track was dropped entirely, or it was installed at
+      // gain 0. The leak is a track installed at gain 1.
+      if (ambientTrack !== null) {
+        const gain = getGain(ambientTrack)
+        expect(gain?.gain.value).toBe(0)
+      }
     })
   })
 })

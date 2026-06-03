@@ -1,0 +1,104 @@
+plan:
+  id: audio-setambient-race
+  title: Fix setAmbient orphan track on rapid mount/unmount/remount via per-call request token
+  created: 2026-06-02
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npx vitest run src/engine/__tests__/audio.test.ts
+
+tasks:
+  # --- Tier 1: Add the failing regression test first ---
+
+  - id: add-setambient-orphan-regression-test
+    title: |
+      Extend src/engine/__tests__/audio.test.ts with a new describe block
+      `setAmbient race (regression: orphan tracks on rapid mount/unmount/remount)`.
+      Three cases:
+
+      1. `double setAmbient for same URL with stopAll between, no orphan`:
+         setAmbient('/music/overworld.mp3'); stopAll(); setAmbient('/music/overworld.mp3');
+         await flush() until both createTrack promises resolve.
+         Track every MockAudioBufferSourceNode created by the MockAudioContext (collect
+         them via a Set populated in MockAudioContext.createBufferSource). Assert that
+         exactly one MockAudioBufferSourceNode is in the "started without a stop()"
+         state — i.e. start has been called and stop has not (or both start and stop
+         have been called).
+
+      2. `double setAmbient for same URL without stopAll, no orphan`:
+         setAmbient('/music/overworld.mp3'); setAmbient('/music/overworld.mp3') BEFORE
+         the first createTrack resolves; flush. At most one source ends up "started
+         without a stop()".
+
+      3. `setAudioEnabled(false) during setAmbient load installs the track at gain 0`:
+         setAmbient('/music/overworld.mp3'); setAudioEnabled(false) immediately (before
+         flush); flush. Assert _getState().ambientTrack is either null OR its gain
+         node's gain.value === 0. ambientUrl is '/music/overworld.mp3'. No leak — the
+         spawned source must NOT be left at gain 1.
+
+      Use the existing MockAudioContext / MockGainNode / MockAudioBufferSourceNode
+      pattern in the file. The MockAudioContext.createBufferSource factory must be
+      adapted (or wrapped) to push each created instance into a module-level
+      Set<MockAudioBufferSourceNode> so the assertions can iterate them. Reset
+      between tests in beforeEach. These tests MUST fail on the current main and
+      pass after the fix lands.
+    spec_id: audio-setambient-race
+    spec_sections:
+      - double-set-ambient-same-url-before-resolution
+      - stopall-between-overlapping-set-ambient-calls
+      - set-audio-disabled-during-set-ambient-load
+    context_files:
+      - src/engine/audio.ts
+      - src/engine/__tests__/audio.test.ts
+    output_files:
+      - src/engine/__tests__/audio.test.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - audio
+      - test
+      - regression
+
+  # --- Tier 2: Fix the root cause ---
+
+  - id: per-call-request-token-in-set-ambient
+    title: |
+      In src/engine/audio.ts, add a module-level monotonic counter for ambient
+      requests (e.g. `let ambientRequestSeq = 0`). In setAmbient: capture
+      `const myRequest = ++ambientRequestSeq` after assigning ambientUrl. Replace
+      the `ambientUrl !== requestedUrl` check inside createTrack().then() with
+      `myRequest !== ambientRequestSeq` — fall through to destroyTrack(track)
+      otherwise. Inside .then(), after passing the token check, also branch on
+      audioEnabled: if false, install the track but set track.gain.gain.value = 0
+      (so setAudioEnabled(true) later can restore it via the existing
+      `setAudioEnabled` ambient-recreate path or via the next fadeBoth target).
+      In stopAll(): bump `ambientRequestSeq` once (so any in-flight setAmbient
+      .then() sees a stale token and drops). Keep the existing fast-path
+      `if (url === ambientUrl && ambientTrack) return` and the rest of stopAll's
+      teardown unchanged.
+
+      Do not change the createTrack/destroyTrack helpers or the fadeBoth tween.
+      Do not touch dialog / splash / proximity track lifecycles — those have
+      separate races (out of scope for this fix).
+    spec_id: audio-setambient-race
+    spec_sections:
+      - set-ambient-uses-request-token
+      - stop-all-invalidates-in-flight-set-ambient
+      - same-url-twice-still-no-op-when-already-playing
+    context_files:
+      - src/engine/audio.ts
+    output_files:
+      - src/engine/audio.ts
+    depends_on:
+      - add-setambient-orphan-regression-test
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/audio.test.ts
+    repair: retry
+    tags:
+      - engine
+      - audio
+      - bugfix
