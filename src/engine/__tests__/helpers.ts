@@ -6,6 +6,7 @@ import { completeGenesis, createGenesisState, GENESIS_EPOCHS, nameToSeed, precom
 import { isInBounds, posKey } from '../position'
 import { createGameState, enterHouseAtTenureStart } from '../state'
 import { Season, Sky, TileType, Zone } from '../types'
+import { getWorldForZone, queryAllZones } from '../zone'
 
 import type { Entity } from '../ecs/types'
 import type { GenesisSimState } from '../genesisTypes'
@@ -54,21 +55,21 @@ export const createTestState = (opts?: {
   // work in their state setups, not be blocked by a boot title card.
   completeGenesis(state, { skipTitleCard: true })
   state.backpack.items = []
-  // Destroy all character ECS entities (ghosts, gron, etc.)
-  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
-    state.world.destroyEntity(eid)
-  }
-  // Destroy all ground item ECS entities (coins, acorns, etc.)
-  for (const eid of state.world.query(ComponentType.EntityTag)) {
-    if (state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem') {
-      state.world.destroyEntity(eid)
+  // Per-zone worlds: characters/items/oaks now live in their target
+  // zone's world, not the active state.world. Iterate every world to
+  // ensure tests start with a clean slate across all zones.
+  for (const world of state.worlds.values()) {
+    for (const eid of world.query(ComponentType.CharacterIdentity)) {
+      world.destroyEntity(eid)
     }
-  }
-  // Destroy all oak entities seeded at genesis handoff so tests start with
-  // a clear overworld. Tests that need oaks call spawnOak / seedOaks
-  // explicitly.
-  for (const eid of state.world.query(ComponentType.OakData)) {
-    state.world.destroyEntity(eid)
+    for (const eid of world.query(ComponentType.EntityTag)) {
+      if (world.getComponent(eid, ComponentType.EntityTag) === 'groundItem') {
+        world.destroyEntity(eid)
+      }
+    }
+    for (const eid of world.query(ComponentType.OakData)) {
+      world.destroyEntity(eid)
+    }
   }
   state.glintingCoins = new Set()
   state.coinGlintPopTimes = new Map()
@@ -184,64 +185,77 @@ export const clearAllWater = (state: GameState): void => {
  * Creates a meteorite ECS entity at the given position.
  */
 export const createMeteoriteEntity = (state: GameState, x: number, y: number): Entity => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x, y })
-  state.world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
-  state.world.addComponent(e, ComponentType.EntityTag, 'meteorite')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
+  const world = getWorldForZone(state, state.currentZone)
+  const e = world.createEntity()
+  world.addComponent(e, ComponentType.Position, { x, y })
+  world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
+  world.addComponent(e, ComponentType.EntityTag, 'meteorite')
+  world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 
 /**
- * Queries all meteorite ECS entities in the world.
+ * Queries all meteorite ECS entities across every zone world.
  */
-export const getMeteoriteEntities = (state: GameState): Entity[] =>
-  state.world
-    .query(ComponentType.EntityTag)
-    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+export const getMeteoriteEntities = (state: GameState): Entity[] => {
+  const hits = queryAllZones(state, ComponentType.EntityTag)
+  return hits
+    .filter(({ world, eid }) => world.getComponent(eid, ComponentType.EntityTag) === 'meteorite')
+    .map(({ eid }) => eid)
+}
 
 /**
  * Creates a bee ECS entity at the given position.
  */
 export const createBeeEntity = (state: GameState, x: number, y: number, zone?: Zone): Entity => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x, y })
-  state.world.addComponent(e, ComponentType.EntityTag, 'bee')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: zone ?? state.currentZone })
-  state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
+  const targetZone = zone ?? state.currentZone
+  const world = getWorldForZone(state, targetZone)
+  const e = world.createEntity()
+  world.addComponent(e, ComponentType.Position, { x, y })
+  world.addComponent(e, ComponentType.EntityTag, 'bee')
+  world.addComponent(e, ComponentType.EntityZone, { zone: targetZone })
+  world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
   // RP-17 — bees carry an empty PollenBag at creation. Tests that
   // exercise bee-mediated pollination read this component directly.
-  state.world.addComponent(e, ComponentType.PollenBag, { loads: [] })
+  world.addComponent(e, ComponentType.PollenBag, { loads: [] })
   return e
 }
 
 /**
- * Queries all bee ECS entities in the world.
+ * Queries all bee ECS entities across every zone world. Tests that
+ * created bees in one zone and then enter another still see the
+ * original bees (per-zone worlds segregate them by world, not destroy
+ * them).
  */
-export const getBeeEntities = (state: GameState): Entity[] =>
-  state.world
-    .query(ComponentType.EntityTag)
-    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+export const getBeeEntities = (state: GameState): Entity[] => {
+  const hits = queryAllZones(state, ComponentType.EntityTag)
+  return hits
+    .filter(({ world, eid }) => world.getComponent(eid, ComponentType.EntityTag) === 'bee')
+    .map(({ eid }) => eid)
+}
 
 /**
  * Creates a ground item ECS entity at the given position.
  */
 export const createGroundItemEntity = (state: GameState, definitionId: string, x: number, y: number): Entity => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x, y })
-  state.world.addComponent(e, ComponentType.ItemDrop, { definitionId })
-  state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
+  const world = getWorldForZone(state, state.currentZone)
+  const e = world.createEntity()
+  world.addComponent(e, ComponentType.Position, { x, y })
+  world.addComponent(e, ComponentType.ItemDrop, { definitionId })
+  world.addComponent(e, ComponentType.EntityTag, 'groundItem')
+  world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 
 /**
- * Queries all ground item ECS entities in the world.
+ * Queries all ground item ECS entities across every zone world.
  */
-export const getGroundItemEntities = (state: GameState): Entity[] =>
-  state.world
-    .query(ComponentType.EntityTag)
-    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+export const getGroundItemEntities = (state: GameState): Entity[] => {
+  const hits = queryAllZones(state, ComponentType.EntityTag)
+  return hits
+    .filter(({ world, eid }) => world.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
+    .map(({ eid }) => eid)
+}
 
 /**
  * Creates a character ECS entity at the given position.
@@ -256,15 +270,17 @@ export const createCharacterTestEntity = (
 ): Entity => createCharacterEntity(state, definitionId, { x, y }, opts)
 
 /**
- * Queries all character ECS entities in the world.
+ * Queries all character ECS entities across every zone world.
  * Returns an array of { eid, definitionId, pos, behavior?, aura? }.
+ * Cross-zone iteration is correct here: tests want the steward roster
+ * regardless of which zone the player is currently observing.
  */
 export const getCharacterEntities = (state: GameState) =>
-  state.world.query(ComponentType.CharacterIdentity, ComponentType.Position).map(eid => {
-    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-    const pos = state.world.getComponent(eid, ComponentType.Position)
-    const behavior = state.world.getComponent(eid, ComponentType.Behavior)
-    const aura = state.world.getComponent(eid, ComponentType.Aura)
+  queryAllZones(state, ComponentType.CharacterIdentity, ComponentType.Position).map(({ world, eid }) => {
+    const identity = world.getComponent(eid, ComponentType.CharacterIdentity)
+    const pos = world.getComponent(eid, ComponentType.Position)
+    const behavior = world.getComponent(eid, ComponentType.Behavior)
+    const aura = world.getComponent(eid, ComponentType.Aura)
     return {
       eid,
       definitionId: identity?.definitionId ?? '',
@@ -275,30 +291,35 @@ export const getCharacterEntities = (state: GameState) =>
   })
 
 /**
- * Destroys all character ECS entities in the world.
+ * Destroys all character ECS entities across every zone world.
  */
 export const destroyAllCharacterEntities = (state: GameState): void => {
-  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
-    state.world.destroyEntity(eid)
+  for (const world of state.worlds.values()) {
+    for (const eid of world.query(ComponentType.CharacterIdentity)) {
+      world.destroyEntity(eid)
+    }
   }
 }
 
 /**
- * Creates a beehive ECS entity at the given position.
+ * Creates a beehive ECS entity at the given position in the current zone's world.
  */
 export const createBeehiveEntity = (state: GameState, x: number, y: number): Entity => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x, y })
-  state.world.addComponent(e, ComponentType.EntityTag, 'beehive')
-  state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
+  const world = getWorldForZone(state, state.currentZone)
+  const e = world.createEntity()
+  world.addComponent(e, ComponentType.Position, { x, y })
+  world.addComponent(e, ComponentType.EntityTag, 'beehive')
+  world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+  world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 
 /**
- * Queries all beehive ECS entities in the world.
+ * Queries all beehive ECS entities across every zone world.
  */
-export const getBeehiveEntities = (state: GameState): Entity[] =>
-  state.world
-    .query(ComponentType.EntityTag)
-    .filter(eid => state.world.getComponent(eid, ComponentType.EntityTag) === 'beehive')
+export const getBeehiveEntities = (state: GameState): Entity[] => {
+  const hits = queryAllZones(state, ComponentType.EntityTag)
+  return hits
+    .filter(({ world, eid }) => world.getComponent(eid, ComponentType.EntityTag) === 'beehive')
+    .map(({ eid }) => eid)
+}

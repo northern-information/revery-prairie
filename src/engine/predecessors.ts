@@ -35,6 +35,7 @@ import { isInBounds, isWalkableTile, posKey } from './position'
 import { generatePredecessorFootage } from './predecessors/footage'
 import { generatePredecessorName } from './predecessors/names'
 import { Zone } from './types'
+import { getWorldForZone } from './zone'
 
 import type { GameState, PlacedCamera, Position, PredecessorFate, PredecessorRecord } from './types'
 
@@ -183,10 +184,14 @@ export const seedPredecessorCameras = (state: GameState): void => {
     }
     state.placedCameras.push(placed)
 
-    const ce = state.world.createEntity()
-    state.world.addComponent(ce, ComponentType.Position, { x: tile.x, y: tile.y })
-    state.world.addComponent(ce, ComponentType.EntityTag, 'placedCamera')
-    state.world.addComponent(ce, ComponentType.EntityZone, { zone: Zone.Overworld })
-    state.world.addComponent(ce, ComponentType.ItemDrop, { definitionId: 'camera' })
+    // Predecessor cameras are always overworld-placed today. Route
+    // explicitly so the call site doesn't break the day a non-overworld
+    // predecessor placement is added.
+    const overworldWorld = getWorldForZone(state, Zone.Overworld)
+    const ce = overworldWorld.createEntity()
+    overworldWorld.addComponent(ce, ComponentType.Position, { x: tile.x, y: tile.y })
+    overworldWorld.addComponent(ce, ComponentType.EntityTag, 'placedCamera')
+    overworldWorld.addComponent(ce, ComponentType.EntityZone, { zone: Zone.Overworld })
+    overworldWorld.addComponent(ce, ComponentType.ItemDrop, { definitionId: 'camera' })
   }
 }

@@ -7,6 +7,7 @@ import { findPath } from '../pathfinding'
 import { isWalkableTile } from '../position'
 import { createGameState } from '../state'
 import { TileType, Zone } from '../types'
+import { getWorldForZone } from '../zone'
 import { tickZoneTransition } from '../zoneTransition'
 import {
   createBeeEntity,
@@ -474,12 +475,17 @@ describe('persistent dual-zone', () => {
     const state = createGameState('Test', 20, 20)
     const moab = getCharacterEntities(state).find(c => c.definitionId === 'moab')
     expect(moab).toBeDefined()
-    const moabEid = state.world
+    // Per-zone worlds: Moab lives structurally in the Cave world. Look
+    // him up there rather than via state.world (which is currently the
+    // Overworld world post-createGameState). The EntityZone component
+    // remains attached during Phase 1 as defense in depth.
+    const caveWorld = getWorldForZone(state, Zone.Cave)
+    const moabEid = caveWorld
       .query(ComponentType.CharacterIdentity)
-      .find(eid => state.world.getComponent(eid, ComponentType.CharacterIdentity)?.definitionId === 'moab')
+      .find(eid => caveWorld.getComponent(eid, ComponentType.CharacterIdentity)?.definitionId === 'moab')
     expect(moabEid).toBeDefined()
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const zone = state.world.getComponent(moabEid!, ComponentType.EntityZone)
+    const zone = caveWorld.getComponent(moabEid!, ComponentType.EntityZone)
     expect(zone?.zone).toBe(Zone.Cave)
   })
 })

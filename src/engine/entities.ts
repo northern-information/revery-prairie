@@ -14,7 +14,7 @@ import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { getHallowedPolygons, getStoneCircleGraph, isInsideHallowedGround } from './stoneCircles'
 import { FloraSpecies, TileType, Zone } from './types'
-import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
+import { getCurrentEntityZone, getWorldForZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
 
 import type { Entity } from './ecs/types'
 import type { CharacterBehavior, DriftBehavior, GameState, Position } from './types'
@@ -31,23 +31,28 @@ export const createCharacterEntity = (
     music?: { url: string; radius: number }
   }
 ): Entity => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
-  state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId })
-  state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
-  state.world.addComponent(e, ComponentType.EntityTag, 'character')
   const entityZone =
     opts?.zone !== undefined ? { zone: opts.zone, ruinIndex: opts.ruinIndex } : getCurrentEntityZone(state)
-  state.world.addComponent(e, ComponentType.EntityZone, entityZone)
+  // Route the entity into its target zone's world rather than the
+  // active state.world — characters seeded at genesis (Moab in Cave,
+  // Emily in HouseInterior) are created while state.currentZone is
+  // still Zone.Overworld and would otherwise land in the wrong world.
+  const world = getWorldForZone(state, entityZone.zone, entityZone.ruinIndex)
+  const e = world.createEntity()
+  world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+  world.addComponent(e, ComponentType.CharacterIdentity, { definitionId })
+  world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+  world.addComponent(e, ComponentType.EntityTag, 'character')
+  world.addComponent(e, ComponentType.EntityZone, entityZone)
   if (opts?.aura) {
     const radius = AURA_RADIUS[opts.aura] ?? 6
-    state.world.addComponent(e, ComponentType.Aura, { kind: opts.aura, radius })
+    world.addComponent(e, ComponentType.Aura, { kind: opts.aura, radius })
   }
   if (opts?.behavior) {
-    state.world.addComponent(e, ComponentType.Behavior, opts.behavior)
+    world.addComponent(e, ComponentType.Behavior, opts.behavior)
   }
   if (opts?.music) {
-    state.world.addComponent(e, ComponentType.MusicEmitter, { url: opts.music.url, radius: opts.music.radius })
+    world.addComponent(e, ComponentType.MusicEmitter, { url: opts.music.url, radius: opts.music.radius })
   }
   return e
 }

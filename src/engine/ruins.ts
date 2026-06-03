@@ -13,6 +13,7 @@ import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, isReservedForStructure, isWalkableTile, posKey, tileHash } from './position'
 import { STRUCTURE_REGISTRY } from './structures'
 import { FloraSpecies, RuinArchetype, TileType, Zone } from './types'
+import { getWorldForZone } from './zone'
 import { armReentryLock, isReentryLocked, registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
 import type { CivilizationRuin } from './genesisTypes'
@@ -1136,13 +1137,17 @@ const spawnRuinGroundItem = (
   definitionId: string,
   genome?: FloraGenome
 ): void => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+  // Route into the target ruin's world (per-zone-worlds). Each ruin
+  // instance has its own world keyed by ruinIndex; state.world points
+  // at whichever ruin (or other zone) is currently active.
+  const ruinWorld = getWorldForZone(state, Zone.Ruin, ruinIndex)
+  const e = ruinWorld.createEntity()
+  ruinWorld.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
   const dropData: { definitionId: string; genome?: FloraGenome } = { definitionId }
   if (genome) dropData.genome = genome
-  state.world.addComponent(e, ComponentType.ItemDrop, dropData)
-  state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
+  ruinWorld.addComponent(e, ComponentType.ItemDrop, dropData)
+  ruinWorld.addComponent(e, ComponentType.EntityTag, 'groundItem')
+  ruinWorld.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
 }
 
 // RP-70 — seed one Geodetic Marker just inside the bee, clover, and

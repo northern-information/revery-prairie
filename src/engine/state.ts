@@ -40,7 +40,7 @@ import { generateAllRuinInteriors, placeRuinEntrances, seedRuinGeodeticMarkers }
 import { WATERFALL_TILE_WATER_BUMP } from './tileBg'
 import { buildWaterProximity } from './tileWater'
 import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, TileType, Zone } from './types'
-import { worldKey } from './zone'
+import { getWorldForZone, worldKey } from './zone'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 import { createLittleHouseYard, registerLittleHouseYard } from './yard'
@@ -719,11 +719,15 @@ export const createGameState = (
   // overworld adjacent to the oak nearest the house entrance — see
   // seedTenureStartFieldCamera below.
   {
-    const e = state.world.createEntity()
-    state.world.addComponent(e, ComponentType.Position, { x: 2, y: 6 })
-    state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'filmRoll' })
-    state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.HouseInterior })
+    // filmRoll lives in HouseInterior — route to the house world rather
+    // than state.world (which is still pointing at the overworld during
+    // genesis seeding).
+    const houseWorld = getWorldForZone(state, Zone.HouseInterior)
+    const e = houseWorld.createEntity()
+    houseWorld.addComponent(e, ComponentType.Position, { x: 2, y: 6 })
+    houseWorld.addComponent(e, ComponentType.ItemDrop, { definitionId: 'filmRoll' })
+    houseWorld.addComponent(e, ComponentType.EntityTag, 'groundItem')
+    houseWorld.addComponent(e, ComponentType.EntityZone, { zone: Zone.HouseInterior })
   }
 
   // Field Camera seeding lives in completeGenesis (post-seedOaks) —
@@ -752,14 +756,16 @@ export const createGameState = (
         cellarSpawns.push({ x: cx, y: cy })
       }
     }
-    // First tile holds the map; the remaining 7 hold markers.
+    // First tile holds the map; the remaining 7 hold markers. All land
+    // in the KnotCellar world.
+    const cellarWorld = getWorldForZone(state, Zone.KnotCellar)
     cellarSpawns.forEach((pos, index) => {
       const definitionId = index === 0 ? 'map' : 'geodeticMarker'
-      const e = state.world.createEntity()
-      state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
-      state.world.addComponent(e, ComponentType.ItemDrop, { definitionId })
-      state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-      state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.KnotCellar })
+      const e = cellarWorld.createEntity()
+      cellarWorld.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+      cellarWorld.addComponent(e, ComponentType.ItemDrop, { definitionId })
+      cellarWorld.addComponent(e, ComponentType.EntityTag, 'groundItem')
+      cellarWorld.addComponent(e, ComponentType.EntityZone, { zone: Zone.KnotCellar })
     })
   }
 

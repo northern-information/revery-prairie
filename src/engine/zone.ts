@@ -72,3 +72,27 @@ export const spatialAtInCurrentZone = (state: GameState, x: number, y: number): 
   }
   return result
 }
+
+// Iterates every zone world and returns the union of entities matching
+// the given component types. For the rare consumer that legitimately
+// needs cross-zone visibility — the revery character count (global by
+// design), test helpers that want a steward roster across worlds.
+// Most gameplay should use state.world.query(...) which only sees the
+// active zone's entities.
+//
+// Each returned entry is `{ world, eid }` so the caller can read
+// components from the correct world (entity ids are namespaced per
+// world; the same numeric id can refer to different entities in
+// different worlds).
+export const queryAllZones = (
+  state: GameState,
+  ...types: ComponentType[]
+): { world: World; eid: Entity }[] => {
+  const result: { world: World; eid: Entity }[] = []
+  for (const world of state.worlds.values()) {
+    for (const eid of world.query(...types)) {
+      result.push({ world, eid })
+    }
+  }
+  return result
+}
