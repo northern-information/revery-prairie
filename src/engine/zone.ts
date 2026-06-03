@@ -4,6 +4,15 @@ import { Zone } from './types'
 import type { Entity } from './ecs/types'
 import type { GameState } from './types'
 
+// Canonical string key for a zone-world lookup in state.worlds. Ruins
+// are multi-instance (one map per currentRuinIndex); each ruin gets its
+// own ECS world keyed by its index. Every other zone has a single world
+// keyed by the Zone enum value verbatim.
+export const worldKey = (zone: Zone, ruinIndex?: number): string => {
+  if (zone === Zone.Ruin && ruinIndex !== undefined) return `ruin:${String(ruinIndex)}`
+  return zone
+}
+
 // Canonical EntityZone value for entities created in the current zone.
 // Includes ruinIndex when currentZone is Zone.Ruin so downstream consumers
 // can correctly scope entities to the specific ruin.
