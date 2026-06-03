@@ -1,0 +1,260 @@
+id: per-zone-ecs-worlds
+name: 'Per-zone ECS worlds (eliminates cross-zone entity leaks by construction)'
+priority: high
+layer: engine
+source_files:
+  - src/engine/types.ts
+  - src/engine/state.ts
+  - src/engine/zone.ts
+  - src/engine/ecs/world.ts
+  - src/engine/house.ts
+  - src/engine/yard.ts
+  - src/engine/cellar.ts
+  - src/engine/cave.ts
+  - src/engine/whine.ts
+  - src/engine/predecessors.ts
+  - src/engine/oaks.ts
+  - src/engine/revery.ts
+  - src/harness/serialize.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - RP-37-knot-cellar
+  - RP-67-little-house-yard
+  - RP-69-whine-haunted-village
+
+# Today's single shared state.world holds entities across all zones,
+# discriminated by an EntityZone component. Consumers are expected to
+# filter via isEntityInCurrentZone() — a convention that's gone wrong
+# at least four times (scan.ts oakAt, egregoreFauna.ts isOccupiedByBlocker,
+# clickResolution.ts tileHasClickable + AngelData query) producing visible
+# bugs (cross-zone scan dialogs, blocked spawns, mis-routed clicks). The
+# audit at docs/claude/per-zone-worlds-audit.md catalogues every call
+# site. The convention is brittle — forget once, leak.
+#
+# This spec replaces the convention with structure: each zone gets its
+# own ECS World. state.world becomes the active zone's world, swapped on
+# transition. Cross-zone queries become explicit (state.worlds.get(zone))
+# rather than the default. Coord collisions stop being meaningful because
+# the spatial index lives inside a World — different zones, different
+# indices.
+#
+# Per the Phase 0 audit answers (2026-06-03):
+#   1. Revery count is global (iterates all zone worlds).
+#   2. Celestial events (meteorites, shooting stars, satellites) are
+#      overworld-only — those entities only ever exist in the overworld
+#      world.
+#   3. Genesis seeds entities directly into the target zone's world (no
+#      single-temp-world + partition-at-end step).
+#   4. No legacy saves to migrate — schema may break compatibility.
+#   5. Each Ruin instance gets its own World, keyed by ruin index.
+
+behaviors:
+  - id: state-worlds-map-replaces-state-world
+    description: >
+      GameState gains `worlds: Map<string, World>`. The map key is a
+      canonical "world key" derived from a zone: for the seven primary
+      zones (Overworld, Cave, HouseInterior, LittleHouseYard,
+      KnotCellar, WhineVillage, WhineHomeYard) the key equals the Zone
+      enum value; for Zone.Ruin the key is `ruin:${ruinIndex}` so each
+      ruin instance gets a separate world. A helper `worldKey(zone,
+      ruinIndex?)` produces the canonical string. createGameState
+      eagerly creates a World for each primary zone; ruin worlds are
+      created lazily when the ruin is first entered. `state.world`
+      remains a readable field on GameState but always refers to the
+      currently-active zone's World — it is reassigned during every zone
+      transition handler. New helper `getWorldForZone(state, zone,
+      ruinIndex?)` returns the world for an explicit zone, creating it
+      on demand for ruins.
+    inputs:
+      - 'GameState constructed via createGameState'
+    outputs:
+      - 'state.worlds is a Map<string, World> with eight entries pre-populated for non-ruin zones'
+      - 'state.world === state.worlds.get(worldKey(state.currentZone, state.currentRuinIndex))'
+      - 'getWorldForZone(state, Zone.HouseInterior) returns the same World as state.worlds.get("houseInterior")'
+    state_changes:
+      - field: worlds
+        effect: 'new Map<string, World> added to GameState; one entry per non-ruin zone, plus one per ruin instance entered'
+      - field: world
+        effect: 'still present, but now reassigned to point at state.worlds.get(currentZone) inside every zone transition handler'
+    determinism: deterministic
+
+  - id: zone-transitions-reassign-state-world
+    description: >
+      Every zone transition handler — enterHouse, exitHouse,
+      enterLittleHouseYardFromApron, enterLittleHouseYardFromHouse,
+      exitLittleHouseYardToOverworld, enterKnotCellar, exitKnotCellarToYard,
+      enterWhineVillage, exitWhineVillageToOverworld,
+      enterWhineHomeYard, exitWhineHomeYardToVillage, enterCave,
+      exitCave, enterRuin, exitRuin — reassigns `state.world` to the
+      target zone's world before returning. After the handler runs,
+      `state.world.query(...)` only sees entities belonging to the new
+      zone. The `state.map` / `state.mapWidth` / `state.mapHeight` /
+      `state.player` reassignments that already happen continue to
+      happen alongside.
+    inputs:
+      - 'a transition handler invoked with the player crossing a threshold'
+    outputs:
+      - 'state.world after the handler === state.worlds.get(worldKey(targetZone, ruinIndex?))'
+    state_changes:
+      - field: world
+        effect: 'reassigned to target zone world'
+      - field: currentZone
+        effect: 'set to target zone (unchanged from today)'
+    determinism: deterministic
+
+  - id: create-entity-routes-to-target-zone-world
+    description: >
+      All `createEntity` call sites in production code route to the
+      correct zone's world. Sites that target the current zone use
+      `state.world.createEntity()`. Sites that target a specific
+      non-current zone (genesis seeding for HouseInterior, Cave,
+      KnotCellar; predecessor camera placement; WhineVillage oak
+      spawning; etc.) call `getWorldForZone(state, targetZone,
+      ruinIndex?).createEntity()` instead. The same World is used for
+      every addComponent on that entity — entities cannot span worlds.
+      Per-zone routing replaces the prior pattern of creating the
+      entity in the active world and then tagging it with EntityZone.
+    inputs:
+      - 'genesis or runtime code creating an entity tagged for a non-current zone'
+    outputs:
+      - 'the entity exists in the target zone''s world; state.world.query() from a different zone does NOT return it'
+    state_changes:
+      - field: worlds.get(targetZone).entities
+        effect: 'new entity added with all relevant components'
+    determinism: deterministic
+
+  - id: query-from-non-overworld-zone-cannot-see-overworld-entities
+    description: >
+      After Phase 1 lands, in any non-overworld zone (HouseInterior,
+      LittleHouseYard, KnotCellar, WhineVillage, etc.) the active
+      `state.world.query(...)` returns ONLY entities belonging to that
+      zone. The previously-leaky sites — scan.ts oakAt,
+      egregoreFauna.ts isOccupiedByBlocker, clickResolution.ts
+      tileHasClickable and its sibling AngelData query — no longer need
+      explicit isEntityInCurrentZone() filters because the active world
+      contains no cross-zone entities to begin with. The filters may be
+      removed in a cleanup pass (Phase 2) but their presence remains
+      correct for now.
+    inputs:
+      - 'player in any non-overworld zone'
+      - 'one or more entities exist in the Overworld at coords that numerically overlap the active zone''s map'
+    outputs:
+      - 'state.world.query(ComponentType.OakData, ...) returns no overworld oaks'
+      - 'state.world.spatial.at(x, y) returns no overworld entities'
+    state_changes: []
+    determinism: deterministic
+
+  - id: revery-count-iterates-all-zone-worlds
+    description: >
+      The revery character-count loop in src/engine/revery.ts iterates
+      across every world in state.worlds, not just the active one. The
+      design intent (confirmed 2026-06-03) is that the revery
+      population is the entire steward's roster across zones. A helper
+      `queryAllZones(state, ...componentTypes)` (or inline iteration)
+      visits every world.
+    inputs:
+      - 'revery tick'
+    outputs:
+      - 'reveryCount === total CharacterIdentity entities across all worlds in state.worlds'
+    state_changes: []
+    determinism: deterministic
+
+  - id: celestial-events-stay-in-overworld-world
+    description: >
+      Meteorites, shooting stars, and satellites are created only in
+      the Overworld world (confirmed: never appear in interior zones).
+      Existing celestial code that today reads `state.world` continues
+      to work as long as the player is in the overworld. Celestial code
+      that runs when the player is NOT in the overworld (e.g. the
+      background tick that advances satellite age) must explicitly use
+      `getWorldForZone(state, Zone.Overworld)` rather than `state.world`.
+    inputs:
+      - 'celestial tick fires in any zone'
+    outputs:
+      - 'satellite / meteorite / shooting star entities are created and updated in state.worlds.get(Zone.Overworld) only'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: ruin-worlds-are-per-instance
+    description: >
+      Each ruin instance has its own World. Entering ruin index 2
+      points state.world at state.worlds.get("ruin:2") (creating it on
+      demand). Entities created inside ruin 2 are invisible to ruin 5,
+      even at identical coords.
+    expected: >
+      Test: enter ruin 2, spawn a tagged entity at (3, 3); exit ruin 2;
+      enter ruin 5; state.world.spatial.at(3, 3) returns nothing.
+
+  - id: genesis-seeds-into-correct-zone-worlds-during-seeding
+    description: >
+      During genesis, entity creation for Cave (Moab), HouseInterior
+      (Emily, filmRoll), and KnotCellar (map, geodetic markers) routes
+      to the target zone's world via getWorldForZone. The Overworld
+      world holds only Overworld entities at the end of genesis. The
+      EntityZone component, while still attached during Phase 1, agrees
+      with the world the entity actually lives in.
+    expected: >
+      Test: after createGameState completes, state.worlds.get(Zone.Cave)
+      contains the Moab entity and state.worlds.get(Zone.Overworld) does
+      not. state.worlds.get(Zone.HouseInterior) contains Emily; the same
+      world contains the filmRoll ground item. state.worlds.get(Zone.KnotCellar)
+      contains 8 ground items (1 map + 7 geodetic markers).
+
+  - id: scan-oakat-no-longer-finds-cross-zone-oaks
+    description: >
+      The original bug that motivated the refactor. With per-zone
+      worlds, an Overworld oak whose 5x5 body covers coord (5, 5)
+      cannot be returned by oakAt(state, 5, 5) when state.currentZone
+      is LittleHouseYard, even though the yard map also has a tile at
+      (5, 5). The check is structural — state.world (now yard world)
+      contains no OakData entities.
+    expected: >
+      Test: spawn an overworld oak at coord that numerically overlaps
+      the yard map; enter yard; selectScanTarget returns null. (Same
+      assertion as the earlier scan-zone-gate spec, but the mechanism
+      is now structural rather than a filter.)
+
+  - id: egregore-fauna-blocker-check-no-longer-leaks
+    description: >
+      isOccupiedByBlocker in src/engine/egregoreFauna.ts calls
+      state.world.spatial.at(x, y). After the refactor, spatial.at
+      lives inside a per-zone world, so it can only return same-zone
+      entities. The function works correctly without an explicit zone
+      filter.
+    expected: >
+      Test: place a Blocking entity in another zone at coord (5, 5);
+      isOccupiedByBlocker(state, 5, 5) returns false when state.currentZone
+      differs.
+
+  - id: clicktarget-tilehasclickable-no-longer-leaks
+    description: >
+      tileHasClickable in src/engine/clickResolution.ts and its sibling
+      AngelData query both become inherently zone-scoped. A character
+      or angel in another zone at the same numeric coord does not
+      register as clickable.
+    expected: >
+      Test: place a character entity in another zone at coord (5, 5);
+      tileHasClickable(state, { x: 5, y: 5 }) returns false in the
+      active zone.
+
+failure_conditions:
+  - trigger: 'player walks into the little house yard with an overworld oak at a yard-coord-overlapping anchor'
+    expected: >
+      Pre-refactor: oak canopy might render as # in the yard (the
+      hash-grid symptom); oak is scannable from yard tiles. Post-refactor:
+      no overworld oak entity exists in the yard world; renderer and
+      scanner cannot see it. The hash-grid bug and the scan bug are
+      both eliminated by construction.
+
+  - trigger: 'a new query is added that forgets to call isEntityInCurrentZone()'
+    expected: >
+      Pre-refactor: silent leak across zones. Post-refactor: the query
+      runs against state.world (active zone) and only returns same-zone
+      entities; forgetting the filter has no effect because there is no
+      filter to forget.
+
+verification:
+  test_file: src/engine/__tests__/per-zone-worlds.test.ts
+  test_pattern: 'per-zone|cross-zone-isolation|world-per-zone'
+  command: 'npx vitest run src/engine/__tests__/per-zone-worlds.test.ts src/engine/__tests__/scan.test.ts src/engine/__tests__/clickResolution.test.ts'
