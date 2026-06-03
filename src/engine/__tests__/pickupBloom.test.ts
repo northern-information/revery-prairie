@@ -7,6 +7,7 @@ import { giveCharacterGift, givePostGift } from '../interaction'
 import { placeItem } from '../inventory'
 import { RECIPES } from '../recipes'
 import { Zone } from '../types'
+import { getWorldForZone } from '../zone'
 import {
   clearAroundPlayer,
   createBeeEntity,
@@ -43,9 +44,9 @@ describe('spawnPickupBloom', () => {
       kind: 'pickupBloom',
       startTime: 1000,
     })
-    expect(state.world.getComponent(blooms[0], ComponentType.EntityZone)).toEqual({
-      zone: state.currentZone,
-    })
+    // Per-zone worlds: bloom lives in the active zone's world. The
+    // structural invariant (entity is in state.world) is verified by
+    // queryPickupBlooms above; no EntityZone tag to assert against.
   })
 
   it('uses the current zone', () => {
@@ -53,10 +54,14 @@ describe('spawnPickupBloom', () => {
     state.currentZone = Zone.Cave
     spawnPickupBloom(state, 5, 5, 1000)
 
-    const blooms = queryPickupBlooms(state)
-    expect(state.world.getComponent(blooms[0], ComponentType.EntityZone)).toEqual({
-      zone: Zone.Cave,
-    })
+    // The bloom should land in the cave world, not the overworld world.
+    expect(queryPickupBlooms(state)).toHaveLength(1)
+    const overworldBlooms = getWorldForZone(state, Zone.Overworld)
+      .query(ComponentType.TimedEffect, ComponentType.EntityTag)
+      .filter(eid =>
+        getWorldForZone(state, Zone.Overworld).getComponent(eid, ComponentType.EntityTag) === 'pickupBloom'
+      )
+    expect(overworldBlooms).toHaveLength(0)
   })
 })
 

@@ -5,6 +5,7 @@ import { RuinRole } from '../genesisTypes'
 import { clearRuinDebris } from '../interaction'
 import { movePlayer } from '../movement'
 import { MainQuestPhase, RuinArchetype, TileType, Zone } from '../types'
+import { getWorldForZone, moveEntityAcrossWorlds } from '../zone'
 import { clearAroundPlayer, createCharacterTestEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -23,19 +24,36 @@ interface CoyoteSnapshot {
   ruinIndex: number | undefined
 }
 
-const findCoyote = (state: GameState): number | null => {
-  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
-    const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-    if (identity?.definitionId === 'coyote') return eid
+// Find the coyote by iterating every world (the trapped-coyote tests
+// transition the coyote across zones; the coyote may live in the ruin's
+// world while state.world points to overworld, etc.).
+const findCoyoteAcrossZones = (
+  state: GameState
+): { eid: number; zone: Zone; ruinIndex: number | undefined } | null => {
+  for (const [key, world] of state.worlds) {
+    for (const eid of world.query(ComponentType.CharacterIdentity)) {
+      const identity = world.getComponent(eid, ComponentType.CharacterIdentity)
+      if (identity?.definitionId !== 'coyote') continue
+      // Decode the world key: 'ruin:N' or a bare Zone value.
+      if (key.startsWith('ruin:')) {
+        return { eid, zone: Zone.Ruin, ruinIndex: Number(key.slice('ruin:'.length)) }
+      }
+      return { eid, zone: key as Zone, ruinIndex: undefined }
+    }
   }
   return null
 }
 
+const findCoyote = (state: GameState): number | null => {
+  const hit = findCoyoteAcrossZones(state)
+  return hit ? hit.eid : null
+}
+
 const getCoyote = (state: GameState): CoyoteSnapshot => {
-  const eid = requireValue(findCoyote(state))
-  const pos = requireValue(state.world.getComponent(eid, ComponentType.Position))
-  const ez = requireValue(state.world.getComponent(eid, ComponentType.EntityZone))
-  return { x: pos.x, y: pos.y, zone: ez.zone, ruinIndex: ez.ruinIndex }
+  const hit = requireValue(findCoyoteAcrossZones(state))
+  const world = state.worlds.get(hit.zone === Zone.Ruin ? `ruin:${String(hit.ruinIndex)}` : hit.zone)
+  const pos = requireValue(world?.getComponent(hit.eid, ComponentType.Position))
+  return { x: pos.x, y: pos.y, zone: hit.zone, ruinIndex: hit.ruinIndex }
 }
 
 describe('trapped coyote stays put on ruin entry', () => {
@@ -77,13 +95,17 @@ describe('trapped coyote stays put on ruin entry', () => {
 
     const trappedX = state.player.x + 5
     const trappedY = state.player.y
+    // Place coyote directly into the ruin's world (matching what
+    // spawnDormantGardenItems does — production routes the trapped coyote
+    // into the ruin world via the opts.zone path).
     createCharacterTestEntity(state, 'coyote', trappedX, trappedY)
-    // Tag coyote as in the ruin (matching what spawnDormantGardenItems does).
-    const eid = requireValue(findCoyote(state))
-    state.world.addComponent(eid, ComponentType.EntityZone, {
-      zone: Zone.Ruin,
-      ruinIndex: 0,
-    })
+    // Move the coyote out of the overworld world (where the helper just
+    // placed it) and into ruin:0's world, where spawnDormantGardenItems
+    // would have put it.
+    const overworldEid = requireValue(findCoyote(state))
+    const overworld = getWorldForZone(state, Zone.Overworld)
+    const ruinWorld = getWorldForZone(state, Zone.Ruin, 0)
+    moveEntityAcrossWorlds(overworld, overworldEid, ruinWorld)
 
     transitionCoyoteToZone(state, Zone.Overworld)
 
@@ -321,14 +343,9 @@ describe('rescue runs the coyote up to the player and auto-opens its dialog', ()
         if (state.map[y]?.[x]) state.map[y][x] = { type: TileType.RuinFloor }
       }
     }
+    // installCoyoteRuinWithBarrier above set currentZone=Ruin/index=0,
+    // so the coyote routes into the ruin:0 world automatically.
     createCharacterTestEntity(state, 'coyote', state.player.x + 2, state.player.y)
-    const coyoteEid = findCoyoteEid(state)
-    if (coyoteEid !== null) {
-      state.world.addComponent(coyoteEid, ComponentType.EntityZone, {
-        zone: Zone.Ruin,
-        ruinIndex: 0,
-      })
-    }
   }
 
   it('opens the coyote activeDialog after the rescue fires', () => {
@@ -373,10 +390,3 @@ describe('rescue runs the coyote up to the player and auto-opens its dialog', ()
   })
 })
 
-const findCoyoteEid = (state: GameState): number | null => {
-  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
-    const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
-    if (ident?.definitionId === 'coyote') return eid
-  }
-  return null
-}

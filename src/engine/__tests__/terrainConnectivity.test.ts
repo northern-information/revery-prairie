@@ -9,7 +9,7 @@ import {
 } from '../genesis'
 import { isWalkableTile, posKey } from '../position'
 import { createGameState } from '../state'
-import { TileType, Zone } from '../types'
+import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
 import type { GenesisSimState } from '../genesisTypes'
@@ -169,22 +169,13 @@ describe('terrain connectivity', () => {
     const reachable = floodFill(state.map, state.mapWidth, state.mapHeight, playerX, playerY, new Set<string>())
 
     // Query all character entities on the overworld
-    // (ghosts, gron — not moab who is in the cave)
+    // (ghosts, gron — not moab who is in the cave). Per-zone worlds:
+    // state.world is the overworld world, so the query already excludes
+    // entities in the cave, house interior, and the various Whine
+    // sub-zones — no EntityZone filter needed.
     for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
       const pos = state.world.getComponent(eid, ComponentType.Position)
-      const zone = state.world.getComponent(eid, ComponentType.EntityZone)
       if (!pos) continue
-      // Skip non-overworld entities. Their positions are in their
-      // own zone's coordinate space, not the overworld grid:
-      //   - Cave: cave map coords
-      //   - HouseInterior: house interior coords (Emily)
-      //   - WhineVillage / WhineHomeYard: Whine + per-home yard coords
-      //     (RP-69 — twelve named ghosts plus future placements).
-      if (zone?.zone === Zone.Cave) continue
-      if (zone?.zone === Zone.HouseInterior) continue
-      if (zone?.zone === Zone.LittleHouseYard) continue
-      if (zone?.zone === Zone.WhineVillage) continue
-      if (zone?.zone === Zone.WhineHomeYard) continue
 
       const key = posKey(pos.x, pos.y)
       const tile = state.map[pos.y]?.[pos.x]

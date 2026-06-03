@@ -17,7 +17,7 @@ import {
 import { ComponentType } from '../ecs/types'
 import { interactWithCharacter } from '../interaction'
 import { clearMovementTweens } from '../movementTween'
-import { TileType, Zone } from '../types'
+import { TileType } from '../types'
 import { clearAllWater, createTestState } from './helpers'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -123,7 +123,9 @@ describe('angel spawning', () => {
     expect(state.world.getComponent(eid, ComponentType.MultiPosition)).toBeTruthy()
     expect(state.world.getComponent(eid, ComponentType.AngelData)).toBeTruthy()
     expect(state.world.getComponent(eid, ComponentType.EntityTag)).toBe('angel')
-    expect(state.world.getComponent(eid, ComponentType.EntityZone)).toEqual({ zone: Zone.Overworld })
+    // Per-zone worlds: angel lives in the overworld world. createTestState's
+    // active zone is overworld, so finding the angel via state.world above
+    // already proves overworld placement.
     expect(state.world.getComponent(eid, ComponentType.CharacterIdentity)).toBeUndefined()
 
     const multi = state.world.getComponent(eid, ComponentType.MultiPosition)
