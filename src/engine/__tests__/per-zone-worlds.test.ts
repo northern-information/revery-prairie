@@ -164,7 +164,6 @@ describe('per-zone-worlds — cross-zone leaks are structurally impossible', () 
     overworld.addComponent(eid, ComponentType.Position, { x: 5, y: 5 })
     overworld.addComponent(eid, ComponentType.CharacterIdentity, { definitionId: 'test-character' })
     overworld.addComponent(eid, ComponentType.EntityTag, 'character')
-    overworld.addComponent(eid, ComponentType.EntityZone, { zone: Zone.Overworld })
 
     // Switch into the house. tileHasClickable now reads state.world
     // (HouseInterior world), which has no entity at (5, 5).

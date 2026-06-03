@@ -6,7 +6,6 @@
 // manual entries.
 
 import { getCharacterDialog } from '../characters'
-import { ComponentType } from '../ecs/types'
 import { advanceDialog } from '../interaction'
 import { setMapTile } from '../map'
 import { posKey } from '../position'
@@ -79,12 +78,9 @@ describe('torchbearer (RP-9b)', () => {
 
     it('refuses when the line touches a character in the overworld', () => {
       const charPos = { x: 15, y: 15 }
+      // Per-zone worlds: createCharacterTestEntity routes Gron into the
+      // active zone's world (overworld here), so the refusal check sees him.
       createCharacterTestEntity(state, 'gron', charPos.x, charPos.y)
-      // Gron's zone default may not be Overworld via the helper — force it
-      // so the refusal check sees him.
-      for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
-        state.world.addComponent(eid, ComponentType.EntityZone, { zone: Zone.Overworld })
-      }
       expect(checkBurnLineRefusal(state, [charPos])).toBe('character-on-line')
     })
   })

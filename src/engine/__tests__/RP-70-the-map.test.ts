@@ -54,14 +54,18 @@ describe('RP-70 — The Map and Geodetic Markers', () => {
       expect(countItemDrops(state, 'geodeticMarker')).toBe(10)
 
       // Exactly three live inside ruin interiors — one each in the bee,
-      // clover, and coyote ruins (the other Starter ruins get none),
-      // each zone-tagged to its ruin index.
+      // clover, and coyote ruins (the other Starter ruins get none).
+      // Per-zone worlds: ruin worlds are keyed as `ruin:N`; iterate those
+      // and decode the index from the key.
       const ruinMarkerIndices = new Set<number>()
-      for (const { world, eid } of queryAllZones(state, ComponentType.EntityTag, ComponentType.ItemDrop, ComponentType.EntityZone)) {
-        const drop = world.getComponent(eid, ComponentType.ItemDrop)
-        const zone = world.getComponent(eid, ComponentType.EntityZone)
-        if (drop?.definitionId === 'geodeticMarker' && zone?.zone === Zone.Ruin && zone.ruinIndex !== undefined) {
-          ruinMarkerIndices.add(zone.ruinIndex)
+      for (const [key, world] of state.worlds) {
+        if (!key.startsWith('ruin:')) continue
+        const ruinIndex = Number(key.slice('ruin:'.length))
+        for (const eid of world.query(ComponentType.ItemDrop)) {
+          const drop = world.getComponent(eid, ComponentType.ItemDrop)
+          if (drop?.definitionId === 'geodeticMarker') {
+            ruinMarkerIndices.add(ruinIndex)
+          }
         }
       }
       expect(ruinMarkerIndices.size).toBe(3)
@@ -95,7 +99,6 @@ describe('RP-70 — The Map and Geodetic Markers', () => {
       state.world.addComponent(e, ComponentType.Position, { x: state.player.x, y: state.player.y })
       state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'map' })
       state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-      state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
 
       pickUpGroundItems(state, 1000)
 

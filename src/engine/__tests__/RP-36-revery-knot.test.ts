@@ -191,7 +191,6 @@ describe('RP-36 — the Revery Knot', () => {
       state.world.addComponent(ge, ComponentType.Position, { x: state.player.x + 1, y: state.player.y })
       state.world.addComponent(ge, ComponentType.ItemDrop, { definitionId: 'reveryKnot' })
       state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
-      state.world.addComponent(ge, ComponentType.EntityZone, { zone: Zone.Overworld })
 
       pickUpGroundItems(state, 3000)
 

@@ -3,6 +3,7 @@ import { pickUpGroundItems } from '../entities'
 import { containerHasItem } from '../inventory'
 import { createTestState } from './helpers'
 import { TileType, Zone } from '../types'
+import { getWorldForZone } from '../zone'
 import { clearAroundPlayer, createGroundItemEntity, getGroundItemEntities } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -44,6 +45,9 @@ const enterRuinWithInterior = (state: GameState, interior: RuinInterior): void =
   state.mapHeight = interior.mapHeight
 }
 
+// Per-zone worlds: place the entity directly into the target zone's world.
+// Pre-Phase 2 this test used an EntityZone tag in the active world; now
+// each zone has its own world and the entity lives there structurally.
 const createGroundItemInZone = (
   state: GameState,
   definitionId: string,
@@ -51,21 +55,27 @@ const createGroundItemInZone = (
   y: number,
   zone: Zone,
   ruinIndex?: number
-): Entity => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x, y })
-  state.world.addComponent(e, ComponentType.ItemDrop, { definitionId })
-  state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-  state.world.addComponent(e, ComponentType.EntityZone, ruinIndex !== undefined ? { zone, ruinIndex } : { zone })
-  return e
+): { eid: Entity; zone: Zone; ruinIndex?: number } => {
+  const world = getWorldForZone(state, zone, ruinIndex)
+  const e = world.createEntity()
+  world.addComponent(e, ComponentType.Position, { x, y })
+  world.addComponent(e, ComponentType.ItemDrop, { definitionId })
+  world.addComponent(e, ComponentType.EntityTag, 'groundItem')
+  return { eid: e, zone, ruinIndex }
 }
 
-const createMeteoriteInZone = (state: GameState, x: number, y: number, zone: Zone, ruinIndex?: number): Entity => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x, y })
-  state.world.addComponent(e, ComponentType.EntityTag, 'meteorite')
-  state.world.addComponent(e, ComponentType.EntityZone, ruinIndex !== undefined ? { zone, ruinIndex } : { zone })
-  return e
+const createMeteoriteInZone = (
+  state: GameState,
+  x: number,
+  y: number,
+  zone: Zone,
+  ruinIndex?: number
+): { eid: Entity; zone: Zone; ruinIndex?: number } => {
+  const world = getWorldForZone(state, zone, ruinIndex)
+  const e = world.createEntity()
+  world.addComponent(e, ComponentType.Position, { x, y })
+  world.addComponent(e, ComponentType.EntityTag, 'meteorite')
+  return { eid: e, zone, ruinIndex }
 }
 
 // pickup zone filter
@@ -75,22 +85,32 @@ const createMeteoriteInZone = (state: GameState, x: number, y: number, zone: Zon
 // aqueductKey at coordinates (x, y) was picked up when the player walked
 // over (x, y) in the overworld. Same defect applied to the meteorite
 // branch (meteorites are Zone.Overworld-tagged).
+//
+// Per-zone worlds (Phase 2) enforces this invariant structurally: each
+// zone has its own World, and state.world resolves to the active zone's
+// world. The tests still verify the cross-zone leak doesn't happen; the
+// mechanism is just different.
 describe('pickup zone filter', () => {
   it('does not pick up a ruin-tagged ground item from the overworld', () => {
     const state = createTestState({ viewportWidth: 30, viewportHeight: 30 })
     clearAroundPlayer(state)
     expect(state.currentZone).toBe(Zone.Overworld)
 
-    const entity = createGroundItemInZone(state, 'aqueductKey', state.player.x, state.player.y, Zone.Ruin, 0)
+    const { eid, zone, ruinIndex } = createGroundItemInZone(
+      state,
+      'aqueductKey',
+      state.player.x,
+      state.player.y,
+      Zone.Ruin,
+      0
+    )
 
     const result = pickUpGroundItems(state, 5000)
 
     expect(result.pickedUp).not.toContain('aqueductKey')
     expect(containerHasItem(state.backpack, 'aqueductKey')).toBe(false)
-    expect(state.world.getComponent(entity, ComponentType.Position)).toBeDefined()
-    const ez = state.world.getComponent(entity, ComponentType.EntityZone)
-    expect(ez?.zone).toBe(Zone.Ruin)
-    expect(ez?.ruinIndex).toBe(0)
+    const ruinWorld = getWorldForZone(state, zone, ruinIndex)
+    expect(ruinWorld.getComponent(eid, ComponentType.Position)).toBeDefined()
   })
 
   it('does not pick up an overworld meteorite while inside a ruin', () => {
@@ -99,14 +119,18 @@ describe('pickup zone filter', () => {
     enterRuinWithInterior(state, interior)
     state.player = { x: 10, y: 10 }
 
-    const entity = createMeteoriteInZone(state, state.player.x, state.player.y, Zone.Overworld)
+    const { eid, zone, ruinIndex } = createMeteoriteInZone(
+      state,
+      state.player.x,
+      state.player.y,
+      Zone.Overworld
+    )
 
     const result = pickUpGroundItems(state, 5000)
 
     expect(result.pickedUp).not.toContain('meteorite')
-    expect(state.world.getComponent(entity, ComponentType.Position)).toBeDefined()
-    const ez = state.world.getComponent(entity, ComponentType.EntityZone)
-    expect(ez?.zone).toBe(Zone.Overworld)
+    const overworldWorld = getWorldForZone(state, zone, ruinIndex)
+    expect(overworldWorld.getComponent(eid, ComponentType.Position)).toBeDefined()
   })
 
   it('does not pick up an item tagged to a different ruin', () => {
@@ -115,7 +139,7 @@ describe('pickup zone filter', () => {
     enterRuinWithInterior(state, interior)
     state.player = { x: 10, y: 10 }
 
-    const entity = createGroundItemInZone(
+    const { eid, zone, ruinIndex } = createGroundItemInZone(
       state,
       'aqueductKey',
       state.player.x,
@@ -128,7 +152,8 @@ describe('pickup zone filter', () => {
 
     expect(result.pickedUp).not.toContain('aqueductKey')
     expect(containerHasItem(state.backpack, 'aqueductKey')).toBe(false)
-    expect(state.world.getComponent(entity, ComponentType.Position)).toBeDefined()
+    const otherRuin = getWorldForZone(state, zone, ruinIndex)
+    expect(otherRuin.getComponent(eid, ComponentType.Position)).toBeDefined()
   })
 
   it('still picks up same-zone ground items normally', () => {
@@ -153,12 +178,20 @@ describe('pickup zone filter', () => {
     enterRuinWithInterior(state, interior)
     state.player = { x: 10, y: 10 }
 
-    const entity = createGroundItemInZone(state, 'aqueductKey', state.player.x, state.player.y, Zone.Ruin, 0)
+    const { eid, zone, ruinIndex } = createGroundItemInZone(
+      state,
+      'aqueductKey',
+      state.player.x,
+      state.player.y,
+      Zone.Ruin,
+      0
+    )
 
     const result = pickUpGroundItems(state, 5000)
 
     expect(result.pickedUp).toContain('aqueductKey')
     expect(containerHasItem(state.backpack, 'aqueductKey')).toBe(true)
-    expect(state.world.getComponent(entity, ComponentType.Position)).toBeUndefined()
+    const ruinWorld = getWorldForZone(state, zone, ruinIndex)
+    expect(ruinWorld.getComponent(eid, ComponentType.Position)).toBeUndefined()
   })
 })

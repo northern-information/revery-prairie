@@ -3,7 +3,6 @@ import { withSeededRandom } from '@/harness/prng'
 import { ComponentType } from '@/engine/ecs/types'
 import { tickBees } from '@/engine/entities'
 import { createGameState } from '@/engine/state'
-import { Zone } from '@/engine/types'
 import type { GameState } from '@/engine/types'
 
 const SEED = 42
@@ -15,7 +14,6 @@ const addBee = (state: GameState, x: number, y: number) => {
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.EntityTag, 'bee')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
   return e
 }
 
