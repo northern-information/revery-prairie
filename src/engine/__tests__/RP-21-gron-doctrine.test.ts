@@ -61,10 +61,15 @@ describe('RP-21 — gron doctrine pass', () => {
   })
 
   describe('gron-dialog-revised-lines', () => {
-    it('awaiting-coyote phase returns the 3-line round-5 opener', () => {
+    it('awaiting-coyote phase returns the round-5 opener ending on the RP-70 map handoff', () => {
       const state = makeState()
       state.mainQuestPhase = MainQuestPhase.AwaitingCoyote
-      expect(getCharacterDialog(state, 'gron')).toEqual(['...', 'A steward.', 'A steward goes to the ruins.'])
+      expect(getCharacterDialog(state, 'gron')).toEqual([
+        '...',
+        'A steward.',
+        'A steward goes to the ruins.',
+        'Here. From your predecessor.',
+      ])
     })
 
     it('gathering phase (no bee, no clover) returns the Dickinson-correct one-liner', () => {

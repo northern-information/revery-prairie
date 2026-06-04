@@ -5,9 +5,10 @@ import { advanceInHand, releaseInHand } from './inHand'
 import { removeItem } from './inventory'
 import { isInBounds, isWalkableTile } from './position'
 import { createPlacedCamera } from './timeLapse'
+import { Zone } from './types'
 import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
-import type { GameState, ItemUid } from './types'
+import type { GameState, ItemUid, PlacedMarker } from './types'
 
 // RP-70 — total Geodetic Markers in a tenure (GM-1..GM-10). The cap is
 // physical: 10 marker items exist (7 cellar + 3 ruins), so this only
@@ -120,13 +121,19 @@ const PLACEABLE_SPECS = {
     canPlace: (state, x, y, _uid) => canPlaceMarkerAt(state, x, y),
     place: (state, x, y, uid) => {
       const container = state.backpack
-      state.placedMarkers.push({
+      // Capture ruinIndex when laid inside a ruin so the map can render
+      // the mark on the correct ruin's interior chart (mirrors camera).
+      const marker: PlacedMarker = {
         uid,
         x,
         y,
         zone: state.currentZone,
         label: nextFreeMarkerLabel(state),
-      })
+      }
+      if (state.currentZone === Zone.Ruin && state.currentRuinIndex !== null) {
+        marker.ruinIndex = state.currentRuinIndex
+      }
+      state.placedMarkers.push(marker)
       const me = state.world.createEntity()
       state.world.addComponent(me, ComponentType.Position, { x, y })
       state.world.addComponent(me, ComponentType.EntityTag, 'placedMarker')

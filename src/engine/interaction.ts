@@ -2,6 +2,7 @@ import { EMILY_DIALOG, getCharacterDefinition, getCharacterDialog } from './char
 import { ComponentType } from './ecs/types'
 import { getInteractableDefinition, getInteractableLines } from './interactables'
 import { spawnPickupBloom } from './effects'
+import { getDefinition } from './items'
 import { RuinRole } from './genesisTypes'
 import { findFitPosition, placeItem } from './inventory'
 import { recordDiscovery } from './manual'
@@ -336,7 +337,21 @@ export const giveCharacterGift = (state: GameState, characterId: string, _time?:
   const def = getCharacterDefinition(characterId)
   if (!def.gift) return null
   if (state.giftsReceived.has(characterId)) return null
-  // Item gifts — deferred to RP-5 (ruin recovery).
+
+  // RP-70 — the map is a key item, not a backpack item. Gron hands it
+  // over at the end of his first dialog: record the gift, mirror the
+  // former cellar-pickup unlock side-effects (item:map discovery +
+  // onMapAcquired opens the MAP tab), and announce it. The map never
+  // enters the backpack and takes no slot.
+  if (def.gift.id === 'map') {
+    state.giftsReceived.add(characterId)
+    recordDiscovery(state, 'item:map')
+    state.onMapAcquired?.()
+    const mapItem = getDefinition('map')
+    return { name: mapItem.name, glyphs: [mapItem.glyph], glyphColor: mapItem.glyphColor }
+  }
+
+  // Other item gifts — deferred to RP-5 (ruin recovery).
   return null
 }
 

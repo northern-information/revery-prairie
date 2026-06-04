@@ -157,8 +157,11 @@ export const useGameEngine = (
       client.off('status-change', onStatusChange)
     }
     // `state` is the mutable singleton owned by this hook; its identity is
-    // stable across renders, so it does not belong in the dep array.
-  }, [multiplayer, refreshUI])
+    // stable across renders, so listing it does not re-register the
+    // listeners — it just satisfies the exhaustive-deps rule for the
+    // state.remotePlayers / state.multiplayerSession reads above (mirrors
+    // the skipGenesis layout effect, which also deps on `state`).
+  }, [multiplayer, refreshUI, state])
 
   return {
     state,

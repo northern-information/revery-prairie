@@ -1,6 +1,6 @@
+import { getCharacterDialog } from '../characters'
 import { ComponentType } from '../ecs/types'
-import { pickUpGroundItems } from '../entities'
-import { tryPlacedMarkerInteraction } from '../interaction'
+import { advanceDialog, giveCharacterGift, tryPlacedMarkerInteraction } from '../interaction'
 import { getInHandItem, takeInHand } from '../inHand'
 import { containerHasItem, placeItem } from '../inventory'
 import { getPlaceableSpec, nextFreeMarkerLabel } from '../placeable'
@@ -41,27 +41,31 @@ const equipMarker = (state: GameState): string => {
 
 describe('RP-70 — The Map and Geodetic Markers', () => {
   describe('genesis seeding', () => {
-    it('seeds the map plus 10 markers (7 cellar + 3 ruins) at genesis', () => {
+    it('seeds no cellar map and 3 ruin markers at genesis (map is now a Gron gift)', () => {
       vi.spyOn(Math, 'random').mockReturnValue(0.5)
       const state = createGameState('Cartographer', 20, 20)
 
-      // Exactly one map key item, in the cellar.
-      expect(countItemDrops(state, 'map')).toBe(1)
+      // The map is no longer a cellar pickup — Gron gifts it. No 'map'
+      // ground item exists anywhere.
+      expect(countItemDrops(state, 'map')).toBe(0)
 
-      // Ten Geodetic Markers total: 7 in the cellar + 3 in ruins.
-      expect(countItemDrops(state, 'geodeticMarker')).toBe(10)
+      // Three Geodetic Markers total — one per role-ruin, none in the
+      // cellar.
+      expect(countItemDrops(state, 'geodeticMarker')).toBe(3)
 
       // Exactly three live inside ruin interiors — one each in the bee,
       // clover, and coyote ruins (the other Starter ruins get none),
-      // each zone-tagged to its ruin index.
+      // each zone-tagged to its ruin index. None are tagged KnotCellar.
       const ruinMarkerIndices = new Set<number>()
+      let cellarMarkers = 0
       for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.ItemDrop, ComponentType.EntityZone)) {
         const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
         const zone = state.world.getComponent(eid, ComponentType.EntityZone)
-        if (drop?.definitionId === 'geodeticMarker' && zone?.zone === Zone.Ruin && zone.ruinIndex !== undefined) {
-          ruinMarkerIndices.add(zone.ruinIndex)
-        }
+        if (drop?.definitionId !== 'geodeticMarker') continue
+        if (zone?.zone === Zone.Ruin && zone.ruinIndex !== undefined) ruinMarkerIndices.add(zone.ruinIndex)
+        if (zone?.zone === Zone.KnotCellar) cellarMarkers++
       }
+      expect(cellarMarkers).toBe(0)
       expect(ruinMarkerIndices.size).toBe(3)
       const markerRoles = [...ruinMarkerIndices].map(i => state.genesis?.ruins[i]?.role).sort()
       expect(markerRoles).toEqual(['bee', 'clover', 'coyote'])
@@ -73,32 +77,52 @@ describe('RP-70 — The Map and Geodetic Markers', () => {
       const state = createTestState()
       expect(state.manualDiscoveries.has('item:map')).toBe(false)
 
-      // The cellar map pickup records the gate flag (without a backpack
-      // entry). Simulate the discovery the pickup performs.
+      // Gron's gift records the gate flag (without a backpack entry).
+      // Simulate the discovery the gift performs.
       state.manualDiscoveries.add('item:map')
       expect(state.manualDiscoveries.has('item:map')).toBe(true)
     })
   })
 
-  describe('cellar map acquisition', () => {
-    it('records item:map and does not enter the backpack', () => {
+  describe('gron gift acquisition', () => {
+    it('records item:map and opens the tab without a backpack entry', () => {
       const state = createTestState()
-      clearAroundPlayer(state)
       let opened = 0
       state.onMapAcquired = () => {
         opened++
       }
-      // Drop a map ground item adjacent to the player and run the pickup.
-      const e = state.world.createEntity()
-      state.world.addComponent(e, ComponentType.Position, { x: state.player.x, y: state.player.y })
-      state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'map' })
-      state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-      state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
 
-      pickUpGroundItems(state, 1000)
+      const gift = giveCharacterGift(state, 'gron')
 
+      expect(gift).not.toBeNull()
+      expect(state.giftsReceived.has('gron')).toBe(true)
       expect(state.manualDiscoveries.has('item:map')).toBe(true)
       expect(containerHasItem(state.backpack, 'map')).toBe(false)
+      expect(opened).toBe(1)
+    })
+
+    it('fires once when the first dialog reaches its final line', () => {
+      const state = createTestState()
+      let opened = 0
+      state.onMapAcquired = () => {
+        opened++
+      }
+      // Open Gron's dialog and advance to and past the last line.
+      const lines = getCharacterDialog(state, 'gron')
+      state.activeDialog = {
+        speakerKind: 'character',
+        characterId: 'gron',
+        lineIndex: lines.length - 1,
+        typingIndex: lines[lines.length - 1].length,
+        typingDone: true,
+        transitioning: false,
+        transitionStartTime: 0,
+      }
+      const result = advanceDialog(state, 1000)
+
+      expect(result.gift).not.toBeNull()
+      expect(state.activeDialog).toBeNull()
+      expect(state.manualDiscoveries.has('item:map')).toBe(true)
       expect(opened).toBe(1)
     })
   })
@@ -134,6 +158,38 @@ describe('RP-70 — The Map and Geodetic Markers', () => {
       if (!spec) throw new Error('no spec')
       const uid = equipMarker(state)
       expect(spec.canPlace(state, state.player.x, state.player.y, uid)).toBe(false)
+    })
+
+    it('captures currentRuinIndex when laid inside a ruin (so the map resolves the right ruin)', () => {
+      const state = createTestState()
+      clearAroundPlayer(state)
+      const spec = getPlaceableSpec('geodeticMarker')
+      if (!spec) throw new Error('no spec')
+      const uid = equipMarker(state)
+
+      // Stand inside a ruin.
+      state.currentZone = Zone.Ruin
+      state.currentRuinIndex = 2
+      const tile = { x: state.player.x + 1, y: state.player.y }
+      spec.place(state, tile.x, tile.y, uid)
+
+      expect(state.placedMarkers).toHaveLength(1)
+      expect(state.placedMarkers[0].zone).toBe(Zone.Ruin)
+      expect(state.placedMarkers[0].ruinIndex).toBe(2)
+    })
+
+    it('omits ruinIndex when laid on the overworld', () => {
+      const state = createTestState()
+      clearAroundPlayer(state)
+      const spec = getPlaceableSpec('geodeticMarker')
+      if (!spec) throw new Error('no spec')
+      const uid = equipMarker(state)
+
+      const tile = { x: state.player.x + 1, y: state.player.y }
+      spec.place(state, tile.x, tile.y, uid)
+
+      expect(state.placedMarkers[0].zone).toBe(Zone.Overworld)
+      expect(state.placedMarkers[0].ruinIndex).toBeUndefined()
     })
   })
 
@@ -186,7 +242,7 @@ describe('RP-70 — The Map and Geodetic Markers', () => {
       const state = createTestState()
       state.placedMarkers = [
         { uid: 'm1', x: 10, y: 12, zone: Zone.Overworld, label: 'GM-1' },
-        { uid: 'm2', x: 4, y: 5, zone: Zone.Ruin, label: 'GM-2' },
+        { uid: 'm2', x: 4, y: 5, zone: Zone.Ruin, ruinIndex: 1, label: 'GM-2' },
       ]
       const restored = deserializeState(serializeState(state))
       expect(restored.placedMarkers).toEqual(state.placedMarkers)

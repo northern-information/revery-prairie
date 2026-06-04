@@ -14,21 +14,28 @@ const makeState = (): GameState => {
   return state
 }
 
-describe('gron has no gift chain', () => {
-  it('postGiftActionsCompleted does not include gron', () => {
+describe('gron gifts the map once, with no postGift chain', () => {
+  it('postGiftActionsCompleted does not include gron (no postGift)', () => {
     const state = makeState()
     expect(state.postGiftActionsCompleted.has('gron')).toBe(false)
   })
 
-  it('giveCharacterGift returns null for gron', () => {
+  it('giveCharacterGift hands over the map (RP-70) and only once', () => {
     const state = makeState()
-    const result = giveCharacterGift(state, 'gron')
-    expect(result).toBeNull()
+    const first = giveCharacterGift(state, 'gron')
+    expect(first).toEqual({ name: 'Map', glyphs: ['▤'], glyphColor: '#C2B280' })
+    expect(giveCharacterGift(state, 'gron')).toBeNull()
   })
 
   it('gron dialog routes through phase dispatch (no postGiftDialog branch)', () => {
     const state = makeState()
-    // Phase-driven dispatch: the round-5 opener while quest phase is awaiting-coyote.
-    expect(getCharacterDialog(state, 'gron')).toEqual(['...', 'A steward.', 'A steward goes to the ruins.'])
+    // Phase-driven dispatch: the round-5 opener while quest phase is
+    // awaiting-coyote, ending on the RP-70 map handoff.
+    expect(getCharacterDialog(state, 'gron')).toEqual([
+      '...',
+      'A steward.',
+      'A steward goes to the ruins.',
+      'Here. From your predecessor.',
+    ])
   })
 })
