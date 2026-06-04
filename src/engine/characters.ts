@@ -27,6 +27,11 @@ const CHARACTERS = {
     // snapshot fixtures).
     dialog: ['...', 'A steward.'],
     music: '/music/gron.mp3',
+    // The map is the steward's inheritance. Gron hands it over at the end
+    // of the first dialog; giveCharacterGift special-cases this key item
+    // (records the item:map discovery and opens the MAP tab) rather than
+    // placing it in the backpack. The id matches the 'map' ITEM_DEFINITION.
+    gift: { kind: 'item', id: 'map' },
   },
   moab: {
     name: 'Moab Coldë',
@@ -281,7 +286,16 @@ export const removeCharacterDefinition = (id: string): void => {
 // other three are diagnosed but left for human authoring. Per project
 // memory rule (feedback_manual_lore_only), all replacement lines are
 // human-authored only.
-const GRON_DIALOG_AWAITING_COYOTE: string[] = ['...', 'A steward.', 'A steward goes to the ruins.']
+// The last line is the map handoff (user-authored, RP-70 cleanup): on
+// completing it, advanceDialog fires giveCharacterGift('gron'), which
+// gifts the map. Keep it last so the gift triggers on the first dialog's
+// final advance.
+const GRON_DIALOG_AWAITING_COYOTE: string[] = [
+  '...',
+  'A steward.',
+  'A steward goes to the ruins.',
+  'Here. From your predecessor.',
+]
 
 const GRON_DIALOG_GATHERING: string[] = ['A clover and a bee.']
 

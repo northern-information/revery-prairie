@@ -732,42 +732,13 @@ export const createGameState = (
   // the spawn requires the oak network to exist before it can pick
   // the nearest one. See genesis.ts.
 
-  // RP-70 — the inherited cartography. Seed the prairie map and 7 of the
-  // 10 Geodetic Markers in the Knot cellar; the other 3 markers are
-  // seeded one per ruin (seedRuinGeodeticMarkers below). The map is a
-  // key item — picking it up unlocks the permacomputer MAP tab without
-  // entering the backpack (see pickUpGroundItems). Markers are ordinary
-  // backpack items. All ground-item entities are tagged Zone.KnotCellar
-  // so they live in the cellar interior. Walkable cellar tiles are
-  // scanned in row order, skipping the door spawn (player lands there)
-  // and the bulkhead-interior exit stair.
-  {
-    const cellarSpawns: Position[] = []
-    const skip = new Set<string>([
-      posKey(cellar.doorSpawn.x, cellar.doorSpawn.y),
-      posKey(cellar.bulkheadInterior.x, cellar.bulkheadInterior.y),
-    ])
-    for (let cy = 0; cy < cellar.height && cellarSpawns.length < 8; cy++) {
-      for (let cx = 0; cx < cellar.width && cellarSpawns.length < 8; cx++) {
-        if (!isWalkableTile(cellar.map[cy][cx].type)) continue
-        if (skip.has(posKey(cx, cy))) continue
-        cellarSpawns.push({ x: cx, y: cy })
-      }
-    }
-    // First tile holds the map; the remaining 7 hold markers. All land
-    // in the KnotCellar world.
-    const cellarWorld = getWorldForZone(state, Zone.KnotCellar)
-    cellarSpawns.forEach((pos, index) => {
-      const definitionId = index === 0 ? 'map' : 'geodeticMarker'
-      const e = cellarWorld.createEntity()
-      cellarWorld.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
-      cellarWorld.addComponent(e, ComponentType.ItemDrop, { definitionId })
-      cellarWorld.addComponent(e, ComponentType.EntityTag, 'groundItem')
-    })
-  }
+  // RP-70 cleanup — the map is no longer seeded in the Knot cellar; the
+  // steward inherits it from Gron at the end of his first dialog (see
+  // giveCharacterGift in interaction.ts). The seven cellar Geodetic
+  // Markers are also removed — only the three ruin markers remain.
 
   // RP-70 — one Geodetic Marker just inside the bee, clover, and coyote
-  // ruins (3 of the 5 Starter ruins), completing the set of 10.
+  // ruins (3 of the 5 Starter ruins).
   seedRuinGeodeticMarkers(state, genesisData.ruins)
 
   autoSort(backpack)

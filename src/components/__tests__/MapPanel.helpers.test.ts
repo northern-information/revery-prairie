@@ -1,31 +1,122 @@
-import { findHoveredIcon } from '../MapPanel.helpers'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import type { MapIcon } from '../MapPanel.helpers'
+import {
+  clampZoom,
+  markersForView,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  selectMapView,
+  zoomTowardFocus,
+} from '../MapPanel.helpers'
 
-// RP-70 — hover hit-testing for the map tab. The canvas draw itself is
-// untested (canvas rendering, per CLAUDE.md); this covers the pure lookup.
+import { createGameState } from '@/engine/state'
+import { Zone } from '@/engine/types'
+import type { GameState } from '@/engine/types'
 
-const icon = (px: number, py: number, name: string): MapIcon => ({ px, py, glyph: '?', color: '#fff', name })
+// RP-70 — pure map helpers. The canvas draw itself is untested (canvas
+// rendering, per CLAUDE.md); this covers zone selection, marker filtering,
+// and the zoom math.
 
-describe('findHoveredIcon', () => {
-  it('returns null when the cursor is outside every hit radius', () => {
-    const icons = [icon(100, 100, 'House')]
-    expect(findHoveredIcon(icons, 200, 200, 16)).toBeNull()
+const makeState = (): GameState => {
+  vi.spyOn(Math, 'random').mockReturnValue(0.5)
+  const state = createGameState('Cartographer', 20, 20)
+  vi.restoreAllMocks()
+  return state
+}
+
+describe('selectMapView', () => {
+  it('returns the overworld grid by default', () => {
+    const state = makeState()
+    state.currentZone = Zone.Overworld
+    const view = selectMapView(state)
+    expect(view.isOverworld).toBe(true)
+    expect(view.map).toBe(state.overworldMap)
+    expect(view.width).toBe(state.overworldMapWidth)
   })
 
-  it('returns the icon when the cursor is within its radius', () => {
-    const icons = [icon(100, 100, 'House')]
-    expect(findHoveredIcon(icons, 108, 100, 16)?.name).toBe('House')
+  it('returns the ruin interior grid when standing in a ruin', () => {
+    const state = makeState()
+    state.currentZone = Zone.Ruin
+    state.currentRuinIndex = 0
+    const view = selectMapView(state)
+    expect(view.isOverworld).toBe(false)
+    expect(view.map).toBe(state.ruinInteriors[0].map)
+    expect(view.width).toBe(state.ruinInteriors[0].mapWidth)
   })
 
-  it('resolves to the nearest icon when several cluster', () => {
-    // House at center, Cave 6px away, Whine 12px away — all within radius.
-    const icons = [icon(100, 100, 'House'), icon(106, 100, 'Cave'), icon(112, 100, 'Whine')]
-    expect(findHoveredIcon(icons, 104, 100, 16)?.name).toBe('Cave')
+  it('returns the cellar grid when standing in the Knot cellar', () => {
+    const state = makeState()
+    state.currentZone = Zone.KnotCellar
+    const view = selectMapView(state)
+    expect(view.isOverworld).toBe(false)
+    expect(view.map).toBe(state.cellarMap)
   })
 
-  it('returns null for an empty icon list', () => {
-    expect(findHoveredIcon([], 50, 50, 16)).toBeNull()
+  it('falls back to overworld for zones without a marker-bearing interior (cave)', () => {
+    const state = makeState()
+    state.currentZone = Zone.Cave
+    expect(selectMapView(state).isOverworld).toBe(true)
+  })
+})
+
+describe('markersForView', () => {
+  it('shows only overworld marks on the overworld', () => {
+    const state = makeState()
+    state.currentZone = Zone.Overworld
+    state.placedMarkers = [
+      { uid: 'a', x: 1, y: 1, zone: Zone.Overworld, label: 'GM-1' },
+      { uid: 'b', x: 2, y: 2, zone: Zone.Ruin, ruinIndex: 0, label: 'GM-2' },
+    ]
+    expect(markersForView(state).map(m => m.uid)).toEqual(['a'])
+  })
+
+  it('shows only the current ruin’s marks when inside a ruin', () => {
+    const state = makeState()
+    state.currentZone = Zone.Ruin
+    state.currentRuinIndex = 1
+    state.placedMarkers = [
+      { uid: 'a', x: 1, y: 1, zone: Zone.Overworld, label: 'GM-1' },
+      { uid: 'b', x: 2, y: 2, zone: Zone.Ruin, ruinIndex: 0, label: 'GM-2' },
+      { uid: 'c', x: 3, y: 3, zone: Zone.Ruin, ruinIndex: 1, label: 'GM-3' },
+    ]
+    expect(markersForView(state).map(m => m.uid)).toEqual(['c'])
+  })
+
+  it('shows cellar marks in the cellar', () => {
+    const state = makeState()
+    state.currentZone = Zone.KnotCellar
+    state.placedMarkers = [
+      { uid: 'a', x: 1, y: 1, zone: Zone.Overworld, label: 'GM-1' },
+      { uid: 'b', x: 2, y: 2, zone: Zone.KnotCellar, label: 'GM-2' },
+    ]
+    expect(markersForView(state).map(m => m.uid)).toEqual(['b'])
+  })
+})
+
+describe('clampZoom', () => {
+  it('clamps below the minimum', () => {
+    expect(clampZoom(0.1)).toBe(MIN_ZOOM)
+  })
+  it('clamps above the maximum', () => {
+    expect(clampZoom(100)).toBe(MAX_ZOOM)
+  })
+  it('passes a value within range through', () => {
+    expect(clampZoom(2)).toBe(2)
+  })
+})
+
+describe('zoomTowardFocus', () => {
+  it('keeps the focal point stationary when zooming', () => {
+    // Focus at the center: pan stays zero (nothing to compensate).
+    const pan = zoomTowardFocus(1, 2, { x: 0, y: 0 }, 500, 400, 500, 400)
+    expect(pan).toEqual({ x: 0, y: 0 })
+  })
+
+  it('shifts pan to anchor an off-center focal point', () => {
+    // Focus 100px right of center; zooming in by 2x must push pan left so
+    // the world point under the focus does not drift.
+    const pan = zoomTowardFocus(1, 2, { x: 0, y: 0 }, 600, 400, 500, 400)
+    expect(pan.x).toBe(-100)
+    expect(pan.y).toBe(0)
   })
 })

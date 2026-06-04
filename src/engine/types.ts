@@ -242,13 +242,17 @@ export interface PlacedCamera {
 // uid is the geodeticMarker ItemInstance uid, preserved across the
 // place / pickup cycle so re-placement keeps identity. label is GM-N
 // where N is the lowest free index in 1..10 at placement time —
-// retrieval frees the number for reuse. zone records where it was
-// placed; the map projects every marker at its stored x,y.
+// retrieval frees the number for reuse. zone records where it was placed;
+// the map renders markers in whichever zone the steward is viewing, so a
+// marker laid inside a ruin shows on that ruin's interior chart. ruinIndex
+// disambiguates which ruin (set only when zone === Zone.Ruin), mirroring
+// PlacedCamera — without it a ruin mark could not tell ruin #0 from #1.
 export interface PlacedMarker {
   uid: ItemUid
   x: number
   y: number
   zone: Zone
+  ruinIndex?: number
   label: string
 }
 

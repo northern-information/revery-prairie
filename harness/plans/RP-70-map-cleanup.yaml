@@ -1,0 +1,161 @@
+plan:
+  id: RP-70-map-cleanup
+  title: >
+    RP-70 cleanup (change-request) — reframe the map's acquisition and
+    presentation. The map is gifted by Gron at the end of his first dialog
+    ("Here. From your predecessor.") instead of being a Knot cellar pickup;
+    the 7 cellar Geodetic Markers and the cellar map item are removed,
+    leaving the 3 ruin markers; markers gain an optional ruinIndex so they
+    work inside ruins; the MapPanel becomes zone-aware (renders the zone the
+    steward stands in, filtering marks to it), monochromatic (amber-ink, not
+    the prairie palette), drawn in the title-card italic serif; it zooms via
+    wheel + on-screen +/- buttons; the hover tooltip is dropped; an exit
+    hint is added.
+  created: 2026-06-04
+  # Change-request to already-shipped RP-70. Mutates GameState shape
+  # (PlacedMarker.ruinIndex), touches the engine (characters, interaction,
+  # state seeding, placeable) and the React map UI. Behavior-preserving for
+  # the rest of the suite; full suite required because the GameState shape
+  # and Gron's dialog change.
+  global_verification:
+    - npm run typecheck
+    - npm run test
+    - npm run lint
+
+tasks:
+  - id: gron-gifts-map
+    title: >
+      Make the map a Gron gift. Add gift {kind: 'item', id: 'map'} to the
+      Gron CHARACTER_DEFINITIONS entry and append the human-authored handoff
+      line "Here. From your predecessor." as the last line of
+      GRON_DIALOG_AWAITING_COYOTE in characters.ts. In interaction.ts,
+      special-case the map key item in giveCharacterGift: add the character
+      to giftsReceived, recordDiscovery(state, 'item:map'), invoke
+      state.onMapAcquired, and return a GiftAnnouncement built from the 'map'
+      ITEM_DEFINITION (name/glyph/color); return null on a repeat call. The
+      map never enters the backpack.
+    spec_id: RP-70
+    spec_sections: [gron-gift-acquisition]
+    context_files:
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+      - src/engine/items.ts
+    output_files:
+      - src/engine/characters.ts
+      - src/engine/interaction.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/gron-gift.test.ts
+    repair: retry
+    tags: [engine, dialog]
+
+  - id: remove-cellar-seeding
+    title: >
+      Remove the cellar cartography seeding block in state.ts (the loop that
+      spawned the 'map' ground item and 7 geodeticMarker ground items tagged
+      Zone.KnotCellar). Keep seedRuinGeodeticMarkers (the 3 ruin markers).
+      Remove the now-dead 'map' ground-item pickup branch in
+      pickUpGroundItems (entities.ts), since the map is no longer a ground
+      item.
+    spec_id: RP-70
+    spec_sections: [geodetic-marker-genesis-seeding]
+    context_files:
+      - src/engine/state.ts
+      - src/engine/entities.ts
+    output_files:
+      - src/engine/state.ts
+      - src/engine/entities.ts
+    depends_on: [gron-gifts-map]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, genesis]
+
+  - id: marker-ruin-index
+    title: >
+      Add optional ruinIndex?: number to the PlacedMarker interface in
+      types.ts (mirroring PlacedCamera). In the geodeticMarker PlaceableSpec
+      (placeable.ts), capture state.currentRuinIndex on the PlacedMarker when
+      state.currentZone === Zone.Ruin; omit it on the overworld.
+    spec_id: RP-70
+    spec_sections: [geodetic-marker-placement]
+    context_files:
+      - src/engine/types.ts
+      - src/engine/placeable.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/placeable.ts
+    depends_on: [remove-cellar-seeding]
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags: [engine, state]
+
+  - id: zone-aware-monochrome-map
+    title: >
+      Rewrite MapPanel and its helpers. In MapPanel.helpers.ts add
+      selectMapView (returns the overworld / ruin-interior / cellar grid for
+      the current zone, with an isOverworld flag; falls back to overworld for
+      other zones), markersForView (filters state.placedMarkers to the
+      current zone, matching ruinIndex inside a ruin), and the zoom helpers
+      (clampZoom, MIN/MAX_ZOOM, ZOOM_STEP, zoomTowardFocus). Remove the hover
+      helpers (findHoveredIcon, MapIcon, HOVER_RADIUS). In MapPanel.tsx draw
+      the current zone's terrain in a monochrome amber-ink ramp (not the
+      prairie palette), with water + fixed landmarks only on the overworld;
+      draw Geodetic Markers from markersForView in HOT_PINK; draw icon glyphs
+      in the title-card italic serif (Libre Baskerville stack). Add zoom
+      state + pan (wheel zooms toward cursor, on-screen +/- buttons zoom
+      toward center). Remove the hover tooltip and mousemove handler. Add a
+      low-emphasis "Press Esc to close" hint.
+    spec_id: RP-70
+    spec_sections: [map-tab-composition]
+    context_files:
+      - src/components/MapPanel.tsx
+      - src/components/MapPanel.helpers.ts
+      - src/engine/render/passes/zoneTransitionOverlay.ts
+    output_files:
+      - src/components/MapPanel.tsx
+      - src/components/MapPanel.helpers.ts
+    depends_on: [marker-ruin-index]
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/components/__tests__/MapPanel.helpers.test.ts
+    repair: retry
+    tags: [ui, canvas]
+
+  - id: regression-tests
+    title: >
+      Update and add tests. RP-70-the-map.test.ts: genesis seeds 3 ruin
+      markers and zero cellar markers / map ground items; Gron-gift
+      acquisition records item:map, opens the tab, and stays out of the
+      backpack; a marker laid in a ruin captures ruinIndex; serialization
+      round-trips ruinIndex. gron-gift.test.ts and gronDeepTime.test.ts:
+      Gron gifts the map once. RP-21-gron-doctrine.test.ts and
+      main-questline.test.ts: the awaiting-coyote dialog ends on the handoff
+      line. MapPanel.helpers.test.ts: selectMapView, markersForView,
+      clampZoom, zoomTowardFocus.
+    spec_id: RP-70
+    spec_sections:
+      [
+        gron-gift-acquisition,
+        geodetic-marker-genesis-seeding,
+        geodetic-marker-placement,
+        map-tab-composition,
+      ]
+    context_files:
+      - src/engine/__tests__/RP-70-the-map.test.ts
+      - src/engine/__tests__/gron-gift.test.ts
+      - src/components/__tests__/MapPanel.helpers.test.ts
+    output_files:
+      - src/engine/__tests__/RP-70-the-map.test.ts
+      - src/engine/__tests__/gron-gift.test.ts
+      - src/engine/__tests__/gronDeepTime.test.ts
+      - src/engine/__tests__/RP-21-gron-doctrine.test.ts
+      - src/engine/__tests__/main-questline.test.ts
+      - src/components/__tests__/MapPanel.helpers.test.ts
+    depends_on: [zone-aware-monochrome-map]
+    verification:
+      - npm run test
+    repair: retry
+    tags: [test]

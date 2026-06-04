@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
   AVATAR_OCCLUSION_PAD,
@@ -134,9 +134,4 @@ describe('tile x-ray', () => {
   // above exercises the pure occlusion math the draw function relies on
   // (isTileOccludingAvatar, getTileScreenRect, getAvatarScreenRect,
   // rectsOverlap) plus the slot-ordering contract.
-  describe.skip('draw side effects (canvas-dependent, not testable in jsdom)', () => {
-    it('skipped under jsdom; verify via dev server', () => {
-      void vi
-    })
-  })
 })

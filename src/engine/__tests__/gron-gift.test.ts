@@ -8,9 +8,9 @@ import type { GameState } from '../types'
 const makeState = (): GameState => createGameState('test', 40, 30)
 
 describe('gron character definition', () => {
-  it('has no gift configured', () => {
+  it('gifts the map (RP-70 — the inherited cartography)', () => {
     const def = getCharacterDefinition('gron')
-    expect(def.gift).toBeUndefined()
+    expect(def.gift).toEqual({ kind: 'item', id: 'map' })
   })
 
   it('has no postGiftDialog', () => {
@@ -32,22 +32,37 @@ describe('gron character definition', () => {
 })
 
 describe('gron gift delivery', () => {
-  it('returns null — gron has no gift', () => {
+  it('hands over the map as a key item: records item:map, opens the tab, never enters the backpack', () => {
     const state = makeState()
+    let opened = 0
+    state.onMapAcquired = () => {
+      opened++
+    }
     const result = giveCharacterGift(state, 'gron')
-    expect(result).toBeNull()
+    expect(result).toEqual({ name: 'Map', glyphs: ['▤'], glyphColor: '#C2B280' })
+    expect(state.giftsReceived.has('gron')).toBe(true)
+    expect(state.manualDiscoveries.has('item:map')).toBe(true)
+    expect(opened).toBe(1)
   })
 
-  it('giftsReceived does not include gron after interaction', () => {
+  it('only gifts once — a second call after giftsReceived returns null', () => {
     const state = makeState()
     giveCharacterGift(state, 'gron')
-    expect(state.giftsReceived.has('gron')).toBe(false)
+    const second = giveCharacterGift(state, 'gron')
+    expect(second).toBeNull()
   })
 
-  it('dialog returns the awaiting-coyote phase block (no postGiftDialog branch)', () => {
+  it('the awaiting-coyote dialog ends on the map handoff line', () => {
     const state = makeState()
-    // Phase-driven dispatch: the round-5 opener while quest phase is awaiting-coyote.
-    expect(getCharacterDialog(state, 'gron')).toEqual(['...', 'A steward.', 'A steward goes to the ruins.'])
+    // Phase-driven dispatch: the round-5 opener while quest phase is
+    // awaiting-coyote, with the user-authored map handoff as the last line
+    // (the gift fires when this line completes).
+    expect(getCharacterDialog(state, 'gron')).toEqual([
+      '...',
+      'A steward.',
+      'A steward goes to the ruins.',
+      'Here. From your predecessor.',
+    ])
   })
 })
 

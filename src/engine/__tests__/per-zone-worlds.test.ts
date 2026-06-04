@@ -87,25 +87,29 @@ describe('per-zone-worlds — genesis seeding lands in target worlds', () => {
     expect(inOverworld).toBe(false)
   })
 
-  it('KnotCellar holds the map plus 7 markers; none leak to overworld', () => {
+  it('ruin Geodetic Markers live in their ruin worlds; none leak to overworld or the cellar', () => {
+    // RP-70 cleanup: the cellar no longer holds the map or markers (the
+    // map is a Gron gift now). The three ruin markers are the surviving
+    // per-zone-seeded items, so they stand in as the leak-isolation proof.
     const state = createGameState('Test', 20, 20)
-    const cellar = getWorldForZone(state, Zone.KnotCellar)
     const overworld = getWorldForZone(state, Zone.Overworld)
+    const cellar = getWorldForZone(state, Zone.KnotCellar)
 
-    const cellarItems = cellar
-      .query(ComponentType.EntityTag, ComponentType.ItemDrop)
-      .filter(eid => cellar.getComponent(eid, ComponentType.EntityTag) === 'groundItem')
-      .map(eid => cellar.getComponent(eid, ComponentType.ItemDrop)?.definitionId)
-    const overworldCellarItems = overworld
-      .query(ComponentType.EntityTag, ComponentType.ItemDrop)
-      .filter(eid => {
-        const drop = overworld.getComponent(eid, ComponentType.ItemDrop)
-        return drop?.definitionId === 'map' || drop?.definitionId === 'geodeticMarker'
-      })
+    const markersIn = (world: ReturnType<typeof getWorldForZone>): number =>
+      world
+        .query(ComponentType.EntityTag, ComponentType.ItemDrop)
+        .filter(eid => world.getComponent(eid, ComponentType.ItemDrop)?.definitionId === 'geodeticMarker').length
 
-    expect(cellarItems.filter(d => d === 'map')).toHaveLength(1)
-    expect(cellarItems.filter(d => d === 'geodeticMarker')).toHaveLength(7)
-    expect(overworldCellarItems).toHaveLength(0)
+    let ruinMarkerTotal = 0
+    for (const [key, world] of state.worlds) {
+      if (!key.startsWith('ruin:')) continue
+      ruinMarkerTotal += markersIn(world)
+    }
+
+    // 3 markers total, all inside ruin worlds; none in the overworld or cellar.
+    expect(ruinMarkerTotal).toBe(3)
+    expect(markersIn(overworld)).toBe(0)
+    expect(markersIn(cellar)).toBe(0)
   })
 
   it('film roll lives in the HouseInterior world, not the Overworld world', () => {
