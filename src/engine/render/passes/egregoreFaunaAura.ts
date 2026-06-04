@@ -11,7 +11,6 @@ import { isInBounds } from '../../position'
 import { drawCellBackground, viewportToScreen } from '../../projection'
 import { TileType, Zone } from '../../types'
 import { getVisibleTileBounds } from '../../viewportBounds'
-import { isEntityInCurrentZone } from '../../zone'
 import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
 
@@ -27,7 +26,6 @@ interface FaunaTile {
 const collectFaunaTiles = (state: GameState): FaunaTile[] => {
   const tiles: FaunaTile[] = []
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
-    if (!isEntityInCurrentZone(state, eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'wrongBee' && tag !== 'pierceWalker') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)

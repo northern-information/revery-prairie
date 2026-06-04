@@ -14,7 +14,7 @@ import { spawnBeeOrMonarch } from './monarch'
 import { CARDINAL, isInBounds, isWalkableTile, ORDINAL, posKey } from './position'
 import { getHallowedPolygons, getStoneCircleGraph, isInsideHallowedGround } from './stoneCircles'
 import { FloraSpecies, TileType, Zone } from './types'
-import { getCurrentEntityZone, isEntityInCurrentZone, spatialAtInCurrentZone } from './zone'
+import { getWorldForZone } from './zone'
 
 import type { Entity } from './ecs/types'
 import type { CharacterBehavior, DriftBehavior, GameState, Position } from './types'
@@ -31,23 +31,27 @@ export const createCharacterEntity = (
     music?: { url: string; radius: number }
   }
 ): Entity => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
-  state.world.addComponent(e, ComponentType.CharacterIdentity, { definitionId })
-  state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
-  state.world.addComponent(e, ComponentType.EntityTag, 'character')
-  const entityZone =
-    opts?.zone !== undefined ? { zone: opts.zone, ruinIndex: opts.ruinIndex } : getCurrentEntityZone(state)
-  state.world.addComponent(e, ComponentType.EntityZone, entityZone)
+  // Route the entity into its target zone's world. Characters seeded at
+  // genesis (Moab in Cave, Emily in HouseInterior) are created while
+  // state.currentZone is still Zone.Overworld and must land in their
+  // own world; opts.zone overrides the active zone when provided.
+  const targetZone = opts?.zone ?? state.currentZone
+  const targetRuinIndex = opts?.zone !== undefined ? opts.ruinIndex : (state.currentRuinIndex ?? undefined)
+  const world = getWorldForZone(state, targetZone, targetRuinIndex)
+  const e = world.createEntity()
+  world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+  world.addComponent(e, ComponentType.CharacterIdentity, { definitionId })
+  world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
+  world.addComponent(e, ComponentType.EntityTag, 'character')
   if (opts?.aura) {
     const radius = AURA_RADIUS[opts.aura] ?? 6
-    state.world.addComponent(e, ComponentType.Aura, { kind: opts.aura, radius })
+    world.addComponent(e, ComponentType.Aura, { kind: opts.aura, radius })
   }
   if (opts?.behavior) {
-    state.world.addComponent(e, ComponentType.Behavior, opts.behavior)
+    world.addComponent(e, ComponentType.Behavior, opts.behavior)
   }
   if (opts?.music) {
-    state.world.addComponent(e, ComponentType.MusicEmitter, { url: opts.music.url, radius: opts.music.radius })
+    world.addComponent(e, ComponentType.MusicEmitter, { url: opts.music.url, radius: opts.music.radius })
   }
   return e
 }
@@ -70,7 +74,6 @@ const scanTagged3x3 = (state: GameState, cx: number, cy: number, tag: string): E
     for (let dx = -1; dx <= 1; dx++) {
       for (const eid of state.world.spatial.at(cx + dx, cy + dy)) {
         if (state.world.getComponent(eid, ComponentType.EntityTag) !== tag) continue
-        if (!isEntityInCurrentZone(state, eid)) continue
         result.push(eid)
       }
     }
@@ -179,15 +182,14 @@ const isBeeNearFood = (state: GameState, pos: Position): boolean => {
 // roughly 20× more attractive than bare dirt; wildflower (0.6) ~12×.
 const WANDER_BASELINE_WEIGHT = 0.05
 
-export const tickBees = (state: GameState, zone?: Zone): Position[] => {
-  const z = zone ?? state.currentZone
-  const matchesZone = (eid: number): boolean =>
-    z === state.currentZone
-      ? isEntityInCurrentZone(state, eid)
-      : state.world.getComponent(eid, ComponentType.EntityZone)?.zone === z
+export const tickBees = (state: GameState, _zone?: Zone): Position[] => {
+  // Per-zone worlds: state.world only contains entities in the active
+  // zone. The zone arg is preserved for back-compat at call sites
+  // (creature systems, deepTime) but no longer needed for filtering —
+  // the caller is expected to invoke this only when state.currentZone
+  // matches the intended zone.
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
-    if (!matchesZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) continue
 
@@ -271,20 +273,16 @@ const tickDrift = (state: GameState, eid: Entity, definitionId: string, behavior
   }
 }
 
-export const tickCharacterBehaviors = (state: GameState, zone?: Zone): void => {
-  const z = zone ?? state.currentZone
+export const tickCharacterBehaviors = (state: GameState, _zone?: Zone): void => {
   if (state.deepTime?.active) return
 
-  const matchesZone = (eid: number): boolean =>
-    z === state.currentZone
-      ? isEntityInCurrentZone(state, eid)
-      : state.world.getComponent(eid, ComponentType.EntityZone)?.zone === z
+  // Per-zone worlds: state.world is the active zone. Zone arg preserved
+  // for back-compat at call sites; filtering by zone is implicit now.
   for (const eid of state.world.query(
     ComponentType.Behavior,
     ComponentType.CharacterIdentity,
     ComponentType.Position
   )) {
-    if (!matchesZone(eid)) continue
     const behavior = state.world.getComponent(eid, ComponentType.Behavior)
     if (!behavior) continue
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
@@ -313,7 +311,7 @@ const canDropAt = (state: GameState, x: number, y: number): boolean => {
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (!isWalkableTile(state.map[y][x].type)) return false
   if (
-    spatialAtInCurrentZone(state, x, y).some(eid => {
+    state.world.spatial.at(x, y).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
       return tag === 'groundItem'
     })
@@ -334,7 +332,7 @@ const canPlantSeedAt = (state: GameState, x: number, y: number): boolean => {
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (state.map[y][x].type !== TileType.Dirt) return false
   if (
-    spatialAtInCurrentZone(state, x, y).some(eid => {
+    state.world.spatial.at(x, y).some(eid => {
       const tag = state.world.getComponent(eid, ComponentType.EntityTag)
       return tag === 'groundItem'
     })
@@ -474,7 +472,6 @@ export const dropItem = (state: GameState, definitionId: string, time?: number):
         }
         state.world.addComponent(ge, ComponentType.ItemDrop, dropData)
         state.world.addComponent(ge, ComponentType.EntityTag, 'groundItem')
-        state.world.addComponent(ge, ComponentType.EntityZone, getCurrentEntityZone(state))
         state.world.addComponent(ge, ComponentType.PickupExemption, {})
       }
       return true

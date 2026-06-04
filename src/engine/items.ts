@@ -118,8 +118,9 @@ const ITEMS = {
     glyphColor: '#C2B280',
     category: ItemCategory.Artifact,
   },
-  // RP-70 — surveyor's marker. The steward inherits 10 (GM-1..GM-10) with
-  // the map: 7 in the Knot cellar, 1 just inside each of the three ruins.
+  // RP-70 — surveyor's marker. The steward inherits 3, one just inside
+  // each of the bee, clover, and coyote ruins (the cellar markers were
+  // removed in the RP-70 cleanup). Labels draw from a GM-1..GM-10 space.
   // Dropping one claims a location that surfaces on the map permacomputer
   // tab in hot pink. Marking is item-shaped — the map itself is read-only.
   // Placed via the geodeticMarker PlaceableSpec (verb 'lay'); recoverable

@@ -3,7 +3,6 @@ import { ComponentType } from '../../ecs/types'
 import { tileHash } from '../../position'
 import { viewportToScreen } from '../../projection'
 import { isTileInVisibleViewport } from '../../viewportBounds'
-import { isEntityInCurrentZone } from '../../zone'
 import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
 
@@ -16,7 +15,6 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
   const tierGrid = getTierGrid(state.elevation, state.mapWidth, state.mapHeight)
 
   for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
-    if (!isEntityInCurrentZone(state, eid)) continue
     const aura = state.world.getComponent(eid, ComponentType.Aura)
     if (aura?.kind !== 'rain') continue
     const auraPos = state.world.getComponent(eid, ComponentType.Position)

@@ -1,0 +1,147 @@
+id: audio-setambient-race
+name: 'setAmbient must not leak orphaned tracks under rapid mount/unmount/remount'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/audio.ts
+  - src/engine/__tests__/audio.test.ts
+dependencies:
+  - audio-system
+
+# Bug: src/engine/audio.ts setAmbient(url) handles concurrency via a single
+# closure-captured `requestedUrl`, compared against module-level `ambientUrl`
+# in the createTrack().then() callback. When two setAmbient calls for the
+# SAME url overlap — typical sequence: useMusic mount fires setAmbient
+# during genesis, React StrictMode simulates an unmount (stopAll resets
+# ambientUrl to null), then the remount fires setAmbient with the same url
+# — both in-flight createTrack promises pass the `ambientUrl === requestedUrl`
+# guard when they resolve. The second .then() overwrites `ambientTrack` with
+# its own track; the first track is now orphaned (no module-level reference)
+# but its source node has been started and its gain is 1. setAudioEnabled
+# only mutes the currently-referenced ambient/dialog/splash/proximity tracks,
+# so the orphan keeps playing — including after the user toggles audio off.
+# Observed in the wild: at game start the overworld track plays on top of
+# the little house's emily track, and the "Audio: Off" toggle in the
+# settings panel does not silence it.
+#
+# Fix: track in-flight setAmbient calls by a monotonic request token (not by
+# url). stopAll() and any subsequent setAmbient bump the token; resolved
+# createTrack promises whose token no longer matches drop their track via
+# destroyTrack. This generalizes the existing url-equality guard so two
+# same-url calls cannot both install a track.
+
+behaviors:
+  - id: set-ambient-uses-request-token
+    description: >
+      setAmbient assigns each invocation a fresh request token from a
+      module-level monotonic counter. The createTrack().then() callback
+      installs the resolved track as ambientTrack only when its captured
+      token still matches the latest one; otherwise it calls destroyTrack
+      on the resolved track and returns. The token replaces the
+      `ambientUrl !== requestedUrl` check (or runs alongside it; either
+      way the call's identity does not rely solely on the url string).
+    inputs:
+      - 'two setAmbient calls for the same url, the second invoked before the first’s createTrack resolves'
+    outputs:
+      - 'at most one MockAudioBufferSourceNode start() is left without a stop() across the lifetime of both promises'
+    state_changes: []
+    determinism: deterministic
+
+  - id: stop-all-invalidates-in-flight-set-ambient
+    description: >
+      stopAll() bumps the same module-level request token (or otherwise
+      marks all in-flight setAmbient calls as superseded) so any
+      createTrack().then() callback that resolves AFTER stopAll() finds
+      its token stale and destroys its resolved track instead of
+      installing it as ambientTrack. The existing stopAll teardown of
+      ambientTrack / dialogTrack / splashTrack / proximityTracks is
+      unchanged.
+    inputs:
+      - 'setAmbient(url) called; stopAll() invoked before createTrack resolves'
+    outputs:
+      - 'when createTrack resolves, the resolved track is destroyed; ambientTrack remains null; no source.start() leaks past stopAll()'
+    state_changes:
+      - field: ambientUrl
+        effect: 'set to null by stopAll'
+      - field: ambientTrack
+        effect: 'set to null by stopAll'
+    determinism: deterministic
+
+  - id: same-url-twice-still-no-op-when-already-playing
+    description: >
+      The existing fast-path `if (url === ambientUrl && ambientTrack)
+      return` is preserved. Calling setAmbient with the currently-playing
+      url is still a no-op when no race is in flight. The new request
+      token only matters when two createTrack promises are concurrent.
+    inputs:
+      - 'setAmbient(X); await resolution; setAmbient(X)'
+    outputs:
+      - 'the second call is a no-op; ambientTrack is unchanged; no additional MockAudioBufferSourceNode is constructed'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: double-set-ambient-same-url-before-resolution
+    description: >
+      Two setAmbient calls for the same url overlap, with no stopAll in
+      between (StrictMode unmount stub absent). Both createTrack promises
+      resolve. Only one source should be left started without a matching
+      stop. The other resolved track must be destroyed by the .then()
+      callback before any audible playback.
+    expected: >
+      Test in audio.test.ts: spies on MockAudioBufferSourceNode.start /
+      .stop. After flushing both promises, exactly one source has been
+      started AND not stopped, OR both have been started+stopped with at
+      most one currently-active track. ambientTrack points to a track
+      whose source has been started.
+
+  - id: stopall-between-overlapping-set-ambient-calls
+    description: >
+      Reproduces the production sequence: setAmbient(overworld) →
+      stopAll() → setAmbient(overworld) (same url). Both createTrack
+      promises resolve. The first promise's track must be destroyed
+      because stopAll invalidated its request. The second promise's
+      track may install as ambientTrack.
+    expected: >
+      Test asserts that after flushing both promises, ambientTrack
+      corresponds to the SECOND createTrack call and the first track's
+      source.stop() has been called (or the first track was never
+      started). No orphaned source node remains running.
+
+  - id: set-audio-disabled-during-set-ambient-load
+    description: >
+      setAmbient(overworld) called while audioEnabled=true; before the
+      createTrack resolves, the user toggles audio off via the settings
+      panel which calls setAudioEnabled(false) directly. When createTrack
+      resolves, the track must not play at gain 1. Either the .then()
+      callback installs the track at gain 0 (so re-enabling later
+      restores it), or destroys it and leaves ambientUrl set so a future
+      setAudioEnabled(true) re-spawns.
+    expected: >
+      Test enables audio, calls setAmbient(overworld), calls
+      setAudioEnabled(false) before flush, then flushes. Asserts that
+      after the resolution either ambientTrack.gain.value === 0 (if
+      installed) or ambientTrack === null with ambientUrl ===
+      '/music/overworld.mp3'. No audible playback path remains.
+
+failure_conditions:
+  - trigger: 'useMusic mounts during genesis (calls setAmbient(overworld)), React StrictMode simulates an unmount (stopAll), then a remount (setAmbient(overworld) again)'
+    expected: >
+      Pre-fix: two MockAudioBufferSourceNode.start() calls land, both
+      tracks fade to gain 1 in their fadeBoth callbacks, and the first
+      track is unreachable from any module-level variable — so a
+      subsequent setAmbient(emily) crossfades the second overworld track
+      out but leaves the first overworld track playing forever. A
+      regression test in audio.test.ts asserts at most one started
+      source survives. Fails on main; passes on the branch.
+
+  - trigger: 'setAmbient(overworld) is in flight when setAudioEnabled(false) fires'
+    expected: >
+      Pre-fix: the createTrack resolves and fadeBoth pushes gain to 1
+      regardless of audioEnabled. Post-fix: the resolved track lands at
+      gain 0 (or is destroyed and re-spawned on re-enable).
+
+verification:
+  test_file: src/engine/__tests__/audio.test.ts
+  test_pattern: 'orphan|race|stopall.*setambient|setambient.*stopall'
+  command: 'npx vitest run src/engine/__tests__/audio.test.ts'

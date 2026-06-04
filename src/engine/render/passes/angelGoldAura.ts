@@ -4,7 +4,6 @@ import { isInBounds } from '../../position'
 import { drawCellBackground, viewportToScreen } from '../../projection'
 import { TileType } from '../../types'
 import { getVisibleTileBounds } from '../../viewportBounds'
-import { isEntityInCurrentZone } from '../../zone'
 import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
 
@@ -14,7 +13,6 @@ import type { RenderPass } from '../passes'
 const collectAngelCenters = (state: GameState): { x: number; y: number }[] => {
   const centers: { x: number; y: number }[] = []
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
-    if (!isEntityInCurrentZone(state, eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) continue
     centers.push({ x: pos.x, y: pos.y })
@@ -24,12 +22,8 @@ const collectAngelCenters = (state: GameState): { x: number; y: number }[] => {
 
 // Lightweight check — short-circuits on first match without collecting positions.
 // collectAngelCenters (which allocates) only runs once, inside draw().
-const isActive = (state: GameState): boolean => {
-  for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
-    if (isEntityInCurrentZone(state, eid)) return true
-  }
-  return false
-}
+const isActive = (state: GameState): boolean =>
+  state.world.query(ComponentType.AngelData, ComponentType.Position).length > 0
 
 const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetrics, time: number): void => {
   const { camera, viewportWidth, viewportHeight, map } = state

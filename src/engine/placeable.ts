@@ -6,13 +6,13 @@ import { removeItem } from './inventory'
 import { isInBounds, isWalkableTile } from './position'
 import { createPlacedCamera } from './timeLapse'
 import { Zone } from './types'
-import { getCurrentEntityZone, spatialAtInCurrentZone } from './zone'
 
 import type { GameState, ItemUid, PlacedMarker } from './types'
 
-// RP-70 — total Geodetic Markers in a tenure (GM-1..GM-10). The cap is
-// physical: 10 marker items exist (7 cellar + 3 ruins), so this only
-// bounds the label space, never gates placement on its own.
+// RP-70 — Geodetic Marker label space (GM-1..GM-10). Only 3 marker items
+// exist after the RP-70 cleanup (one per role-ruin), so the cap is never
+// reached in practice; it only bounds the label range, never gates
+// placement on its own.
 const MAX_GEODETIC_MARKERS = 10
 
 // RP-70 — lowest free GM-N label in 1..MAX. Scans currently-placed
@@ -52,7 +52,7 @@ export const canPlaceCameraAt = (state: GameState, x: number, y: number, uid: It
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (!isWalkableTile(state.map[y][x].type)) return false
   if (x === state.player.x && y === state.player.y) return false
-  return spatialAtInCurrentZone(state, x, y).every(eid => {
+  return state.world.spatial.at(x, y).every(eid => {
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     return tag !== 'groundItem' && tag !== 'placedCamera'
   })
@@ -66,7 +66,7 @@ export const canPlaceMarkerAt = (state: GameState, x: number, y: number): boolea
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return false
   if (!isWalkableTile(state.map[y][x].type)) return false
   if (x === state.player.x && y === state.player.y) return false
-  return spatialAtInCurrentZone(state, x, y).every(eid => {
+  return state.world.spatial.at(x, y).every(eid => {
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     return tag !== 'groundItem' && tag !== 'placedCamera' && tag !== 'placedMarker'
   })
@@ -103,7 +103,6 @@ const PLACEABLE_SPECS = {
       const ce = state.world.createEntity()
       state.world.addComponent(ce, ComponentType.Position, { x, y })
       state.world.addComponent(ce, ComponentType.EntityTag, 'placedCamera')
-      state.world.addComponent(ce, ComponentType.EntityZone, getCurrentEntityZone(state))
       state.world.addComponent(ce, ComponentType.ItemDrop, { definitionId: 'camera' })
       removeItem(container, uid)
       // The camera is a unique artifact — never auto-advance, just clear.
@@ -137,7 +136,6 @@ const PLACEABLE_SPECS = {
       const me = state.world.createEntity()
       state.world.addComponent(me, ComponentType.Position, { x, y })
       state.world.addComponent(me, ComponentType.EntityTag, 'placedMarker')
-      state.world.addComponent(me, ComponentType.EntityZone, getCurrentEntityZone(state))
       state.world.addComponent(me, ComponentType.ItemDrop, { definitionId: 'geodeticMarker' })
       removeItem(container, uid)
       advanceInHand(state, 'geodeticMarker', uid)

@@ -14,6 +14,7 @@ import {
 } from './constants'
 import { ComponentType } from './ecs/types'
 import { createWorld } from './ecs/world'
+import type { World } from './ecs/world'
 import { AURA_RADIUS } from './effects'
 import { EGREGORE_SPECIES, getEgregoreSpeciesAtPosition } from './egregore/species'
 import { createCharacterEntity } from './entities'
@@ -39,6 +40,7 @@ import { generateAllRuinInteriors, placeRuinEntrances, seedRuinGeodeticMarkers }
 import { WATERFALL_TILE_WATER_BUMP } from './tileBg'
 import { buildWaterProximity } from './tileWater'
 import { EgregoreActivityStage, MainQuestPhase, MoabState, OverlayMode, Season, TileType, Zone } from './types'
+import { getWorldForZone, worldKey } from './zone'
 import { generateWeather } from './weather'
 import { initWindState } from './weather/wind'
 import { createLittleHouseYard, registerLittleHouseYard } from './yard'
@@ -330,7 +332,30 @@ export const createGameState = (
     emilyInvitation: 'unoffered',
     tenureOpened: false,
     giftsReceived: new Set<string>(),
-    world: createWorld(),
+    // Per-zone ECS worlds. Pre-create one world per non-Ruin Zone enum
+    // value; ruin worlds are created lazily by getWorldForZone on first
+    // entry. state.world below points at the overworld world at
+    // genesis; every zone transition handler reassigns it.
+    worlds: (() => {
+      const m = new Map<string, World>()
+      for (const zone of [
+        Zone.Overworld,
+        Zone.Cave,
+        Zone.HouseInterior,
+        Zone.LittleHouseYard,
+        Zone.KnotCellar,
+        Zone.WhineVillage,
+        Zone.WhineHomeYard,
+      ]) {
+        m.set(worldKey(zone), createWorld())
+      }
+      return m
+    })(),
+    get world(): World {
+      const w = this.worlds.get(worldKey(this.currentZone, this.currentRuinIndex ?? undefined))
+      if (!w) throw new Error(`No world for zone ${this.currentZone} ruin=${String(this.currentRuinIndex)}`)
+      return w
+    },
     meteorShower: {
       active: false,
       remainingStars: 0,
@@ -675,7 +700,6 @@ export const createGameState = (
     state.world.addComponent(e, ComponentType.Position, { x: cx, y: cy })
     state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'coin' })
     state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
     coinCount++
   }
 
@@ -694,11 +718,14 @@ export const createGameState = (
   // overworld adjacent to the oak nearest the house entrance — see
   // seedTenureStartFieldCamera below.
   {
-    const e = state.world.createEntity()
-    state.world.addComponent(e, ComponentType.Position, { x: 2, y: 6 })
-    state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'filmRoll' })
-    state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.HouseInterior })
+    // filmRoll lives in HouseInterior — route to the house world rather
+    // than state.world (which is still pointing at the overworld during
+    // genesis seeding).
+    const houseWorld = getWorldForZone(state, Zone.HouseInterior)
+    const e = houseWorld.createEntity()
+    houseWorld.addComponent(e, ComponentType.Position, { x: 2, y: 6 })
+    houseWorld.addComponent(e, ComponentType.ItemDrop, { definitionId: 'filmRoll' })
+    houseWorld.addComponent(e, ComponentType.EntityTag, 'groundItem')
   }
 
   // Field Camera seeding lives in completeGenesis (post-seedOaks) —

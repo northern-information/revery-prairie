@@ -1,14 +1,15 @@
 import { ComponentType } from '../ecs/types'
 import { initiateRevery, tickRevery } from '../revery'
 import { OmenKind, ReveryPhase, TileType, Zone } from '../types'
+import { queryAllZones } from '../zone'
 import { createCharacterTestEntity, createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
 
 const findEmilyPos = (state: ReturnType<typeof createTestState>) => {
-  for (const eid of state.world.query(ComponentType.CharacterIdentity)) {
-    const ident = state.world.getComponent(eid, ComponentType.CharacterIdentity)
+  for (const { world, eid } of queryAllZones(state, ComponentType.CharacterIdentity)) {
+    const ident = world.getComponent(eid, ComponentType.CharacterIdentity)
     if (ident?.definitionId !== 'emily') continue
-    return state.world.getComponent(eid, ComponentType.Position)
+    return world.getComponent(eid, ComponentType.Position)
   }
   return null
 }

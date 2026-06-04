@@ -6,6 +6,7 @@ import { containerHasItem, placeItem } from '../inventory'
 import { getPlaceableSpec, nextFreeMarkerLabel } from '../placeable'
 import { createGameState } from '../state'
 import { Zone } from '../types'
+import { queryAllZones } from '../zone'
 import { deserializeState, serializeState } from '../../harness/serialize'
 import { clearAroundPlayer, createTestState } from './helpers'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -19,11 +20,12 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-// Count ground-item ECS entities carrying a given ItemDrop definitionId.
+// Count ground-item ECS entities carrying a given ItemDrop definitionId
+// across every per-zone world.
 const countItemDrops = (state: GameState, definitionId: string): number => {
   let n = 0
-  for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.ItemDrop)) {
-    const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+  for (const { world, eid } of queryAllZones(state, ComponentType.EntityTag, ComponentType.ItemDrop)) {
+    const drop = world.getComponent(eid, ComponentType.ItemDrop)
     if (drop?.definitionId === definitionId) n++
   }
   return n
@@ -53,17 +55,22 @@ describe('RP-70 — The Map and Geodetic Markers', () => {
       // cellar.
       expect(countItemDrops(state, 'geodeticMarker')).toBe(3)
 
-      // Exactly three live inside ruin interiors — one each in the bee,
-      // clover, and coyote ruins (the other Starter ruins get none),
-      // each zone-tagged to its ruin index. None are tagged KnotCellar.
+      // clover, and coyote ruins (the other Starter ruins get none), and
+      // none in the cellar. Per-zone worlds: ruin worlds are keyed as
+      // `ruin:N` and the cellar world as `knotCellar`; iterate those and
+      // decode the ruin index from the key.
       const ruinMarkerIndices = new Set<number>()
       let cellarMarkers = 0
-      for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.ItemDrop, ComponentType.EntityZone)) {
-        const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
-        const zone = state.world.getComponent(eid, ComponentType.EntityZone)
-        if (drop?.definitionId !== 'geodeticMarker') continue
-        if (zone?.zone === Zone.Ruin && zone.ruinIndex !== undefined) ruinMarkerIndices.add(zone.ruinIndex)
-        if (zone?.zone === Zone.KnotCellar) cellarMarkers++
+      for (const [key, world] of state.worlds) {
+        const isRuin = key.startsWith('ruin:')
+        const isCellar = key === 'knotCellar'
+        if (!isRuin && !isCellar) continue
+        for (const eid of world.query(ComponentType.ItemDrop)) {
+          const drop = world.getComponent(eid, ComponentType.ItemDrop)
+          if (drop?.definitionId !== 'geodeticMarker') continue
+          if (isRuin) ruinMarkerIndices.add(Number(key.slice('ruin:'.length)))
+          if (isCellar) cellarMarkers++
+        }
       }
       expect(cellarMarkers).toBe(0)
       expect(ruinMarkerIndices.size).toBe(3)

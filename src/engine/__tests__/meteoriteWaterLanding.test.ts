@@ -35,7 +35,6 @@ const createStarEntity = (
     landingTarget: overrides.landingTarget ?? null,
   })
   state.world.addComponent(e, ComponentType.EntityTag, 'shootingStar')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: 'overworld' })
   return e
 }
 

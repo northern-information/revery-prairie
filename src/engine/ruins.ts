@@ -13,6 +13,7 @@ import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, isReservedForStructure, isWalkableTile, posKey, tileHash } from './position'
 import { STRUCTURE_REGISTRY } from './structures'
 import { FloraSpecies, RuinArchetype, TileType, Zone } from './types'
+import { getWorldForZone } from './zone'
 import { armReentryLock, isReentryLocked, registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
 import type { CivilizationRuin } from './genesisTypes'
@@ -1136,18 +1137,21 @@ const spawnRuinGroundItem = (
   definitionId: string,
   genome?: FloraGenome
 ): void => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
+  // Route into the target ruin's world (per-zone-worlds). Each ruin
+  // instance has its own world keyed by ruinIndex; state.world points
+  // at whichever ruin (or other zone) is currently active.
+  const ruinWorld = getWorldForZone(state, Zone.Ruin, ruinIndex)
+  const e = ruinWorld.createEntity()
+  ruinWorld.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
   const dropData: { definitionId: string; genome?: FloraGenome } = { definitionId }
   if (genome) dropData.genome = genome
-  state.world.addComponent(e, ComponentType.ItemDrop, dropData)
-  state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
+  ruinWorld.addComponent(e, ComponentType.ItemDrop, dropData)
+  ruinWorld.addComponent(e, ComponentType.EntityTag, 'groundItem')
 }
 
 // RP-70 — seed one Geodetic Marker just inside the bee, clover, and
-// coyote ruins at genesis (so the world holds 10 markers total: 7 in the
-// cellar + 3 here). Starter mode generates 5 ruins (one per RuinRole);
+// coyote ruins at genesis (3 markers total; the RP-70 cleanup removed the
+// cellar markers). Starter mode generates 5 ruins (one per RuinRole);
 // only these three role-ruins carry a marker, keeping the GM-1..GM-10
 // label space intact. The marker rewards entering the ruin. Placed on a
 // walkable interior tile near — but never on — the entrance, since the

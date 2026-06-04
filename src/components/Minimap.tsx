@@ -115,14 +115,10 @@ const drawStructures = (
     }
   }
 
-  const charEntities = state.world.query(
-    ComponentType.Position,
-    ComponentType.CharacterIdentity,
-    ComponentType.EntityZone
-  )
+  // Per-zone worlds: state.world only contains active-zone characters,
+  // so no EntityZone filter is needed.
+  const charEntities = state.world.query(ComponentType.Position, ComponentType.CharacterIdentity)
   for (const e of charEntities) {
-    const zone = state.world.getComponent(e, ComponentType.EntityZone)
-    if (zone?.zone !== state.currentZone) continue
     const pos = state.world.getComponent(e, ComponentType.Position)
     if (!pos) continue
     if (hasFogOfWar(state.currentZone)) {

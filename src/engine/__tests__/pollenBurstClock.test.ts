@@ -76,7 +76,6 @@ describe('pollen burst cleanup system', () => {
     state.world.addComponent(e, ComponentType.Position, { x: 5, y: 5 })
     state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pollenBurst', startTime: 0 })
     state.world.addComponent(e, ComponentType.EntityTag, 'pollenBurst')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 
     const gameLoop = createGameLoop(state, {})
 

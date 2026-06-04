@@ -15,6 +15,7 @@ import {
   tickTimeLapseCapture,
 } from '../timeLapse'
 import { ItemCategory, TileType, Zone } from '../types'
+import { getWorldForZone } from '../zone'
 import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
 import { describe, expect, it } from 'vitest'
 
@@ -515,11 +516,12 @@ describe('time-lapse camera', () => {
       // tenure-start spawn we're verifying.
       const state = createGameState('Test', 20, 20)
       const houseGroundItems: { definitionId: string; x: number; y: number }[] = []
-      for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.ItemDrop, ComponentType.Position)) {
-        const ez = state.world.getComponent(eid, ComponentType.EntityZone)
-        if (ez?.zone !== Zone.HouseInterior) continue
-        const pos = state.world.getComponent(eid, ComponentType.Position)
-        const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
+      const houseWorld = getWorldForZone(state, Zone.HouseInterior)
+      // Per-zone worlds: the HouseInterior world only contains entities
+      // that live in the house, so no zone-filter is needed.
+      for (const eid of houseWorld.query(ComponentType.EntityTag, ComponentType.ItemDrop, ComponentType.Position)) {
+        const pos = houseWorld.getComponent(eid, ComponentType.Position)
+        const drop = houseWorld.getComponent(eid, ComponentType.ItemDrop)
         if (!pos || !drop) continue
         houseGroundItems.push({ definitionId: drop.definitionId, x: pos.x, y: pos.y })
       }

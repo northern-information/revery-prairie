@@ -1,0 +1,171 @@
+id: per-zone-worlds-cleanup
+name: 'Per-zone ECS worlds Phase 2 — remove EntityZone and the in-zone filter convention'
+priority: medium
+layer: engine
+source_files:
+  - src/engine/ecs/types.ts
+  - src/engine/zone.ts
+  - src/engine/renderer.ts
+  - src/engine/entities.ts
+  - src/engine/coyote.ts
+  - src/engine/effects.ts
+  - src/engine/placeable.ts
+  - src/engine/interaction.ts
+  - src/engine/satellites.ts
+  - src/engine/oaks.ts
+  - src/engine/celestial.ts
+  - src/engine/clover.ts
+  - src/engine/monarch.ts
+  - src/engine/torchbearer.ts
+  - src/engine/egregoreFauna.ts
+  - src/engine/angels.ts
+  - src/engine/lightning.ts
+  - src/engine/state.ts
+  - src/engine/predecessors.ts
+  - src/engine/ruins.ts
+  - src/engine/proximityMusic.ts
+  - src/engine/movement.ts
+  - src/engine/tileWater.ts
+  - src/engine/floraWaves.ts
+  - src/engine/render/passes/
+  - src/hooks/useCanvasDrop.ts
+  - src/harness/serialize.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies:
+  - per-zone-ecs-worlds
+
+# Phase 1 (per-zone-ecs-worlds) gave each Zone its own ECS World;
+# state.world resolves to the active zone's world via a getter. After
+# Phase 1, the EntityZone component and the isEntityInCurrentZone /
+# spatialAtInCurrentZone / getCurrentEntityZone filter helpers are
+# structurally redundant: entities can only be reached from queries
+# against their own zone's world, so there's nothing to filter.
+#
+# Phase 2 removes the redundancy:
+#   - the EntityZone component is dropped from ComponentType, from
+#     ComponentDataMap, and from every addComponent / getComponent site
+#     (production + tests).
+#   - isEntityInCurrentZone, spatialAtInCurrentZone, getCurrentEntityZone
+#     are deleted from src/engine/zone.ts. Every `if (!inZone(eid))
+#     continue` and `if (!isEntityInCurrentZone(...)) continue` filter
+#     becomes a no-op and is removed alongside its alias. spatial.at()
+#     callers drop the wrapper and read state.world.spatial.at directly
+#     (now zone-safe by construction).
+#   - the ECS world's TypedComponentData no longer carries an EntityZone
+#     entry. Schema validation in EXPECTED_FIELDS is unaffected (the
+#     schema names GameState fields, not component types).
+#
+# After this PR, "what zone is this entity in?" is answered by "which
+# world contains it?" — no extra book-keeping. The CLAUDE.md / docs
+# update reflects the new mental model.
+
+behaviors:
+  - id: entityzone-component-deleted
+    description: >
+      ComponentType.EntityZone is removed from src/engine/ecs/types.ts:
+      both the enum-style const object and the ComponentDataMap type.
+      Every production createEntity site stops calling
+      addComponent(eid, ComponentType.EntityZone, ...). Every test that
+      reads or writes EntityZone is updated — assertions about an
+      entity's zone now read the world it lives in (via
+      state.worlds.get(worldKey(zone))), not a component value.
+    inputs:
+      - 'an entity created via any helper (createCharacterEntity, spawnOak, spawnZoneOak, spawnMeteorite, etc.)'
+    outputs:
+      - 'no EntityZone component is attached'
+      - 'the entity belongs to the target zone''s World by construction'
+    state_changes:
+      - field: ecs.ComponentType
+        effect: 'EntityZone enum entry removed'
+      - field: ecs.ComponentDataMap
+        effect: 'EntityZone entry removed'
+    determinism: deterministic
+
+  - id: in-zone-filter-helpers-deleted
+    description: >
+      isEntityInCurrentZone, spatialAtInCurrentZone, and
+      getCurrentEntityZone are deleted from src/engine/zone.ts. Their
+      callers stop importing them. Every `if (!isEntityInCurrentZone(state,
+      eid)) continue` and `if (!inZone(eid)) continue` line is removed
+      from production loops. Every spatialAtInCurrentZone(state, x, y)
+      call becomes state.world.spatial.at(x, y) directly. The worldKey,
+      getWorldForZone, queryAllZones, and moveEntityAcrossWorlds helpers
+      stay — they are the new API surface.
+    inputs:
+      - 'a consumer that previously imported isEntityInCurrentZone or its sibling helpers'
+    outputs:
+      - 'the import is removed and the call site is plain world / spatial access'
+    state_changes: []
+    determinism: deterministic
+
+  - id: existing-cross-zone-isolation-still-holds
+    description: >
+      Every regression test from per-zone-ecs-worlds (and from earlier
+      specs that exercised cross-zone behavior — zoneIsolation,
+      pickupZoneFilter, cross-zone-entity-bleed, trapped-coyote-stays-put,
+      cave persistent dual-zone) continues to pass unchanged. The
+      structural isolation provided by per-zone Worlds is the SOLE
+      mechanism enforcing the invariant; the deleted filter helpers were
+      only defense in depth.
+    inputs:
+      - 'every existing test that asserted cross-zone isolation'
+    outputs:
+      - 'still passes'
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: coyote-rehoming-no-longer-rewrites-entityzone
+    description: >
+      transitionCoyoteToZone previously called
+      addComponent(newEid, ComponentType.EntityZone, getCurrentEntityZone(state))
+      after moveEntityAcrossWorlds. With EntityZone deleted, this line
+      is removed. The coyote's zone membership is fully represented by
+      "which world holds him."
+    expected: >
+      The two existing coyote cave-transition tests (coyote.test.ts
+      `moves coyote to cave zone`, `coyote follows player step-by-step
+      through cave corridors`) continue to pass. They already assert
+      behavior in terms of getCharacterEntities (cross-world helper) and
+      Position, not EntityZone reads.
+
+  - id: spawn-helpers-no-longer-write-entityzone
+    description: >
+      spawnOak, spawnZoneOak, spawnPickupBloom, spawnClickTarget,
+      spawnSatellite, spawnMeteorite, spawnLightningStrike, all bee /
+      monarch / character / angel / ghost spawns, and the genesis
+      seeding blocks in state.ts drop their
+      addComponent(_, EntityZone, ...) lines. Where the zone was passed
+      explicitly to determine the target world (via getWorldForZone),
+      the call signature stays — the zone parameter still routes to the
+      correct world; only the redundant component write disappears.
+    expected: >
+      Every existing engine test passes. No new tests required beyond
+      the per-zone-worlds suite landed in Phase 1.
+
+  - id: stale-saves-from-phase-1-would-not-deserialize
+    description: >
+      The user explicitly confirmed there are no legacy saves during
+      Phase 1 planning. Phase 2 does not add migration logic for any
+      save that would have carried serialized EntityZone components.
+      Saves are still in scope for a future feature; if added, the
+      schema will carry zone information by world key, not by
+      component.
+    expected: >
+      No change to serialize.ts beyond removing EntityZone from any
+      explicit handling.
+
+failure_conditions:
+  - trigger: 'any production code path attempts addComponent(eid, ComponentType.EntityZone, ...) after the cleanup'
+    expected: >
+      TypeScript compile error: ComponentType.EntityZone is undefined.
+      Caught at typecheck time.
+
+  - trigger: 'any code path attempts to import isEntityInCurrentZone, spatialAtInCurrentZone, or getCurrentEntityZone'
+    expected: >
+      TypeScript compile error: not exported from `./zone`. Caught at typecheck time.
+
+verification:
+  test_file: src/engine/__tests__/per-zone-worlds.test.ts
+  test_pattern: 'per-zone'
+  command: 'npx vitest run src/engine/__tests__/per-zone-worlds.test.ts src/engine/__tests__/zoneIsolation.test.ts src/engine/__tests__/cave.test.ts src/engine/__tests__/coyote.test.ts'

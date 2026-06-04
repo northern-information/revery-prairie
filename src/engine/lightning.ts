@@ -30,7 +30,7 @@ import { generateRuntimeIdentity, generateTraitBag } from './genetics'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { CARDINAL, isInBounds, posKey } from './position'
-import { FloraSpecies, FloraStage, Sky, TileType, Zone } from './types'
+import { FloraSpecies, FloraStage, Sky, TileType } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -256,7 +256,6 @@ export const forceSpawnLightningStrike = (state: GameState, time: number): Posit
   state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'lightning', startTime: time })
   state.world.addComponent(e, ComponentType.LightningData, { path, branch })
   state.world.addComponent(e, ComponentType.EntityTag, 'lightning')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 
   // Update lightning state
   state.lightning.lastStrikeTime = time
@@ -276,7 +275,6 @@ export const forceSpawnLightningStrike = (state: GameState, time: number): Posit
     })
     state.world.addComponent(we, ComponentType.TimedEffect, { kind: 'wildfire', startTime: time })
     state.world.addComponent(we, ComponentType.EntityTag, 'wildfire')
-    state.world.addComponent(we, ComponentType.EntityZone, { zone: Zone.Overworld })
     recordDiscovery(state, 'event:wildfire')
   }
 

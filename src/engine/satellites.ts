@@ -100,7 +100,6 @@ export const spawnSatellite = (state: GameState, time: number): void => {
     payloadType,
   })
   state.world.addComponent(e, ComponentType.EntityTag, 'satellite')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 
   state.lastSatelliteSpawnTime = time
 }
@@ -165,7 +164,6 @@ const applyImpact = (state: GameState, center: Position, time: number): void => 
   state.world.addComponent(e, ComponentType.Position, { x: center.x, y: center.y })
   state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'satelliteImpact', startTime: time })
   state.world.addComponent(e, ComponentType.EntityTag, 'satelliteImpact')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 
   recordDiscovery(state, 'event:satellite-impact')
 }

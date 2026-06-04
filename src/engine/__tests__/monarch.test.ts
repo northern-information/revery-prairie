@@ -129,7 +129,8 @@ describe('monarch butterfly', () => {
 
       expect(state.world.getComponent(eid, ComponentType.EntityTag)).toBe('monarch')
       expect(state.world.getComponent(eid, ComponentType.Position)).toEqual({ x: 10, y: 10 })
-      expect(state.world.getComponent(eid, ComponentType.EntityZone)).toEqual({ zone: state.currentZone })
+      // Per-zone worlds: monarch lives in the active zone's world. Being
+      // readable via state.world above already proves zone placement.
       expect(state.world.getComponent(eid, ComponentType.HungerTimer)).toEqual({ hungerMs: 0 })
       expect(state.world.getComponent(eid, ComponentType.MonarchState)).toEqual({
         phase: 'wandering',

@@ -138,32 +138,30 @@ const runSummonsSequence = (state: GameState, r: ReveryState): void => {
     }
   }
   // RP-36 fix — only teleport Gron and open his dialog when he is in
-  // the SAME zone as the steward at summons time. The confirm-in-house
+  // the same zone as the steward at summons time. The confirm-in-house
   // path (RP-33) leaves Gron in the overworld; cross-zone teleport
-  // would drag him into the house with the wrong EntityZone, and the
-  // dialog overlay would obscure the Revery Summary (the dialog content
-  // also flips to the wrong register once phase advances past Omen). Per
-  // the RP-33 spec confirm-path-scene-no-swap edge case, no Gron-summons
-  // dialog opens when Gron is unreachable.
+  // would drag him into the house, and the dialog overlay would
+  // obscure the Revery Summary (the dialog content also flips to the
+  // wrong register once phase advances past Omen). Per the RP-33 spec
+  // confirm-path-scene-no-swap edge case, no Gron-summons dialog opens
+  // when Gron is unreachable. Per-zone worlds make this structural:
+  // state.world.query above only returns Gron when he is in the
+  // active zone, so reaching this branch already implies same-zone.
   let dialogReady = false
   if (gronEid !== null) {
-    const gronZone = state.world.getComponent(gronEid, ComponentType.EntityZone)
-    const sameZone = gronZone?.zone === state.currentZone
-    if (sameZone) {
-      const target = pickAdjacentWalkableTile(state, state.player.x, state.player.y)
-      if (target) {
-        const pos = state.world.getComponent(gronEid, ComponentType.Position)
-        if (pos) {
-          state.world.spatial.move(gronEid, pos.x, pos.y, target.x, target.y)
-          pos.x = target.x
-          pos.y = target.y
-        }
-        // Open Gron's solstice-summons dialog. getGronDialog returns
-        // GRON_DIALOG_SOLSTICE_SUMMONS while r.summons === true and phase
-        // is Omen. The dialog only opens when the teleport succeeds —
-        // otherwise the steward sees nothing relating to Gron.
-        dialogReady = true
+    const target = pickAdjacentWalkableTile(state, state.player.x, state.player.y)
+    if (target) {
+      const pos = state.world.getComponent(gronEid, ComponentType.Position)
+      if (pos) {
+        state.world.spatial.move(gronEid, pos.x, pos.y, target.x, target.y)
+        pos.x = target.x
+        pos.y = target.y
       }
+      // Open Gron's solstice-summons dialog. getGronDialog returns
+      // GRON_DIALOG_SOLSTICE_SUMMONS while r.summons === true and phase
+      // is Omen. The dialog only opens when the teleport succeeds —
+      // otherwise the steward sees nothing relating to Gron.
+      dialogReady = true
     }
   }
   if (dialogReady) {

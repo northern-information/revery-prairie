@@ -2,7 +2,6 @@ import { updateProximityMusic } from './audio'
 import { ComponentType } from './ecs/types'
 import { WATERFALL_AUDIO_RADIUS, WATERFALL_AUDIO_URL } from './tileBg'
 import { Zone } from './types'
-import { isEntityInCurrentZone } from './zone'
 
 import type { ProximityEmitterSample } from './audio'
 import type { GameState } from './types'
@@ -30,7 +29,6 @@ export const tickProximityMusic = (state: GameState): void => {
   const py = state.player.y
 
   for (const eid of state.world.query(ComponentType.MusicEmitter, ComponentType.Position)) {
-    if (!isEntityInCurrentZone(state, eid)) continue
     const emitter = state.world.getComponent(eid, ComponentType.MusicEmitter)
     if (!emitter) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)

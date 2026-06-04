@@ -4,7 +4,6 @@ import { getFloraMovement } from './flora/actions/movement'
 import { posKey } from './position'
 import { rainFrontCoord, windToFrontAxis } from './tileWater'
 import { Sky, Zone } from './types'
-import { getCurrentEntityZone, isEntityInCurrentZone } from './zone'
 
 import type { GameState } from './types'
 
@@ -14,7 +13,6 @@ export const spawnPickupBloom = (state: GameState, x: number, y: number, time: n
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'pickupBloom', startTime: time })
   state.world.addComponent(e, ComponentType.EntityTag, 'pickupBloom')
-  state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
 }
 
 /** Spawn a click-target feedback marker at the destination tile of a click-to-move. */
@@ -23,7 +21,6 @@ export const spawnClickTarget = (state: GameState, x: number, y: number, time: n
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'clickTarget', startTime: time })
   state.world.addComponent(e, ComponentType.EntityTag, 'clickTarget')
-  state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
 }
 
 export const AURA_RADIUS: Record<string, number> = {
@@ -39,7 +36,6 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
 
   // Aura effects (e.g. Gron's rain)
   for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
-    if (!isEntityInCurrentZone(state, eid)) continue
     const aura = state.world.getComponent(eid, ComponentType.Aura)
     if (!aura) continue
     const r = aura.radius
@@ -67,7 +63,6 @@ export const getTileEffects = (state: GameState, x: number, y: number): string[]
 
   // Satellite impact effects
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!isEntityInCurrentZone(state, eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'satelliteImpact') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)

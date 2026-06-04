@@ -54,6 +54,17 @@ let fadeRafId: number | null = null
 let audioEnabled = true
 let pendingResume: (() => void) | null = null
 
+// Monotonic request token for setAmbient calls. Each setAmbient
+// increments this and captures the new value in a closure; the
+// createTrack().then() callback only installs the resolved track when
+// the captured token still equals ambientRequestSeq. stopAll() bumps
+// the token to invalidate any in-flight requests. Necessary because
+// the earlier `ambientUrl !== requestedUrl` guard cannot distinguish
+// two overlapping setAmbient calls for the SAME url — a sequence that
+// occurs naturally under React StrictMode's mount/cleanup/remount when
+// useMusic fires setAmbient on each mount. See spec audio-setambient-race.
+let ambientRequestSeq = 0
+
 // Proximity tracks: keyed by emitter URL. Multiple emitters that share a
 // URL share a track and the highest computed gain wins per tick. See
 // harness/specs/proximity-music-crossfade.yaml.
@@ -250,16 +261,27 @@ export const setAmbient = (url: string, fadeMs: number = FADE_MS): void => {
   const oldTrack = ambientTrack
   ambientTrack = null
   ambientUrl = url
-  const requestedUrl = url
+  const myRequest = ++ambientRequestSeq
 
   void createTrack(url)
     .then(track => {
-      if (ambientUrl !== requestedUrl) {
+      // The url-equality guard alone misses concurrent calls for the
+      // SAME url. Compare the captured token against the latest one so
+      // only the most recent setAmbient (or zero, after stopAll) wins.
+      if (myRequest !== ambientRequestSeq) {
         destroyTrack(track)
         return
       }
       ambientTrack = track
       safeStart(track)
+      // If audio was toggled off while createTrack was in flight, the
+      // track must not start at gain 1. Install at 0; setAudioEnabled
+      // (true) re-spawns via the ambientUrl path.
+      if (!audioEnabled) {
+        track.gain.gain.value = 0
+        if (oldTrack) destroyTrack(oldTrack)
+        return
+      }
       fadeBoth(track.gain, 1, oldTrack?.gain ?? null, 0, fadeMs, () => {
         if (oldTrack) destroyTrack(oldTrack)
       })
@@ -308,6 +330,10 @@ export const stopAll = (): void => {
   pendingResume = null
   document.removeEventListener('click', resumePending)
   document.removeEventListener('keydown', resumePending)
+
+  // Invalidate any in-flight setAmbient request so its .then() drops
+  // the resolved track instead of installing it as ambientTrack.
+  ambientRequestSeq++
 
   if (ambientTrack) {
     destroyTrack(ambientTrack)

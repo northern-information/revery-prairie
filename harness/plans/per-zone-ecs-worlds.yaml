@@ -1,0 +1,364 @@
+plan:
+  id: per-zone-ecs-worlds
+  title: Replace shared state.world with per-zone Worlds map; route entity creation per zone; reassign state.world on transitions
+  created: 2026-06-03
+  global_verification:
+    - npm run typecheck
+    - npm run lint
+    - npm run test:engine
+
+tasks:
+  # --- Tier 0: Infrastructure ---
+
+  - id: add-world-key-helper
+    title: |
+      Create a `worldKey(zone: Zone, ruinIndex?: number): string` helper in
+      src/engine/zone.ts that returns:
+        - `ruin:${ruinIndex}` when zone === Zone.Ruin and ruinIndex !== undefined
+        - the Zone enum string value otherwise.
+      Export the helper. No behavior change yet — this is the canonical key
+      function used by everything else in the plan.
+    spec_id: per-zone-ecs-worlds
+    spec_sections:
+      - state-worlds-map-replaces-state-world
+    context_files:
+      - src/engine/zone.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/zone.ts
+    depends_on: []
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - infrastructure
+
+  - id: add-state-worlds-map
+    title: |
+      In src/engine/types.ts add `worlds: Map<string, World>` to GameState
+      (alongside existing `world: World`). Keep `world` for now — it will
+      hold a reference to the active zone's world.
+
+      In src/engine/state.ts createGameState:
+        - construct a `Map<string, World>` named `worlds`
+        - for each non-Ruin Zone enum value, call `createWorld()` and add
+          to the map keyed by worldKey(zone)
+        - set state.worlds = worlds
+        - set state.world = worlds.get(worldKey(Zone.Overworld)) — the
+          legacy state.world pointer now points at the overworld world
+
+      Add `getWorldForZone(state: GameState, zone: Zone, ruinIndex?: number): World`
+      helper in zone.ts: looks up state.worlds.get(worldKey(zone, ruinIndex));
+      if missing AND zone === Zone.Ruin, creates a new World, inserts, returns;
+      otherwise throws (non-ruin zones are pre-created).
+
+      Update EXPECTED_FIELDS in src/harness/__tests__/serialization/schema.test.ts
+      to add `worlds` alongside `world`. Update src/harness/serialize.ts if
+      necessary — but since `world` is already marked function/non-serializable,
+      `worlds: Map<string, World>` follows the same pattern (Map of
+      non-serializable values → store the keys only, or skip entirely).
+    spec_id: per-zone-ecs-worlds
+    spec_sections:
+      - state-worlds-map-replaces-state-world
+    context_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/zone.ts
+      - src/engine/ecs/world.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    output_files:
+      - src/engine/types.ts
+      - src/engine/state.ts
+      - src/engine/zone.ts
+      - src/harness/serialize.ts
+      - src/harness/__tests__/serialization/schema.test.ts
+    depends_on:
+      - add-world-key-helper
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/harness/__tests__/serialization/
+    repair: retry
+    tags:
+      - engine
+      - infrastructure
+
+  # --- Tier 1: Migrate entity creation to target the right zone world ---
+
+  - id: route-genesis-cross-zone-creates
+    title: |
+      In src/engine/state.ts, locate every createEntity site that targets a
+      non-Overworld zone (the audit lists these around lines 683, 688, 697,
+      731-738 — Moab Cave entity, Emily HouseInterior, filmRoll HouseInterior,
+      geodetic markers + map KnotCellar). For each:
+        - Replace `state.world.createEntity()` with
+          `getWorldForZone(state, targetZone).createEntity()`.
+        - Replace every subsequent `state.world.addComponent(eid, ...)` call
+          for that entity with the same per-zone world reference.
+        - Leave the existing `addComponent(ComponentType.EntityZone, {zone: targetZone})`
+          intact during Phase 1 (defense in depth — also useful for serialization).
+
+      Likewise, in src/engine/oaks.ts spawnZoneOak (used by Whine village)
+      already takes an explicit zone parameter — route it through
+      getWorldForZone(state, zone). spawnOak (genesis seeding into Overworld)
+      can continue to use state.world since Overworld IS the active world
+      during genesis.
+
+      In src/engine/whine.ts registerWhineVillage, the loop that spawns
+      WhineVillage oaks at lines 329-341 already passes Zone.WhineVillage —
+      this routes through spawnZoneOak which now goes to the right world
+      automatically.
+
+      In src/engine/predecessors.ts, the predecessor camera seeding at
+      seedPredecessorCameras places ground-item entities for predecessor
+      cameras — each tagged with EntityZone (mostly Overworld). Route via
+      getWorldForZone(state, predecessor.zone).
+    spec_id: per-zone-ecs-worlds
+    spec_sections:
+      - create-entity-routes-to-target-zone-world
+      - genesis-seeds-into-correct-zone-worlds-during-seeding
+    context_files:
+      - src/engine/state.ts
+      - src/engine/oaks.ts
+      - src/engine/whine.ts
+      - src/engine/predecessors.ts
+      - src/engine/zone.ts
+    output_files:
+      - src/engine/state.ts
+      - src/engine/oaks.ts
+      - src/engine/predecessors.ts
+    depends_on:
+      - add-state-worlds-map
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - genesis
+
+  # --- Tier 2: Reassign state.world on every zone transition ---
+
+  - id: reassign-state-world-on-transitions
+    title: |
+      In every zone-transition handler, add a single line to reassign
+      state.world to the target zone's world. Call right after the existing
+      state.map / state.mapWidth / state.mapHeight reassignments (so the
+      world swap happens atomically alongside the map swap).
+
+      Sites to update (one line each):
+        - src/engine/house.ts: enterHouse (~line 87), exitHouse (~line 124)
+        - src/engine/yard.ts: enterLittleHouseYardFromApron (~line 290),
+          enterLittleHouseYardFromHouse (~line 316),
+          exitLittleHouseYardToOverworld (~line 344)
+        - src/engine/cellar.ts: enterKnotCellar (~line 218),
+          exitKnotCellarToYard (~line ~250)
+        - src/engine/cave.ts: enterCave and exitCave (grep for currentZone =)
+        - src/engine/whine.ts: enterWhineVillage (~line 463),
+          exitWhineVillageToOverworld, enterWhineHomeYard,
+          exitWhineHomeYardToVillage
+        - src/engine/ruins.ts (or wherever enterRuin / exitRuin live)
+
+      Pattern:
+        state.currentZone = Zone.X
+        state.world = getWorldForZone(state, Zone.X, state.currentRuinIndex ?? undefined)
+
+      For ruin entry: this lazily creates the per-ruin world via getWorldForZone.
+    spec_id: per-zone-ecs-worlds
+    spec_sections:
+      - zone-transitions-reassign-state-world
+      - ruin-worlds-are-per-instance
+    context_files:
+      - src/engine/house.ts
+      - src/engine/yard.ts
+      - src/engine/cellar.ts
+      - src/engine/cave.ts
+      - src/engine/whine.ts
+      - src/engine/ruins.ts
+      - src/engine/zone.ts
+    output_files:
+      - src/engine/house.ts
+      - src/engine/yard.ts
+      - src/engine/cellar.ts
+      - src/engine/cave.ts
+      - src/engine/whine.ts
+      - src/engine/ruins.ts
+    depends_on:
+      - route-genesis-cross-zone-creates
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - zone-transitions
+
+  # --- Tier 3: Fix the legitimately-cross-zone consumers ---
+
+  - id: update-cross-zone-consumers
+    title: |
+      Update the small set of legitimately cross-zone consumers to read
+      from the right world explicitly.
+
+      1. src/engine/revery.ts line 133 reveryCount: iterate ALL worlds via
+         a helper `queryAllZones(state, ComponentType.CharacterIdentity)`
+         (add this helper to zone.ts). The helper flatmaps state.worlds.values()
+         over .query(...). Decision confirmed: revery counts characters globally.
+
+      2. src/engine/oaks.ts tooCloseToExistingOak (line 228): genesis-time check
+         that runs while state.world points at the Overworld world. Verify
+         it queries against the overworld world explicitly (state.worlds.get(
+         worldKey(Zone.Overworld)).query(...)) rather than relying on
+         state.world being Overworld at the moment.
+
+      3. src/engine/oaks.ts isOakOccupied (line 56): same — explicit overworld
+         lookup.
+
+      4. src/engine/predecessors.ts cross-zone scans (lines 61, 75): use
+         explicit getWorldForZone for each target zone.
+
+      5. src/engine/celestial.ts: confirmed Overworld-only. All createEntity
+         and query sites can stay using state.world AS LONG AS celestial tick
+         only fires when state.currentZone === Overworld. Audit each site;
+         if any can fire from a non-overworld zone (background tick), switch
+         to getWorldForZone(state, Zone.Overworld).
+    spec_id: per-zone-ecs-worlds
+    spec_sections:
+      - revery-count-iterates-all-zone-worlds
+      - celestial-events-stay-in-overworld-world
+    context_files:
+      - src/engine/revery.ts
+      - src/engine/oaks.ts
+      - src/engine/predecessors.ts
+      - src/engine/celestial.ts
+      - src/engine/zone.ts
+    output_files:
+      - src/engine/revery.ts
+      - src/engine/oaks.ts
+      - src/engine/predecessors.ts
+      - src/engine/celestial.ts
+      - src/engine/zone.ts
+    depends_on:
+      - reassign-state-world-on-transitions
+    verification:
+      - npx tsc -b --noEmit
+    repair: retry
+    tags:
+      - engine
+      - cross-zone
+
+  # --- Tier 4: Regression tests ---
+
+  - id: add-per-zone-worlds-tests
+    title: |
+      Replace the placeholder in src/engine/__tests__/per-zone-worlds.test.ts
+      with comprehensive coverage:
+
+      1. `state.worlds is pre-populated for every non-ruin zone`:
+         after createTestState, every Zone enum value except Ruin has an
+         entry in state.worlds.
+
+      2. `state.world points at overworld initially`:
+         after createTestState, state.world === state.worlds.get('overworld').
+
+      3. `entering the house reassigns state.world to the house world`:
+         createTestState, enterHouse, assert state.world === state.worlds.get('houseInterior').
+
+      4. `cross-zone scan no longer surfaces an overworld oak`:
+         createTestState, spawnOak(state, ax, ay) at coords overlapping the yard,
+         enterLittleHouseYardFromApron, selectScanTarget(state) returns null.
+
+      5. `egregoreFauna blocker check is zone-isolated`:
+         place a Blocking entity in the overworld world at (5, 5); switch
+         player into LittleHouseYard; isOccupiedByBlocker(state, 5, 5) returns
+         false because the yard world has no entity at (5, 5).
+
+      6. `clickResolution tileHasClickable is zone-isolated`:
+         place a CharacterIdentity entity in overworld at (5, 5); switch into
+         HouseInterior; tileHasClickable(state, {x:5, y:5}) returns false.
+
+      7. `genesis seeds Moab into Cave world, Emily into HouseInterior world`:
+         after createTestState, state.worlds.get('cave').query(CharacterIdentity)
+         contains Moab; state.worlds.get('houseInterior').query(CharacterIdentity)
+         contains Emily; state.worlds.get('overworld') contains NEITHER.
+
+      8. `KnotCellar ground items land in cellar world`:
+         after createTestState, state.worlds.get('knotCellar').query(ItemDrop)
+         contains 8 items (1 map + 7 markers); state.worlds.get('overworld')
+         does NOT.
+
+      9. `each ruin gets its own world`:
+         enter ruin 0, spawn an entity in it, exit, enter ruin 1, assert the
+         entity from ruin 0 is invisible.
+
+      10. `revery count iterates across all worlds`:
+          spawn one CharacterIdentity in overworld, one in cave, one in
+          house; reveryCount === 3 (assuming revery's intent — adjust if the
+          actual function counts only "alive" or filters by predecessor).
+
+      Use createTestState, enterHouse, enterLittleHouseYardFromApron,
+      enterKnotCellar from existing helpers. For ruins, use whatever helper
+      enterRuin / setCurrentRuin exists (or inline the state.currentRuinIndex
+      assignment + state.world reassignment).
+    spec_id: per-zone-ecs-worlds
+    spec_sections:
+      - state-worlds-map-replaces-state-world
+      - zone-transitions-reassign-state-world
+      - query-from-non-overworld-zone-cannot-see-overworld-entities
+      - revery-count-iterates-all-zone-worlds
+      - scan-oakat-no-longer-finds-cross-zone-oaks
+      - egregore-fauna-blocker-check-no-longer-leaks
+      - clicktarget-tilehasclickable-no-longer-leaks
+      - ruin-worlds-are-per-instance
+      - genesis-seeds-into-correct-zone-worlds-during-seeding
+    context_files:
+      - src/engine/__tests__/per-zone-worlds.test.ts
+      - src/engine/__tests__/helpers.ts
+      - src/engine/scan.ts
+      - src/engine/egregoreFauna.ts
+      - src/engine/clickResolution.ts
+      - src/engine/revery.ts
+      - src/engine/zone.ts
+      - src/engine/state.ts
+      - src/engine/oaks.ts
+      - src/engine/types.ts
+    output_files:
+      - src/engine/__tests__/per-zone-worlds.test.ts
+    depends_on:
+      - update-cross-zone-consumers
+    verification:
+      - npx tsc -b --noEmit
+      - npx vitest run src/engine/__tests__/per-zone-worlds.test.ts
+    repair: retry
+    tags:
+      - engine
+      - test
+      - regression
+
+  # --- Tier 5: Validate nothing else broke ---
+
+  - id: run-full-engine-suite
+    title: |
+      Run npm run test:engine. Expect all existing tests to pass. Any
+      failure points at a spot that was relying on cross-zone visibility
+      (which the audit may have missed) — investigate and either fix the
+      consumer or document the cross-zone read as legitimate.
+
+      Do NOT mass-update tests to bypass failures. Investigate root cause
+      per failure. Common cases to expect: tests that called
+      state.world.query without setting state.currentZone explicitly (now
+      they're querying overworld by default), tests that created entities
+      in the wrong world for the test scenario.
+    spec_id: per-zone-ecs-worlds
+    spec_sections:
+      - query-from-non-overworld-zone-cannot-see-overworld-entities
+    context_files: []
+    output_files: []
+    depends_on:
+      - add-per-zone-worlds-tests
+    verification:
+      - npm run test:engine
+      - npm run lint
+    repair: retry
+    tags:
+      - engine
+      - integration

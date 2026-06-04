@@ -88,7 +88,6 @@ const createSatelliteEntity = (
     payloadType: overrides.payloadType ?? 'destructive',
   })
   state.world.addComponent(e, ComponentType.EntityTag, 'satellite')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
   return e
 }
 
@@ -101,7 +100,6 @@ const createGhostAt = (state: GameState, x: number, y: number): Entity => {
   state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
   state.world.addComponent(e, ComponentType.Behavior, DRIFT_BEHAVIOR)
   state.world.addComponent(e, ComponentType.EntityTag, 'character')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
   return e
 }
 
@@ -439,7 +437,6 @@ describe('ghost crater avoidance', () => {
       freezeOnDialog: false,
     })
     state.world.addComponent(e, ComponentType.EntityTag, 'character')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 
     // Mock random to always pick first candidate
     vi.spyOn(Math, 'random').mockReturnValue(0)

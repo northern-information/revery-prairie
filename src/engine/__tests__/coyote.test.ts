@@ -468,9 +468,12 @@ describe('coyote companion', () => {
 
       transitionCoyoteToZone(state, Zone.Cave)
 
-      const eid = requireValue(findCoyoteEntity(state))
-      const ez = state.world.getComponent(eid, ComponentType.EntityZone)
-      expect(ez?.zone).toBe(Zone.Cave)
+      // After transition, the coyote should be visible from state.world
+      // (the cave world). Per-zone worlds: findCoyoteEntity reads from
+      // state.world, so a non-null result proves the coyote is in the
+      // active zone's world.
+      expect(state.currentZone).toBe(Zone.Cave)
+      expect(findCoyoteEntity(state)).not.toBeNull()
     })
 
     it('coyote follows player step-by-step through cave corridors', () => {

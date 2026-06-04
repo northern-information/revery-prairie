@@ -21,7 +21,7 @@ import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { isInBounds, posKey } from './position'
 import { TileType, Zone } from './types'
-import { spatialAtInCurrentZone } from './zone'
+import { getWorldForZone } from './zone'
 
 import type { GameState, Position } from './types'
 
@@ -33,7 +33,7 @@ const NORTH_VELOCITY = { dx: 1, dy: 1 } as const
 
 const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
   if (state.player.x === x && state.player.y === y) return true
-  if (spatialAtInCurrentZone(state, x, y).length > 0) return true
+  if (state.world.spatial.at(x, y).length > 0) return true
   return false
 }
 
@@ -45,7 +45,11 @@ const isWaterTile = (state: GameState, x: number, y: number): boolean => {
 export const spawnShootingStar = (state: GameState): void => {
   if (state.deepTime?.active) return
   if (state.meteorShower.active) return
-  if (state.world.query(ComponentType.ShootingStarData).length >= SHOOTING_STAR_MAX_ACTIVE) return
+  // Celestial entities live only in the overworld world, but this tick
+  // can fire while the player is in any zone — route explicitly rather
+  // than depend on state.world being the overworld at call time.
+  const overworld = getWorldForZone(state, Zone.Overworld)
+  if (overworld.query(ComponentType.ShootingStarData).length >= SHOOTING_STAR_MAX_ACTIVE) return
   if (Math.random() >= SHOOTING_STAR_SPAWN_CHANCE) return
 
   const x = Math.floor(Math.random() * MAP_WIDTH)
@@ -57,17 +61,16 @@ export const spawnShootingStar = (state: GameState): void => {
   // Ambient stars never land. Landing is reserved for targeted (shower)
   // stars via spawnShootingStarAtTarget so meteorite density on the ground
   // is governed exclusively by the four cardinal showers per year.
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x, y })
-  state.world.addComponent(e, ComponentType.Velocity, { dx: NORTH_VELOCITY.dx, dy: NORTH_VELOCITY.dy })
-  state.world.addComponent(e, ComponentType.ShootingStarData, {
+  const e = overworld.createEntity()
+  overworld.addComponent(e, ComponentType.Position, { x, y })
+  overworld.addComponent(e, ComponentType.Velocity, { dx: NORTH_VELOCITY.dx, dy: NORTH_VELOCITY.dy })
+  overworld.addComponent(e, ComponentType.ShootingStarData, {
     length,
     age: 0,
     willLand: false,
     landingTarget: null,
   })
-  state.world.addComponent(e, ComponentType.EntityTag, 'shootingStar')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
+  overworld.addComponent(e, ComponentType.EntityTag, 'shootingStar')
 }
 
 export const spawnShootingStarAtTarget = (
@@ -93,31 +96,37 @@ export const spawnShootingStarAtTarget = (
   const length =
     SHOOTING_STAR_MIN_LENGTH + Math.floor(Math.random() * (SHOOTING_STAR_MAX_LENGTH - SHOOTING_STAR_MIN_LENGTH + 1))
 
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x: sx, y: sy })
-  state.world.addComponent(e, ComponentType.Velocity, { dx, dy })
-  state.world.addComponent(e, ComponentType.ShootingStarData, {
+  const overworld = getWorldForZone(state, Zone.Overworld)
+  const e = overworld.createEntity()
+  overworld.addComponent(e, ComponentType.Position, { x: sx, y: sy })
+  overworld.addComponent(e, ComponentType.Velocity, { dx, dy })
+  overworld.addComponent(e, ComponentType.ShootingStarData, {
     length,
     age: 0,
     willLand: true,
     landingTarget: target,
   })
-  state.world.addComponent(e, ComponentType.EntityTag, 'shootingStar')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
+  overworld.addComponent(e, ComponentType.EntityTag, 'shootingStar')
   return e
 }
 
 export const tickShootingStars = (state: GameState, time: number): void => {
-  const starEntities = state.world.query(ComponentType.ShootingStarData, ComponentType.Position, ComponentType.Velocity)
+  // Shooting stars / meteorites / explosions are overworld-only. Route
+  // explicitly even though the celestial systems registry gates this
+  // tick to Zone.Overworld — keeps the function correct if it is ever
+  // called from a non-overworld context (e.g., the genesis-complete
+  // tickMeteorShower one-shot).
+  const overworld = getWorldForZone(state, Zone.Overworld)
+  const starEntities = overworld.query(ComponentType.ShootingStarData, ComponentType.Position, ComponentType.Velocity)
 
   for (const eid of starEntities) {
-    const pos = state.world.getComponent(eid, ComponentType.Position)
-    const vel = state.world.getComponent(eid, ComponentType.Velocity)
-    const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
+    const pos = overworld.getComponent(eid, ComponentType.Position)
+    const vel = overworld.getComponent(eid, ComponentType.Velocity)
+    const data = overworld.getComponent(eid, ComponentType.ShootingStarData)
     if (!pos || !vel || !data) continue
 
     // Advance position
-    state.world.moveEntity(eid, pos.x + vel.dx, pos.y + vel.dy)
+    overworld.moveEntity(eid, pos.x + vel.dx, pos.y + vel.dy)
     data.age++
 
     // Check if the star should land
@@ -127,50 +136,48 @@ export const tickShootingStars = (state: GameState, time: number): void => {
         // Targeted landing — only land on the exact target tile
         if (x === data.landingTarget.x && y === data.landingTarget.y) {
           if (!isWaterTile(state, x, y)) {
-            const me = state.world.createEntity()
-            state.world.addComponent(me, ComponentType.Position, { x, y })
-            state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
-            state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
-            state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
-          }
+            const me = overworld.createEntity()
+            overworld.addComponent(me, ComponentType.Position, { x, y })
+            overworld.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
+            overworld.addComponent(me, ComponentType.EntityTag, 'meteorite')
+                    }
           // v11 R4 — the camera notices change on its own sim-loop hook;
           // no event call here.
           // RP-22 — chronicle event for the impact. The emitter gates on
           // overworld and falls back to the prairie region when the
           // impact tile doesn't fall inside any specific named region.
           emitMeteoriteImpact(state, { x, y })
-          const e = state.world.createEntity()
-          state.world.addComponent(e, ComponentType.Position, { x, y })
-          state.world.addComponent(e, ComponentType.TimedEffect, {
+          const e = overworld.createEntity()
+          overworld.addComponent(e, ComponentType.Position, { x, y })
+          overworld.addComponent(e, ComponentType.TimedEffect, {
             kind: 'explosion',
             startTime: time,
           })
-          state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
-          state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
-          state.world.destroyEntity(eid)
+          overworld.addComponent(e, ComponentType.EntityTag, 'explosion')
+                  overworld.destroyEntity(eid)
           continue
         }
       } else if (isInBounds(x, y, MAP_WIDTH, MAP_HEIGHT)) {
-        // Untargeted landing — land on first walkable tile
+        // Untargeted landing — land on first walkable tile. state.map is
+        // the active zone's map; the celestial systems registry gates
+        // this tick to Overworld so state.map is the overworld map.
         const tile = state.map[y][x]
         if (tile.type === TileType.Dirt || tile.type === TileType.Flora) {
           if (!isWaterTile(state, x, y)) {
-            const me = state.world.createEntity()
-            state.world.addComponent(me, ComponentType.Position, { x, y })
-            state.world.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
-            state.world.addComponent(me, ComponentType.EntityTag, 'meteorite')
-            state.world.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
-          }
+            const me = overworld.createEntity()
+            overworld.addComponent(me, ComponentType.Position, { x, y })
+            overworld.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
+            overworld.addComponent(me, ComponentType.EntityTag, 'meteorite')
+                    }
           // v11 R4 — the camera notices change on its own sim-loop hook;
           // no event call here.
           // RP-22 — chronicle event for the impact.
           emitMeteoriteImpact(state, { x, y })
-          const e = state.world.createEntity()
-          state.world.addComponent(e, ComponentType.Position, { x, y })
-          state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
-          state.world.addComponent(e, ComponentType.EntityTag, 'explosion')
-          state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
-          state.world.destroyEntity(eid)
+          const e = overworld.createEntity()
+          overworld.addComponent(e, ComponentType.Position, { x, y })
+          overworld.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
+          overworld.addComponent(e, ComponentType.EntityTag, 'explosion')
+                  overworld.destroyEntity(eid)
           continue
         }
       }
@@ -185,21 +192,26 @@ export const tickShootingStars = (state: GameState, time: number): void => {
       pos.y >= MAP_HEIGHT + buffer ||
       data.age > SHOOTING_STAR_MAX_AGE
     ) {
-      state.world.destroyEntity(eid)
+      overworld.destroyEntity(eid)
     }
   }
 
-  // Clean up expired timed effects (explosions and pickup blooms)
-  for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-    const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
-    if (!effect) continue
-    if (tag === 'explosion' && time - effect.startTime > EXPLOSION_DURATION_MS) {
-      state.world.destroyEntity(eid)
-    } else if (tag === 'pickupBloom' && time - effect.startTime > PICKUP_EFFECT_DURATION_MS) {
-      state.world.destroyEntity(eid)
-    } else if (tag === 'clickTarget' && time - effect.startTime > CLICK_TARGET_DURATION_MS) {
-      state.world.destroyEntity(eid)
+  // Clean up expired timed effects (explosions, pickup blooms, click
+  // targets) across every zone world. pickupBloom/clickTarget are spawned
+  // in whichever zone the player is in at the moment of the event, so
+  // their lifetimes must be advanced regardless of the active zone.
+  for (const world of state.worlds.values()) {
+    for (const eid of world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
+      const tag = world.getComponent(eid, ComponentType.EntityTag)
+      const effect = world.getComponent(eid, ComponentType.TimedEffect)
+      if (!effect) continue
+      if (tag === 'explosion' && time - effect.startTime > EXPLOSION_DURATION_MS) {
+        world.destroyEntity(eid)
+      } else if (tag === 'pickupBloom' && time - effect.startTime > PICKUP_EFFECT_DURATION_MS) {
+        world.destroyEntity(eid)
+      } else if (tag === 'clickTarget' && time - effect.startTime > CLICK_TARGET_DURATION_MS) {
+        world.destroyEntity(eid)
+      }
     }
   }
 }

@@ -107,7 +107,6 @@ import './render/passes/index'
 import { getTierGrid as getTierGridShared, liftAt as liftAtShared } from './render/tierGrid'
 import { DeepTimePhase, FloraStage, TileType, Zone } from './types'
 import { computeZoneVisibility, dimColor, getTileVisibility, getZoneFloraMemory, hasFogOfWar } from './visibility'
-import { isEntityInCurrentZone } from './zone'
 import { PLAYER_COLORS } from '@revery-prairie/shared'
 
 import './flora'
@@ -415,9 +414,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const playerLiftTo = liftAt(player.x, player.y)
   const playerLift = playerLiftFrom + (playerLiftTo - playerLiftFrom) * playerTweenT
 
-  // Zone filter helper — only render entities in the current zone (including ruinIndex match)
-  const inZone = (eid: number): boolean => isEntityInCurrentZone(state, eid)
-
   // Clear pooled collections for this frame
   _beePositions.clear()
   _monarchPositions.clear()
@@ -532,7 +528,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const tweenedEntities: TweenedEntity[] = []
   const suppressedEntities = new Set<number>()
   for (const eid of state.world.query(ComponentType.MovementTween, ComponentType.Position)) {
-    if (!inZone(eid)) continue
     // Angels render as a 9x9 body via angelMap with a shared per-group
     // tween offset applied at deferred-entity flush time. They must not
     // also appear as a single tweening glyph here, or the dialog-header
@@ -584,7 +579,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Populate bee positions (from ECS)
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
-    if (!inZone(eid)) continue
     if (suppressedEntities.has(eid)) continue
     const bpos = state.world.getComponent(eid, ComponentType.Position)
     if (bpos) beePositions.add(posKey(bpos.x, bpos.y))
@@ -593,7 +587,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Populate monarch positions (from ECS)
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'monarch') continue
-    if (!inZone(eid)) continue
     if (suppressedEntities.has(eid)) continue
     const mpos = state.world.getComponent(eid, ComponentType.Position)
     if (mpos) monarchPositions.add(posKey(mpos.x, mpos.y))
@@ -604,7 +597,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // entity, so its map carries the glyph string per tile.
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
-    if (!inZone(eid)) continue
     if (suppressedEntities.has(eid)) continue
     const epos = state.world.getComponent(eid, ComponentType.Position)
     if (!epos) continue
@@ -623,7 +615,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.ItemDrop)) {
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'groundItem' && tag !== 'placedCamera' && tag !== 'placedMarker') continue
-    if (!inZone(eid)) continue
     const gpos = state.world.getComponent(eid, ComponentType.Position)
     const drop = state.world.getComponent(eid, ComponentType.ItemDrop)
     if (gpos && drop)
@@ -671,7 +662,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Populate shooting star pixel maps — targeted stars render over land, others only on space
   for (const eid of state.world.query(ComponentType.ShootingStarData, ComponentType.Position, ComponentType.Velocity)) {
-    if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     const vel = state.world.getComponent(eid, ComponentType.Velocity)
     const data = state.world.getComponent(eid, ComponentType.ShootingStarData)
@@ -703,7 +693,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Populate satellite pixel maps — render over both space and land
   for (const eid of state.world.query(ComponentType.SatelliteData, ComponentType.Position, ComponentType.Velocity)) {
-    if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     const vel = state.world.getComponent(eid, ComponentType.Velocity)
     const data = state.world.getComponent(eid, ComponentType.SatelliteData)
@@ -726,7 +715,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Populate satellite impact effect pixels (from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'satelliteImpact') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -762,7 +750,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Populate meteorite positions (from ECS)
   for (const eid of state.world.query(ComponentType.EntityTag)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'meteorite') continue
-    if (!inZone(eid)) continue
     const mpos = state.world.getComponent(eid, ComponentType.Position)
     if (mpos) meteoritePositions.add(posKey(mpos.x, mpos.y))
   }
@@ -770,7 +757,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Populate beehive positions (from ECS)
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'beehive') continue
-    if (!inZone(eid)) continue
     const hpos = state.world.getComponent(eid, ComponentType.Position)
     if (hpos) beehivePositions.add(posKey(hpos.x, hpos.y))
   }
@@ -785,7 +771,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Populate character positions (from ECS)
   for (const eid of state.world.query(ComponentType.CharacterIdentity, ComponentType.Position)) {
-    if (!inZone(eid)) continue
     if (suppressedEntities.has(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     const identity = state.world.getComponent(eid, ComponentType.CharacterIdentity)
@@ -807,7 +792,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   const angelBodyGroups: Set<string>[] = []
   const angelTweenOffset = new Map<string, { dxPx: number; dyPx: number }>()
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
-    if (!inZone(eid)) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     const data = state.world.getComponent(eid, ComponentType.AngelData)
     if (!pos || !data) continue
@@ -853,8 +837,7 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
     const dormant = isOakDormant(state)
     const half = Math.floor(OAK_BODY_SIZE / 2)
     for (const eid of state.world.query(ComponentType.OakData, ComponentType.Position)) {
-      if (!inZone(eid)) continue
-      const pos = state.world.getComponent(eid, ComponentType.Position)
+        const pos = state.world.getComponent(eid, ComponentType.Position)
       if (!pos) continue
       const group = new Set<string>()
       for (let dy = -half; dy <= half; dy++) {
@@ -882,7 +865,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Populate explosion pixels (from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'explosion') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -918,7 +900,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
   // Populate lightning bolt pixels (from ECS)
   let lightningFlashElapsed = Infinity
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'lightning') continue
     const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
@@ -1013,7 +994,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Populate wildfire pixels (from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'wildfire') continue
     const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
@@ -1045,7 +1025,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Populate meteorite pickup effect pixels (starlight bloom, from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'pickupBloom') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
@@ -1119,7 +1098,6 @@ export const render = (ctx: CanvasRenderingContext2D, state: GameState, metrics:
 
   // Populate crumble effect pixels (breakable wall, from ECS)
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag)) {
-    if (!inZone(eid)) continue
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'crumble') continue
     const multiPos = state.world.getComponent(eid, ComponentType.MultiPosition)
