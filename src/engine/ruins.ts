@@ -1150,8 +1150,8 @@ const spawnRuinGroundItem = (
 }
 
 // RP-70 — seed one Geodetic Marker just inside the bee, clover, and
-// coyote ruins at genesis (so the world holds 10 markers total: 7 in the
-// cellar + 3 here). Starter mode generates 5 ruins (one per RuinRole);
+// coyote ruins at genesis (3 markers total; the RP-70 cleanup removed the
+// cellar markers). Starter mode generates 5 ruins (one per RuinRole);
 // only these three role-ruins carry a marker, keeping the GM-1..GM-10
 // label space intact. The marker rewards entering the ruin. Placed on a
 // walkable interior tile near — but never on — the entrance, since the

@@ -9,9 +9,10 @@ import { Zone } from './types'
 
 import type { GameState, ItemUid, PlacedMarker } from './types'
 
-// RP-70 — total Geodetic Markers in a tenure (GM-1..GM-10). The cap is
-// physical: 10 marker items exist (7 cellar + 3 ruins), so this only
-// bounds the label space, never gates placement on its own.
+// RP-70 — Geodetic Marker label space (GM-1..GM-10). Only 3 marker items
+// exist after the RP-70 cleanup (one per role-ruin), so the cap is never
+// reached in practice; it only bounds the label range, never gates
+// placement on its own.
 const MAX_GEODETIC_MARKERS = 10
 
 // RP-70 — lowest free GM-N label in 1..MAX. Scans currently-placed
