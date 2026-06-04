@@ -1,56 +1,80 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { findHoveredIcon } from './MapPanel.helpers'
+import {
+  clampZoom,
+  markersForView,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  selectMapView,
+  ZOOM_STEP,
+  zoomTowardFocus,
+} from './MapPanel.helpers'
 import { ModalShell } from './ModalShell'
 import { projectIso } from './minimapProjection'
 
 import { HOT_PINK } from '@/engine/constants'
 import { TileType } from '@/engine/types'
-import type { MapIcon } from './MapPanel.helpers'
+import type { PanOffset } from './MapPanel.helpers'
 import type { IsoLayout } from './minimapProjection'
 import type { GameState, Position, Tile } from '@/engine/types'
 
 // RP-70 — The Map. A read-only, full-screen ASCII chart of the prairie,
 // launched from the permacomputer MAP tab. Unlike Minimap (a live
-// fog-aware HUD glance of the current zone), this is a fixed inherited
-// artifact: it always renders the overworld's dirt landmass, water, and
-// landmark icons regardless of where the steward has walked, plus the
-// steward's own marks (placed cameras, meteorites, Geodetic Markers). It
-// does not pause the prairie clock — consulting it is a free action like
-// every other permacomputer surface. It mounts full-screen (not inside
-// the 500px shell) following the ScanResultModal / TimeLapsePlayback
-// precedent; Escape or a backdrop click closes it.
+// fog-aware HUD glance), this is a fixed inherited artifact — a diegetic
+// chart, not a recolored minimap. It renders whichever zone the steward
+// is standing in: the overworld landmass (with landmarks + water), or a
+// ruin / cellar interior, always including the steward's own marks
+// (cameras, meteorites, Geodetic Markers) for that zone. It does not
+// pause the prairie clock — consulting it is a free action like every
+// other permacomputer surface. It mounts full-screen (not inside the
+// 500px shell) following the ScanResultModal / TimeLapsePlayback
+// precedent; Escape, Tab, or a backdrop click closes it.
 //
-// Place names are not drawn on the map — each named element is an icon,
-// and its name is revealed on hover via a DOM tooltip. The canvas is
-// never redrawn on mousemove; hover state lives entirely in React/DOM.
+// The chart is monochromatic (a single amber-ink ramp on parchment) so it
+// reads as an inherited document rather than the live prairie palette, and
+// its glyphs are drawn in the title-card italic serif. Place names are not
+// drawn; the steward's marks carry their own labels in the world. The map
+// zooms via the mouse wheel (toward the cursor) and on-screen +/- buttons.
 
-// Fit the iso diamond (mapWidth+mapHeight units wide, half that tall) into
-// a width x height rectangle, maximizing the tile pitch against whichever
-// dimension binds, then center it. Unlike the minimap's square-canvas
-// computeIsoLayout, this fills an arbitrary viewport-sized rectangle so the
-// map is as large as possible. projectIso consumes the same IsoLayout.
-const computeFullscreenLayout = (mapWidth: number, mapHeight: number, width: number, height: number): IsoLayout => {
+// Monochrome amber-ink chart palette. A single hue in tints/shades — never
+// the prairie's tile colors — so the map reads as a diegetic document.
+const PARCHMENT_BG = '#15120E'
+const DIRT_COLOR = '#3A3022'
+const COASTLINE_COLOR = '#5C4E36'
+const WATER_COLOR = '#241F16'
+const LANDMARK_COLOR = '#B8A678'
+const REGION_ICON_COLOR = '#7A6E50'
+const MARK_COLOR = '#D8C49A'
+
+// Title-card font (matches zoneTransitionOverlay.ts). Preloaded in main.tsx.
+const SERIF_STACK =
+  '"Libre Baskerville", Baskerville, "Baskerville Old Face", "Hoefler Text", Garamond, "Times New Roman", serif'
+const ICON_GLYPH_PX = 16
+
+// Fit the iso diamond (width+height units wide, half that tall) into a
+// width x height rectangle at the given zoom, then center it and apply the
+// pan offset. zoom 1 = fit-to-viewport; > 1 magnifies. projectIso consumes
+// the returned IsoLayout. Unlike the minimap's square-canvas layout, this
+// fills an arbitrary viewport-sized rectangle so the map is as large as
+// possible.
+const computeFullscreenLayout = (
+  mapWidth: number,
+  mapHeight: number,
+  width: number,
+  height: number,
+  zoom: number,
+  pan: PanOffset
+): IsoLayout => {
   if (mapWidth === 0 || mapHeight === 0) return { tilePx: 0, originX: 0, originY: 0 }
   const widthUnits = mapWidth + mapHeight
-  const tilePx = Math.min(width / widthUnits, height / (widthUnits / 2))
+  const fitPx = Math.min(width / widthUnits, height / (widthUnits / 2))
+  const tilePx = fitPx * zoom
   const drawnWidth = widthUnits * tilePx
   const drawnHeight = drawnWidth / 2
-  const originX = (width - drawnWidth) / 2 + mapHeight * tilePx
-  const originY = (height - drawnHeight) / 2
+  const originX = (width - drawnWidth) / 2 + mapHeight * tilePx + pan.x
+  const originY = (height - drawnHeight) / 2 + pan.y
   return { tilePx, originX, originY }
 }
-
-const PARCHMENT_BG = '#1A1714'
-const DIRT_COLOR = '#3A2E22'
-const COASTLINE_COLOR = '#5A4A38'
-const WATER_COLOR = '#3D6FA8'
-const LANDMARK_COLOR = '#C2B280'
-const REGION_ICON_COLOR = '#8A8266'
-const CAMERA_COLOR = '#FFD700'
-const METEORITE_COLOR = '#FFE4B5'
-
-const ICON_GLYPH_PX = 16
 
 const drawIsoTile = (ctx: CanvasRenderingContext2D, layout: IsoLayout, worldX: number, worldY: number, color: string) => {
   const { px, py } = projectIso(worldX, worldY, layout)
@@ -59,8 +83,7 @@ const drawIsoTile = (ctx: CanvasRenderingContext2D, layout: IsoLayout, worldX: n
 }
 
 // A coastline tile is a non-void tile adjacent (4-neighbor) to the Space
-// void or the map edge. With the land filled, this is the rim that defines
-// the island's edge against the void.
+// void or the map edge — the rim that defines the island's edge.
 const isCoastline = (map: Tile[][], w: number, h: number, x: number, y: number): boolean => {
   if (map[y][x].type === TileType.Space) return false
   const neighbors: Position[] = [
@@ -72,22 +95,32 @@ const isCoastline = (map: Tile[][], w: number, h: number, x: number, y: number):
   return neighbors.some(n => n.x < 0 || n.x >= w || n.y < 0 || n.y >= h || map[n.y][n.x].type === TileType.Space)
 }
 
-// Draw the terrain + icon glyphs and return the hoverable icon hit-targets.
-// Names are NOT drawn — they surface on hover. Returns the icon list so the
-// component can hit-test mousemove against it without re-projecting.
-const drawMap = (ctx: CanvasRenderingContext2D, state: GameState, width: number, height: number): MapIcon[] => {
-  const w = state.overworldMapWidth
-  const h = state.overworldMapHeight
-  const map = state.overworldMap
-  const layout = computeFullscreenLayout(w, h, width, height)
+interface MapGlyph {
+  pos: Position
+  glyph: string
+  color: string
+}
+
+// Draw the current zone's terrain + icon glyphs onto the canvas.
+const drawMap = (
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  width: number,
+  height: number,
+  zoom: number,
+  pan: PanOffset
+) => {
+  const view = selectMapView(state)
+  const { map, width: w, height: h, isOverworld } = view
+  const layout = computeFullscreenLayout(w, h, width, height, zoom, pan)
 
   ctx.fillStyle = PARCHMENT_BG
   ctx.fillRect(0, 0, width, height)
-  if (layout.tilePx === 0) return []
+  if (layout.tilePx === 0) return
 
-  // Dirt landmass — fill every non-Space tile, with a slightly lighter rim
-  // at the coastline for edge definition. Drawn first; water and icons
-  // layer on top.
+  // Land — fill every non-Space tile, with a slightly lighter rim at the
+  // coastline for edge definition. Interiors have no Space tiles, so the
+  // whole interior fills as land.
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       if (map[y][x].type === TileType.Space) continue
@@ -95,57 +128,51 @@ const drawMap = (ctx: CanvasRenderingContext2D, state: GameState, width: number,
     }
   }
 
-  // Water — ponds and rivers (overworld posKey sets), over the dirt.
-  for (const key of state.ponds) {
-    const [x, y] = key.split(',').map(Number)
-    drawIsoTile(ctx, layout, x, y, WATER_COLOR)
-  }
-  for (const key of state.rivers) {
-    const [x, y] = key.split(',').map(Number)
-    drawIsoTile(ctx, layout, x, y, WATER_COLOR)
+  // Water + landmarks are overworld-only — they have no meaning on an
+  // interior chart.
+  const glyphs: MapGlyph[] = []
+  if (isOverworld) {
+    for (const key of state.ponds) {
+      const [x, y] = key.split(',').map(Number)
+      drawIsoTile(ctx, layout, x, y, WATER_COLOR)
+    }
+    for (const key of state.rivers) {
+      const [x, y] = key.split(',').map(Number)
+      drawIsoTile(ctx, layout, x, y, WATER_COLOR)
+    }
+    for (const region of state.namedRegions) {
+      glyphs.push({ pos: region.anchor, glyph: '◦', color: REGION_ICON_COLOR })
+    }
+    glyphs.push({ pos: state.houseEntranceOverworld, glyph: 'α', color: LANDMARK_COLOR })
+    glyphs.push({ pos: state.caveEntranceOverworld, glyph: 'O', color: LANDMARK_COLOR })
+    if (state.whineEntranceOverworld) {
+      glyphs.push({ pos: state.whineEntranceOverworld, glyph: 'W', color: LANDMARK_COLOR })
+    }
+    for (const ruin of state.ruinInteriors) {
+      glyphs.push({ pos: ruin.entranceOverworld, glyph: ruin.glyph ?? '⌂', color: LANDMARK_COLOR })
+    }
+    for (const camera of state.placedCameras) {
+      glyphs.push({ pos: { x: camera.x, y: camera.y }, glyph: '⌖', color: MARK_COLOR })
+    }
+    for (const meteorite of state.placedMeteorites) {
+      glyphs.push({ pos: meteorite, glyph: '✦', color: MARK_COLOR })
+    }
   }
 
-  // Collect icons, then draw their glyphs (no names). The hit-targets use
-  // the same projected coordinates so hover never re-projects.
-  const icons: MapIcon[] = []
-  const addIcon = (pos: Position, glyph: string, color: string, name: string) => {
-    const { px, py } = projectIso(pos.x, pos.y, layout)
-    icons.push({ px, py, glyph, color, name })
-  }
-
-  // Named regions (RP-22) — a faint ring at the region anchor.
-  for (const region of state.namedRegions) {
-    addIcon(region.anchor, '◦', REGION_ICON_COLOR, region.name)
-  }
-  // Fixed landmarks.
-  addIcon(state.houseEntranceOverworld, 'α', LANDMARK_COLOR, 'House')
-  addIcon(state.caveEntranceOverworld, 'O', LANDMARK_COLOR, 'Cave')
-  if (state.whineEntranceOverworld) {
-    addIcon(state.whineEntranceOverworld, 'W', LANDMARK_COLOR, 'Whine')
-  }
-  for (const ruin of state.ruinInteriors) {
-    addIcon(ruin.entranceOverworld, ruin.glyph ?? '⌂', LANDMARK_COLOR, ruin.name)
-  }
-  // Steward's own marks.
-  for (const camera of state.placedCameras) {
-    addIcon({ x: camera.x, y: camera.y }, '⌖', CAMERA_COLOR, 'Field Camera')
-  }
-  for (const meteorite of state.placedMeteorites) {
-    addIcon(meteorite, '✦', METEORITE_COLOR, 'Meteorite')
-  }
-  for (const marker of state.placedMarkers) {
-    addIcon({ x: marker.x, y: marker.y }, '⚑', HOT_PINK, marker.label)
+  // Geodetic Markers for this zone — the steward's marks stay hot pink
+  // (reserved user-action color) so they pop against the monochrome chart.
+  for (const marker of markersForView(state)) {
+    glyphs.push({ pos: { x: marker.x, y: marker.y }, glyph: '⚑', color: HOT_PINK })
   }
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  ctx.font = `${String(ICON_GLYPH_PX)}px monospace`
-  for (const icon of icons) {
-    ctx.fillStyle = icon.color
-    ctx.fillText(icon.glyph, icon.px, icon.py)
+  ctx.font = `italic ${String(ICON_GLYPH_PX)}px ${SERIF_STACK}`
+  for (const g of glyphs) {
+    const { px, py } = projectIso(g.pos.x, g.pos.y, layout)
+    ctx.fillStyle = g.color
+    ctx.fillText(g.glyph, px, py)
   }
-
-  return icons
 }
 
 // Fill the entire viewport — the map maximizes over everything, including
@@ -155,12 +182,6 @@ const computeViewport = (): { width: number; height: number } => ({
   height: window.innerHeight,
 })
 
-interface HoverState {
-  name: string
-  x: number
-  y: number
-}
-
 interface MapPanelProps {
   state: GameState
   onDismiss: () => void
@@ -168,9 +189,9 @@ interface MapPanelProps {
 
 export const MapPanel = ({ state, onDismiss }: MapPanelProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const iconsRef = useRef<MapIcon[]>([])
   const [viewport, setViewport] = useState(computeViewport)
-  const [hover, setHover] = useState<HoverState | null>(null)
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
 
   useEffect(() => {
     const onResize = () => {
@@ -187,17 +208,24 @@ export const MapPanel = ({ state, onDismiss }: MapPanelProps) => {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    // Canvas redraws only on render (refreshUI) and resize — never on
-    // mousemove. Capture the hit-targets for hover lookup.
-    iconsRef.current = drawMap(ctx, state, viewport.width, viewport.height)
+    drawMap(ctx, state, viewport.width, viewport.height, zoom, pan)
   })
 
-  const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  // Wheel zooms toward the cursor; the world point under the cursor stays
+  // fixed. Buttons zoom toward the viewport center. Snapping back to
+  // MIN_ZOOM recenters the chart (zero pan).
+  const applyZoom = (nextZoomRaw: number, focusX: number, focusY: number) => {
+    const next = clampZoom(nextZoomRaw)
+    if (next === zoom) return
+    const nextPan = zoomTowardFocus(zoom, next, pan, focusX, focusY, viewport.width / 2, viewport.height / 2)
+    setZoom(next)
+    setPan(next === MIN_ZOOM ? { x: 0, y: 0 } : nextPan)
+  }
+
+  const onWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
-    const mx = e.clientX - rect.left
-    const my = e.clientY - rect.top
-    const icon = findHoveredIcon(iconsRef.current, mx, my)
-    setHover(icon ? { name: icon.name, x: mx, y: my } : null)
+    const factor = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP
+    applyZoom(zoom * factor, e.clientX - rect.left, e.clientY - rect.top)
   }
 
   return (
@@ -208,19 +236,41 @@ export const MapPanel = ({ state, onDismiss }: MapPanelProps) => {
           width={viewport.width}
           height={viewport.height}
           style={{ width: `${String(viewport.width)}px`, height: `${String(viewport.height)}px` }}
-          onMouseMove={onMouseMove}
-          onMouseLeave={() => {
-            setHover(null)
-          }}
+          onWheel={onWheel}
         />
-        {hover && (
-          <div
-            className="bg-border-dim/90 text-permacomputer pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded px-2 py-1 font-mono text-xs"
-            style={{ left: hover.x, top: hover.y - 8 }}
+        {/* Zoom controls — monochrome, unobtrusive, bottom-right. No focus
+            rings (project doctrine). */}
+        <div className="pointer-events-auto absolute right-6 bottom-6 flex flex-col gap-2">
+          <button
+            type="button"
+            data-testid="map-zoom-in"
+            aria-label="Zoom in"
+            disabled={zoom >= MAX_ZOOM}
+            onClick={() => {
+              applyZoom(zoom * ZOOM_STEP, viewport.width / 2, viewport.height / 2)
+            }}
+            className="border-border-dim h-9 w-9 rounded border bg-black/50 font-mono text-lg text-[#B8A678] outline-none focus:outline-none disabled:opacity-30"
           >
-            {hover.name}
-          </div>
-        )}
+            +
+          </button>
+          <button
+            type="button"
+            data-testid="map-zoom-out"
+            aria-label="Zoom out"
+            disabled={zoom <= MIN_ZOOM}
+            onClick={() => {
+              applyZoom(zoom / ZOOM_STEP, viewport.width / 2, viewport.height / 2)
+            }}
+            className="border-border-dim h-9 w-9 rounded border bg-black/50 font-mono text-lg text-[#B8A678] outline-none focus:outline-none disabled:opacity-30"
+          >
+            −
+          </button>
+        </div>
+        {/* Exit hint — the map closes via Escape, Tab, or a backdrop click;
+            there is no close button by design. */}
+        <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 font-mono text-xs text-[#7A6E50]">
+          Press Esc to close
+        </div>
       </div>
     </ModalShell>
   )

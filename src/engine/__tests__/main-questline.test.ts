@@ -103,7 +103,12 @@ describe('main questline > Gron dialog phase dispatch', () => {
   it('returns the round-5 awaiting-coyote opener', () => {
     const state = createTestState()
     state.mainQuestPhase = MainQuestPhase.AwaitingCoyote
-    expect(getCharacterDialog(state, 'gron')).toEqual(['...', 'A steward.', 'A steward goes to the ruins.'])
+    expect(getCharacterDialog(state, 'gron')).toEqual([
+      '...',
+      'A steward.',
+      'A steward goes to the ruins.',
+      'Here. From your predecessor.',
+    ])
   })
 
   it('returns the Dickinson-correct gathering line when player has only one of bee/clover', () => {
