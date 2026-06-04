@@ -431,30 +431,31 @@ describe('breakable wall interactable', () => {
 })
 
 describe('persistent dual-zone', () => {
-  it('overworld entities are zone-tagged', () => {
+  it('overworld entities live in the overworld world', () => {
     const state = createTestState()
     createBeeEntity(state, 10, 10)
     const bees = getBeeEntities(state)
     expect(bees).toHaveLength(1)
-    const zone = state.world.getComponent(bees[0], ComponentType.EntityZone)
-    expect(zone?.zone).toBe(Zone.Overworld)
+    // Per-zone worlds: the bee is in the overworld world, observable via
+    // state.world (active zone = overworld).
+    expect(state.currentZone).toBe(Zone.Overworld)
+    expect(state.world.hasComponent(bees[0], ComponentType.Position)).toBe(true)
   })
 
-  it('overworld meteorites do not appear in cave queries filtered by zone', () => {
+  it('overworld meteorites do not appear in cave queries', () => {
     const state = createTestState()
-    // Create meteorite in overworld
+    // Create meteorite in the overworld world.
     const eid = state.world.createEntity()
     state.world.addComponent(eid, ComponentType.Position, { x: 5, y: 5 })
     state.world.addComponent(eid, ComponentType.EntityTag, 'meteorite')
-    state.world.addComponent(eid, ComponentType.EntityZone, { zone: Zone.Overworld })
 
     enterCave(state)
 
-    // Query meteorites filtered by current zone (cave) — should find none
+    // Query meteorites in the active world (now cave) — by per-zone
+    // construction it cannot see overworld entities at all.
     const caveMeteorites = state.world
       .query(ComponentType.EntityTag)
       .filter(e => state.world.getComponent(e, ComponentType.EntityTag) === 'meteorite')
-      .filter(e => state.world.getComponent(e, ComponentType.EntityZone)?.zone === state.currentZone)
     expect(caveMeteorites).toHaveLength(0)
   })
 
@@ -477,15 +478,12 @@ describe('persistent dual-zone', () => {
     expect(moab).toBeDefined()
     // Per-zone worlds: Moab lives structurally in the Cave world. Look
     // him up there rather than via state.world (which is currently the
-    // Overworld world post-createGameState). The EntityZone component
-    // remains attached during Phase 1 as defense in depth.
+    // Overworld world post-createGameState). Phase 2 removed the
+    // EntityZone tag — being present in the cave world is the invariant.
     const caveWorld = getWorldForZone(state, Zone.Cave)
     const moabEid = caveWorld
       .query(ComponentType.CharacterIdentity)
       .find(eid => caveWorld.getComponent(eid, ComponentType.CharacterIdentity)?.definitionId === 'moab')
     expect(moabEid).toBeDefined()
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const zone = caveWorld.getComponent(moabEid!, ComponentType.EntityZone)
-    expect(zone?.zone).toBe(Zone.Cave)
   })
 })

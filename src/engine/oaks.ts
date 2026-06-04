@@ -108,18 +108,16 @@ export const spawnOak = (state: GameState, anchorX: number, anchorY: number, tim
     traits: generateTraitBag(identity),
   })
   world.addComponent(eid, ComponentType.EntityTag, 'oak')
-  world.addComponent(eid, ComponentType.EntityZone, { zone: Zone.Overworld })
   return eid
 }
 
 // RP-69a — spawn an oak inside a non-overworld zone (currently used by
 // the Whine home yards). Identity derives from `seed` plus the anchor
 // position so identical anchors across two homes produce distinct
-// genetics. The entity carries `EntityZone = { zone }` so the renderer's
-// in-zone gate (`isEntityInCurrentZone`) routes it to the named yard
-// without leaking into adjacent zones. No isValidOakPosition check —
-// yard positions are hand-authored and validated by the RP-69a variant
-// table tests, not at runtime.
+// genetics. Per-zone worlds route the entity into the named zone's world
+// via getWorldForZone — there is no EntityZone tag to carry. No
+// isValidOakPosition check — yard positions are hand-authored and
+// validated by the RP-69a variant table tests, not at runtime.
 export const spawnZoneOak = (
   state: GameState,
   anchorX: number,
@@ -129,9 +127,8 @@ export const spawnZoneOak = (
   seed: string
 ): number => {
   // Route into the target zone's world (Whine village, future
-  // multi-instance ruins, etc.). Pre-per-zone-worlds this used
-  // state.world and relied on consumers filtering via
-  // isEntityInCurrentZone.
+  // multi-instance ruins, etc.). The entity belongs to that world by
+  // construction — no EntityZone tag needed.
   const world = getWorldForZone(state, zone)
   const eid = world.createEntity()
   world.addComponent(eid, ComponentType.Position, { x: anchorX, y: anchorY })
@@ -145,7 +142,6 @@ export const spawnZoneOak = (
     traits: generateTraitBag(identity),
   })
   world.addComponent(eid, ComponentType.EntityTag, 'oak')
-  world.addComponent(eid, ComponentType.EntityZone, { zone })
   return eid
 }
 

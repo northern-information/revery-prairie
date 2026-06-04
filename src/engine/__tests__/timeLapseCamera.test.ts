@@ -517,9 +517,9 @@ describe('time-lapse camera', () => {
       const state = createGameState('Test', 20, 20)
       const houseGroundItems: { definitionId: string; x: number; y: number }[] = []
       const houseWorld = getWorldForZone(state, Zone.HouseInterior)
+      // Per-zone worlds: the HouseInterior world only contains entities
+      // that live in the house, so no zone-filter is needed.
       for (const eid of houseWorld.query(ComponentType.EntityTag, ComponentType.ItemDrop, ComponentType.Position)) {
-        const ez = houseWorld.getComponent(eid, ComponentType.EntityZone)
-        if (ez?.zone !== Zone.HouseInterior) continue
         const pos = houseWorld.getComponent(eid, ComponentType.Position)
         const drop = houseWorld.getComponent(eid, ComponentType.ItemDrop)
         if (!pos || !drop) continue

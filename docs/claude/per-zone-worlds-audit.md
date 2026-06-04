@@ -382,3 +382,17 @@ The serialize.ts file provides generic Map/Set support. The schema test lists 18
 The codebase is **well-structured for migration**. Zone filtering is used consistently in 95% of sites. Four cross-zone bugs (scan, fauna, click, visibility) are fixable in < 30 min. Genesis seeding is legitimate and can be preserved via partition-at-end logic. Serialization requires schema updates but no fundamental rework. The refactoring is high-confidence and low-risk.
 
 **Estimated effort to Phase 1:** 4–6 hours (including bug fixes, schema migration, test updates).
+
+---
+
+## Post-Phase 2 note (2026-06-03)
+
+Phase 1 (`per-zone-ecs-worlds`, PR #511) landed the per-zone `state.worlds: Map<string, World>` infrastructure and routed every entity-creation site to its target zone's world. EntityZone tags stayed as defense in depth.
+
+Phase 2 (`per-zone-worlds-cleanup`, this branch) removed the redundancy: `ComponentType.EntityZone` is gone from `src/engine/ecs/types.ts`; `isEntityInCurrentZone`, `spatialAtInCurrentZone`, and `getCurrentEntityZone` are deleted from `src/engine/zone.ts`. Every production filter site (`if (!isEntityInCurrentZone(...)) continue` and friends) is removed — the active world only contains active-zone entities, so the filter has nothing to filter.
+
+The four cross-zone bugs this audit identified (`scan.ts:41`, `egregoreFauna.ts:85`, `clickResolution.ts:16`, the `AngelData` sibling query) are eliminated by construction — no leak is structurally possible from a non-overworld zone reading the wrong world.
+
+The references throughout this document to `isEntityInCurrentZone()`, `spatialAtInCurrentZone()`, `getCurrentEntityZone()`, and `ComponentType.EntityZone` are historical — those names no longer exist in the codebase. The audit is preserved as a record of the pre-refactor state.
+
+For the current model, see `docs/claude/state.md` ("per-zone ECS worlds" section).

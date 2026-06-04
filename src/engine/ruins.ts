@@ -1147,7 +1147,6 @@ const spawnRuinGroundItem = (
   if (genome) dropData.genome = genome
   ruinWorld.addComponent(e, ComponentType.ItemDrop, dropData)
   ruinWorld.addComponent(e, ComponentType.EntityTag, 'groundItem')
-  ruinWorld.addComponent(e, ComponentType.EntityZone, { zone: Zone.Ruin, ruinIndex })
 }
 
 // RP-70 — seed one Geodetic Marker just inside the bee, clover, and

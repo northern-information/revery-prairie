@@ -21,7 +21,7 @@ import { ComponentType } from './ecs/types'
 import { recordDiscovery } from './manual'
 import { isInBounds, posKey } from './position'
 import { TileType, Zone } from './types'
-import { getWorldForZone, spatialAtInCurrentZone } from './zone'
+import { getWorldForZone } from './zone'
 
 import type { GameState, Position } from './types'
 
@@ -33,7 +33,7 @@ const NORTH_VELOCITY = { dx: 1, dy: 1 } as const
 
 const isTileOccupied = (state: GameState, x: number, y: number): boolean => {
   if (state.player.x === x && state.player.y === y) return true
-  if (spatialAtInCurrentZone(state, x, y).length > 0) return true
+  if (state.world.spatial.at(x, y).length > 0) return true
   return false
 }
 
@@ -71,7 +71,6 @@ export const spawnShootingStar = (state: GameState): void => {
     landingTarget: null,
   })
   overworld.addComponent(e, ComponentType.EntityTag, 'shootingStar')
-  overworld.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 }
 
 export const spawnShootingStarAtTarget = (
@@ -108,7 +107,6 @@ export const spawnShootingStarAtTarget = (
     landingTarget: target,
   })
   overworld.addComponent(e, ComponentType.EntityTag, 'shootingStar')
-  overworld.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
   return e
 }
 
@@ -142,8 +140,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
             overworld.addComponent(me, ComponentType.Position, { x, y })
             overworld.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
             overworld.addComponent(me, ComponentType.EntityTag, 'meteorite')
-            overworld.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
-          }
+                    }
           // v11 R4 — the camera notices change on its own sim-loop hook;
           // no event call here.
           // RP-22 — chronicle event for the impact. The emitter gates on
@@ -157,8 +154,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
             startTime: time,
           })
           overworld.addComponent(e, ComponentType.EntityTag, 'explosion')
-          overworld.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
-          overworld.destroyEntity(eid)
+                  overworld.destroyEntity(eid)
           continue
         }
       } else if (isInBounds(x, y, MAP_WIDTH, MAP_HEIGHT)) {
@@ -172,8 +168,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
             overworld.addComponent(me, ComponentType.Position, { x, y })
             overworld.addComponent(me, ComponentType.Pickupable, { definitionId: 'meteorite' })
             overworld.addComponent(me, ComponentType.EntityTag, 'meteorite')
-            overworld.addComponent(me, ComponentType.EntityZone, { zone: Zone.Overworld })
-          }
+                    }
           // v11 R4 — the camera notices change on its own sim-loop hook;
           // no event call here.
           // RP-22 — chronicle event for the impact.
@@ -182,8 +177,7 @@ export const tickShootingStars = (state: GameState, time: number): void => {
           overworld.addComponent(e, ComponentType.Position, { x, y })
           overworld.addComponent(e, ComponentType.TimedEffect, { kind: 'explosion', startTime: time })
           overworld.addComponent(e, ComponentType.EntityTag, 'explosion')
-          overworld.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
-          overworld.destroyEntity(eid)
+                  overworld.destroyEntity(eid)
           continue
         }
       }

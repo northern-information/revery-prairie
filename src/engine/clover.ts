@@ -11,8 +11,7 @@ import { recordDiscovery } from './manual'
 // the local CloverPatch shape because the spread module's helper is
 // internal (selectGrowthTargets handles the same job behind the engine).
 import { CARDINAL as _CARDINAL, CARDINAL, isInBounds, posKey } from './position'
-import { FloraSpecies, TileType, Zone } from './types'
-import { spatialAtInCurrentZone } from './zone'
+import { FloraSpecies, TileType } from './types'
 
 import type { GameState, Position } from './types'
 
@@ -93,7 +92,6 @@ export const countBeesOnPatch = (patch: CloverPatch, state: GameState): number =
   let count = 0
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'bee') continue
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (pos && patch.tiles.has(posKey(pos.x, pos.y))) {
       count++
@@ -106,7 +104,6 @@ const countHivesOnPatch = (patch: CloverPatch, state: GameState): number => {
   let count = 0
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'beehive') continue
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (pos && patch.tiles.has(posKey(pos.x, pos.y))) {
       count++
@@ -133,7 +130,6 @@ const spawnBeehive = (state: GameState, pos: Position): void => {
   state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
   state.world.addComponent(e, ComponentType.EntityTag, 'beehive')
   state.world.addComponent(e, ComponentType.Blocking, { blockMovement: true })
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
   recordDiscovery(state, 'event:beehive-built')
 }
 
@@ -144,7 +140,6 @@ const spawnHoney = (state: GameState, pos: Position): void => {
   state.world.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
   state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'honey' })
   state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 }
 
 // --- Beehive + honey tick ---
@@ -156,7 +151,6 @@ export const tickCloverHives = (state: GameState): void => {
   const existingHivePositions: Position[] = []
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'beehive') continue
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (pos) existingHivePositions.push({ x: pos.x, y: pos.y })
   }
@@ -182,7 +176,7 @@ export const tickCloverHives = (state: GameState): void => {
           const pos = { x, y }
 
           if (x === state.player.x && y === state.player.y) continue
-          if (spatialAtInCurrentZone(state, x, y).length > 0) continue
+          if (state.world.spatial.at(x, y).length > 0) continue
 
           allTiles.push(pos)
 
@@ -202,8 +196,7 @@ export const tickCloverHives = (state: GameState): void => {
     if (patch.beeCount === 0) continue
     for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
       if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'beehive') continue
-      if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
-      const hivePos = state.world.getComponent(eid, ComponentType.Position)
+        const hivePos = state.world.getComponent(eid, ComponentType.Position)
       if (!hivePos || !patch.tiles.has(posKey(hivePos.x, hivePos.y))) continue
 
       let honeyChance = CLOVER_HONEY_BASE_CHANCE + patch.beeCount * CLOVER_HONEY_BEE_BONUS
@@ -218,7 +211,7 @@ export const tickCloverHives = (state: GameState): void => {
         const tile = state.map[ny][nx]
         if (tile.type === TileType.Space || tile.type === TileType.Sand) continue
         if (tile.type === TileType.CaveWall || tile.type === TileType.CaveBreakableWall) continue
-        if (spatialAtInCurrentZone(state, nx, ny).length > 0) continue
+        if (state.world.spatial.at(nx, ny).length > 0) continue
         spawnHoney(state, { x: nx, y: ny })
         break
       }

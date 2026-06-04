@@ -9,7 +9,7 @@ import {
 import { ComponentType } from '../ecs/types'
 import { selectStrikeTarget, spawnLightningStrike, spreadWildfire, tickLightning } from '../lightning'
 import { posKey } from '../position'
-import { FloraSpecies, FloraStage, Sky, TileType, Zone } from '../types'
+import { FloraSpecies, FloraStage, Sky, TileType } from '../types'
 import { clearAroundPlayer, createMeteoriteEntity, createTestState } from './helpers'
 import { createTestFloraEntry } from './helpers/createTestFloraEntry'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -408,7 +408,6 @@ describe('lightning', () => {
       state.world.addComponent(e, ComponentType.Position, { x: 10, y: 10 })
       state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'lightning', startTime: 0 })
       state.world.addComponent(e, ComponentType.EntityTag, 'lightning')
-      state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 
       // Not expired yet
       tickLightning(state, LIGHTNING_DURATION_MS - 1)
@@ -431,7 +430,6 @@ describe('lightning', () => {
       state.world.addComponent(e, ComponentType.MultiPosition, { positions: [{ x: 10, y: 10 }] })
       state.world.addComponent(e, ComponentType.TimedEffect, { kind: 'wildfire', startTime: 0 })
       state.world.addComponent(e, ComponentType.EntityTag, 'wildfire')
-      state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 
       tickLightning(state, WILDFIRE_DURATION_MS - 1)
       const remaining = [...state.world.query(ComponentType.EntityTag)].filter(

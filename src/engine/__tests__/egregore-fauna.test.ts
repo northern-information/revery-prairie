@@ -197,7 +197,6 @@ describe('egregore fauna wrongBee', () => {
     const eid = state.world.createEntity()
     state.world.addComponent(eid, ComponentType.Position, { x: beeX, y: beeY })
     state.world.addComponent(eid, ComponentType.EntityTag, WRONG_BEE_TAG)
-    state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
     state.world.addComponent(eid, ComponentType.WrongBeeLifecycle, {
       ticksRemaining: WRONG_BEE_LIFESPAN_TICKS,
     })
@@ -231,7 +230,6 @@ describe('egregore fauna wrongBee', () => {
     const eid = state.world.createEntity()
     state.world.addComponent(eid, ComponentType.Position, { x: state.player.x + 2, y: state.player.y })
     state.world.addComponent(eid, ComponentType.EntityTag, WRONG_BEE_TAG)
-    state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
     state.world.addComponent(eid, ComponentType.WrongBeeLifecycle, { ticksRemaining: 2 })
 
     const rng = vi.fn().mockReturnValue(0.99) // suppress further spawns and drift
@@ -252,7 +250,6 @@ describe('egregore fauna wrongBee', () => {
     const eid = state.world.createEntity()
     state.world.addComponent(eid, ComponentType.Position, { x: state.player.x + 1, y: state.player.y })
     state.world.addComponent(eid, ComponentType.EntityTag, WRONG_BEE_TAG)
-    state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
     state.world.addComponent(eid, ComponentType.WrongBeeLifecycle, {
       ticksRemaining: WRONG_BEE_LIFESPAN_TICKS,
     })
@@ -348,7 +345,6 @@ describe('egregore fauna pierceWalker', () => {
     const start = { x: state.player.x + 4, y: state.player.y }
     state.world.addComponent(eid, ComponentType.Position, start)
     state.world.addComponent(eid, ComponentType.EntityTag, PIERCE_WALKER_TAG)
-    state.world.addComponent(eid, ComponentType.EntityZone, { zone: state.currentZone })
     state.world.addComponent(eid, ComponentType.PierceWalkerGlyph, { codepoint: '\u{F166}' })
     state.world.addComponent(eid, ComponentType.Blocking, { blockMovement: true })
 

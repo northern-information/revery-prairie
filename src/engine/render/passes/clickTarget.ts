@@ -6,7 +6,6 @@
 import { CLICK_TARGET_COLOR, CLICK_TARGET_DURATION_MS, CLICK_TARGET_POP_MS } from '../../constants'
 import { ComponentType } from '../../ecs/types'
 import { drawCellHighlight, worldToScreen } from '../../projection'
-import { isEntityInCurrentZone } from '../../zone'
 import { registerPass } from '../passes'
 import { getTierGrid, liftAt } from '../tierGrid'
 
@@ -27,7 +26,6 @@ const draw = (ctx: CanvasRenderingContext2D, state: GameState, metrics: CharMetr
 
   for (const eid of state.world.query(ComponentType.TimedEffect, ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'clickTarget') continue
-    if (!isEntityInCurrentZone(state, eid)) continue
     const effect = state.world.getComponent(eid, ComponentType.TimedEffect)
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!effect || !pos) continue

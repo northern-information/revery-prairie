@@ -352,7 +352,6 @@ describe('coin pickup glinting', () => {
     state.world.addComponent(e, ComponentType.Position, { x: px, y: py })
     state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'coin', glinting: false })
     state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
     pickUpGroundItems(state)
     expect(state.backpack.items).toHaveLength(1)
     expect(state.glintingCoins.has(state.backpack.items[0].uid)).toBe(false)

@@ -13,6 +13,22 @@ mutable game state has no access control. these conventions document write patte
 
 new fields also require updating `EXPECTED_FIELDS` in `src/harness/__tests__/serialization/schema.test.ts` — the schema allowlist test fails otherwise.
 
+## per-zone ECS worlds
+
+`state.worlds: Map<string, World>` holds one ECS world per zone. The map is pre-populated for every non-Ruin Zone enum value in `createGameState`; ruin worlds are created on demand by `getWorldForZone(state, Zone.Ruin, ruinIndex)` (each ruin instance is its own world keyed `ruin:N`).
+
+`state.world` is a getter on `GameState` that resolves to the active zone's world: `state.worlds.get(worldKey(state.currentZone, state.currentRuinIndex))`. Every zone transition that updates `state.currentZone` automatically repoints `state.world` — there is no explicit reassignment.
+
+**Adding entities.** Always route via the target zone's world. Common case (entity belongs to the current zone): `state.world.createEntity()` + `state.world.addComponent(...)`. Cross-zone case (genesis seeding Moab into Cave, Emily into HouseInterior, etc.): `getWorldForZone(state, targetZone, ruinIndex?).createEntity()` and use that world reference for every `addComponent` on the same entity. Entities cannot span worlds.
+
+**Querying entities.** `state.world.query(...)` returns ONLY entities in the active zone — cross-zone leaks are structurally impossible. Two helpers exist for the rare cross-zone consumer:
+- `getWorldForZone(state, zone, ruinIndex?)` — read or write a specific zone's world by name (e.g., overworld-only celestial code that may run from a non-overworld tick).
+- `queryAllZones(state, ...types)` — flatten every world; returns `{ world, eid }[]`. Used by test helpers that want a roster across worlds.
+
+**Cross-zone entity movement.** When an entity follows the player across a zone (coyote, Moab during the burn-line walk), entity ids are per-world — so the entity must be re-homed: copy every component into the target world, destroy the source entity. The `moveEntityAcrossWorlds(sourceWorld, sourceEid, targetWorld)` helper does this and returns the new eid.
+
+**No `EntityZone` component.** There is no component that tags an entity with its zone — the zone IS the world. Likewise `isEntityInCurrentZone`, `spatialAtInCurrentZone`, and `getCurrentEntityZone` no longer exist; the filter convention they enforced is now structural.
+
 ## example: RP-32 fields
 
 - **`dormancyPressure: number`** — single-owner. `tickDormancyPressure` in `src/engine/omen.ts` writes; gameLoop and `tickRevery`'s Closing branch reset to 0. All other readers are read-only.

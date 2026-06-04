@@ -489,10 +489,10 @@ describe('ruin dormant garden', () => {
 
     const groundItemIdAtRuin = (state: ReturnType<typeof createTestState>, ruinIndex: number): string[] => {
       const ids: string[] = []
+      // Per-zone worlds: the per-ruin world only contains entities for
+      // that ruin, so no zone-filter is needed.
       const world = getWorldForZone(state, Zone.Ruin, ruinIndex)
-      for (const eid of world.query(ComponentType.ItemDrop, ComponentType.EntityZone)) {
-        const zone = world.getComponent(eid, ComponentType.EntityZone)
-        if (zone?.zone !== Zone.Ruin || zone.ruinIndex !== ruinIndex) continue
+      for (const eid of world.query(ComponentType.ItemDrop)) {
         const drop = world.getComponent(eid, ComponentType.ItemDrop)
         if (drop) ids.push(drop.definitionId)
       }

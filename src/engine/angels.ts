@@ -101,7 +101,6 @@ export const spawnAngel = (state: GameState, time: number): boolean => {
       lastCloverGrowTime: 0,
     })
     state.world.addComponent(e, ComponentType.EntityTag, 'angel')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
 
     // Rain aura angels use the existing rain aura system
     if (auraKind === 'rain') {
@@ -122,7 +121,6 @@ export const spawnAngel = (state: GameState, time: number): boolean => {
 
 export const tickAngelDrift = (state: GameState): void => {
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position, ComponentType.MultiPosition)) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
     if (Math.random() >= ANGEL_DRIFT_CHANCE) continue
 
     // Freeze during dialog
@@ -174,7 +172,6 @@ const despawnAngel = (state: GameState, eid: number, time: number): void => {
 
 export const tickAngelBeeAura = (state: GameState, time: number): void => {
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
     const data = state.world.getComponent(eid, ComponentType.AngelData)
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!data || !pos || data.auraKind !== 'bees') continue
@@ -185,7 +182,6 @@ export const tickAngelBeeAura = (state: GameState, time: number): void => {
     let beeCount = 0
     for (const beid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
       if (state.world.getComponent(beid, ComponentType.EntityTag) !== 'bee') continue
-      if (state.world.getComponent(beid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
       const bpos = state.world.getComponent(beid, ComponentType.Position)
       if (!bpos) continue
       const dx = bpos.x - pos.x
@@ -218,7 +214,6 @@ export const tickAngelBeeAura = (state: GameState, time: number): void => {
 
 export const tickAngelCloverAura = (state: GameState, time: number): void => {
   for (const eid of state.world.query(ComponentType.AngelData, ComponentType.Position)) {
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
     const data = state.world.getComponent(eid, ComponentType.AngelData)
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!data || !pos || data.auraKind !== 'clover') continue

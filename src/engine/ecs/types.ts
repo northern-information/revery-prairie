@@ -1,5 +1,5 @@
 import type { FloraGenome, TraitBag } from '../genetics'
-import type { CharacterBehavior, MovementTween, PollenLoad, Position, Zone } from '../types'
+import type { CharacterBehavior, MovementTween, PollenLoad, Position } from '../types'
 
 export type Entity = number
 
@@ -21,7 +21,6 @@ export const ComponentType = {
   ItemDrop: 'itemDrop',
   LightningData: 'lightningData',
   EntityTag: 'entityTag',
-  EntityZone: 'entityZone',
   HungerTimer: 'hungerTimer',
   AngelData: 'angelData',
   OakData: 'oakData',
@@ -79,7 +78,6 @@ export interface ComponentDataMap {
     branch: { x: number; y: number }[] | null
   }
   [ComponentType.EntityTag]: string
-  [ComponentType.EntityZone]: { zone: Zone; ruinIndex?: number }
   [ComponentType.HungerTimer]: { hungerMs: number }
   [ComponentType.AngelData]: {
     auraKind: 'rain' | 'bees' | 'clover'

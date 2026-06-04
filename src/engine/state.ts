@@ -700,7 +700,6 @@ export const createGameState = (
     state.world.addComponent(e, ComponentType.Position, { x: cx, y: cy })
     state.world.addComponent(e, ComponentType.ItemDrop, { definitionId: 'coin' })
     state.world.addComponent(e, ComponentType.EntityTag, 'groundItem')
-    state.world.addComponent(e, ComponentType.EntityZone, { zone: Zone.Overworld })
     coinCount++
   }
 
@@ -727,7 +726,6 @@ export const createGameState = (
     houseWorld.addComponent(e, ComponentType.Position, { x: 2, y: 6 })
     houseWorld.addComponent(e, ComponentType.ItemDrop, { definitionId: 'filmRoll' })
     houseWorld.addComponent(e, ComponentType.EntityTag, 'groundItem')
-    houseWorld.addComponent(e, ComponentType.EntityZone, { zone: Zone.HouseInterior })
   }
 
   // Field Camera seeding lives in completeGenesis (post-seedOaks) —
@@ -765,7 +763,6 @@ export const createGameState = (
       cellarWorld.addComponent(e, ComponentType.Position, { x: pos.x, y: pos.y })
       cellarWorld.addComponent(e, ComponentType.ItemDrop, { definitionId })
       cellarWorld.addComponent(e, ComponentType.EntityTag, 'groundItem')
-      cellarWorld.addComponent(e, ComponentType.EntityZone, { zone: Zone.KnotCellar })
     })
   }
 

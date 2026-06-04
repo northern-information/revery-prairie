@@ -22,7 +22,7 @@ import { setMapTile } from './map'
 import { findPath } from './pathfinding'
 import { CARDINAL, isInBounds, isWalkableTile, posKey } from './position'
 import { FloraSpecies, Sky, TileType, Zone } from './types'
-import { getCurrentEntityZone, isEntityInCurrentZone } from './zone'
+import { getWorldForZone } from './zone'
 
 import type { Entity } from './ecs/types'
 import type { GameState, Position } from './types'
@@ -41,7 +41,6 @@ export const spawnMonarch = (state: GameState, x: number, y: number): Entity => 
   const e = state.world.createEntity()
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.EntityTag, 'monarch')
-  state.world.addComponent(e, ComponentType.EntityZone, getCurrentEntityZone(state))
   state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
   state.world.addComponent(e, ComponentType.MonarchState, {
     phase: 'wandering',
@@ -58,13 +57,16 @@ export const spawnMonarch = (state: GameState, x: number, y: number): Entity => 
 
 /** Create a bee entity at the given position (extracted for reuse at spawn sites). */
 export const spawnBee = (state: GameState, x: number, y: number, zone?: Zone): Entity => {
-  const e = state.world.createEntity()
-  state.world.addComponent(e, ComponentType.Position, { x, y })
-  state.world.addComponent(e, ComponentType.EntityTag, 'bee')
-  state.world.addComponent(e, ComponentType.EntityZone, zone !== undefined ? { zone } : getCurrentEntityZone(state))
-  state.world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
+  // Route to target zone's world if one is provided; otherwise spawn in
+  // the active zone. Most callers don't pass zone — angels.ts is the
+  // one site that does, explicitly targeting Overworld.
+  const world = zone !== undefined ? getWorldForZone(state, zone) : state.world
+  const e = world.createEntity()
+  world.addComponent(e, ComponentType.Position, { x, y })
+  world.addComponent(e, ComponentType.EntityTag, 'bee')
+  world.addComponent(e, ComponentType.HungerTimer, { hungerMs: 0 })
   // RP-17 — empty PollenBag at creation.
-  state.world.addComponent(e, ComponentType.PollenBag, { loads: [] })
+  world.addComponent(e, ComponentType.PollenBag, { loads: [] })
   return e
 }
 
@@ -397,16 +399,11 @@ const moveTowardWaypoint = (state: GameState, eid: Entity, pos: Position, waypoi
 // --- Main tick ---
 
 /** Main tick function for all monarchs. Called from gameLoop. */
-export const tickMonarchs = (state: GameState, now: number, zone?: Zone): void => {
-  const z = zone ?? state.currentZone
-  const matchesZone = (eid: number): boolean =>
-    z === state.currentZone
-      ? isEntityInCurrentZone(state, eid)
-      : state.world.getComponent(eid, ComponentType.EntityZone)?.zone === z
-
+export const tickMonarchs = (state: GameState, now: number, _zone?: Zone): void => {
+  // Per-zone worlds: state.world only contains entities in the active
+  // zone. Zone arg preserved for back-compat at call sites.
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'monarch') continue
-    if (!matchesZone(eid)) continue
 
     const monarchState = state.world.getComponent(eid, ComponentType.MonarchState)
     if (!monarchState) continue

@@ -62,8 +62,9 @@ describe('spawnOak', () => {
     expect(data?.identity).toHaveLength(64)
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     expect(tag).toBe('oak')
-    const zone = state.world.getComponent(eid, ComponentType.EntityZone)
-    expect(zone?.zone).toBe(Zone.Overworld)
+    // Per-zone worlds: oak lives in the overworld world. Being readable via
+    // state.world (active zone = overworld in createTestState) proves it.
+    expect(state.currentZone).toBe(Zone.Overworld)
   })
 
   it('derives identity deterministically from steward name + position', () => {

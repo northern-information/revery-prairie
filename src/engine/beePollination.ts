@@ -35,7 +35,6 @@ const HIVE_ADJACENCY = 1
 const isAdjacentToHive = (state: GameState, x: number, y: number): boolean => {
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position)) {
     if (state.world.getComponent(eid, ComponentType.EntityTag) !== 'beehive') continue
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
     const pos = state.world.getComponent(eid, ComponentType.Position)
     if (!pos) continue
     if (Math.max(Math.abs(pos.x - x), Math.abs(pos.y - y)) <= HIVE_ADJACENCY) return true
@@ -69,7 +68,6 @@ export const tickPollination = (state: GameState): void => {
   for (const eid of state.world.query(ComponentType.EntityTag, ComponentType.Position, ComponentType.PollenBag)) {
     const tag = state.world.getComponent(eid, ComponentType.EntityTag)
     if (tag !== 'bee' && tag !== 'monarch') continue
-    if (state.world.getComponent(eid, ComponentType.EntityZone)?.zone !== Zone.Overworld) continue
 
     const pos = state.world.getComponent(eid, ComponentType.Position)
     const bag = state.world.getComponent(eid, ComponentType.PollenBag)

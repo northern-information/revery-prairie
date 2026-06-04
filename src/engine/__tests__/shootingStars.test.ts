@@ -80,14 +80,14 @@ const createMeteoriteEntity = (state: GameState, x: number, y: number): Entity =
   state.world.addComponent(e, ComponentType.Position, { x, y })
   state.world.addComponent(e, ComponentType.Pickupable, { definitionId: 'meteorite' })
   state.world.addComponent(e, ComponentType.EntityTag, 'meteorite')
-  state.world.addComponent(e, ComponentType.EntityZone, { zone: state.currentZone })
   return e
 }
 
-const createZonedMeteorite = (state: GameState, x: number, y: number, zone: Zone): Entity => {
-  const e = createMeteoriteEntity(state, x, y)
-  state.world.addComponent(e, ComponentType.EntityZone, { zone })
-  return e
+const createZonedMeteorite = (state: GameState, x: number, y: number, _zone: Zone): Entity => {
+  // Per-zone worlds: zone is implicit in state.world (the active zone's
+  // world). Tests that pass Zone.Overworld here are exercising the
+  // overworld path; createTestState's active zone is overworld.
+  return createMeteoriteEntity(state, x, y)
 }
 
 describe('tickShootingStars', () => {

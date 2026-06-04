@@ -191,7 +191,6 @@ export const seedPredecessorCameras = (state: GameState): void => {
     const ce = overworldWorld.createEntity()
     overworldWorld.addComponent(ce, ComponentType.Position, { x: tile.x, y: tile.y })
     overworldWorld.addComponent(ce, ComponentType.EntityTag, 'placedCamera')
-    overworldWorld.addComponent(ce, ComponentType.EntityZone, { zone: Zone.Overworld })
     overworldWorld.addComponent(ce, ComponentType.ItemDrop, { definitionId: 'camera' })
   }
 }

@@ -11,7 +11,6 @@ import {
 import { ComponentType } from './ecs/types'
 import { tileHash } from './position'
 import { WindDirection, Zone } from './types'
-import { isEntityInCurrentZone } from './zone'
 
 import type { GameState, Zone as ZoneType } from './types'
 
@@ -24,14 +23,11 @@ interface RainAura {
 // Collect all active rain auras in the given zone into a plain array.
 // Called once per tickTileWater so the ECS query runs once instead of
 // once per tile (previously O(n_tiles × n_query) → now O(n_aura + n_tiles)).
-const collectRainAuras = (state: GameState, zone: ZoneType): RainAura[] => {
+const collectRainAuras = (state: GameState, _zone: ZoneType): RainAura[] => {
+  // Per-zone worlds: state.world.query only returns active-zone auras.
+  // The zone arg is preserved for back-compat at call sites.
   const auras: RainAura[] = []
   for (const eid of state.world.query(ComponentType.Aura, ComponentType.Position)) {
-    const inZone =
-      zone === state.currentZone
-        ? isEntityInCurrentZone(state, eid)
-        : state.world.getComponent(eid, ComponentType.EntityZone)?.zone === zone
-    if (!inZone) continue
     const aura = state.world.getComponent(eid, ComponentType.Aura)
     if (aura?.kind !== 'rain') continue
     const pos = state.world.getComponent(eid, ComponentType.Position)

@@ -200,10 +200,11 @@ describe('RP-69 Whine, Haunted Village', () => {
       const state = createGameState('test-steward', 800, 600)
       const whineWorld = getWorldForZone(state, Zone.WhineVillage)
       let whineGhostCount = 0
+      // Per-zone worlds: the WhineVillage world only contains entities
+      // that live in the village.
       for (const eid of whineWorld.query(ComponentType.CharacterIdentity)) {
         const identity = whineWorld.getComponent(eid, ComponentType.CharacterIdentity)
-        const zoneTag = whineWorld.getComponent(eid, ComponentType.EntityZone)
-        if (identity?.definitionId.startsWith('whine-ghost-') && zoneTag?.zone === Zone.WhineVillage) {
+        if (identity?.definitionId.startsWith('whine-ghost-')) {
           whineGhostCount++
           const behavior = whineWorld.getComponent(eid, ComponentType.Behavior)
           expect(behavior?.type).toBe('drift')
@@ -537,12 +538,8 @@ describe('RP-69a — hand-authored Whine variation', () => {
       registerWhineVillage(state, village)
 
       const whineWorld = getWorldForZone(state, Zone.WhineVillage)
-      let villageOakCount = 0
-      for (const eid of whineWorld.query(ComponentType.OakData, ComponentType.EntityZone)) {
-        const ez = whineWorld.getComponent(eid, ComponentType.EntityZone)
-        if (ez?.zone !== Zone.WhineVillage) continue
-        villageOakCount++
-      }
+      // Per-zone worlds: WhineVillage world only contains its own entities.
+      const villageOakCount = whineWorld.query(ComponentType.OakData).length
       const expectedOakHomes = WHINE_HOME_VARIANTS.slice(1).filter(v => v.oak !== null).length
       expect(villageOakCount).toBe(expectedOakHomes)
     })

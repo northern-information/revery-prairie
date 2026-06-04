@@ -439,6 +439,5 @@ export const seedTenureStartFieldCamera = (state: GameState): void => {
   const ce = state.world.createEntity()
   state.world.addComponent(ce, ComponentType.Position, { x: placementTile.x, y: placementTile.y })
   state.world.addComponent(ce, ComponentType.EntityTag, 'placedCamera')
-  state.world.addComponent(ce, ComponentType.EntityZone, { zone: Zone.Overworld })
   state.world.addComponent(ce, ComponentType.ItemDrop, { definitionId: 'camera' })
 }

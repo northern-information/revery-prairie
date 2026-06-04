@@ -430,7 +430,6 @@ describe('smooth move', () => {
       state.world.addComponent(gItem, ComponentType.Position, { x: itemX, y: itemY })
       state.world.addComponent(gItem, ComponentType.ItemDrop, { definitionId: 'clover' })
       state.world.addComponent(gItem, ComponentType.EntityTag, 'groundItem')
-      state.world.addComponent(gItem, ComponentType.EntityZone, { zone: state.currentZone })
 
       tickCoyote(state)
 
