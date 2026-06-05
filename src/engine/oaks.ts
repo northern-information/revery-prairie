@@ -182,23 +182,19 @@ export const getOakRenderTile = (dx: number, dy: number, isDormant: boolean): { 
     }
   }
 
-  // Canopy rows. The denser leaf chars cluster around the central column;
-  // the diamond's outer edges get lighter chars so the silhouette has a
-  // soft outline.
+  // Canopy rows. Every canopy tile in the 5x5 logical footprint is
+  // reachable by isCentre or isEdge — for isoRow in [-3,1] the two
+  // predicates jointly cover all valid isoCol values, so there is no
+  // non-centre non-edge branch.
   const isCentre = Math.abs(isoCol) <= 1
-  const isEdge = Math.abs(isoCol) >= Math.abs(isoRow) - 1 && Math.abs(isoRow) <= 3
 
   if (isDormant) {
-    // Winter — bare branches, Y-forks at the dense centres
-    if (isCentre) return { char: 'Y', color: DORMANT_DARK }
-    if (isEdge) return { char: '`', color: DORMANT_MID }
-    return { char: '+', color: DORMANT_MID }
+    // Winter — Y-forks at the dense centres, ` at the silhouette edges.
+    return isCentre ? { char: 'Y', color: DORMANT_DARK } : { char: '`', color: DORMANT_MID }
   }
 
-  // Summer — packed canopy
-  if (isCentre) return { char: '&', color: CANOPY_MID }
-  if (isEdge) return { char: '&', color: CANOPY_MID }
-  return { char: '#', color: CANOPY_MID }
+  // Summer — packed canopy, single glyph everywhere.
+  return { char: '&', color: CANOPY_MID }
 }
 
 // Multilayer overlays are currently disabled — a single bold base glyph per
