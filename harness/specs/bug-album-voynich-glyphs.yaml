@@ -1,0 +1,105 @@
+id: bug-album-voynich-glyphs
+name: 'Field camera albums render Voynich (egregore) glyphs correctly'
+priority: medium
+layer: integration
+source_files:
+  - src/engine/timeLapse.ts
+  - src/engine/egregore.ts
+  - src/engine/constants.ts
+  - src/components/Photograph.tsx
+dependencies:
+  - time-lapse-camera
+  - photograph-album
+
+behaviors:
+  - id: capture-resolves-egregore-glyph-per-position
+    description: >
+      When `captureCells` (and `resolveCellAt`) in src/engine/timeLapse.ts
+      walks a tile of `TileType.Egregore`, it MUST resolve `char` to
+      the per-position Voynich glyph via `getEgregoreGlyph(x, y)` from
+      src/engine/egregore.ts — NOT the `TILE_CHARS[TileType.Egregore]`
+      fallback `'?'`. The captured color remains
+      `TILE_COLORS[TileType.Egregore]` (the iridescent violet
+      `#B080D0`). This mirrors the world renderer
+      (src/engine/renderer.ts ~1630) which calls `getEgregoreGlyph`
+      at draw time for the live world. The `'?'` literal in TILE_CHARS
+      stays in place as a defensive fallback for anything that bypasses
+      the egregore branch; capture must not hit that fallback for
+      Egregore tiles.
+    inputs:
+      - 'state.map contains a TileType.Egregore tile at (x, y)'
+      - 'captureCells(state, x, y) is called from the field-camera capture pipeline'
+    outputs:
+      - 'the resulting TimeLapseCell for that tile has char === getEgregoreGlyph(x, y)'
+      - 'the resulting TimeLapseCell has color === TILE_COLORS[TileType.Egregore]'
+      - 'char is in the Voynich PUA range U+F121..U+F2FF'
+      - "char !== '?'"
+    state_changes: []
+    determinism: deterministic
+
+  - id: photograph-renders-pua-glyphs-in-voynich-font
+    description: >
+      The `Photograph` component (src/components/Photograph.tsx) MUST
+      render any cell whose `char` lies in the Voynich PUA range
+      (U+F121..U+F2FF) with `fontFamily="'Voynich', monospace"`. This
+      applies regardless of whether the glyph came from a predecessor
+      `glyphLeak` substitution or from the originally captured cell.
+      Cells whose `char` is outside the PUA range continue to render
+      in `'monospace'`. The existing leak-driven path
+      (resolveLeak → 'Voynich' font) keeps working; this behavior
+      extends the font swap to non-leak cells whose captured char is
+      already a PUA glyph.
+    inputs:
+      - 'Photograph receives a cells[] array where cells[k].char is in U+F121..U+F2FF'
+      - 'degradation may be undefined (album single-frame case) or set'
+    outputs:
+      - "the corresponding <text> element has fontFamily=\"'Voynich', monospace\""
+      - 'cells whose char is outside U+F121..U+F2FF render with fontFamily="monospace"'
+    state_changes: []
+    determinism: deterministic
+
+  - id: album-displays-voynich-glyphs-end-to-end
+    description: >
+      When the PhotographAlbumPanel (src/components/PhotographAlbumPanel.tsx)
+      renders an album entry whose captured frame includes egregore
+      tiles, the rendered DOM MUST show the per-position Voynich glyph
+      in the Voynich typeface — not the fallback `'?'` and not a
+      tofu/missing-glyph in `monospace`. This is the end-to-end
+      acceptance behavior; it is satisfied by
+      capture-resolves-egregore-glyph-per-position +
+      photograph-renders-pua-glyphs-in-voynich-font composing through
+      the unchanged TimeLapsePlayback / PhotographAlbumPanel paths.
+    inputs:
+      - 'state.photographAlbum contains a frame whose cells include a Voynich PUA glyph from an Egregore tile capture'
+      - 'album row is clicked and TimeLapsePlayback opens in single-frame mode (no degradation)'
+    outputs:
+      - "the rendered <text> for that cell has fontFamily=\"'Voynich', monospace\" and textContent in U+F121..U+F2FF"
+    state_changes: []
+    determinism: deterministic
+
+edge_cases:
+  - id: non-egregore-tiles-unchanged
+    description: 'A captured 3x3 frame contains only TileType.Dirt / TileType.Flora / Bee / Monarch cells — no Egregore tiles'
+    expected: 'every cell renders in fontFamily="monospace" exactly as before; behavior is unchanged for non-Voynich content'
+  - id: leak-substitution-still-uses-voynich
+    description: 'Predecessor degradation produces a glyph leak: resolveLeak returns a TimeLapseCell with a PUA glyph for a cell that was originally non-egregore'
+    expected: "the leaked cell renders in fontFamily=\"'Voynich', monospace\" with the LEAK_COLOR; the existing leak path is not regressed"
+  - id: mixed-frame-egregore-and-flora
+    description: 'A captured 3x3 frame contains one TileType.Egregore tile and eight TileType.Flora cells'
+    expected: 'the egregore cell renders in Voynich; the flora cells render in monospace; both use their respective colors'
+  - id: egregore-tile-with-no-glyph-result
+    description: 'Defensive: getEgregoreGlyph somehow returns an empty string for an Egregore tile (should not happen — EGREGORE_GLYPHS is non-empty)'
+    expected: "captured char falls back to TILE_CHARS[TileType.Egregore] ('?') and renders in monospace; no crash"
+
+failure_conditions:
+  - trigger: "An Egregore tile at (x, y) is captured via captureCells; before the fix, the resulting TimeLapseCell has char === '?'"
+    expected: "after the fix, char === getEgregoreGlyph(x, y), which is in U+F121..U+F2FF and is NOT '?'"
+  - trigger: 'A Photograph renders a cell whose char is in U+F121..U+F2FF with degradation undefined (album single-frame path); before the fix, the <text> element has fontFamily="monospace" and the glyph renders as tofu'
+    expected: "after the fix, the <text> element has fontFamily=\"'Voynich', monospace\""
+  - trigger: 'Photograph is rendered with degradation undefined and all cells outside the PUA range'
+    expected: 'every <text> element has fontFamily="monospace" (no regression for non-Voynich content)'
+
+verification:
+  test_file: src/components/__tests__/Photograph.voynich.test.tsx
+  test_pattern: 'voynich pua font swap'
+  command: 'npx vitest run src/components/__tests__/Photograph.voynich.test.tsx src/engine/__tests__/timeLapse.egregoreCapture.test.ts'

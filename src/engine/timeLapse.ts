@@ -33,6 +33,7 @@ import {
 } from './constants'
 import { sha256Sync } from './crypto'
 import { ComponentType } from './ecs/types'
+import { getEgregoreGlyph } from './egregore'
 import { FLORA_SPECIES } from './flora/species'
 import { getDefinition } from './items'
 import { isInBounds, isWalkableTile, posKey } from './position'
@@ -74,6 +75,15 @@ const resolveCellAt = (state: GameState, x: number, y: number): TimeLapseCell =>
       char = def.glyph
       color = def.color
     }
+  }
+
+  // Egregore tiles render their per-position Voynich glyph (renderer.ts
+  // does the same at draw time). Without this branch, capture would
+  // store TILE_CHARS[TileType.Egregore] = '?' and album playback would
+  // show '?' instead of the actual Voynich character.
+  if (tile.type === TileType.Egregore) {
+    const glyph = getEgregoreGlyph(x, y)
+    if (glyph) char = glyph
   }
 
   // Entity overlay — bee, monarch, ghost, character, placedCamera.
