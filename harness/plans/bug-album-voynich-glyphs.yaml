@@ -1,0 +1,103 @@
+plan:
+  id: bug-album-voynich-glyphs
+  title: 'Fix Voynich glyphs in field camera albums: capture per-position glyph + render PUA chars in Voynich font'
+  created: 2026-06-05
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run test'
+    - 'npm run lint'
+
+tasks:
+  - id: regression-test-timelapse-egregore-capture
+    title: 'Add failing regression test: captureCells resolves TileType.Egregore to getEgregoreGlyph(x, y), not the TILE_CHARS fallback'
+    spec_id: bug-album-voynich-glyphs
+    spec_sections:
+      - capture-resolves-egregore-glyph-per-position
+    context_files:
+      - harness/specs/bug-album-voynich-glyphs.yaml
+      - src/engine/timeLapse.ts
+      - src/engine/egregore.ts
+      - src/engine/constants.ts
+      - src/engine/state.ts
+      - src/engine/types.ts
+      - src/engine/__tests__/timeLapseCamera.test.ts
+    output_files:
+      - src/engine/__tests__/timeLapse.egregoreCapture.test.ts
+    depends_on: []
+    verification:
+      - 'npx vitest run src/engine/__tests__/timeLapse.egregoreCapture.test.ts'
+    repair: retry
+    tags: [engine, test, regression]
+
+  - id: regression-test-photograph-pua-font
+    title: 'Add failing regression test: Photograph renders cells with PUA chars in Voynich font even when degradation is undefined'
+    spec_id: bug-album-voynich-glyphs
+    spec_sections:
+      - photograph-renders-pua-glyphs-in-voynich-font
+    context_files:
+      - harness/specs/bug-album-voynich-glyphs.yaml
+      - src/components/Photograph.tsx
+      - src/components/__tests__/Photograph.glyphleak.test.tsx
+      - src/engine/egregore.ts
+    output_files:
+      - src/components/__tests__/Photograph.voynich.test.tsx
+    depends_on: []
+    verification:
+      - 'npx vitest run src/components/__tests__/Photograph.voynich.test.tsx'
+    repair: retry
+    tags: [components, test, regression]
+
+  - id: fix-timelapse-capture-egregore
+    title: 'Fix capture: resolveCellAt in src/engine/timeLapse.ts must call getEgregoreGlyph(x, y) for TileType.Egregore tiles'
+    spec_id: bug-album-voynich-glyphs
+    spec_sections:
+      - capture-resolves-egregore-glyph-per-position
+    context_files:
+      - harness/specs/bug-album-voynich-glyphs.yaml
+      - src/engine/timeLapse.ts
+      - src/engine/egregore.ts
+      - src/engine/constants.ts
+    output_files:
+      - src/engine/timeLapse.ts
+    depends_on:
+      - regression-test-timelapse-egregore-capture
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/engine/__tests__/timeLapse.egregoreCapture.test.ts src/engine/__tests__/timeLapseCamera.test.ts'
+    repair: retry
+    tags: [engine, fix]
+
+  - id: fix-photograph-pua-font-swap
+    title: 'Fix render: Photograph.tsx swaps fontFamily to Voynich when cell.char is in U+F121..U+F2FF, regardless of leak state'
+    spec_id: bug-album-voynich-glyphs
+    spec_sections:
+      - photograph-renders-pua-glyphs-in-voynich-font
+    context_files:
+      - harness/specs/bug-album-voynich-glyphs.yaml
+      - src/components/Photograph.tsx
+      - src/components/__tests__/Photograph.glyphleak.test.tsx
+    output_files:
+      - src/components/Photograph.tsx
+    depends_on:
+      - regression-test-photograph-pua-font
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'npx vitest run src/components/__tests__/Photograph.voynich.test.tsx src/components/__tests__/Photograph.glyphleak.test.tsx'
+    repair: retry
+    tags: [components, fix]
+
+  - id: full-verify
+    title: 'Run full verify (typecheck + lint + test) to confirm no regressions across the suite'
+    spec_id: bug-album-voynich-glyphs
+    spec_sections:
+      - album-displays-voynich-glyphs-end-to-end
+    context_files:
+      - harness/specs/bug-album-voynich-glyphs.yaml
+    output_files: []
+    depends_on:
+      - fix-timelapse-capture-egregore
+      - fix-photograph-pua-font-swap
+    verification:
+      - 'npm run verify'
+    repair: retry
+    tags: [verify]

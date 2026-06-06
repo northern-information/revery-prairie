@@ -37,6 +37,17 @@ interface PhotographProps {
 
 const LEAK_COLOR = TILE_COLORS[TileType.Egregore]
 
+// Voynich glyphs live in the Private Use Area U+F121..U+F2FF. Any cell
+// whose char falls in this range needs the 'Voynich' typeface — plain
+// monospace has no glyphs in PUA and renders tofu. This applies both to
+// leak-substituted cells and to originally-captured egregore tiles.
+const VOYNICH_PUA_START = 0xf121
+const VOYNICH_PUA_END = 0xf2ff
+const isVoynichGlyph = (char: string): boolean => {
+  const code = char.codePointAt(0)
+  return code !== undefined && code >= VOYNICH_PUA_START && code <= VOYNICH_PUA_END
+}
+
 const hashTo32 = (message: string): number => parseInt(sha256Sync(message).slice(0, 8), 16) >>> 0
 const rollUnit = (message: string): number => hashTo32(message) / 0x100000000
 
@@ -138,7 +149,7 @@ export const Photograph = ({
                 x={cx}
                 y={cy}
                 fill={cell.color}
-                fontFamily={leak ? "'Voynich', monospace" : 'monospace'}
+                fontFamily={leak || isVoynichGlyph(cell.char) ? "'Voynich', monospace" : 'monospace'}
                 fontSize={cellHeight * 0.7}
                 textAnchor="middle"
                 dominantBaseline="middle"
