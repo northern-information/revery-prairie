@@ -132,6 +132,17 @@ features:
       Seed-item resurrection from this PR is preserved; only the
       delivery surface changes. `RP-5` stays shipped historically.
 
+
+      Amended 2026-06-05. The placement-layer removal landed early —
+      seeds are dropped from the starter pool entirely (not relocated
+      yet). `STARTER_ROLES` shrinks back to `[Clover, Bee, Coyote]`;
+      the Wildflower / TallGrass branch in `spawnDormantGardenSeeds`
+      is deleted. The `RuinRole` enum, the `wildflowerSeeds` /
+      `tallGrassSeeds` item definitions, the manual entries, and the
+      `RP-11` planting code all remain in place as dormant
+      infrastructure — seeds become unobtainable through normal play
+      until `RP-73` reintroduces them via the Awakened Gardens.
+
   - id: 'RP-6'
     name: Naturalist's manual
     summary: Hold-to-scan flora with the permacomputer. Scanned species unlock in the manual with their 8x8 hex grid rendered above the lore. Phenotype labels are deferred to RP-4.
@@ -3141,18 +3152,19 @@ features:
       no adversarial entities).
 
   - id: 'RP-73'
-    name: Retire the seed-delivery ruins; relocate seed delivery into the gardens
+    name: Reintroduce seed delivery inside the gardens
     summary: >
-      Delete the wildflower-delivery and tallgrass-delivery starter
-      ruins (`RP-5`'s +2) from the placement layer
-      (`ruins.ts` role-registration site). Re-source wildflowerSeeds
-      and tallGrassSeeds inside the three Dormant Gardens of
-      `RP-72` — either as small caches within each garden's interior
-      or as harvest from the metabolic flora itself; surface picked
-      at spec. The `state.seedGenomes` mechanic and the deterministic
-      vault-genome derivation (`stewardName, ruinIndex, vaultSlot` →
-      genome) from `RP-11` are preserved; the vault identifiers just
-      relocate.
+      The placement-layer removal half landed early (RP-5 amendment
+      2026-06-05) — the wildflower-delivery and tallgrass-delivery
+      starter ruins are gone. This item now covers only the
+      reintroduction half: when seeds return, they come from inside
+      the three Dormant Gardens of `RP-72` (cache or kudzu-harvest,
+      surface picked at spec). The `wildflowerSeeds` /
+      `tallGrassSeeds` items, `state.seedGenomes`, and the
+      deterministic vault-genome derivation
+      (`stewardName, ruinIndex, vaultSlot` → genome) from `RP-11`
+      remain in the codebase as dormant machinery and are reused
+      verbatim.
     depends_on: ['RP-72']
     status: todo
     spec: null
@@ -3170,3 +3182,11 @@ features:
       alone. Open at spec: which surface (cache vs harvest); whether
       Bee's garden delivers a particular subset of seeds (e.g.
       patron-themed) or all three gardens deliver the full pool.
+
+
+      Amended 2026-06-05. The placement-layer half (delete the two
+      seed-delivery ruins) shipped via the `RP-5` amendment ahead of
+      `RP-72`; seeds are currently unobtainable in normal play. This
+      item now tracks only the reintroduction. Item definitions,
+      manual entries, and planting machinery survived the drop and
+      need no rebuild.

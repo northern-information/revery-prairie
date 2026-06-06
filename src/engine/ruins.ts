@@ -2,17 +2,14 @@ import { BUILDING_CHARS, CIV_COLORS, PATINA_CHARS, TILE_CHARS, TILE_COLORS, VERD
 import { transitionCoyoteToZone } from './coyote'
 import { ComponentType } from './ecs/types'
 import { createCharacterEntity } from './entities'
-import { FLORA_SPECIES } from './flora/species'
 import { clearAllGrowthPreviews } from './floraGrowthPreviews'
-import { nameToSeed } from './genesis'
 import { RuinGenerationMode, RuinRole } from './genesisTypes'
-import { generateGenesisIdentity, generateTraitBag } from './genetics'
 import { recordDiscovery } from './manual'
 import { setMapTile } from './map'
 import { clearMovementTweens } from './movementTween'
 import { findSafeExitPosition, isReservedForStructure, isWalkableTile, posKey, tileHash } from './position'
 import { STRUCTURE_REGISTRY } from './structures'
-import { FloraSpecies, RuinArchetype, TileType, Zone } from './types'
+import { RuinArchetype, TileType, Zone } from './types'
 import { getWorldForZone } from './zone'
 import { armReentryLock, isReentryLocked, registerZoneSwapHandler, scheduleZoneTransition } from './zoneTransition'
 
@@ -1063,27 +1060,6 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
     return
   }
 
-  // Flora-species ruins (RP-5): vault spawns a single seed item
-  // matching the role. No collapseBarrier, no trapped entity — the vault
-  // is the destination. RP-11: each seed carries a deterministic
-  // FloraGenome derived from (stewardName, ruinIndex, vault slot index 0).
-  if (role === RuinRole.Wildflower || role === RuinRole.TallGrass) {
-    const slot = vaultSlots[0]
-    if (!slot) return
-    const parts = slot.split(',')
-    const x = Number(parts[0])
-    const y = Number(parts[1])
-    const species = role === RuinRole.Wildflower ? FloraSpecies.Wildflower : FloraSpecies.TallGrass
-    const itemId = role === RuinRole.Wildflower ? 'wildflowerSeeds' : 'tallGrassSeeds'
-    const binomial = FLORA_SPECIES[species].latinBinomial
-    const genesisSeed = nameToSeed(state.stewardName)
-    const identity = generateGenesisIdentity(binomial, genesisSeed, `ruin:${String(ruinIndex)}:vault:0`)
-    const genome = { identity, traits: generateTraitBag(identity) }
-    spawnRuinGroundItem(state, ruinIndex, { x, y }, itemId, genome)
-    interior.dormantGarden.seedDecayTimers.clear()
-    return
-  }
-
   if (role === RuinRole.Coyote) {
     // The trapped coyote spawns past the collapseBarrier on the vault side
     // (smaller y), within 2 tiles so it's visible through the rubble. The
@@ -1123,11 +1099,13 @@ export const spawnDormantGardenSeeds = (state: GameState, ruinIndex: number): vo
   }
 
   // Default (no role match) is intentionally empty. The starter roles —
-  // Clover, Bee, Coyote (RP-0/#1) plus Wildflower, TallGrass (backlog
-  // #5) — handle every fresh game allocation. Complex-mode ruins
+  // Clover, Bee, Coyote — handle every fresh game allocation. The
+  // Wildflower / TallGrass values still exist on the RuinRole enum but
+  // are not assigned by starter mode (RP-5 amended 2026-06-05; seed
+  // delivery is dormant until RP-73 reintroduces it). Complex-mode ruins
   // (future spec) will spawn additional seed scatter when the broader
-  // taxonomy lands in RP-11. The decay-timer slots stay registered
-  // so #11 can repopulate them without re-deriving the layout.
+  // taxonomy lands in RP-11. The decay-timer slots stay registered so
+  // a future generator can repopulate them without re-deriving the layout.
 }
 
 const spawnRuinGroundItem = (

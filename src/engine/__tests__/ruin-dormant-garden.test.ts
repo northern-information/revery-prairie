@@ -499,32 +499,6 @@ describe('ruin dormant garden', () => {
       return ids
     }
 
-    it('Wildflower-role ruin spawns one wildflowerSeeds at the first vault slot', () => {
-      const { state, ruinIndex } = installRuinWithRole(RuinRole.Wildflower)
-      spawnDormantGardenSeeds(state, ruinIndex)
-      const ids = groundItemIdAtRuin(state, ruinIndex)
-      expect(ids).toEqual(['wildflowerSeeds'])
-    })
-
-    it('TallGrass-role ruin spawns one tallGrassSeeds at the first vault slot', () => {
-      const { state, ruinIndex } = installRuinWithRole(RuinRole.TallGrass)
-      spawnDormantGardenSeeds(state, ruinIndex)
-      const ids = groundItemIdAtRuin(state, ruinIndex)
-      expect(ids).toEqual(['tallGrassSeeds'])
-    })
-
-    it('Wildflower ruin has no collapseBarrier (non-coyote standard layout)', () => {
-      const { state, ruinIndex } = installRuinWithRole(RuinRole.Wildflower)
-      const interior = state.ruinInteriors[ruinIndex]
-      expect(interior?.dormantGarden?.collapseBarrier).toBeNull()
-    })
-
-    it('TallGrass ruin has no collapseBarrier (non-coyote standard layout)', () => {
-      const { state, ruinIndex } = installRuinWithRole(RuinRole.TallGrass)
-      const interior = state.ruinInteriors[ruinIndex]
-      expect(interior?.dormantGarden?.collapseBarrier).toBeNull()
-    })
-
     it('clover-role ruin still spawns clover (preserved behavior)', () => {
       const { state, ruinIndex } = installRuinWithRole(RuinRole.Clover)
       spawnDormantGardenSeeds(state, ruinIndex)
