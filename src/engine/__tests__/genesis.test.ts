@@ -135,16 +135,16 @@ describe('runAllMutations', () => {
     }
   })
 
-  it('produces up to 5 starter ruins with stable role order', () => {
+  it('produces up to 3 starter ruins with stable role order', () => {
     const sim = getCachedSim42()
     const result = extractGenesisResult(sim)
 
-    // RP-5 bumped starter ruin count from 3 to 5 (adding Wildflower
-    // and TallGrass roles). Placement may fall short of 5 if the
-    // candidate-cluster check fails repeatedly — accept any length up to 5.
-    expect(result.ruins.length).toBeGreaterThanOrEqual(3)
-    expect(result.ruins.length).toBeLessThanOrEqual(5)
-    const expectedRoleOrder = ['clover', 'bee', 'coyote', 'wildflower', 'tallGrass']
+    // RP-5 (amended 2026-06-05): starter mode produces 3 ruins —
+    // [Clover, Bee, Coyote]. Placement may fall short if the
+    // candidate-cluster check fails repeatedly — accept any length up to 3.
+    expect(result.ruins.length).toBeGreaterThanOrEqual(1)
+    expect(result.ruins.length).toBeLessThanOrEqual(3)
+    const expectedRoleOrder = ['clover', 'bee', 'coyote']
     for (let i = 0; i < result.ruins.length; i++) {
       expect(result.ruins[i].role).toBe(expectedRoleOrder[i])
     }
@@ -365,24 +365,24 @@ describe('geological features', () => {
 
 describe('genesis-enhancements', () => {
   describe('chaotic aqueducts', () => {
-    it('produces up to 5 starter ruins across multiple seeds (RP-5)', { timeout: 30_000 }, () => {
-      // Starter mode targets 5 ruins (clover/bee/coyote/wildflower/tallGrass)
-      // in fixed role order. Candidate-cluster placement can fall short of 5
-      // for some seeds; accept any length in [3, 5].
+    it('produces up to 3 starter ruins across multiple seeds (RP-5)', { timeout: 30_000 }, () => {
+      // Starter mode targets 3 ruins (clover/bee/coyote) in fixed role
+      // order. Candidate-cluster placement can fall short for some seeds;
+      // accept any length in [1, 3].
       for (let seed = 1; seed <= 5; seed++) {
         const sim = createGenesisState(MAP_WIDTH, MAP_HEIGHT, seed)
         runAllMutations(sim, GENESIS_EPOCHS)
-        expect(sim.ruins.length).toBeGreaterThanOrEqual(3)
-        expect(sim.ruins.length).toBeLessThanOrEqual(5)
+        expect(sim.ruins.length).toBeGreaterThanOrEqual(1)
+        expect(sim.ruins.length).toBeLessThanOrEqual(3)
       }
     })
 
     it('still generates a non-empty aqueduct network with starter ruins', () => {
       const sim = getCachedSim42()
-      // The starter ruin set (RP-5: up to 5 ruins) produces a smaller
-      // network than the previous 8-12 ruin baseline; we just assert
-      // non-empty here. The complex-mode generator (future spec) will
-      // scale this back up.
+      // The starter ruin set (up to 3 ruins) produces a smaller network
+      // than the previous 8-12 ruin baseline; we just assert non-empty
+      // here. The complex-mode generator (future spec) will scale this
+      // back up.
       expect(sim.aqueductNetwork.size).toBeGreaterThan(0)
     })
 
@@ -1514,24 +1514,23 @@ describe('multi-species flora post-process', () => {
 })
 
 describe('starter ruin role allocation (RP-5)', () => {
-  it('produces up to 5 ruins with roles [Clover, Bee, Coyote, Wildflower, TallGrass] in order', () => {
-    const state = createGameState('PrecisFive', 20, 20)
+  it('produces up to 3 ruins with roles [Clover, Bee, Coyote] in order', () => {
+    const state = createGameState('PrecisThree', 20, 20)
     const ruins = state.civilizationRuins
-    // Up to 5 — fewer is acceptable if candidate placement fails repeatedly,
-    // but the test seed should normally fit all 5. Confirm at least the
-    // first three (main quest) plus at least one flora ruin appeared.
-    expect(ruins.length).toBeGreaterThanOrEqual(4)
-    expect(ruins.length).toBeLessThanOrEqual(5)
+    // Up to 3 — fewer is acceptable if candidate placement fails repeatedly,
+    // but the test seed should normally fit all 3.
+    expect(ruins.length).toBeGreaterThanOrEqual(1)
+    expect(ruins.length).toBeLessThanOrEqual(3)
 
-    const expectedRoleOrder = ['clover', 'bee', 'coyote', 'wildflower', 'tallGrass']
+    const expectedRoleOrder = ['clover', 'bee', 'coyote']
     for (let i = 0; i < ruins.length; i++) {
       expect(ruins[i].role).toBe(expectedRoleOrder[i])
     }
   })
 
   it('is deterministic — same steward name produces same role allocation', () => {
-    const a = createGameState('PrecisFive', 20, 20)
-    const b = createGameState('PrecisFive', 20, 20)
+    const a = createGameState('PrecisThree', 20, 20)
+    const b = createGameState('PrecisThree', 20, 20)
     expect(a.civilizationRuins.length).toBe(b.civilizationRuins.length)
     for (let i = 0; i < a.civilizationRuins.length; i++) {
       expect(a.civilizationRuins[i].role).toBe(b.civilizationRuins[i].role)

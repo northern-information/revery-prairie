@@ -561,7 +561,15 @@ describe('monarch butterfly', () => {
   describe('hunger', () => {
     it('monarchs starve when not near clover', () => {
       const state = createTestState()
-      clearAroundPlayer(state, 5)
+      // Scrub flora across the whole map — the monarch wanders for 200
+      // ticks even with Math.random pinned, so any local clear it can
+      // escape. Removing all Flora tiles globally is the only setup that
+      // is robust to rng drift in genesis flora placement.
+      for (let y = 0; y < state.mapHeight; y++) {
+        for (let x = 0; x < state.mapWidth; x++) {
+          if (state.map[y][x].type === TileType.Flora) state.map[y][x] = { type: TileType.Dirt }
+        }
+      }
       const px = state.player.x
       const py = state.player.y + MONARCH_FLEE_RADIUS + 3
 

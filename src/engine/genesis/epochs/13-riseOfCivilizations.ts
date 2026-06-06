@@ -34,14 +34,8 @@ export const riseOfCivilizations: GenesisEpoch = {
     // generator lands.
     const isStarter =
       sim.ruinGenerationMode === RuinGenerationMode.Starter || sim.ruinGenerationMode === RuinGenerationMode.Complex
-    const numRuins = isStarter ? 5 : 8 + Math.floor(sim.rng() * 5)
-    const STARTER_ROLES: RuinRole[] = [
-      RuinRole.Clover,
-      RuinRole.Bee,
-      RuinRole.Coyote,
-      RuinRole.Wildflower,
-      RuinRole.TallGrass,
-    ]
+    const numRuins = isStarter ? 3 : 8 + Math.floor(sim.rng() * 5)
+    const STARTER_ROLES: RuinRole[] = [RuinRole.Clover, RuinRole.Bee, RuinRole.Coyote]
     const candidates: { key: string; score: number }[] = []
 
     for (const key of sim.landMask) {
