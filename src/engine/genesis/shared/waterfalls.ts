@@ -1,12 +1,14 @@
-import { CLIMBABLE_STEP_THRESHOLD, isWalkableTile, posKey } from '../../position'
+import { isWalkableTile, posKey } from '../../position'
+import { getElevationTier } from '../../tileBg'
 
 import type { Tile, Waterfall } from '../../types'
 
-// RP-64 — Detect waterfalls. Iterates the union of rivers and
-// ponds; for each water tile, checks the four cardinal neighbors
-// and records a Waterfall when the neighbor is on-grid, walkable
-// by tile type, NOT itself a river/pond, AND drops by more than
-// the climbable-step threshold. When a top tile has multiple
+// RP-64 / RP-49 — Detect waterfalls. Iterates the union of rivers
+// and ponds; for each water tile, checks the four cardinal
+// neighbors and records a Waterfall when the neighbor is on-grid,
+// walkable by tile type, NOT itself a river/pond, AND the elevation
+// tier drop is two or more cubes (an unclimbable cube step under
+// the RP-49 cube-step rule). When a top tile has multiple
 // qualifying lower neighbors, the steepest drop wins (single
 // Waterfall per top tile — keeps render math simple).
 //
@@ -29,8 +31,7 @@ export const detectWaterfalls = (
   rivers: Set<string>,
   ponds: Set<string>,
   width: number,
-  height: number,
-  threshold: number = CLIMBABLE_STEP_THRESHOLD
+  height: number
 ): Map<string, Waterfall> => {
   const waterfalls = new Map<string, Waterfall>()
   const waterTiles = new Set<string>([...rivers, ...ponds])
@@ -45,6 +46,7 @@ export const detectWaterfalls = (
     let bestDrop = 0
     let bestBottomX = -1
     let bestBottomY = -1
+    const topTier = getElevationTier(topElev)
     for (const [dx, dy] of CARDINAL_DIRS) {
       const nx = tx + dx
       const ny = ty + dy
@@ -54,8 +56,9 @@ export const detectWaterfalls = (
       const nElev = elevation.get(nk)
       if (nElev === undefined) continue
       if (!isWalkableTile(grid[ny][nx].type)) continue
+      const tierDrop = topTier - getElevationTier(nElev)
+      if (tierDrop < 2) continue
       const drop = topElev - nElev
-      if (drop <= threshold) continue
       if (drop > bestDrop) {
         bestDrop = drop
         bestBottomX = nx

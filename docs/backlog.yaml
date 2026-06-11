@@ -2143,15 +2143,31 @@ features:
   - id: 'RP-49'
     name: Debug verticality
     summary: >
-      Needs to be more dramatic with valleys, mesas, impassable routes,
-      etc.
+      Move to a true cube-based model: each tile is offset by an integer
+      number of cubes and the steward can climb at most one cube per
+      step. Bumps ELEVATION_TIER_COUNT from 4 to 7, ELEVATION_TIER_LIFT_PX
+      from 6 to 14 (one iso-diamond per cube), and swaps the climb gate
+      from raw-elevation delta to tier delta. Genesis tectonic uplift
+      stays byte-identical — surfacing tiers 0-2 from genesis is filed
+      as a follow-up.
     depends_on: ['RP-41']
-    status: todo
-    spec: null
-    plan: null
+    status: in_progress
+    spec: harness/specs/RP-49-cube-verticality.yaml
+    plan: harness/plans/RP-49-cube-verticality.yaml
     pr: null
     notes: >
       Repurposed 2026-05-31 from the reserved ID-gap placeholder.
+      Reframed 2026-06-05 as a cube-model migration after recognizing
+      tileBg.ts already discretizes elevation into tiers — RP-41's
+      raw-elevation climb gate was inconsistent with the discrete-tier
+      renderer. RP-65 x-ray pass is keyed on screen-rect overlap (no
+      hard-coded lift), so it continues to work at the new lift scale;
+      RP-49 verifies it rather than re-implementing. Genesis re-tune
+      walked back to byte-identical: every signed-amplitude variant
+      attempted re-introduced the RP-41 R3 water/sand placement
+      regression. With unchanged genesis, tiers 3-6 surface from
+      uplift, and tiers 0-2 arrive via satellite craters. Lower-tier
+      surfacing from genesis is a deferred follow-up.
 
   - id: 'RP-50'
     name: Knot per-year auto-derivation

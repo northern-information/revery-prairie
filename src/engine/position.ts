@@ -1,3 +1,4 @@
+import { getElevationTier } from './tileBg'
 import { TileType } from './types'
 
 import type { Direction, Position, Tile } from './types'
@@ -54,26 +55,14 @@ export const tileHash = (x: number, y: number): number => {
   return h >>> 0
 }
 
-// RP-41 — adjacent-tile elevation step the steward can climb. Tiles
-// whose abs(delta) on the 0-100 elevation scale exceeds this are
-// unclimbable; movement and pathfinding reject the step, and the
-// renderer draws a cliff-face shadow on the iso side wall.
-// Picked 12 against the existing tectonic uplift amplitude
-// (+18..+23 intensity, cosine falloff over radius 6) — empirical
-// measurement across six seeds shows ~1-2% of adjacent pairs
-// exceed this delta, producing sparse landmark-scale cliffs
-// rather than warty micro-bumps. The spec originally called for
-// raising amplitude alongside the threshold, but the amplitude
-// bump destabilized downstream water/sand placement invariants on
-// existing seeds; the threshold alone is enough to surface cliffs
-// on the natural gradient.
-export const CLIMBABLE_STEP_THRESHOLD = 12
-
-// RP-41 — pure elevation-based step gate. Returns true when either
-// tile lacks an elevation entry (caves, ungenerated zones, out-of-
-// bounds), or when the absolute delta is within threshold. Reads
-// only from the elevation map; tile types and entities are gated
-// separately by isWalkableTile and the entity-block check.
+// RP-49 — Adjacent-tile cube step the steward can climb. The renderer
+// in tileBg.ts discretizes elevation into ELEVATION_TIER_COUNT tiers
+// (each tier = one visible cube); the gameplay gate uses the same
+// quantization. The steward may step between tiles whose tier values
+// differ by at most one — flat steps and one-cube transitions are
+// allowed; two-cube cliffs are not. Reads only from the elevation map
+// via getElevationTier; tile types and entities are gated separately
+// by isWalkableTile and the entity-block check.
 // RP-64 — frozen-stairway override key shape: `${fromKey}->${toKey}`.
 // The set carries one entry per (winter, frozen) waterfall, keyed
 // on the bottom→top transition only — descending the cascade is
@@ -87,13 +76,14 @@ export const isClimbableStep = (
   fromY: number,
   toX: number,
   toY: number,
-  threshold: number = CLIMBABLE_STEP_THRESHOLD,
   frozenStairways?: Set<string>
 ): boolean => {
   const fromElev = elevation.get(posKey(fromX, fromY))
   const toElev = elevation.get(posKey(toX, toY))
+  // Cave and ungenerated zones have no elevation entries; treat every
+  // step there as climbable so non-overworld movement is unaffected.
   if (fromElev === undefined || toElev === undefined) return true
-  if (Math.abs(toElev - fromElev) <= threshold) return true
+  if (Math.abs(getElevationTier(toElev) - getElevationTier(fromElev)) <= 1) return true
   // RP-64 — frozen-waterfall stairway override. Only the upward
   // (bottom→top) direction qualifies; the reverse remains blocked.
   // _Walking off the top is allowed; climbing up from the bottom

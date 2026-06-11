@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { detectWaterfalls } from '../genesis/shared/waterfalls'
 import { movePlayer } from '../movement'
 import { findPath } from '../pathfinding'
-import { CLIMBABLE_STEP_THRESHOLD, frozenStairwayKey, isClimbableStep, posKey } from '../position'
+import { frozenStairwayKey, isClimbableStep, posKey } from '../position'
 import { WATERFALL_TILE_WATER_BUMP } from '../tileBg'
 import { Season, TileType } from '../types'
 import { getFrozenStairwaySet, tickWaterfalls } from '../waterfalls'
@@ -42,10 +42,11 @@ describe('waterfalls', () => {
       expect(w?.frozen).toBe(false)
     })
 
-    it('does not record a waterfall when the drop is within threshold', () => {
+    it('does not record a waterfall when the tier drop is one or less', () => {
       const grid = flatGrid(5, 5)
-      const elev = flatElevation(5, 5, 50)
-      elev.set(posKey(2, 2), 50 + CLIMBABLE_STEP_THRESHOLD)
+      const elev = flatElevation(5, 5, 50) // tier 3
+      // 64 → tier 4, neighbours at 50 → tier 3 — single-tier step, climbable.
+      elev.set(posKey(2, 2), 64)
       const rivers = new Set([posKey(2, 2)])
       const ponds = new Set<string>()
       const result = detectWaterfalls(grid, elev, rivers, ponds, 5, 5)
@@ -125,22 +126,23 @@ describe('waterfalls', () => {
 
   describe('isClimbableStep frozen-stairway override', () => {
     it('returns true for bottom→top when the transition is in frozenStairways', () => {
+      // 50 → tier 3, 80 → tier 5 — two-tier gap, normally unclimbable.
       const elev = new Map<string, number>([
         [posKey(0, 0), 50],
-        [posKey(1, 0), 50 + CLIMBABLE_STEP_THRESHOLD + 10],
+        [posKey(1, 0), 80],
       ])
       const frozen = new Set([frozenStairwayKey(0, 0, 1, 0)])
-      expect(isClimbableStep(elev, 0, 0, 1, 0, CLIMBABLE_STEP_THRESHOLD, frozen)).toBe(true)
+      expect(isClimbableStep(elev, 0, 0, 1, 0, frozen)).toBe(true)
     })
 
     it('returns false for top→bottom (asymmetric per v11 R5 lock)', () => {
       const elev = new Map<string, number>([
         [posKey(0, 0), 50],
-        [posKey(1, 0), 50 + CLIMBABLE_STEP_THRESHOLD + 10],
+        [posKey(1, 0), 80],
       ])
       const frozen = new Set([frozenStairwayKey(0, 0, 1, 0)])
       // From (1,0)→(0,0) is top→bottom; the reverse key isn't in the set.
-      expect(isClimbableStep(elev, 1, 0, 0, 0, CLIMBABLE_STEP_THRESHOLD, frozen)).toBe(false)
+      expect(isClimbableStep(elev, 1, 0, 0, 0, frozen)).toBe(false)
     })
   })
 
@@ -198,7 +200,7 @@ describe('waterfalls', () => {
       const py = state.player.y
       // Set up unclimbable elevation east of player
       state.elevation.set(posKey(px, py), 50)
-      state.elevation.set(posKey(px + 1, py), 50 + CLIMBABLE_STEP_THRESHOLD + 20)
+      state.elevation.set(posKey(px + 1, py), 80)
       // Register a frozen waterfall with the EAST tile as the top and player tile as the bottom
       state.waterfalls.set(posKey(px + 1, py), {
         topX: px + 1,
@@ -220,7 +222,7 @@ describe('waterfalls', () => {
       const px = state.player.x
       const py = state.player.y
       // Player IS at the top of the frozen waterfall. Bottom is east.
-      state.elevation.set(posKey(px, py), 50 + CLIMBABLE_STEP_THRESHOLD + 20)
+      state.elevation.set(posKey(px, py), 80)
       state.elevation.set(posKey(px + 1, py), 50)
       state.waterfalls.set(posKey(px, py), {
         topX: px,
@@ -242,7 +244,7 @@ describe('waterfalls', () => {
       const px = state.player.x
       const py = state.player.y
       state.elevation.set(posKey(px, py), 50)
-      state.elevation.set(posKey(px + 1, py), 50 + CLIMBABLE_STEP_THRESHOLD + 20)
+      state.elevation.set(posKey(px + 1, py), 80)
       state.waterfalls.set(posKey(px + 1, py), {
         topX: px + 1,
         topY: py,
@@ -270,7 +272,7 @@ describe('waterfalls', () => {
       // missing entries.
       for (let y = 0; y < state.mapHeight; y++) {
         state.elevation.set(posKey(px, y), 50)
-        state.elevation.set(posKey(px + 1, y), 50 + CLIMBABLE_STEP_THRESHOLD + 20)
+        state.elevation.set(posKey(px + 1, y), 80)
       }
       // Frozen waterfall opens the (px,py)→(px+1,py) step
       state.waterfalls.set(posKey(px + 1, py), {

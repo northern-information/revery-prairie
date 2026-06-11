@@ -3,30 +3,46 @@ import { describe, expect, it } from 'vitest'
 import { computeReachableMass } from '../genesis/shared/reachableMass'
 import { movePlayer } from '../movement'
 import { findPath } from '../pathfinding'
-import { CLIMBABLE_STEP_THRESHOLD, isClimbableStep, posKey } from '../position'
+import { isClimbableStep, posKey } from '../position'
 import { TileType, Zone } from '../types'
 
 import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './helpers'
 
 import type { Tile } from '../types'
 
+// RP-49 — tier size = 100 / 7 ≈ 14.286 raw elevation units per cube.
+// Reference elevations used throughout these tests:
+//   30 → tier 2
+//   50 → tier 3 (the prairie default)
+//   64 → tier 4 (one cube above 50; climbable)
+//   80 → tier 5 (two cubes above 50; unclimbable)
+//   95 → tier 6
+
 describe('cliffs and verticality', () => {
   describe('isClimbableStep predicate', () => {
-    it('returns true when delta is within threshold', () => {
+    it('returns true when the elevation tier delta is zero (flat)', () => {
       const elev = new Map<string, number>([
         [posKey(0, 0), 50],
-        [posKey(1, 0), 50 + CLIMBABLE_STEP_THRESHOLD],
+        [posKey(1, 0), 55],
       ])
       expect(isClimbableStep(elev, 0, 0, 1, 0)).toBe(true)
     })
 
-    it('returns false when delta exceeds threshold (in either direction)', () => {
+    it('returns true when the tier delta is exactly one (single-cube step)', () => {
       const elev = new Map<string, number>([
         [posKey(0, 0), 50],
-        [posKey(1, 0), 50 + CLIMBABLE_STEP_THRESHOLD + 1],
+        [posKey(1, 0), 64],
+      ])
+      expect(isClimbableStep(elev, 0, 0, 1, 0)).toBe(true)
+      expect(isClimbableStep(elev, 1, 0, 0, 0)).toBe(true)
+    })
+
+    it('returns false when the tier delta is two or more (multi-cube cliff)', () => {
+      const elev = new Map<string, number>([
+        [posKey(0, 0), 50],
+        [posKey(1, 0), 80],
       ])
       expect(isClimbableStep(elev, 0, 0, 1, 0)).toBe(false)
-      // delta abs — reverse direction same result
       expect(isClimbableStep(elev, 1, 0, 0, 0)).toBe(false)
     })
 
@@ -36,40 +52,31 @@ describe('cliffs and verticality', () => {
       expect(isClimbableStep(elev, 1, 0, 0, 0)).toBe(true)
       expect(isClimbableStep(new Map(), 0, 0, 5, 5)).toBe(true)
     })
-
-    it('honors the optional threshold override', () => {
-      const elev = new Map<string, number>([
-        [posKey(0, 0), 50],
-        [posKey(1, 0), 60],
-      ])
-      expect(isClimbableStep(elev, 0, 0, 1, 0, 5)).toBe(false)
-      expect(isClimbableStep(elev, 0, 0, 1, 0, 20)).toBe(true)
-    })
   })
 
-  describe('movement gated by climbable step', () => {
-    it('blocks cardinal move when destination elevation exceeds threshold', () => {
+  describe('movement gated by cube step', () => {
+    it('blocks cardinal move when destination is two or more tiers above', () => {
       const state = createTestState()
       swapToOverworldForTest(state)
       clearAroundPlayer(state, 3)
       const px = state.player.x
       const py = state.player.y
       state.elevation.set(posKey(px, py), 50)
-      state.elevation.set(posKey(px + 1, py), 50 + CLIMBABLE_STEP_THRESHOLD + 5)
+      state.elevation.set(posKey(px + 1, py), 80)
       const before = { x: px, y: py }
       const ok = movePlayer(state, 'right')
       expect(ok).toBe(false)
       expect(state.player).toEqual(before)
     })
 
-    it('allows cardinal move when destination elevation is within threshold', () => {
+    it('allows cardinal move when destination is within one tier', () => {
       const state = createTestState()
       swapToOverworldForTest(state)
       clearAroundPlayer(state, 3)
       const px = state.player.x
       const py = state.player.y
       state.elevation.set(posKey(px, py), 50)
-      state.elevation.set(posKey(px + 1, py), 50 + CLIMBABLE_STEP_THRESHOLD)
+      state.elevation.set(posKey(px + 1, py), 64)
       const ok = movePlayer(state, 'right')
       expect(ok).toBe(true)
       expect(state.player).toEqual({ x: px + 1, y: py })
@@ -81,11 +88,10 @@ describe('cliffs and verticality', () => {
       clearAroundPlayer(state, 3)
       const px = state.player.x
       const py = state.player.y
-      // Player at center; destination (px+1, py+1) is climbable, but
-      // the (px+1, py) cardinal corner is unclimbable. Diagonal must
-      // be rejected.
+      // Diagonal destination is flat with player but the cardinal corner
+      // (px+1, py) is two tiers up. Diagonal must be rejected.
       state.elevation.set(posKey(px, py), 50)
-      state.elevation.set(posKey(px + 1, py), 50 + CLIMBABLE_STEP_THRESHOLD + 5)
+      state.elevation.set(posKey(px + 1, py), 80)
       state.elevation.set(posKey(px, py + 1), 50)
       state.elevation.set(posKey(px + 1, py + 1), 50)
       const before = { x: px, y: py }
@@ -96,10 +102,6 @@ describe('cliffs and verticality', () => {
 
     it('cave-zone movement is unaffected (no elevation entries)', () => {
       const state = createTestState()
-      // currentZone defaults to Overworld from createTestState; the
-      // elevation map only has entries for overworld tiles, so a cave-
-      // like map without elevation entries should not produce spurious
-      // blocks. Simulate by clearing elevation around the player.
       swapToOverworldForTest(state)
       clearAroundPlayer(state, 3)
       const px = state.player.x
@@ -112,24 +114,23 @@ describe('cliffs and verticality', () => {
     })
   })
 
-  describe('pathfinding respects climbable step', () => {
-    it('refuses a direct path through an unclimbable step when elevation is supplied', () => {
+  describe('pathfinding respects cube step', () => {
+    it('refuses a direct path through an unclimbable multi-cube wall when elevation is supplied', () => {
       const state = createTestState()
       swapToOverworldForTest(state)
       clearAroundPlayer(state, 4)
       const px = state.player.x
       const py = state.player.y
-      // Wall of high elevation across (px+1, py-1..py+1)
+      // Wall of two-tier-up elevation across (px+1, py-1..py+1)
       state.elevation.set(posKey(px, py), 50)
       for (let dy = -1; dy <= 1; dy++) {
-        state.elevation.set(posKey(px + 1, py + dy), 50 + CLIMBABLE_STEP_THRESHOLD + 10)
+        state.elevation.set(posKey(px + 1, py + dy), 80)
       }
       // Beyond the wall, low again — same elevation as player
       state.elevation.set(posKey(px + 2, py), 50)
 
       const withoutElev = findPath(state.map, state.mapWidth, state.mapHeight, state.player, { x: px + 2, y: py })
       expect(withoutElev).not.toBeNull()
-      // (no elevation arg → unaffected, path goes through)
 
       const withElev = findPath(
         state.map,
@@ -143,7 +144,7 @@ describe('cliffs and verticality', () => {
       // The wall blocks the direct cardinal route. A* may find a path
       // around it through tiles outside the wall slice, or return null
       // if the wall is total. Either is acceptable as long as NO step
-      // in the returned path crosses an unclimbable delta.
+      // in the returned path crosses an unclimbable tier delta.
       if (withElev) {
         let prev = state.player
         for (const step of withElev) {
@@ -176,11 +177,10 @@ describe('cliffs and verticality', () => {
       for (let y = 0; y < 5; y++) {
         for (let x = 0; x < 5; x++) elev.set(posKey(x, y), 50)
       }
-      // Lift tiles (3, *) and (4, *) into a mesa that is unclimbable
-      // from the spawn-side (column 2).
+      // Lift columns 3-4 into a two-tier mesa unclimbable from column 2.
       for (let y = 0; y < 5; y++) {
-        elev.set(posKey(3, y), 50 + CLIMBABLE_STEP_THRESHOLD + 10)
-        elev.set(posKey(4, y), 50 + CLIMBABLE_STEP_THRESHOLD + 10)
+        elev.set(posKey(3, y), 80)
+        elev.set(posKey(4, y), 80)
       }
       const mass = computeReachableMass(grid, elev, 5, 5, 2, 2)
       // Spawn-side cohort (columns 0-2) reachable; mesa (3-4) excluded.
@@ -196,13 +196,13 @@ describe('cliffs and verticality', () => {
       for (let y = 0; y < 5; y++) {
         for (let x = 0; x < 5; x++) elev.set(posKey(x, y), 50)
       }
-      // Isolate the spawn into a 1-tile pocket: ring it with unclimbable
-      // tiles in all four cardinal neighbors.
+      // Isolate the spawn into a 1-tile pocket: ring it with two-tier
+      // cliffs in all four cardinal neighbors.
       const spawn = { x: 2, y: 2 }
-      elev.set(posKey(spawn.x + 1, spawn.y), 50 + CLIMBABLE_STEP_THRESHOLD + 10)
-      elev.set(posKey(spawn.x - 1, spawn.y), 50 + CLIMBABLE_STEP_THRESHOLD + 10)
-      elev.set(posKey(spawn.x, spawn.y + 1), 50 + CLIMBABLE_STEP_THRESHOLD + 10)
-      elev.set(posKey(spawn.x, spawn.y - 1), 50 + CLIMBABLE_STEP_THRESHOLD + 10)
+      elev.set(posKey(spawn.x + 1, spawn.y), 80)
+      elev.set(posKey(spawn.x - 1, spawn.y), 80)
+      elev.set(posKey(spawn.x, spawn.y + 1), 80)
+      elev.set(posKey(spawn.x, spawn.y - 1), 80)
       const mass = computeReachableMass(grid, elev, 5, 5, spawn.x, spawn.y)
       expect(mass.size).toBe(1)
       expect(mass.has(posKey(spawn.x, spawn.y))).toBe(true)
@@ -234,6 +234,29 @@ describe('cliffs and verticality', () => {
       expect(mass.has(posKey(2, 2))).toBe(true)
       expect(mass.has(posKey(3, 2))).toBe(false)
       expect(mass.has(posKey(4, 2))).toBe(false)
+    })
+
+    it('routes through a stairstep where each step is one tier (50→64→80→95)', () => {
+      const grid = makeFlatGrid(5, 5)
+      const elev = new Map<string, number>()
+      for (let y = 0; y < 5; y++) {
+        for (let x = 0; x < 5; x++) elev.set(posKey(x, y), 50)
+      }
+      // Stairstep along row 2: each step is one tier up.
+      elev.set(posKey(1, 2), 50) // tier 3
+      elev.set(posKey(2, 2), 64) // tier 4
+      elev.set(posKey(3, 2), 80) // tier 5
+      elev.set(posKey(4, 2), 95) // tier 6
+      const mass = computeReachableMass(grid, elev, 5, 5, 1, 2)
+      // Spawn at (1,2) climbs through the stairstep AND reaches the
+      // surrounding tier-3 prairie. Tier-6 peak (4,2) is two cubes
+      // above the surrounding tier-3 prairie row, so once you reach
+      // it via the stair you can't step off in column 4 — but you
+      // can still arrive at it. (4,2) should be in the mass.
+      expect(mass.has(posKey(1, 2))).toBe(true)
+      expect(mass.has(posKey(2, 2))).toBe(true)
+      expect(mass.has(posKey(3, 2))).toBe(true)
+      expect(mass.has(posKey(4, 2))).toBe(true)
     })
   })
 

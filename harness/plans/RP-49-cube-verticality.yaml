@@ -1,0 +1,144 @@
+plan:
+  id: RP-49-cube-verticality
+  title: 'RP-49: Cube-based verticality — bump tier count + lift, swap to tier-delta climb rule, re-tune tectonic uplift to span all tiers'
+  created: 2026-06-05
+  global_verification:
+    - 'npm run typecheck'
+    - 'npm run lint'
+    - 'npx vitest run src/engine/__tests__/cubeVerticality.test.ts -t "cube verticality"'
+    - 'npx vitest run src/engine/__tests__/cliffsVerticality.test.ts'
+
+tasks:
+  - id: bump-cube-constants
+    title: 'In src/engine/tileBg.ts, set ELEVATION_TIER_COUNT = 7 and ELEVATION_TIER_LIFT_PX = 14. Update the existing comment block above the constants to describe the 7-cube model and reference RP-49. CUBE_BASE_DEPTH_PX stays at 8.'
+    spec_id: rp-49-cube-verticality
+    spec_sections:
+      - cube-constants-retuned
+    context_files:
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/tileBg.ts
+    depends_on: []
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, render]
+
+  - id: rewrite-isClimbableStep-on-tier-delta
+    title: 'In src/engine/position.ts, rewrite isClimbableStep to compare getElevationTier(fromElev) vs getElevationTier(toElev), accepting |delta| <= 1. Drop the `threshold` parameter; preserve the `frozenStairways` parameter. Preserve the undefined-elevation short-circuit. Import getElevationTier from tileBg.ts. Update the docblock to describe the tier-delta rule and remove the CLIMBABLE_STEP_THRESHOLD comment block.'
+    spec_id: rp-49-cube-verticality
+    spec_sections:
+      - climb-rule-on-tier-delta
+    context_files:
+      - src/engine/position.ts
+      - src/engine/tileBg.ts
+    output_files:
+      - src/engine/position.ts
+    depends_on:
+      - bump-cube-constants
+    verification:
+      - 'npx tsc -b --noEmit'
+    repair: retry
+    tags: [engine, movement]
+
+  - id: remove-climbable-step-threshold-constant
+    title: 'Delete the CLIMBABLE_STEP_THRESHOLD export from src/engine/position.ts. Update every caller (movement.ts, pathfinding.ts, reachableMass.ts, any test files) to drop the threshold argument from isClimbableStep calls. Confirm via `grep -rn CLIMBABLE_STEP_THRESHOLD src/` that no references remain.'
+    spec_id: rp-49-cube-verticality
+    spec_sections:
+      - climbable-step-threshold-removed
+    context_files:
+      - src/engine/position.ts
+      - src/engine/movement.ts
+      - src/engine/pathfinding.ts
+      - src/engine/genesis/shared/reachableMass.ts
+    output_files:
+      - src/engine/position.ts
+      - src/engine/movement.ts
+      - src/engine/pathfinding.ts
+      - src/engine/genesis/shared/reachableMass.ts
+    depends_on:
+      - rewrite-isClimbableStep-on-tier-delta
+    verification:
+      - 'npx tsc -b --noEmit'
+      - 'bash -c "! grep -rn CLIMBABLE_STEP_THRESHOLD src/"'
+    repair: retry
+    tags: [engine, movement, pathfinding]
+
+  - id: write-cube-verticality-tests
+    title: 'Create src/engine/__tests__/cubeVerticality.test.ts following the testing conventions in docs/claude/testing.md. Cover: cube-constants-retuned (constant values, getElevationTier/getTierLift returns), climb-rule-on-tier-delta (tier 3↔4 allowed, tier 3↔5 rejected, undefined-elevation pair allowed, frozenStairways override fires), movement-gated-on-tier-delta (movePlayer rejects tier-2+ steps, accepts tier-1 steps), pathfinding-gated-on-tier-delta (A* returns null across a tier-2 cliff, returns a stairstep across a 0→1→2→3 ramp), tectonic-uplift-spans-all-tiers (over six fixed seeds, each tier 0..6 has ≥1 representative on the majority of seeds, no single tier exceeds 60% on any seed), reachable-mass-uses-tier-rule (reachable cohort respects the one-tier rule). Use vi.spyOn(Math, "random") + vi.restoreAllMocks() in a finally block per testing.md; reset state arrays before counting.'
+    spec_id: rp-49-cube-verticality
+    spec_sections:
+      - cube-constants-retuned
+      - climb-rule-on-tier-delta
+      - movement-gated-on-tier-delta
+      - pathfinding-gated-on-tier-delta
+      - tectonic-uplift-spans-all-tiers
+      - reachable-mass-uses-tier-rule
+    context_files:
+      - src/engine/tileBg.ts
+      - src/engine/position.ts
+      - src/engine/movement.ts
+      - src/engine/pathfinding.ts
+      - src/engine/genesis/epochs/03-tectonicUplift.ts
+      - src/engine/genesis/shared/reachableMass.ts
+      - src/engine/__tests__/cliffsVerticality.test.ts
+      - docs/claude/testing.md
+    output_files:
+      - src/engine/__tests__/cubeVerticality.test.ts
+    depends_on:
+      - bump-cube-constants
+      - rewrite-isClimbableStep-on-tier-delta
+      - remove-climbable-step-threshold-constant
+    verification:
+      - 'npx vitest run src/engine/__tests__/cubeVerticality.test.ts -t "cube verticality"'
+    repair: retry
+    tags: [engine, test]
+
+  - id: update-cliffs-verticality-tests
+    title: 'Update src/engine/__tests__/cliffsVerticality.test.ts to remove references to CLIMBABLE_STEP_THRESHOLD and to re-express any raw-elevation-delta assertions in terms of tier deltas. Tests for behaviors that survive unchanged (frozen stairway override, cave-zone short-circuit, diagonal corner-cut) should keep passing without semantic changes — only the threshold-related expectations are rewritten.'
+    spec_id: rp-49-cube-verticality
+    spec_sections:
+      - climbable-step-threshold-removed
+    context_files:
+      - src/engine/__tests__/cliffsVerticality.test.ts
+      - src/engine/position.ts
+    output_files:
+      - src/engine/__tests__/cliffsVerticality.test.ts
+    depends_on:
+      - remove-climbable-step-threshold-constant
+    verification:
+      - 'npx vitest run src/engine/__tests__/cliffsVerticality.test.ts'
+    repair: retry
+    tags: [engine, test]
+
+  - id: verify-x-ray-pass-at-new-lift
+    title: 'No code change required. Run the existing tileXray test suite to confirm RP-65 x-ray still works with the larger lift values. If the suite passes, log in the PR description that x-ray is verified at the new scale. If it fails, file a follow-up ticket for XRAY_ALPHA / AVATAR_OCCLUSION_PAD tuning — do NOT inline-tune in this PR.'
+    spec_id: rp-49-cube-verticality
+    spec_sections:
+      - xray-pass-verified-at-new-lift-scale
+    context_files:
+      - src/engine/render/passes/tileXray.ts
+      - src/engine/render/passes/__tests__/tileXray.test.ts
+      - src/engine/projection.ts
+    output_files: []
+    depends_on:
+      - bump-cube-constants
+    verification:
+      - 'npx vitest run src/engine/render/passes/__tests__/tileXray.test.ts'
+    repair: retry
+    tags: [engine, render, verify]
+
+  - id: run-genesis-water-sand-verify
+    title: 'Confirm genesis verify suite (sandWaterOnly, terrainConnectivity, water-budget) still passes byte-identical. RP-49 deliberately does NOT modify the tectonic-uplift epoch — every signed-amplitude variant explored during implementation re-introduced the RP-41 R3 water/sand placement regression. Lower-tier surfacing from genesis is filed as a follow-up.'
+    spec_id: rp-49-cube-verticality
+    spec_sections:
+      - tectonic-uplift-unchanged-this-spec
+    context_files:
+      - src/engine/genesis/epochs/03-tectonicUplift.ts
+    output_files: []
+    depends_on:
+      - bump-cube-constants
+    verification:
+      - 'npx vitest run src/engine/__tests__/sandWaterOnly.test.ts src/engine/__tests__/terrainConnectivity.test.ts src/engine/__tests__/genesis.test.ts'
+    repair: retry
+    tags: [engine, genesis, verify]

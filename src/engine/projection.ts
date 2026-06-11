@@ -260,13 +260,12 @@ export const getCellSideQuads = (
  * that face. The left face faces SOUTH in world coords (lower-left in
  * iso screen space); the right face faces EAST (lower-right).
  */
-// RP-41 — cliff-face shadow + x-ray constants. Trigger threshold is
-// in elevation units so it stays coupled with CLIMBABLE_STEP_THRESHOLD
-// in position.ts — shadows appear precisely where the step is
-// unclimbable. Picked the elevation-unit framing over the spec's
-// pixel-delta framing because the player-facing intent is "the
-// shadow marks where the feet can't go," not "the shadow marks where
-// the lift is big." Same outcome in practice.
+// RP-41 / RP-49 — cliff-face shadow + x-ray constants. Shadows are
+// drawn at every cube edge (one or more tiers between neighbors);
+// xray alpha applies to any lifted tile column occluding the avatar.
+// The player-facing intent is "the shadow marks where the feet can't
+// go," and under the RP-49 one-tier-step rule, every two-tier cliff
+// is unclimbable.
 export const CLIFF_SHADOW_COLOR = 'rgba(0, 0, 0, 0.55)'
 export const XRAY_ALPHA = 0.45
 export const AVATAR_OCCLUSION_PAD = 4
