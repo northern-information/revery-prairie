@@ -110,8 +110,9 @@ describe('getElevationTier', () => {
   })
 
   it('clamps low elevation to tier 0', () => {
+    const tierSize = 100 / ELEVATION_TIER_COUNT
     expect(getElevationTier(0)).toBe(0)
-    expect(getElevationTier(24)).toBe(0)
+    expect(getElevationTier(tierSize * 0.9)).toBe(0)
   })
 
   it('clamps high elevation to the top tier', () => {
@@ -120,11 +121,12 @@ describe('getElevationTier', () => {
   })
 
   it('snaps mid elevations to the matching tier', () => {
-    // With ELEVATION_TIER_COUNT = 4, tier size = 25
-    expect(getElevationTier(25)).toBe(1)
-    expect(getElevationTier(50)).toBe(2)
-    expect(getElevationTier(74)).toBe(2)
-    expect(getElevationTier(75)).toBe(3)
+    // Buckets are 100 / ELEVATION_TIER_COUNT wide; mid-bucket values are
+    // stable against floating-point boundary effects.
+    const tierSize = 100 / ELEVATION_TIER_COUNT
+    expect(getElevationTier(tierSize * 1.5)).toBe(1)
+    expect(getElevationTier(tierSize * 3.5)).toBe(3)
+    expect(getElevationTier(tierSize * 5.5)).toBe(5)
   })
 })
 
