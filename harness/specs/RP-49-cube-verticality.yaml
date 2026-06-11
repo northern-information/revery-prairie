@@ -1,0 +1,392 @@
+id: rp-49-cube-verticality
+name: 'Cube-based verticality (tier-delta climb rule, 7 levels, full-cube lift)'
+priority: high
+layer: integration
+source_files:
+  - src/engine/tileBg.ts
+  - src/engine/position.ts
+  - src/engine/movement.ts
+  - src/engine/pathfinding.ts
+  - src/engine/tileBgCache.ts
+  - src/engine/genesis/shared/reachableMass.ts
+  - src/engine/genesis/shared/waterfalls.ts
+  - src/engine/projection.ts
+  - src/engine/render/passes/tileXray.ts
+  - src/harness/__tests__/serialization/schema.test.ts
+dependencies: []
+
+# RP-49 revises the verticality model introduced in RP-41 and the
+# discrete-tier renderer scaffolding already present in tileBg.ts.
+# The current state of play:
+#   * tileBg.ts already discretizes elevation into ELEVATION_TIER_COUNT
+#     tiers and lifts each tile by tier * ELEVATION_TIER_LIFT_PX, with a
+#     base CUBE_BASE_DEPTH_PX so every tile reads as a small cube. Today
+#     ELEVATION_TIER_COUNT = 4 and ELEVATION_TIER_LIFT_PX = 6 — small
+#     bumps, not cubes.
+#   * RP-41 gated movement and pathfinding on the absolute raw-elevation
+#     delta against CLIMBABLE_STEP_THRESHOLD = 12. That predicate is
+#     correct for a smooth-elevation model but inconsistent with the
+#     discrete-tier model the renderer already shows the player.
+# RP-49 closes the gap: gameplay now sees what rendering sees. Tier
+# delta is the ONLY climb gate. Each tier is one iso-diamond tall.
+# Cubes are 7 levels deep so peaks dwarf the avatar without losing all
+# of the reachable prairie.
+
+behaviors:
+  - id: cube-constants-retuned
+    description: >
+      `src/engine/tileBg.ts` bumps `ELEVATION_TIER_COUNT` from 4 to 7
+      (tiers 0..6) and `ELEVATION_TIER_LIFT_PX` from 6 to 14. 14 px
+      approximates one iso-diamond height at the default font
+      (charHeight ≈ 14 per `src/engine/renderer.ts:181`), so each
+      tier visually reads as one full cube. `CUBE_BASE_DEPTH_PX`
+      remains 8 — the cube edge that peeks out at flat-plateau
+      transitions is unchanged. `getElevationTier` continues to
+      `Math.floor(elevation / (100 / ELEVATION_TIER_COUNT))` with the
+      new count, so tier size is ~14.286 raw-elevation units.
+    inputs:
+      - 'raw elevation value in [0, 100]'
+    outputs:
+      - '`getElevationTier(50)` returns 3 (mid-prairie)'
+      - '`getElevationTier(0)` returns 0'
+      - '`getElevationTier(100)` clamps to 6'
+      - '`getTierLift(6)` returns -84 (six cubes lifted, in iso-pixels)'
+    state_changes: []
+    determinism: deterministic
+
+  - id: climb-rule-on-tier-delta
+    description: >
+      `isClimbableStep` in `src/engine/position.ts` swaps its
+      raw-elevation comparison for a tier-delta comparison. The
+      predicate computes `getElevationTier(fromElev)` and
+      `getElevationTier(toElev)`; returns true iff
+      `Math.abs(toTier - fromTier) <= 1`. The function signature
+      changes: the `threshold` parameter is dropped (the
+      one-tier-step rule is implicit and not tunable per call), but
+      the `frozenStairways` set parameter from RP-64 is preserved
+      unchanged. The undefined-elevation short-circuit is preserved
+      verbatim — cave and ungenerated zones still treat every step
+      as climbable. `CLIMBABLE_STEP_THRESHOLD` is removed from
+      `position.ts` along with its export; callers (`movement.ts`,
+      `pathfinding.ts`, `reachableMass.ts`) drop the threshold
+      argument from every call site. _The cubes are the contract;
+      the raw elevation is the texture beneath them._
+    inputs:
+      - 'GameState with `state.elevation` populated and two adjacent tile coordinates'
+      - 'optional `frozenStairways` set from RP-64'
+    outputs:
+      - 'boolean: true when |tier(to) - tier(from)| <= 1, when either tile lacks an elevation entry, or when the frozen-stairway override matches'
+    state_changes: []
+    determinism: deterministic
+
+  - id: climbable-step-threshold-removed
+    description: >
+      `CLIMBABLE_STEP_THRESHOLD` is deleted from `src/engine/position.ts`
+      and every call site is updated. The comment block above the
+      former constant (current `position.ts:54-69`) is replaced with
+      a comment explaining the tier-delta rule and pointing at
+      `tileBg.ts` for the tier definitions. No backwards-compat
+      shim, alias, or deprecated re-export is added — this is a
+      hard rename of the gameplay model.
+    inputs: []
+    outputs:
+      - '`grep -rn CLIMBABLE_STEP_THRESHOLD src/` returns no matches after the change'
+    state_changes: []
+    determinism: deterministic
+
+  - id: movement-gated-on-tier-delta
+    description: >
+      `movePlayer` in `src/engine/movement.ts` continues to call
+      `isClimbableStep` at the same gate points (~line 108 for the
+      cardinal step, ~line 129 for diagonal corner-cut checks). The
+      only change is the dropped `CLIMBABLE_STEP_THRESHOLD`
+      argument and the import line. Behavior in player-facing terms:
+      the steward can step from a tile at tier N onto any tile at
+      tier N-1, N, or N+1; tile transitions of two or more tiers
+      are rejected. Rejection semantics (facing/facingEntityPos
+      updates) are unchanged from RP-41.
+    inputs:
+      - 'GameState with player on a tier-N tile and an adjacent tile at tier N±k'
+    outputs:
+      - 'boolean: true iff |k| <= 1 (and other movement gates pass)'
+    state_changes:
+      - field: playerFacing
+        effect: 'set to dir on rejected step (matches RP-41)'
+      - field: facingEntityPos
+        effect: 'recalculated on rejected step (matches RP-41)'
+    determinism: deterministic
+
+  - id: pathfinding-gated-on-tier-delta
+    description: >
+      `src/engine/pathfinding.ts` A* expansions at cardinal (~line
+      126) and diagonal (~lines 139-140) sites call `isClimbableStep`
+      with the simplified signature. Returned paths obey the
+      one-tier rule at every step. Water remains walkable per
+      RP-41's lock. Click-to-move targets on tiles ≥2 tiers above
+      or below the player's current tier are unreachable unless a
+      stairstep path exists.
+    inputs:
+      - 'click-to-move target on a tile separated from the player by a multi-tier cliff'
+    outputs:
+      - 'A* finds a path that only crosses one-tier steps, or returns null'
+    state_changes: []
+    determinism: deterministic
+
+  - id: tectonic-uplift-unchanged-this-spec
+    description: >
+      The tectonic-uplift epoch (`src/engine/genesis/epochs/
+      03-tectonicUplift.ts`) is **not modified** by RP-49.
+      The original spec called for re-tuning amplitude to span
+      tiers 0..6 (signed intensity for subsidence axes, magnitude
+      bump). Implementation walked all variants attempted back
+      against the same RP-41 R3 wall: every signed-amplitude
+      configuration broke either `sand-water-only` or
+      `terrain-connectivity` invariants, because subsidence axes
+      that carve elevation valleys also reshape the river/pond
+      placement and shoreline-sand seeding downstream. Genesis
+      stays byte-identical to RP-41. Under positive-only uplift
+      and the default elevation base of 50, the cube model
+      surfaces tiers 3..6 from genesis; tiers 0..2 arrive via
+      satellite craters (which drop raw elevation by 25/10/3 per
+      `elevation-zone-gate.yaml`) and are a deferred concern.
+      A follow-up ticket should explore either lowering the
+      elevation base (still risky) or a separate subsidence pass
+      ordered after water placement (bigger refactor).
+    inputs: []
+    outputs:
+      - 'sim.elevation distribution is identical to RP-41 — concentrated in tiers 3..4 with uplift peaks in tiers 5..6'
+    state_changes: []
+    determinism: deterministic
+
+  - id: reachable-mass-uses-tier-rule
+    description: >
+      `computeReachableMass` in
+      `src/engine/genesis/shared/reachableMass.ts` drops its
+      `threshold` parameter and calls `isClimbableStep` with the new
+      signature. The BFS shape is unchanged. The returned set
+      contains every tile reachable from spawn via a chain of
+      one-tier-or-flat cardinal steps. With genesis unchanged, the
+      reachable mass typically covers the bulk of the prairie
+      (uplift peaks naturally land in tier-5/6 isolated bands
+      against tier-3/4 surroundings); some seeds will produce
+      isolated mesa cohorts as before. Per v11 R3, no re-roll is
+      triggered on harsh seeds.
+    inputs:
+      - 'completed genesis sim with re-tuned elevation'
+      - 'spawn at floor(width/2), floor(height/2)'
+    outputs:
+      - 'Set<string> of all tiles reachable through one-tier steps from spawn'
+    state_changes:
+      - field: GameState.reachableMass
+        effect: 'computed at state initialization (unchanged ownership from RP-41)'
+    determinism: deterministic
+
+  - id: xray-pass-verified-at-new-lift-scale
+    description: >
+      The RP-65 x-ray pass (`src/engine/render/passes/tileXray.ts`)
+      continues to operate without code change. The pass keys on
+      whether a lifted tile's screen-rect overlaps the avatar's
+      screen-rect; it does not hard-code lift values. With
+      `ELEVATION_TIER_LIFT_PX` jumping from 6 to 14 and peaks
+      reaching tier 6 (lift 84 px), more tiles will trigger the
+      x-ray rule and the visible alpha region around the avatar
+      will be larger. `XRAY_ALPHA = 0.45` and the
+      `AVATAR_OCCLUSION_PAD` geometry helpers in
+      `src/engine/projection.ts` are reviewed for legibility but
+      not changed in this spec — if a tuning pass is needed it is
+      scoped to a follow-up. Verification: render a seed with a
+      tier-6 peak adjacent to a tier-1 valley containing the
+      player; confirm the avatar remains visible through the cube
+      column.
+    inputs:
+      - 'overworld render frame where the avatar is occluded by tier-6 cubes'
+    outputs:
+      - 'avatar glyph remains drawn fully opaque; the occluding cube column blits at XRAY_ALPHA'
+    state_changes: []
+    determinism: time-based
+
+  - id: wall-neighbor-lift-zone-gated
+    description: >
+      `wallNeighborLiftFromState` in `src/engine/tileBgCache.ts`
+      gains the same `state.currentZone !== Zone.Overworld → 0`
+      gate that its siblings (`liftAtFromState`,
+      `platformLiftAtFromState`, `waterSinkAtFromState`) already
+      use. Without this gate, every tile in the yard, house,
+      cellar, and Whine zones whose south or east neighbor is a
+      Space tile (or out-of-bounds) painted a virtual one-tier-
+      deep cube wall — invisible at the old 6px tier lift, glaring
+      at the new 14px. Overworld rendering is unaffected; coastal
+      cliffs into the void continue to paint their walls at the
+      new lift scale.
+    inputs:
+      - 'paintTileBg called in a non-overworld zone for a tile bordering Space or the map edge'
+    outputs:
+      - 'wallNeighborLiftFromState returns 0; no cube cliff wall is drawn'
+    state_changes: []
+    determinism: deterministic
+
+  - id: satellite-crater-tier-impact-documented
+    description: >
+      Satellite impacts in `src/engine/satellites.ts` drop elevation
+      by 25/10/3 at center/ring/edge (per `elevation-zone-gate.yaml`).
+      Under the new tier size (~14.286 elev units per tier), this
+      corresponds to a center drop of ~1.75 tiers, ring ~0.7 tiers,
+      edge ~0.2 tiers — meaningfully larger in tier terms than
+      under the previous 4-tier (25 units) model where a center hit
+      crossed exactly one tier. This spec does NOT modify the crater
+      magnitudes — the satellite-crater feel is preserved as raw
+      elevation change, and the deeper-feeling craters are a happy
+      side effect. With genesis unchanged, satellite craters are
+      the primary path to surfacing the lower cubes (tiers 0-2) at
+      game time. If craters mis-read at the new tier granularity,
+      retune is a follow-up.
+    inputs:
+      - 'satellite impact at a tile of raw elevation E'
+    outputs:
+      - 'center tile elevation becomes E-25 (clamped ≥0); tier drops by floor((E mod 14.286 + 25) / 14.286), typically 1-2 tiers'
+    state_changes:
+      - field: state.elevation
+        effect: 'mutated at impact site (unchanged from existing satellite behavior)'
+      - field: state.reachableMass
+        effect: 'NOT recomputed on satellite impact in this spec; if a crater creates a new climbable path or severs an existing one, the prairie does not negotiate (v11 R3). Recomputation is a separate concern, possibly RP-44.'
+    determinism: deterministic
+
+edge_cases:
+  - id: flat-prairie-region
+    description: >
+      A swath of the map where every tile lands in the same tier
+      after re-tuning (e.g. a basin in tier 2).
+    expected: >
+      `isClimbableStep` returns true for every adjacent pair in the
+      basin. No cube cliff walls render between same-tier tiles
+      (only the base `CUBE_BASE_DEPTH_PX` edge). Movement and
+      pathfinding behave identically to a flat prairie.
+
+  - id: two-tier-mesa-step
+    description: >
+      Two adjacent tiles where one is at tier N and the other at
+      tier N+2 (no intermediate tier tile between them).
+    expected: >
+      `isClimbableStep` returns false. `movePlayer` rejects the
+      step; pathfinding excludes the edge. The mesa cube column
+      reads as a two-cube wall with the appropriate cliff shading.
+
+  - id: stairstep-path
+    description: >
+      A chain of tiles ascending 0 → 1 → 2 → 3 in single-tier
+      increments.
+    expected: >
+      Each step is climbable. Pathfinder routes through the
+      stairstep. Player can manually walk the path. Visually each
+      cube edge is rendered.
+
+  - id: satellite-crater-creates-low-tier-pit
+    description: >
+      A satellite crater lands on a tier-4 patch, dropping the
+      center tile by 25 raw elevation units (~1.75 tiers).
+    expected: >
+      The crater center may drop to tier 2 or 3 depending on its
+      starting position within the original tier band. Adjacent
+      ring/edge tiles drop less. The pit is reachable from
+      surrounding land only if at least one neighbor is within
+      one tier; otherwise it becomes an isolated pocket per the
+      `satellite-crater-does-not-recompute-reachable-mass` case.
+
+  - id: cave-zone-unchanged
+    description: >
+      Player enters a cave. Cave tiles have no elevation entries.
+    expected: >
+      `isClimbableStep` short-circuits true for all cave-internal
+      pairs (both elevations undefined). Movement is identical to
+      pre-RP-49 cave behavior; no spurious blocking.
+
+  - id: diagonal-into-multi-tier-cliff-corner
+    description: >
+      Player at tier N attempts a diagonal step where the diagonal
+      destination is at tier N or N+1 but one of the two cardinal
+      adjacents is at tier N+2.
+    expected: >
+      Diagonal move is rejected (per the RP-41 corner-cut rule,
+      preserved verbatim). `movePlayer` returns false. Facing
+      updates still run.
+
+  - id: frozen-stairway-overrides-tier-gap
+    description: >
+      RP-64 frozen waterfall: the bottom-of-cascade tile and the
+      top-of-cascade tile differ by 2+ tiers, but the upward edge
+      is in `state.frozenStairways`.
+    expected: >
+      `isClimbableStep` returns true for the upward edge (frozen
+      override fires after the tier check fails). Returns false for
+      the reverse (downward) edge per the v11 R5 asymmetric lock.
+      Behavior is consistent with RP-64's existing semantics —
+      the only change is that the gap being bridged is now
+      expressed in tiers, not raw elevation units.
+
+  - id: satellite-crater-does-not-recompute-reachable-mass
+    description: >
+      A satellite impact lands on the edge of a mesa, dropping the
+      crater interior by enough tiers that a previously
+      unreachable tile would now be a single-tier step from
+      reachable land.
+    expected: >
+      `state.reachableMass` is not updated. The newly-bridgeable
+      tile remains marked unreachable until next genesis. Movement
+      and pathfinding still use the live `isClimbableStep` check,
+      so the player CAN walk onto the bridged tile — but it does
+      not get added to the mass set. Acceptable inconsistency
+      called out here so future code that consults `reachableMass`
+      for gating (e.g. flora, weather) treats it as a frozen
+      genesis-time hint, not a live invariant.
+
+  - id: harsh-seed-small-reachable-pocket
+    description: >
+      Re-tuned uplift happens to chain subsidence and uplift axes
+      in a way that walls the spawn into a small reachable pocket
+      (<30% of walkable land).
+    expected: >
+      `reachableMass` reflects the pocket. No re-roll, no warning,
+      no special UI (v11 R3 lock). The steward plays the seed as
+      drawn.
+
+failure_conditions:
+  - trigger: '`movePlayer` accepts a step where |tier(to) - tier(from)| >= 2'
+    expected: >
+      fail — the cube rule is broken at its primary gameplay
+      gate. The steward walks up cliffs.
+
+  - trigger: '`pathfinding` returns a path containing a step with tier delta >= 2'
+    expected: >
+      fail — click-to-move sends the player on a route they
+      cannot manually traverse.
+
+  - trigger: '`CLIMBABLE_STEP_THRESHOLD` remains exported or referenced anywhere under `src/`'
+    expected: >
+      fail — the dead constant indicates an incomplete migration
+      and risks a future caller using a stale threshold-based
+      check.
+
+  - trigger: '`ELEVATION_TIER_COUNT` ≠ 7 or `ELEVATION_TIER_LIFT_PX` ≠ 14 after the change'
+    expected: >
+      fail — the cube dimensions do not match the spec.
+
+  - trigger: 'genesis verify suite (sandWaterOnly, terrainConnectivity, water-budget) fails on any seed'
+    expected: >
+      fail — RP-49 deliberately did NOT modify the tectonic-uplift
+      epoch. A regression here means an upstream genesis-affecting
+      change snuck in.
+
+  - trigger: 'across six measured seeds, walkable tier 3 or any of tiers 4-6 has zero representatives'
+    expected: >
+      fail — uplift no longer surfaces the upper cubes; the cube
+      model becomes purely cosmetic. Either the elevation base
+      shifted or the uplift epoch lost its amplitude.
+
+  - trigger: '`isClimbableStep` no longer accepts a `frozenStairways` parameter'
+    expected: >
+      fail — RP-64 frozen-waterfall climbs regress to blocked.
+
+verification:
+  test_file: src/engine/__tests__/cubeVerticality.test.ts
+  test_pattern: 'cube verticality'
+  command: 'npx vitest run src/engine/__tests__/cubeVerticality.test.ts -t "cube verticality"'

@@ -1,7 +1,14 @@
 import { createGenesisState, extractGenesisResult } from '../genesis'
 import { liftAtSim, recordVisibleTierChange, tileLiftAtSim } from '../genesisRenderer'
 import { posKey } from '../position'
-import { easeInOutCubic, getTierLift, TIER_TWEEN_DURATION_MS, WATER_SINK_PX } from '../tileBg'
+import {
+  easeInOutCubic,
+  ELEVATION_TIER_COUNT,
+  ELEVATION_TIER_LIFT_PX,
+  getTierLift,
+  TIER_TWEEN_DURATION_MS,
+  WATER_SINK_PX,
+} from '../tileBg'
 import { TileType } from '../types'
 import { describe, expect, it } from 'vitest'
 
@@ -24,8 +31,10 @@ const buildSim = (): GenesisSimState => {
 }
 
 const setTier = (sim: GenesisSimState, x: number, y: number, tier: number): void => {
-  // Elevation is bucketed into 4 tiers of size 25; mid-bucket value is stable.
-  sim.elevation.set(posKey(x, y), tier * 25 + 12)
+  // Elevation buckets are 100 / ELEVATION_TIER_COUNT wide; a mid-bucket
+  // value is stable against floating-point boundary effects.
+  const tierSize = 100 / ELEVATION_TIER_COUNT
+  sim.elevation.set(posKey(x, y), (tier + 0.5) * tierSize)
 }
 
 describe('genesis elevation tween', () => {
@@ -157,9 +166,10 @@ describe('genesis elevation tween', () => {
       const selfLift = liftAtSim(sim, 1, 1, 0)
       const southLift = liftAtSim(sim, 1, 2, 0)
       const eastLift = liftAtSim(sim, 2, 1, 0)
-      // Lifts are negative-when-up: south_lift - self_lift = 0 - (-12) = 12 = (2-0)*6
-      expect(Math.max(0, southLift - selfLift)).toBe(12)
-      expect(Math.max(0, eastLift - selfLift)).toBe(6)
+      // Lifts are negative-when-up: south_lift - self_lift =
+      // 0 - (-2 * lift) = two tiers of wall depth.
+      expect(Math.max(0, southLift - selfLift)).toBe(2 * ELEVATION_TIER_LIFT_PX)
+      expect(Math.max(0, eastLift - selfLift)).toBe(ELEVATION_TIER_LIFT_PX)
     })
 
     it('wall depth changes smoothly when self is tweening', () => {
@@ -177,7 +187,7 @@ describe('genesis elevation tween', () => {
       const t3 = TIER_TWEEN_DURATION_MS
       const depth = (time: number): number => Math.max(0, liftAtSim(sim, 1, 2, time) - liftAtSim(sim, 1, 1, time))
       expect(depth(t0)).toBe(0) // self lift still 0 at u=0
-      expect(depth(t3)).toBe(12) // fully landed at tier 2 vs tier 0
+      expect(depth(t3)).toBe(2 * ELEVATION_TIER_LIFT_PX) // fully landed at tier 2 vs tier 0
       expect(depth(t1)).toBeGreaterThan(0)
       expect(depth(t1)).toBeLessThan(depth(t2))
       expect(depth(t2)).toBeLessThan(depth(t3))

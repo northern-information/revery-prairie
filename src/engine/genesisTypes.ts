@@ -70,7 +70,8 @@ export interface TectonicAxis {
   polyline: Position[]
   /** Average orientation in radians (atan2 of end-to-start delta). */
   orientationRadians: number
-  /** Peak uplift amount in elevation units (0-100 scale). */
+  /** Peak elevation delta in elevation units (0-100 scale).
+   *  RP-49: signed — positive intensities lift, negative carve. */
   intensity: number
   /** Falloff radius in tiles. */
   radius: number

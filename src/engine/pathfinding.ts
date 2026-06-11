@@ -120,10 +120,10 @@ export const findPath = (
       if (!isInBounds(nx, ny, mapWidth, mapHeight)) continue
       if (!isWalkableTile(map[ny][nx].type)) continue
       if (blockedPositions?.has(posKey(nx, ny))) continue
-      // RP-41 — reject the step when the elevation delta to the
-      // neighbor exceeds CLIMBABLE_STEP_THRESHOLD.
+      // RP-49 — reject the step when the elevation tier differs
+      // by more than one cube from the neighbor.
       // RP-64 — frozenStairways overrides for upward bottom→top.
-      if (elevation && !isClimbableStep(elevation, cx, cy, nx, ny, undefined, frozenStairways)) continue
+      if (elevation && !isClimbableStep(elevation, cx, cy, nx, ny, frozenStairways)) continue
 
       // Corner-cutting prevention for diagonals: both adjacent cardinal
       // tiles must be walkable, otherwise the path slips through walls.
@@ -133,11 +133,11 @@ export const findPath = (
         const t2 = map[cy + d.y]?.[cx]
         if (!t1 || !t2 || !isWalkableTile(t1.type) || !isWalkableTile(t2.type)) continue
         if (blockedPositions?.has(posKey(cx + d.x, cy)) || blockedPositions?.has(posKey(cx, cy + d.y))) continue
-        // RP-41 — diagonal must also be climbable through both cardinals.
+        // RP-49 — diagonal must also be climbable through both cardinals.
         if (
           elevation &&
-          (!isClimbableStep(elevation, cx, cy, cx + d.x, cy, undefined, frozenStairways) ||
-            !isClimbableStep(elevation, cx, cy, cx, cy + d.y, undefined, frozenStairways))
+          (!isClimbableStep(elevation, cx, cy, cx + d.x, cy, frozenStairways) ||
+            !isClimbableStep(elevation, cx, cy, cx, cy + d.y, frozenStairways))
         ) {
           continue
         }

@@ -159,7 +159,12 @@ const tileWorldPos = (
 // "Virtual" lift for a wall neighbor — Space tiles and out-of-bounds positions
 // count as one tier below the lowest playable tier (-1), so coastal land
 // produces a cliff face into the void.
+// RP-49: zone-gated like its sibling lift functions. Without this gate
+// the yard/house/cellar/Whine maps paint a one-tier-deep cube wall on
+// every tile bordering Space or the map edge — invisible at the old
+// 6px tier lift, glaring at 14px.
 const wallNeighborLiftFromState = (state: GameState, map: Tile[][], x: number, y: number): number => {
+  if (state.currentZone !== Zone.Overworld) return 0
   if (!isInBounds(x, y, state.mapWidth, state.mapHeight)) return getTierLift(-1)
   if (map[y][x].type === TileType.Space) return getTierLift(-1)
   return liftAtFromState(state, x, y) + waterSinkAtFromState(state, x, y)

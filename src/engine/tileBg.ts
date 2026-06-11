@@ -269,19 +269,22 @@ export const WATERFALL_TILE_WATER_BUMP = 0.4
 export const WATERFALL_AUDIO_URL = '/sfx/waterfall.mp3'
 export const WATERFALL_AUDIO_RADIUS = 10
 
-// Discrete elevation tiers ("Minecraft" style): each tile snaps to a
-// tier index 0..ELEVATION_TIER_COUNT-1 based on its raw elevation, and
-// the visual lift is tier * ELEVATION_TIER_LIFT_PX. Every tile renders
-// as a discrete cube — all four cardinal directions get a small wall
-// (`CUBE_BASE_DEPTH_PX` deep) so each tile reads as a physical block;
-// at tier transitions the wall extends down by the full tier delta to
-// produce a visible cliff face.
-//
-// Tunable: more tiers → more variation. Larger lift per tier → more
-// dramatic cliffs. Larger CUBE_BASE_DEPTH_PX → chunkier cubes (but the
-// per-tile cube edges become more prominent).
-export const ELEVATION_TIER_COUNT = 4
-export const ELEVATION_TIER_LIFT_PX = 6
+// RP-49 — Discrete elevation cubes. Each tile snaps to a tier index
+// 0..ELEVATION_TIER_COUNT-1 based on its raw elevation, and the visual
+// lift is tier * ELEVATION_TIER_LIFT_PX. ELEVATION_TIER_LIFT_PX is
+// sized to one iso-diamond height at the default font (charHeight ≈ 14,
+// see src/engine/renderer.ts:181) so each tier reads as one full cube.
+// Every tile renders as a discrete cube — all four cardinal directions
+// get a small wall (`CUBE_BASE_DEPTH_PX` deep) so each tile reads as a
+// physical block; at tier transitions the wall extends down by the full
+// tier delta to produce a visible cliff face. The gameplay climb gate
+// (`isClimbableStep` in position.ts) reads the same tier values, so the
+// steward can only step from a tile at tier N onto tiles at tier N-1,
+// N, or N+1 — the cubes the renderer shows are the cubes movement
+// honors. Seven tiers (0..6) gives mesas room to dwarf the avatar
+// without losing all of the reachable prairie to multi-cube cliffs.
+export const ELEVATION_TIER_COUNT = 7
+export const ELEVATION_TIER_LIFT_PX = 14
 // Must exceed ~ch/2 (half the diamond height) for the cube edge to peek
 // out below the next-row tile's diamond top in painter's order. Below
 // that threshold, the wall is fully covered by the next row and the
