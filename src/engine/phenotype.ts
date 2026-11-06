@@ -84,7 +84,7 @@ export const resolvePhenotypeLabel = (state: GameState, reveryCount: number): Ph
   const species = selectSpecies(state)
   if (!species) return null
   const axisName = PHENOTYPE_AXES[reveryCount % PHENOTYPE_AXES.length]
-  const axis = axisName as PhenotypeAxis
+  const axis = axisName
   const mean = meanTraitForSpecies(state, species, axis)
   const verdict = VERDICT_BANK[axis][bucketIndex(mean)]
   return { species, axis, verdict }

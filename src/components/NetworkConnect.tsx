@@ -137,7 +137,7 @@ export const NetworkConnect = ({ workerUrl, prairieId, onConnected }: NetworkCon
             type="text"
             value={name}
             onChange={e => {
-              setName((e.target as HTMLInputElement).value)
+              setName(e.target.value)
             }}
             autoFocus
             maxLength={24}

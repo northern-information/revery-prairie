@@ -14,7 +14,6 @@ describe('tileWater', () => {
       // Use full createGameState (not test helper which clears tileWater)
       const state = createGameState('Test', 20, 20)
       let hasDirt = false
-      let hasClover = false
       for (let y = 0; y < state.mapHeight; y++) {
         for (let x = 0; x < state.mapWidth; x++) {
           const key = posKey(x, y)
@@ -22,14 +21,12 @@ describe('tileWater', () => {
           if (tile === TileType.Dirt || tile === TileType.Flora || tile === TileType.BurntFlora) {
             expect(state.tileWater.get(key)).toBe(WATER_MAX)
             if (tile === TileType.Dirt) hasDirt = true
-            if (tile === TileType.Flora) hasClover = true
           }
         }
       }
-      // Ensure we actually tested some tiles
+      // Ensure we actually tested some tiles. Clover might not exist in the
+      // default map, so only dirt is asserted.
       expect(hasDirt).toBe(true)
-      // Clover might not exist in the default map, that's OK
-      void hasClover
     })
 
     it('does not initialize tileWater for space tiles', () => {

@@ -157,7 +157,7 @@ describe('cliffs and verticality', () => {
 
   describe('computeReachableMass', () => {
     const makeFlatGrid = (w: number, h: number): Tile[][] =>
-      Array.from({ length: h }, () => Array.from({ length: w }, () => ({ type: TileType.Dirt }) as Tile))
+      Array.from({ length: h }, () => Array.from({ length: w }, () => ({ type: TileType.Dirt })))
 
     it('includes every walkable tile when elevation is flat', () => {
       const grid = makeFlatGrid(5, 5)

@@ -132,9 +132,9 @@ export const makeCanvasStub = (): CanvasStub => {
     })),
     createPattern: vi.fn(() => null),
     measureText: vi.fn(() => ({ width: 0 })),
-    getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1, colorSpace: 'srgb' as PredefinedColorSpace })),
+    getImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1, colorSpace: 'srgb' })),
     putImageData: vi.fn(),
-    createImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1, colorSpace: 'srgb' as PredefinedColorSpace })),
+    createImageData: vi.fn(() => ({ data: new Uint8ClampedArray(4), width: 1, height: 1, colorSpace: 'srgb' })),
     isPointInPath: vi.fn(() => false),
     isPointInStroke: vi.fn(() => false),
   }

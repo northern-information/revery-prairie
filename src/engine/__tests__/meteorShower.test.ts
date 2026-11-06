@@ -216,7 +216,7 @@ describe('cardinal shower scheduling', () => {
     expect(state.meteorShower.active).toBe(false)
 
     // Deep time ends past summer. Summer should not retro-fire.
-    state.deepTime = null as never
+    state.deepTime = null
     tickMeteorShower(state, 3000)
     // The crossing window for summer (0.25, 0.5) is now behind us; phase is
     // 0.6 which is in the autumn window (0.5, 0.75), but pendingAnchorPhase is

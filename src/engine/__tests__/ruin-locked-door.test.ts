@@ -18,7 +18,7 @@ import type { GameState, Position, RuinInterior } from '../types'
 const setupRuinWithDoor = (state: GameState): { doorX: number; doorY: number } => {
   // Build a tiny ruin interior with a single locked door directly south of the player.
   const interiorMap: { type: TileType }[][] = Array.from({ length: 10 }, () =>
-    Array.from({ length: 10 }, () => ({ type: TileType.RuinFloor as TileType }))
+    Array.from({ length: 10 }, () => ({ type: TileType.RuinFloor }))
   )
   const doorX = 5
   const doorY = 6
@@ -111,7 +111,7 @@ describe('ruin locked door', () => {
   describe('multi-tile door row', () => {
     const setupMultiTileDoor = (state: GameState): { doorY: number; doorPositions: Position[] } => {
       const interiorMap: { type: TileType }[][] = Array.from({ length: 10 }, () =>
-        Array.from({ length: 10 }, () => ({ type: TileType.RuinFloor as TileType }))
+        Array.from({ length: 10 }, () => ({ type: TileType.RuinFloor }))
       )
       const doorY = 6
       const doorPositions: Position[] = []

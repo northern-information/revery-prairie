@@ -60,7 +60,7 @@ const makeDragFixture = () => {
   }
 
   const item: ItemInstance = {
-    uid: 'test-item-1' as ItemInstance['uid'],
+    uid: 'test-item-1',
     definitionId: 'rock',
     gridX: 0,
     gridY: 0,
@@ -123,7 +123,7 @@ describe('useCanvasDrop', () => {
       // jsdom getBoundingClientRect returns zeros by default; stub it.
       vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
         x: 0, y: 0, top: 0, left: 0, right: 200, bottom: 200, width: 200, height: 200, toJSON: () => ({}),
-      } as DOMRect)
+      })
       // Pretend the player is centered so the cursor maps to an
       // in-bounds Dirt tile. charWidth=10, charHeight=16; cursor at
       // (15, 24) → tile offset (1, 1) relative to camera origin (0,0).

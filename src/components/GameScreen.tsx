@@ -43,10 +43,9 @@ interface GameScreenProps {
 }
 
 export const GameScreen = ({ stewardName, skipGenesis, onRestart, multiplayer }: GameScreenProps) => {
-  // uiVersion is destructured to subscribe GameScreen to the useState counter.
-  // refreshUI() increments it, triggering re-renders when engine state mutates.
-  const { state, refreshUI, uiVersion } = useGameEngine(stewardName, 80, 40, skipGenesis, multiplayer)
-  void uiVersion
+  // useGameEngine holds a useState counter that refreshUI() increments, so
+  // GameScreen re-renders whenever engine state mutates.
+  const { state, refreshUI } = useGameEngine(stewardName, 80, 40, skipGenesis, multiplayer)
 
   // Apply font scale on mount
   const fontScale = state.fontScale

@@ -13,7 +13,7 @@ import { clearAroundPlayer, createTestState, swapToOverworldForTest } from './he
 import type { Tile } from '../types'
 
 const flatGrid = (w: number, h: number): Tile[][] =>
-  Array.from({ length: h }, () => Array.from({ length: w }, () => ({ type: TileType.Dirt }) as Tile))
+  Array.from({ length: h }, () => Array.from({ length: w }, () => ({ type: TileType.Dirt })))
 
 const flatElevation = (w: number, h: number, value = 50): Map<string, number> => {
   const m = new Map<string, number>()
