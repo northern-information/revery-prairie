@@ -84,46 +84,47 @@ describe('screenToTile round-trip with viewportToScreen', () => {
   })
 })
 
-describe('drawCellBackground', () => {
-  const makeCtx = () => {
-    return {
-      fillStyle: '',
-      fillRect: vi.fn(),
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      closePath: vi.fn(),
-      fill: vi.fn(),
-    } as unknown as CanvasRenderingContext2D & {
-      fillRect: ReturnType<typeof vi.fn>
-      beginPath: ReturnType<typeof vi.fn>
-      moveTo: ReturnType<typeof vi.fn>
-      lineTo: ReturnType<typeof vi.fn>
-      closePath: ReturnType<typeof vi.fn>
-      fill: ReturnType<typeof vi.fn>
-    }
+// Keeps the mocks separate from the context so assertions read them as
+// plain `Mock`s rather than as unbound `CanvasRenderingContext2D` methods.
+const makeDiamondCtx = () => {
+  const mocks = {
+    fillRect: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    closePath: vi.fn(),
+    fill: vi.fn(),
   }
+  const ctx = {
+    fillStyle: '#000',
+    shadowColor: '',
+    shadowBlur: 0,
+    ...mocks,
+  } as unknown as CanvasRenderingContext2D
+  return { ctx, mocks }
+}
 
+describe('drawCellBackground', () => {
   it('paints a 4-vertex diamond path', () => {
-    const ctx = makeCtx()
+    const { ctx, mocks } = makeDiamondCtx()
     drawCellBackground(ctx, 50, 80, charWidth, charHeight)
-    expect(ctx.fillRect).not.toHaveBeenCalled()
-    expect(ctx.beginPath).toHaveBeenCalledOnce()
-    expect(ctx.moveTo).toHaveBeenCalledOnce()
-    expect(ctx.lineTo).toHaveBeenCalledTimes(3)
-    expect(ctx.closePath).toHaveBeenCalledOnce()
-    expect(ctx.fill).toHaveBeenCalledOnce()
+    expect(mocks.fillRect).not.toHaveBeenCalled()
+    expect(mocks.beginPath).toHaveBeenCalledOnce()
+    expect(mocks.moveTo).toHaveBeenCalledOnce()
+    expect(mocks.lineTo).toHaveBeenCalledTimes(3)
+    expect(mocks.closePath).toHaveBeenCalledOnce()
+    expect(mocks.fill).toHaveBeenCalledOnce()
   })
 
   it('diamond vertices form a 2:1 diamond around the glyph anchor', () => {
-    const ctx = makeCtx()
+    const { ctx, mocks } = makeDiamondCtx()
     // Glyph anchor at (50, 80) with charWidth=10, charHeight=16, nudge=0.
     // Diamond bbox: left=45, right=65, top=80, bottom=96, center=(55,88).
     drawCellBackground(ctx, 50, 80, charWidth, charHeight)
-    expect(ctx.moveTo).toHaveBeenCalledWith(55, 80)
-    expect(ctx.lineTo).toHaveBeenNthCalledWith(1, 65, 88)
-    expect(ctx.lineTo).toHaveBeenNthCalledWith(2, 55, 96)
-    expect(ctx.lineTo).toHaveBeenNthCalledWith(3, 45, 88)
+    expect(mocks.moveTo).toHaveBeenCalledWith(55, 80)
+    expect(mocks.lineTo).toHaveBeenNthCalledWith(1, 65, 88)
+    expect(mocks.lineTo).toHaveBeenNthCalledWith(2, 55, 96)
+    expect(mocks.lineTo).toHaveBeenNthCalledWith(3, 45, 88)
   })
 })
 
@@ -142,61 +143,32 @@ describe('getCellDiamondCorners', () => {
   })
 
   it('aligns with drawCellBackground geometry for the same anchor', () => {
-    const ctx = {
-      fillStyle: '',
-      fillRect: vi.fn(),
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      closePath: vi.fn(),
-      fill: vi.fn(),
-    } as unknown as CanvasRenderingContext2D & {
-      moveTo: ReturnType<typeof vi.fn>
-      lineTo: ReturnType<typeof vi.fn>
-    }
+    const { ctx, mocks } = makeDiamondCtx()
     drawCellBackground(ctx, 50, 80, charWidth, charHeight)
     const c = getCellDiamondCorners(50, 80, charWidth, charHeight)
-    expect(ctx.moveTo).toHaveBeenCalledWith(c.cx, c.topY)
-    expect(ctx.lineTo).toHaveBeenNthCalledWith(1, c.rightX, c.cy)
-    expect(ctx.lineTo).toHaveBeenNthCalledWith(2, c.cx, c.bottomY)
-    expect(ctx.lineTo).toHaveBeenNthCalledWith(3, c.leftX, c.cy)
+    expect(mocks.moveTo).toHaveBeenCalledWith(c.cx, c.topY)
+    expect(mocks.lineTo).toHaveBeenNthCalledWith(1, c.rightX, c.cy)
+    expect(mocks.lineTo).toHaveBeenNthCalledWith(2, c.cx, c.bottomY)
+    expect(mocks.lineTo).toHaveBeenNthCalledWith(3, c.leftX, c.cy)
   })
 })
 
 describe('drawCellHighlight', () => {
-  const makeCtx = () => {
-    return {
-      fillStyle: '#000',
-      shadowColor: '',
-      shadowBlur: 0,
-      fillRect: vi.fn(),
-      beginPath: vi.fn(),
-      moveTo: vi.fn(),
-      lineTo: vi.fn(),
-      closePath: vi.fn(),
-      fill: vi.fn(),
-    } as unknown as CanvasRenderingContext2D & {
-      fillRect: ReturnType<typeof vi.fn>
-      fill: ReturnType<typeof vi.fn>
-    }
-  }
-
   it('sets shadowColor and shadowBlur to the highlight color before drawing', () => {
-    const ctx = makeCtx()
+    const { ctx, mocks } = makeDiamondCtx()
     let observedShadowColor = ''
     let observedShadowBlur = 0
-    const observe = vi.fn(() => {
-      observedShadowColor = ctx.shadowColor as unknown as string
+    mocks.fill.mockImplementation(() => {
+      observedShadowColor = ctx.shadowColor
       observedShadowBlur = ctx.shadowBlur
     })
-    ;(ctx as unknown as { fill: typeof observe }).fill = observe
     drawCellHighlight(ctx, 50, 80, charWidth, charHeight, '#ff69b4')
     expect(observedShadowColor).toBe('#ff69b4')
     expect(observedShadowBlur).toBeGreaterThan(0)
   })
 
   it('restores shadowBlur and shadowColor after drawing', () => {
-    const ctx = makeCtx()
+    const { ctx } = makeDiamondCtx()
     ctx.shadowBlur = 0
     ctx.shadowColor = ''
     drawCellHighlight(ctx, 50, 80, charWidth, charHeight, '#ff69b4')
@@ -205,11 +177,11 @@ describe('drawCellHighlight', () => {
   })
 
   it('delegates to drawCellBackground geometry', () => {
-    const ctx = makeCtx()
+    const { ctx, mocks } = makeDiamondCtx()
     drawCellHighlight(ctx, 50, 80, charWidth, charHeight, '#ff69b4')
     // Same diamond path drawCellBackground would produce.
-    expect(ctx.fillRect).not.toHaveBeenCalled()
-    expect(ctx.fill).toHaveBeenCalledOnce()
+    expect(mocks.fillRect).not.toHaveBeenCalled()
+    expect(mocks.fill).toHaveBeenCalledOnce()
   })
 })
 

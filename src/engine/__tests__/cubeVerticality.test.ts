@@ -188,7 +188,7 @@ describe('cube verticality', () => {
 
   describe('reachable-mass under the cube rule', () => {
     const makeFlatGrid = (w: number, h: number): Tile[][] =>
-      Array.from({ length: h }, () => Array.from({ length: w }, () => ({ type: TileType.Dirt }) as Tile))
+      Array.from({ length: h }, () => Array.from({ length: w }, () => ({ type: TileType.Dirt })))
 
     it('excludes a two-cube-walled mesa from the spawn cohort', () => {
       const grid = makeFlatGrid(5, 5)

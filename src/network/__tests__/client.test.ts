@@ -74,7 +74,7 @@ const mockFetch = (response: unknown, status = 201): typeof fetch => {
         headers: { 'content-type': 'application/json' },
       })
     )
-  return impl as unknown as typeof fetch
+  return impl
 }
 
 describe('multiplayer foundation: NetworkClient', () => {

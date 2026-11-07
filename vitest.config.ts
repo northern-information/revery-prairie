@@ -84,7 +84,8 @@ export default defineConfig({
         },
       },
       {
-        plugins: [react()],
+        // Since Vitest 5, inline projects extend this config, so the root
+        // `react()` plugin already applies here.
         resolve: { alias },
         test: {
           name: 'ui',

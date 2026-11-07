@@ -558,7 +558,7 @@ describe('ruin infrastructure', () => {
 
       const interior = {
         entranceOverworld: { x: 5, y: 5 },
-      } as { entranceOverworld: { x: number; y: number } }
+      }
 
       placeRuinEntrances(map, [interior as never])
 
@@ -583,7 +583,7 @@ describe('ruin infrastructure', () => {
 
       const interior = {
         entranceOverworld: { x: 5, y: 5 },
-      } as { entranceOverworld: { x: number; y: number } }
+      }
 
       placeRuinEntrances(map, [interior as never])
 
@@ -605,7 +605,7 @@ describe('ruin infrastructure', () => {
 
       const interior = {
         entranceOverworld: { x: 0, y: 0 },
-      } as { entranceOverworld: { x: number; y: number } }
+      }
 
       placeRuinEntrances(map, [interior as never])
       expect(map[0][0].type).toBe(TileType.RuinEntrance)

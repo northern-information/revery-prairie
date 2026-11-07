@@ -17,18 +17,9 @@ import {
 import { checkHouseTransition } from '../house'
 import { initiateRevery, tickRevery } from '../revery'
 import { OmenKind, ReveryPhase, TileType, Zone } from '../types'
-import {
-  registerZoneSwapHandler as _ensureRegistered,
-  getZoneTransitionProgress,
-  tickZoneTransition,
-} from '../zoneTransition'
+import { tickZoneTransition } from '../zoneTransition'
 import { createTestState } from './helpers'
 import { describe, expect, it } from 'vitest'
-
-// Ensure side-effect imports run so the 'knot-cellar' handler is
-// registered. createKnotCellar's module already registers the handler at
-// module load.
-void _ensureRegistered
 
 const advanceTransition = (state: ReturnType<typeof createTestState>, startTime: number): void => {
   if (!state.zoneTransition) return
@@ -311,8 +302,4 @@ describe('RP-37 — the Knot Cellar', () => {
     })
 
   })
-
-  // Silence the unused import for getZoneTransitionProgress (kept for
-  // documentation of available helpers in this test surface).
-  void getZoneTransitionProgress
 })
